@@ -12,4 +12,8 @@
     <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="" />
+  </ItemGroup>
+
 </Project>
