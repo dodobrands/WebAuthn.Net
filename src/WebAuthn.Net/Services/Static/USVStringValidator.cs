@@ -4,10 +4,11 @@ using System.Runtime.CompilerServices;
 namespace WebAuthn.Net.Services.Static;
 
 /// <summary>
-/// The USVString type corresponds to <a href="https://infra.spec.whatwg.org/#scalar-value-string">scalar value strings</a>. Depending on the context, these can be treated as sequences of either 16-bit unsigned integer <a href="https://infra.spec.whatwg.org/#code-unit">code units</a> or <a href="https://infra.spec.whatwg.org/#scalar-value">scalar values</a>.
+///     The USVString type corresponds to <a href="https://infra.spec.whatwg.org/#scalar-value-string">scalar value strings</a>. Depending on the context, these can be treated as sequences of either 16-bit unsigned integer
+///     <a href="https://infra.spec.whatwg.org/#code-unit">code units</a> or <a href="https://infra.spec.whatwg.org/#scalar-value">scalar values</a>.
 /// </summary>
 /// <remarks>
-/// <a href="https://webidl.spec.whatwg.org/#idl-USVString">Web IDL. Living Standard — Last Updated 10 September 2023 § 2.13.19. USVString</a>.
+///     <a href="https://webidl.spec.whatwg.org/#idl-USVString">Web IDL. Living Standard — Last Updated 10 September 2023 § 2.13.19. USVString</a>.
 /// </remarks>
 // ReSharper disable once InconsistentNaming
 public static class USVStringValidator
@@ -23,7 +24,9 @@ public static class USVStringValidator
         foreach (var ch in input)
         {
             if (IsLeadingSurrogate(ch) || IsTrailingSurrogate(ch))
+            {
                 return false;
+            }
         }
 
         return true;

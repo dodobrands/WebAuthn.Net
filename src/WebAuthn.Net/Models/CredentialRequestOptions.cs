@@ -6,7 +6,7 @@ using WebAuthn.Net.Models.Enums;
 namespace WebAuthn.Net.Models;
 
 /// <summary>
-///     Credential request options. <see cref="https://www.w3.org/TR/webauthn-2/#sctn-credentialrequestoptions-extension"/>
+///     <a href="https://www.w3.org/TR/webauthn-2/#sctn-credentialrequestoptions-extension">Credential request options</a>.
 /// </summary>
 public class CredentialRequestOptions
 {
@@ -15,8 +15,8 @@ public class CredentialRequestOptions
     /// </summary>
     /// <param name="mediation">Mediation requirements for a given credential request</param>
     /// <param name="publicKey">Options for credential creation.</param>
-    /// <exception cref="ArgumentException">If the value of the parameter <paramref name="mediation"/> contains a value that is not defined in the <see cref="CredentialMediationRequirement"/> enum.</exception>
-    /// <exception cref="ArgumentNullException">If the parameter <paramref name="publicKey"/> is equal to <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">If the value of the parameter <paramref name="mediation" /> contains a value that is not defined in the <see cref="CredentialMediationRequirement" /> enum.</exception>
+    /// <exception cref="ArgumentNullException">If the parameter <paramref name="publicKey" /> is equal to <see langword="null" />.</exception>
     [JsonConstructor]
     public CredentialRequestOptions(
         CredentialMediationRequirement? mediation,
