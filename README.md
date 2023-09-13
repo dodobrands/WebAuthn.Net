@@ -22,8 +22,8 @@ If you have an idea, feature request, or you find a bug – feel free to open ne
 There are few tips how to make your contribution even better:
 
 - Start with issue.
-Even if you want to write code by yourself to implement some feature or fix a bug,
-please create Issue first and link it in the Pull Request.
-It allows us to better understand what problem you are trying to solve.
+  Even if you want to write code by yourself to implement some feature or fix a bug,
+  please create Issue first and link it in the Pull Request.
+  It allows us to better understand what problem you are trying to solve.
 - When you create a Pull Request make sure triggered GitHub Actions workflow finished successfully.
 - Please use English for everything :)
