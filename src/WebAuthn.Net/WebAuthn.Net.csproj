@@ -8,6 +8,12 @@
     <EmbedUntrackedSources>false</EmbedUntrackedSources>
     <DebugType>embedded</DebugType>
     <IncludeSymbols>true</IncludeSymbols>
+    <Version>$(VERSION_RELEASE)</Version>
+    <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="" />
+  </ItemGroup>
 
 </Project>

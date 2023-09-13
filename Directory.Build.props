@@ -1,8 +1,6 @@
 <Project>
 
     <PropertyGroup>
-        <VersionPrefix>1.0.0</VersionPrefix>
-        <VersionSuffix>alpha1</VersionSuffix>
         <Nullable>enable</Nullable>
         <ImplicitUsings>disable</ImplicitUsings>
         <DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
