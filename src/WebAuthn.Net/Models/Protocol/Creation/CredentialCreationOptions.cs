@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models;
+namespace WebAuthn.Net.Models.Protocol.Creation;
 
 /// <summary>
 ///     CredentialCreationOptions. <see cref="https://www.w3.org/TR/webauthn-2/#sctn-credentialcreationoptions-extension" />

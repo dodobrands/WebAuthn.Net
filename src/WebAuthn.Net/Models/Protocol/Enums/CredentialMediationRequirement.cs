@@ -1,10 +1,13 @@
 ﻿using System.Runtime.Serialization;
 
-namespace WebAuthn.Net.Models.Enums;
+namespace WebAuthn.Net.Models.Protocol.Enums;
 
 /// <summary>
-///     Requirement for <a href="https://www.w3.org/TR/credential-management-1/#user-mediated">user mediation</a>.
+///     <a href="https://www.w3.org/TR/credential-management-1/#mediation-requirements">Requirement</a> for <a href="https://www.w3.org/TR/credential-management-1/#user-mediated">user mediation</a>.
 /// </summary>
+/// <remarks>
+///     <a href="https://www.w3.org/TR/credential-management-1/#enumdef-credentialmediationrequirement">Credential Management Level 1 - § 2.3.2. Mediation Requirements</a>
+/// </remarks>
 public enum CredentialMediationRequirement
 {
     /// <summary>

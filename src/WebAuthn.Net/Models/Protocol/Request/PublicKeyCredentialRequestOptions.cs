@@ -1,27 +1,40 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Models.Enums;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Static;
 
-namespace WebAuthn.Net.Models;
+namespace WebAuthn.Net.Models.Protocol.Request;
 
 /// <summary>
 ///     Options for credential creation.
-///     <br />
-///     <a href="https://www.w3.org/TR/webauthn-2/#dictdef-publickeycredentialrequestoptions">Web Authentication: An API for accessing Public Key Credentials Level 2. § 5.5. Options for Assertion Generation</a> (dictionary <see cref="PublicKeyCredentialRequestOptions" />)
 /// </summary>
+/// <remarks>
+///     <a href="https://www.w3.org/TR/webauthn-2/#dictdef-publickeycredentialrequestoptions">Web Authentication: An API for accessing Public Key Credentials Level 2 - § 5.5. Options for Assertion Generation</a>
+/// </remarks>
 public class PublicKeyCredentialRequestOptions
 {
+    /// <summary>
+    ///     Constructs <see cref="PublicKeyCredentialRequestOptions" />.
+    /// </summary>
+    /// <param name="challenge">
+    ///     Represents a challenge that the selected <a href="https://www.w3.org/TR/webauthn-2/#authenticator">authenticator</a> signs, along with other data, when producing an
+    ///     <a href="https://www.w3.org/TR/webauthn-2/#authentication-assertion">authentication assertion</a>.
+    /// </param>
+    /// <param name="timeout">A numerical hint, in milliseconds, indicating the time the relying party (web application backend) is willing to wait for the retrieval operation to complete. This hint may be overridden by the browser.</param>
+    /// <param name="rpId">A string that specifies the relying party's identifier (for example "login.example.org").</param>
+    /// <param name="allowCredentials">A collection of objects that define a restricted list of acceptable credentials for retrieval.</param>
+    /// <param name="userVerification">Sets the requirements of the relying party for user verification during the authentication process.</param>
+    /// <param name="extensions">Contains additional parameters requesting additional processing by the client and authenticator.</param>
+    /// <exception cref="ArgumentNullException">If the parameter <paramref name="challenge" /> is equal to <see langword="null" />.</exception>
+    /// <exception cref="ArgumentException">If the <paramref name="rpId" /> parameter contains surrogate pairs, or the <paramref name="allowCredentials" /> array contains a <see langword="null" /> object, or the <paramref name="userVerification" /> parameter contains an invalid value.</exception>
     [JsonConstructor]
     public PublicKeyCredentialRequestOptions(
         byte[] challenge,
         uint? timeout,
         string? rpId,
-        IEnumerable<PublicKeyCredentialDescriptor>? allowCredentials,
+        PublicKeyCredentialDescriptor[]? allowCredentials,
         UserVerificationRequirement? userVerification,
         AuthenticationExtensionsClientInputs? extensions)
     {
@@ -40,15 +53,16 @@ public class PublicKeyCredentialRequestOptions
             RpId = rpId;
         }
 
-        if (allowCredentials is not null)
+        if (allowCredentials?.Length > 0)
         {
-            var allowCredentialsCopy = allowCredentials.ToImmutableList();
             // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-            if (allowCredentialsCopy.Any(x => x is null))
+            if (allowCredentials.Any(static x => x is null))
             {
                 throw new ArgumentException($"One or more objects contained in the {nameof(allowCredentials)} enumeration are equal to null.", nameof(allowCredentials));
             }
 
+            var allowCredentialsCopy = new PublicKeyCredentialDescriptor[allowCredentials.Length];
+            allowCredentials.CopyTo(allowCredentialsCopy, 0);
             AllowCredentials = allowCredentialsCopy;
         }
 
@@ -108,7 +122,7 @@ public class PublicKeyCredentialRequestOptions
     /// </summary>
     [JsonPropertyName("allowCredentials")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ImmutableList<PublicKeyCredentialDescriptor>? AllowCredentials { get; }
+    public PublicKeyCredentialDescriptor[]? AllowCredentials { get; }
 
     /// <summary>
     ///     Sets the requirements of the relying party for user verification during the authentication process. Describes the <a href="https://www.w3.org/TR/webauthn-2/#relying-party">relying party's</a> requirements for

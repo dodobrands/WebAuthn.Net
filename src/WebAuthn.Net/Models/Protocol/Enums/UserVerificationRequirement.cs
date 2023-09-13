@@ -1,0 +1,33 @@
+﻿using System.Runtime.Serialization;
+
+namespace WebAuthn.Net.Models.Protocol.Enums;
+
+/// <summary>
+///     This enumeration defines the requirements of <a href="https://www.w3.org/TR/webauthn-2/#user-verification">user verification</a> for a <a href="https://www.w3.org/TR/webauthn-2/#webauthn-relying-party">WebAuthn Relying Party</a>.
+/// </summary>
+/// <remarks>
+///     <a href="https://www.w3.org/TR/webauthn-2/#enum-transport">Web Authentication: An API for accessing Public Key Credentials Level 2 - § 5.8.6. User Verification Requirement Enumeration</a>
+/// </remarks>
+public enum UserVerificationRequirement
+{
+    /// <summary>
+    ///     Indicates that the <a href="https://www.w3.org/TR/webauthn-2/#relying-party">Relying Party</a> requires <a href="https://www.w3.org/TR/webauthn-2/#user-verification">user verification</a> for the operation and will fail the operation if the response does not have the
+    ///     <a href="https://www.w3.org/TR/webauthn-2/#uv">UV</a> <a href="https://www.w3.org/TR/webauthn-2/#flags">flag</a> set.
+    /// </summary>
+    [EnumMember(Value = "required")]
+    Required = 0,
+
+    /// <summary>
+    ///     Indicates that the <a href="https://www.w3.org/TR/webauthn-2/#relying-party">Relying Party</a> prefers <a href="https://www.w3.org/TR/webauthn-2/#user-verification">user verification</a> for the operation if possible, but will not fail the operation if the response does not
+    ///     have the <a href="https://www.w3.org/TR/webauthn-2/#uv">UV</a> <a href="https://www.w3.org/TR/webauthn-2/#flags">flag</a> set.
+    /// </summary>
+    [EnumMember(Value = "preferred")]
+    Preferred = 1,
+
+    /// <summary>
+    ///     Indicates that the <a href="https://www.w3.org/TR/webauthn-2/#relying-party">Relying Party</a> does not want <a href="https://www.w3.org/TR/webauthn-2/#user-verification">user verification</a> employed during the operation (e.g., in the interest of minimizing disruption to
+    ///     the user interaction flow).
+    /// </summary>
+    [EnumMember(Value = "discouraged")]
+    Discouraged = 2
+}

@@ -1,10 +1,9 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using WebAuthn.Net.Models.Protocol.Request;
 
-namespace WebAuthn.Net.Models;
+namespace WebAuthn.Net.Models.Protocol.Creation;
 
 /// <summary>
 ///     PublicKeyCredentialCreationOptions. <see cref="https://www.w3.org/TR/webauthn-2/#dictionary-makecredentialoptions" />

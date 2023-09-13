@@ -1,13 +1,18 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Models.Enums;
+using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Models;
+namespace WebAuthn.Net.Models.Protocol.Request;
 
 /// <summary>
-///     <a href="https://www.w3.org/TR/webauthn-2/#sctn-credentialrequestoptions-extension">Credential request options</a>.
+///     Credential request options.
 /// </summary>
+/// <remarks>
+///     <a href="https://www.w3.org/TR/credential-management-1/#credentialrequestoptions-dictionary">Credential Management Level 1 - § 2.3.1. The CredentialRequestOptions Dictionary</a>
+///     <br />
+///     <a href="https://www.w3.org/TR/webauthn-2/#sctn-credentialrequestoptions-extension">Web Authentication: An API for accessing Public Key Credentials Level 2 - § 5.1.2. CredentialRequestOptions Dictionary Extension</a>
+/// </remarks>
 public class CredentialRequestOptions
 {
     /// <summary>
@@ -44,9 +49,7 @@ public class CredentialRequestOptions
     public CredentialMediationRequirement? Mediation { get; }
 
     /// <summary>
-    ///     Options for credential creation.
-    ///     <br />
-    ///     <a href="https://www.w3.org/TR/webauthn-2/#dictdef-publickeycredentialrequestoptions">Web Authentication: An API for accessing Public Key Credentials Level 2. § 5.5. Options for Assertion Generation</a> (dictionary <see cref="PublicKeyCredentialRequestOptions" />)
+    ///     Options for public key credential creation.
     /// </summary>
     [JsonPropertyName("publicKey")]
     [Required]
