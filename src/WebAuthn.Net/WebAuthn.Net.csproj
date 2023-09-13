@@ -10,8 +10,4 @@
     <IncludeSymbols>true</IncludeSymbols>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Extensions\" />
-  </ItemGroup>
-
 </Project>
