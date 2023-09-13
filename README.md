@@ -2,11 +2,11 @@
 
 ## About
 
-In-house implementation of [W3C WebAuthN spec](https://www.w3.org/TR/webauthn-2/) on .NET
+In-house implementation of [W3C WebAuthn](https://www.w3.org/TR/webauthn-3/) on .NET
 
 ## Building
 
-.NET 6.0.414 SDK Required
+.NET 6.0.414+ SDK Required
 
 ## Releasing
 

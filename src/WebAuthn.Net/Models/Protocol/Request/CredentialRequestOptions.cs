@@ -11,7 +11,7 @@ namespace WebAuthn.Net.Models.Protocol.Request;
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/credential-management-1/#credentialrequestoptions-dictionary">Credential Management Level 1 - § 2.3.1. The CredentialRequestOptions Dictionary</a>
 ///     <br />
-///     <a href="https://www.w3.org/TR/webauthn-2/#sctn-credentialrequestoptions-extension">Web Authentication: An API for accessing Public Key Credentials Level 2 - § 5.1.2. CredentialRequestOptions Dictionary Extension</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-credentialrequestoptions-extension">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.1.2. CredentialRequestOptions Dictionary Extension</a>
 /// </remarks>
 public class CredentialRequestOptions
 {
@@ -49,7 +49,7 @@ public class CredentialRequestOptions
     public CredentialMediationRequirement? Mediation { get; }
 
     /// <summary>
-    ///     Options for public key credential creation.
+    ///     Options for assertion generation.
     /// </summary>
     [JsonPropertyName("publicKey")]
     [Required]

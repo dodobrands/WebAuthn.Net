@@ -8,10 +8,10 @@ using WebAuthn.Net.Services.Static;
 namespace WebAuthn.Net.Models.Protocol.Request;
 
 /// <summary>
-///     Options for credential creation.
+///     Options for assertion generation.
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-2/#dictdef-publickeycredentialrequestoptions">Web Authentication: An API for accessing Public Key Credentials Level 2 - § 5.5. Options for Assertion Generation</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#dictionary-assertion-options">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.5. Options for Assertion Generation</a>
 /// </remarks>
 public class PublicKeyCredentialRequestOptions
 {
@@ -19,14 +19,33 @@ public class PublicKeyCredentialRequestOptions
     ///     Constructs <see cref="PublicKeyCredentialRequestOptions" />.
     /// </summary>
     /// <param name="challenge">
-    ///     Represents a challenge that the selected <a href="https://www.w3.org/TR/webauthn-2/#authenticator">authenticator</a> signs, along with other data, when producing an
-    ///     <a href="https://www.w3.org/TR/webauthn-2/#authentication-assertion">authentication assertion</a>.
+    ///     This member represents a challenge that the selected <a href="https://www.w3.org/TR/webauthn-3/#authenticator">authenticator</a> signs,
+    ///     along with other data, when producing an <a href="https://www.w3.org/TR/webauthn-3/#authentication-assertion">authentication assertion</a>.
     /// </param>
-    /// <param name="timeout">A numerical hint, in milliseconds, indicating the time the relying party (web application backend) is willing to wait for the retrieval operation to complete. This hint may be overridden by the browser.</param>
-    /// <param name="rpId">A string that specifies the relying party's identifier (for example "login.example.org").</param>
-    /// <param name="allowCredentials">A collection of objects that define a restricted list of acceptable credentials for retrieval.</param>
-    /// <param name="userVerification">Sets the requirements of the relying party for user verification during the authentication process.</param>
-    /// <param name="extensions">Contains additional parameters requesting additional processing by the client and authenticator.</param>
+    /// <param name="timeout">
+    ///     This optional member specifies a time, in milliseconds, that the caller is willing to wait for the call to complete.
+    ///     The value is treated as a hint, and MAY be overridden by the <a href="https://www.w3.org/TR/webauthn-3/#client">client</a>.
+    /// </param>
+    /// <param name="rpId">
+    ///     This optional member specifies the <a href="https://www.w3.org/TR/webauthn-3/#relying-party-identifier">relying party identifier</a> claimed by the caller.
+    ///     If omitted, its value will be the <a href="https://www.w3.org/TR/credential-management-1/#credentialscontainer">CredentialsContainer</a> object’s
+    ///     <a href="https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object">relevant settings object's</a>
+    ///     <a href="https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin">origin's</a>
+    ///     <a href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-effective-domain">effective domain</a>.
+    /// </param>
+    /// <param name="allowCredentials">
+    ///     This optional member contains a list of <see cref="PublicKeyCredentialDescriptor" /> objects
+    ///     representing <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credentials</a> acceptable to the caller,
+    ///     in descending order of the caller’s preference (the first item in the list is the most preferred credential, and so on down the list).
+    /// </param>
+    /// <param name="userVerification">
+    ///     This optional member describes the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party's</a> requirements regarding
+    ///     <a href="https://www.w3.org/TR/webauthn-3/#user-verification">user verification</a> for the <a href="https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get">get()</a> operation.
+    ///     The value should be a member of <see cref="UserVerificationRequirement" /> but <a href="https://www.w3.org/TR/webauthn-3/#client-platform">client platforms</a> must ignore unknown values,
+    ///     treating an unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>.
+    ///     Eligible authenticators are filtered to only those capable of satisfying this requirement.
+    /// </param>
+    /// <param name="extensions">This optional member contains additional parameters requesting additional processing by the client and authenticator. For example, if transaction confirmation is sought from the user, then the prompt string might be included as an extension.</param>
     /// <exception cref="ArgumentNullException">If the parameter <paramref name="challenge" /> is equal to <see langword="null" />.</exception>
     /// <exception cref="ArgumentException">If the <paramref name="rpId" /> parameter contains surrogate pairs, or the <paramref name="allowCredentials" /> array contains a <see langword="null" /> object, or the <paramref name="userVerification" /> parameter contains an invalid value.</exception>
     [JsonConstructor]
@@ -80,8 +99,8 @@ public class PublicKeyCredentialRequestOptions
     }
 
     /// <summary>
-    ///     Represents a challenge that the selected <a href="https://www.w3.org/TR/webauthn-2/#authenticator">authenticator</a> signs, along with other data, when producing an <a href="https://www.w3.org/TR/webauthn-2/#authentication-assertion">authentication assertion</a>. This value
-    ///     will be signed by the authenticator and the signature will be sent back as part of the AuthenticatorAssertionResponse.signature (available in the response property of the PublicKeyCredential object returned by a successful get() call).
+    ///     This member represents a challenge that the selected <a href="https://www.w3.org/TR/webauthn-3/#authenticator">authenticator</a> signs,
+    ///     along with other data, when producing an <a href="https://www.w3.org/TR/webauthn-3/#authentication-assertion">authentication assertion</a>.
     /// </summary>
     [JsonPropertyName("challenge")]
     [Required]
@@ -89,52 +108,46 @@ public class PublicKeyCredentialRequestOptions
     public byte[] Challenge { get; }
 
     /// <summary>
-    ///     A numerical hint, in milliseconds, indicating the time the relying party (web application backend) is willing to wait for the retrieval operation to complete. This hint may be overridden by the browser.
+    ///     This optional member specifies a time, in milliseconds, that the caller is willing to wait for the call to complete.
+    ///     The value is treated as a hint, and MAY be overridden by the <a href="https://www.w3.org/TR/webauthn-3/#client">client</a>.
     /// </summary>
     [JsonPropertyName("timeout")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public uint? Timeout { get; }
 
     /// <summary>
-    ///     A string that specifies the relying party's identifier (for example "login.example.org").
-    ///     For security purposes:
-    ///     <list type="bullet">
-    ///         <item>
-    ///             <description>
-    ///                 The calling web app verifies that <see cref="RpId" /> matches the relying party's origin.
-    ///             </description>
-    ///         </item>
-    ///         <item>
-    ///             <description>
-    ///                 The authenticator verifies that <see cref="RpId" /> matches the rpId of the credential used for the authentication ceremony.
-    ///             </description>
-    ///         </item>
-    ///     </list>
-    ///     If omitted, its value will be the <a href="https://www.w3.org/TR/credential-management-1/#credentialscontainer">CredentialsContainer</a> object’s <a href="https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object">relevant settings</a> object's
-    ///     <a href="https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin">origin's</a> <a href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-effective-domain">effective domain</a> (to the current origin's domain).
+    ///     This optional member specifies the <a href="https://www.w3.org/TR/webauthn-3/#relying-party-identifier">relying party identifier</a> claimed by the caller.
+    ///     If omitted, its value will be the <a href="https://www.w3.org/TR/credential-management-1/#credentialscontainer">CredentialsContainer</a> object’s
+    ///     <a href="https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object">relevant settings object's</a>
+    ///     <a href="https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin">origin's</a>
+    ///     <a href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-effective-domain">effective domain</a>.
     /// </summary>
     [JsonPropertyName("rpId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? RpId { get; }
 
     /// <summary>
-    ///     A collection of objects that define a restricted list of acceptable credentials for retrieval.
+    ///     This optional member contains a list of <see cref="PublicKeyCredentialDescriptor" /> objects
+    ///     representing <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credentials</a> acceptable to the caller,
+    ///     in descending order of the caller’s preference (the first item in the list is the most preferred credential, and so on down the list).
     /// </summary>
     [JsonPropertyName("allowCredentials")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PublicKeyCredentialDescriptor[]? AllowCredentials { get; }
 
     /// <summary>
-    ///     Sets the requirements of the relying party for user verification during the authentication process. Describes the <a href="https://www.w3.org/TR/webauthn-2/#relying-party">relying party's</a> requirements for
-    ///     <a href="https://www.w3.org/TR/webauthn-2/#user-verification">user verification</a> during the <a href="https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get">get()</a> operation. The value should be a member of
-    ///     <see cref="UserVerificationRequirement" /> but client platforms must ignore unknown values, treating an unknown value as if the member does not exist. Eligible authenticators are filtered to only those capable of satisfying this requirement.
+    ///     This optional member describes the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party's</a> requirements regarding
+    ///     <a href="https://www.w3.org/TR/webauthn-3/#user-verification">user verification</a> for the <a href="https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get">get()</a> operation.
+    ///     The value should be a member of <see cref="UserVerificationRequirement" /> but <a href="https://www.w3.org/TR/webauthn-3/#client-platform">client platforms</a> must ignore unknown values,
+    ///     treating an unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>.
+    ///     Eligible authenticators are filtered to only those capable of satisfying this requirement.
     /// </summary>
     [JsonPropertyName("userVerification")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public UserVerificationRequirement? UserVerification { get; }
 
     /// <summary>
-    ///     Contains additional parameters requesting additional processing by the client and authenticator. For example, if transaction confirmation is sought from the user, then the prompt string might be included as an extension.
+    ///     This optional member contains additional parameters requesting additional processing by the client and authenticator. For example, if transaction confirmation is sought from the user, then the prompt string might be included as an extension.
     /// </summary>
     [JsonPropertyName("extensions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
