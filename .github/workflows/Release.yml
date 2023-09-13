@@ -18,8 +18,8 @@ jobs:
               env:
                   NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             - run: dotnet test -c Release
-            - run: dotnet pack -o out
-            - run: dotnet nuget push src/WebAuthn.Net/WebAuthn.Net.$RELEASE_VERSION.nupkg
+            - run: dotnet pack -c Release -o out src/WebAuthn.Net
+            - run: dotnet nuget push out/WebAuthn.Net.${{ env.RELEASE_VERSION }}.nupkg --source ${{ secrets.NUGET_SOURCE }} --api-key ${{ secrets.GITHUB_TOKEN }}
             - name: Create a Release
               uses: elgohr/Github-Release-Action@v4
               env:
