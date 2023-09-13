@@ -2,6 +2,8 @@ name: CI
 on:
     workflow_dispatch:
     push:
+        branches-ignore:
+            - main
 jobs:
     build-test:
         runs-on: ubuntu-latest
@@ -15,5 +17,3 @@ jobs:
                   NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             - run: dotnet build -c Release
             - run: dotnet test -c Release
-#            - run: dotnet nuget push src/WebAuthn.Net/WebAuthn.Net.nupkg
-

@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
+    <Version>$(VERSION_RELEASE)</Version>
+    <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
   </PropertyGroup>
 
 </Project>

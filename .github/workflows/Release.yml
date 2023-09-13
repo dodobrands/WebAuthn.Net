@@ -1,0 +1,31 @@
+name: Release and Publish
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            -   name: Set env
+                run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+            - uses: actions/setup-dotnet@v3.2.0
+              with:
+                  dotnet-version: 6.0.414
+              env:
+                  NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+            - run: dotnet test -c Release
+            - run: dotnet pack -o out
+            - run: dotnet nuget push src/WebAuthn.Net/WebAuthn.Net.$RELEASE_VERSION.nupkg
+            - name: Create a Release
+              uses: elgohr/Github-Release-Action@v4
+              env:
+                  GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+                  NUGET_AUTH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+              with:
+                  title: WebAuthN
+
+
