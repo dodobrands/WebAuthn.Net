@@ -1,0 +1,19 @@
+name: CI
+on:
+    workflow_dispatch:
+    push:
+jobs:
+    build-test:
+        runs-on: ubuntu-latest
+        name: Build and run tests
+        steps:
+            - uses: actions/checkout@v4.0.0
+            - uses: actions/setup-dotnet@v3.2.0
+              with:
+                  dotnet-version: 6.0.414
+              env:
+                  NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+            - run: dotnet build -c Release
+            - run: dotnet test -c Release
+#            - run: dotnet nuget push src/WebAuthn.Net/WebAuthn.Net.nupkg
+
