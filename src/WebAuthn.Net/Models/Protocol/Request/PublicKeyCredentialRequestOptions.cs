@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -48,6 +49,7 @@ public class PublicKeyCredentialRequestOptions
     /// <param name="extensions">This optional member contains additional parameters requesting additional processing by the client and authenticator. For example, if transaction confirmation is sought from the user, then the prompt string might be included as an extension.</param>
     /// <exception cref="ArgumentNullException">If the parameter <paramref name="challenge" /> is equal to <see langword="null" />.</exception>
     /// <exception cref="ArgumentException">If the <paramref name="rpId" /> parameter contains surrogate pairs, or the <paramref name="allowCredentials" /> array contains a <see langword="null" /> object, or the <paramref name="userVerification" /> parameter contains an invalid value.</exception>
+    /// <exception cref="InvalidEnumArgumentException">If the <paramref name="userVerification" /> parameter contains a value that is not defined in the <see cref="UserVerificationRequirement" /> enum.</exception>
     [JsonConstructor]
     public PublicKeyCredentialRequestOptions(
         byte[] challenge,
@@ -77,7 +79,7 @@ public class PublicKeyCredentialRequestOptions
             // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
             if (allowCredentials.Any(static x => x is null))
             {
-                throw new ArgumentException($"One or more objects contained in the {nameof(allowCredentials)} enumeration are equal to null.", nameof(allowCredentials));
+                throw new ArgumentException($"One or more objects contained in the {nameof(allowCredentials)} array are equal to null.", nameof(allowCredentials));
             }
 
             var allowCredentialsCopy = new PublicKeyCredentialDescriptor[allowCredentials.Length];
@@ -89,7 +91,7 @@ public class PublicKeyCredentialRequestOptions
         {
             if (!Enum.IsDefined(userVerification.Value))
             {
-                throw new ArgumentException("Incorrect value", nameof(userVerification));
+                throw new InvalidEnumArgumentException(nameof(userVerification), (int) userVerification, typeof(UserVerificationRequirement));
             }
 
             UserVerification = userVerification.Value;

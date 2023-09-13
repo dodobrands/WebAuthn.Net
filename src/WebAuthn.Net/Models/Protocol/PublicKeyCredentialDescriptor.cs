@@ -1,10 +1,10 @@
 ﻿using System;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Models.Protocol.Request;
+namespace WebAuthn.Net.Models.Protocol;
 
 /// <summary>
 ///     This object contains the attributes that are specified by a caller when referring to a <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a>
@@ -33,7 +33,10 @@ public class PublicKeyCredentialDescriptor
     ///     of the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a> the caller is referring to.
     ///     The values should be members of <see cref="AuthenticatorTransport" /> but client platforms must ignore unknown values.
     /// </param>
-    /// <exception cref="ArgumentException">If the parameter <paramref name="type" /> contains an invalid value or if the <paramref name="transports" /> array contains an invalid value.</exception>
+    /// <exception cref="InvalidEnumArgumentException">
+    ///     If the <paramref name="type" /> parameter contains a value that is not defined in the <see cref="PublicKeyCredentialType" /> enum
+    ///     or if any of the elements in the <paramref name="transports" /> array contains a value that is not defined in the <see cref="AuthenticatorTransport" /> enum.
+    /// </exception>
     /// <exception cref="ArgumentNullException">If the parameter <paramref name="id" /> is equal to <see langword="null" />.</exception>
     [JsonConstructor]
     public PublicKeyCredentialDescriptor(
@@ -43,7 +46,7 @@ public class PublicKeyCredentialDescriptor
     {
         if (!Enum.IsDefined(type))
         {
-            throw new ArgumentException("Incorrect value", nameof(type));
+            throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
         }
 
         Type = type;
@@ -53,12 +56,17 @@ public class PublicKeyCredentialDescriptor
 
         if (transports?.Length > 0)
         {
-            if (transports.Any(static x => !Enum.IsDefined(x)))
+            foreach (var transport in transports)
             {
-                throw new ArgumentException($"One or more objects contained in the {nameof(transports)} enumeration contain an invalid value.", nameof(transports));
+                if (!Enum.IsDefined(transport))
+                {
+                    throw new InvalidEnumArgumentException(nameof(transports), (int) transport, typeof(AuthenticatorTransport));
+                }
             }
 
-            Transports = transports;
+            var transportsCopy = new AuthenticatorTransport[transports.Length];
+            transports.CopyTo(transportsCopy, 0);
+            Transports = transportsCopy;
         }
     }
 

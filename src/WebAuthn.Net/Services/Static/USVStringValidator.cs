@@ -8,7 +8,7 @@ namespace WebAuthn.Net.Services.Static;
 ///     <a href="https://infra.spec.whatwg.org/#code-unit">code units</a> or <a href="https://infra.spec.whatwg.org/#scalar-value">scalar values</a>.
 /// </summary>
 /// <remarks>
-///     <a href="https://webidl.spec.whatwg.org/#idl-USVString">Web IDL. Living Standard — Last Updated 10 September 2023 § 2.13.19. USVString</a>.
+///     <a href="https://webidl.spec.whatwg.org/#idl-USVString">Web IDL. Living Standard — Last Updated 10 September 2023 - § 2.13.19. USVString</a>.
 /// </remarks>
 // ReSharper disable once InconsistentNaming
 public static class USVStringValidator

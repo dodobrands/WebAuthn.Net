@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -19,25 +20,25 @@ public class CredentialRequestOptions
     ///     Constructs <see cref="CredentialRequestOptions" />.
     /// </summary>
     /// <param name="mediation">Mediation requirements for a given credential request</param>
-    /// <param name="publicKey">Options for credential creation.</param>
-    /// <exception cref="ArgumentException">If the value of the parameter <paramref name="mediation" /> contains a value that is not defined in the <see cref="CredentialMediationRequirement" /> enum.</exception>
+    /// <param name="publicKey">Options for assertion generation.</param>
     /// <exception cref="ArgumentNullException">If the parameter <paramref name="publicKey" /> is equal to <see langword="null" />.</exception>
+    /// <exception cref="InvalidEnumArgumentException">If the value of the parameter <paramref name="mediation" /> contains a value that is not defined in the <see cref="CredentialMediationRequirement" /> enum.</exception>
     [JsonConstructor]
     public CredentialRequestOptions(
         CredentialMediationRequirement? mediation,
         PublicKeyCredentialRequestOptions publicKey)
     {
+        ArgumentNullException.ThrowIfNull(publicKey, nameof(publicKey));
         if (mediation.HasValue)
         {
             if (!Enum.IsDefined(mediation.Value))
             {
-                throw new ArgumentException("Incorrect value", nameof(mediation));
+                throw new InvalidEnumArgumentException(nameof(mediation), (int) mediation.Value, typeof(CredentialMediationRequirement));
             }
 
             Mediation = mediation.Value;
         }
 
-        ArgumentNullException.ThrowIfNull(publicKey, nameof(publicKey));
         PublicKey = publicKey;
     }
 

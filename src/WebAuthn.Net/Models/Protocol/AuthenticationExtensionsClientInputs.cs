@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Models.Protocol.Request;
+﻿namespace WebAuthn.Net.Models.Protocol;
 
 /// <summary>
 ///     Additional parameters requesting additional processing by the client and authenticator.
