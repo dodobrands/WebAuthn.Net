@@ -1,9 +1,8 @@
 name: Release and Publish
 
 on:
-    push:
-        tags:
-            - "v*"
+    release:
+        types: [ published ]
 
 jobs:
     build:
@@ -20,12 +19,3 @@ jobs:
             - run: dotnet test -c Release
             - run: dotnet pack -c Release -o out src/WebAuthn.Net
             - run: dotnet nuget push out/WebAuthn.Net.${{ env.RELEASE_VERSION }}.nupkg --source ${{ secrets.NUGET_SOURCE }} --api-key ${{ secrets.GITHUB_TOKEN }}
-            - name: Create a Release
-              uses: elgohr/Github-Release-Action@v4
-              env:
-                  GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-                  NUGET_AUTH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
-              with:
-                  title: WebAuthN
-
-
