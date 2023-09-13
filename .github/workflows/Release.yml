@@ -7,13 +7,18 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
+        env:
+            DOTNET_NOLOGO: true
+            DOTNET_CLI_TELEMETRY_OPTOUT: true
         steps:
             - uses: actions/checkout@v3
-            -   name: Set env
-                run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+              with:
+                  ref: ${{ github.sha }}
+            - run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
             - uses: actions/setup-dotnet@v3.2.0
               with:
                   dotnet-version: 6.0.414
+                  source-url: ${{ secrets.NUGET_SOURCE }}
               env:
                   NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             - run: dotnet test -c Release
