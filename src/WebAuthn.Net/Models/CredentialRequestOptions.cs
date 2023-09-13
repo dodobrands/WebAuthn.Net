@@ -5,7 +5,7 @@ using WebAuthn.Net.Models.Enums;
 namespace WebAuthn.Net.Models;
 
 /// <summary>
-///     Credential request options.
+///     Credential request options. <see cref="https://www.w3.org/TR/webauthn-2/#sctn-credentialrequestoptions-extension"/>
 /// </summary>
 public class CredentialRequestOptions
 {
