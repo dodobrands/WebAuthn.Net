@@ -2,8 +2,7 @@ name: CI
 on:
     workflow_dispatch:
     push:
-        branches-ignore:
-            - main
+
 jobs:
     build-test:
         runs-on: ubuntu-latest
