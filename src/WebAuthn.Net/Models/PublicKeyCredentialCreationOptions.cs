@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace WebAuthn.Net.Models;
 
 /// <summary>
-/// PublicKeyCredentialCreationOptions. <see cref="https://www.w3.org/TR/webauthn-2/#dictionary-makecredentialoptions"/>
+///     PublicKeyCredentialCreationOptions. <see cref="https://www.w3.org/TR/webauthn-2/#dictionary-makecredentialoptions" />
 /// </summary>
 public class PublicKeyCredentialCreationOptions
 {
