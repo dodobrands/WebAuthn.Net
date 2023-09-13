@@ -290,6 +290,9 @@ csharp_place_accessorholder_attribute_on_same_line = false
 csharp_place_accessor_attribute_on_same_line = false
 csharp_place_field_attribute_on_same_line = false
 # Diagnostics
+# CA1014: Mark assemblies with CLSCompliantAttribute
+# An assembly does not have the System.CLSCompliantAttribute attribute applied to it.
+dotnet_diagnostic.CA1014.severity = none
 # CA1054: URI parameters should not be strings
 # A type declares a method with a string parameter whose name contains "uri", "Uri", "urn", "Urn", "url", or "Url", and the type does not declare a corresponding overload that takes a System.Uri parameter.
 dotnet_diagnostic.CA1054.severity = suggestion

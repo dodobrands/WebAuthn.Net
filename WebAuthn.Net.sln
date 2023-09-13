@@ -11,6 +11,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{DE313B26
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAuthn.Net.Tests.Unit", "tests\WebAuthn.Net.Tests.Unit\WebAuthn.Net.Tests.Unit.csproj", "{0B891DAE-3A95-4F2B-A59C-B2EAC0B6182C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{19131E38-A34B-4D5C-A917-34BDDEA3805D}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		global.json = global.json
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+		.gitattributes = .gitattributes
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,5 +42,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{E213A9D0-0AF5-49A5-8649-57CD57BA2DD2} = {1AFD2F40-4DF0-40FC-BE14-B5B939E36A1D}
 		{0B891DAE-3A95-4F2B-A59C-B2EAC0B6182C} = {DE313B26-6B26-46F0-BAE0-9AEA1786B9C9}
+		{1AFD2F40-4DF0-40FC-BE14-B5B939E36A1D} = {19131E38-A34B-4D5C-A917-34BDDEA3805D}
+		{DE313B26-6B26-46F0-BAE0-9AEA1786B9C9} = {19131E38-A34B-4D5C-A917-34BDDEA3805D}
 	EndGlobalSection
 EndGlobal

@@ -1,6 +1,8 @@
+﻿using NUnit.Framework;
+
 namespace WebAuthn.Net.Tests.Unit;
 
-public class Tests
+public class GithubActionsStub
 {
     [Test]
     public void InitialTestsForCiCd()
