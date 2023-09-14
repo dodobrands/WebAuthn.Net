@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 
-namespace WebAuthn.Net.Services.Static;
+namespace WebAuthn.Net.Serialization.Json;
 
 internal static class EnumNameMapper<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>
     where TEnum : struct, Enum
