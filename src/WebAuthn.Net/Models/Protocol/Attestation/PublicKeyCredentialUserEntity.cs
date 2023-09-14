@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Extensions;
+using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Attestation;
 
@@ -75,6 +76,7 @@ public class PublicKeyCredentialUserEntity
     [JsonPropertyName("id")]
     [Required]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonConverter(typeof(Base64UrlConverter))]
     public byte[] Id { get; }
 
     /// <summary>

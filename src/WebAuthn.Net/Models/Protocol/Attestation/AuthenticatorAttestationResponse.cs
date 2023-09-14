@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Extensions;
+using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Attestation;
 
@@ -57,6 +58,7 @@ public class AuthenticatorAttestationResponse
     [Required]
     [JsonPropertyName("clientDataJSON")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonConverter(typeof(Base64UrlConverter))]
     public byte[] ClientDataJson { get; }
 
     /// <summary>
@@ -75,5 +77,6 @@ public class AuthenticatorAttestationResponse
     [Required]
     [JsonPropertyName("attestationObject")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonConverter(typeof(Base64UrlConverter))]
     public byte[] AttestationObject { get; }
 }

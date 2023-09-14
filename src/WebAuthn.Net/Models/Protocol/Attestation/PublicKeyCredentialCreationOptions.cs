@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Attestation;
 
@@ -94,6 +95,7 @@ public class PublicKeyCredentialCreationOptions
     [Required]
     [JsonPropertyName("challenge")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonConverter(typeof(Base64UrlConverter))]
     public byte[] Challenge { get; }
 
     /// <summary>

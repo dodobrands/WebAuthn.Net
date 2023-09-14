@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Models.Protocol.Assertion;
@@ -93,6 +94,7 @@ public class PublicKeyCredential
     [JsonPropertyName("rawId")]
     [Required]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonConverter(typeof(Base64UrlConverter))]
     public byte[] RawId { get; }
 
     /// <summary>
