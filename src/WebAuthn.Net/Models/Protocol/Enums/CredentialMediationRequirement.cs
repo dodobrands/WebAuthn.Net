@@ -1,4 +1,6 @@
 ﻿using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
+using WebAuthn.Net.Serialization;
 
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
@@ -8,6 +10,7 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/credential-management-1/#enumdef-credentialmediationrequirement">Credential Management Level 1 - § 2.3.2. Mediation Requirements</a>
 /// </remarks>
+[JsonConverter(typeof(EnumAsStringConverter<CredentialMediationRequirement>))]
 public enum CredentialMediationRequirement
 {
     /// <summary>
