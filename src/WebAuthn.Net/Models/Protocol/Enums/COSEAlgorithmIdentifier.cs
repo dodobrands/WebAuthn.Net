@@ -7,15 +7,12 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 /// </summary>
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-alg-identifier">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.8.5. Cryptographic Algorithm Identifier</a>
+///     <br />
+///     <a href="https://github.com/dotnet/runtime/blob/v7.0.11/src/libraries/System.Security.Cryptography.Cose/src/System/Security/Cryptography/Cose/KnownCoseAlgorithms.cs#L12-L22">.NET supported algorithms</a>
 /// </remarks>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public enum COSEAlgorithmIdentifier
 {
-    /// <summary>
-    ///     RSASSA-PKCS1-v1_5 w/ SHA-1
-    /// </summary>
-    RS1 = -65535,
-
     /// <summary>
     ///     RSASSA-PKCS1-v1_5 w/ SHA-512
     /// </summary>
@@ -57,18 +54,8 @@ public enum COSEAlgorithmIdentifier
     ES384 = -35,
 
     /// <summary>
-    ///     EdDSA
-    /// </summary>
-    EdDSA = -8,
-
-    /// <summary>
     ///     ECDSA w/ SHA-256
     /// </summary>
-    ES256 = -7,
-
-    /// <summary>
-    ///     ECDSA using secp256k1 curve and SHA-256
-    /// </summary>
-    ES256K = -47
+    ES256 = -7
 }
 #pragma warning restore CA1008

@@ -1,8 +1,9 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using WebAuthn.Net.Extensions;
 
-namespace WebAuthn.Net.Models.Protocol.Creation;
+namespace WebAuthn.Net.Models.Protocol.Attestation;
 
 /// <summary>
 ///     User Account Parameters for Credential Generation
@@ -59,9 +60,7 @@ public class PublicKeyCredentialUserEntity
             throw new ArgumentException("Value cannot be null or empty.", nameof(name));
         }
 
-        var idCopy = new byte[id.Length];
-        id.CopyTo(idCopy, 0);
-        Id = idCopy;
+        Id = id.CreateCopy();
         DisplayName = displayName;
         Name = name;
     }

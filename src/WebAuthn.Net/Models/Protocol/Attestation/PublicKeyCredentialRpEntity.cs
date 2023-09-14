@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models.Protocol.Creation;
+namespace WebAuthn.Net.Models.Protocol.Attestation;
 
 /// <summary>
 ///     Relying Party Parameters for Credential Generation

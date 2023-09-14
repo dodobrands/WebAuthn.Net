@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Models.Protocol.Request;
+namespace WebAuthn.Net.Models.Protocol.Assertion;
 
 /// <summary>
 ///     Credential request options.
@@ -21,8 +21,8 @@ public class CredentialRequestOptions
     /// </summary>
     /// <param name="mediation">Mediation requirements for a given credential request</param>
     /// <param name="publicKey">Options for assertion generation.</param>
-    /// <exception cref="ArgumentNullException">If the parameter <paramref name="publicKey" /> is equal to <see langword="null" />.</exception>
-    /// <exception cref="InvalidEnumArgumentException">If the value of the parameter <paramref name="mediation" /> contains a value that is not defined in the <see cref="CredentialMediationRequirement" /> enum.</exception>
+    /// <exception cref="ArgumentNullException">If the <paramref name="publicKey" /> parameter is <see langword="null" />.</exception>
+    /// <exception cref="InvalidEnumArgumentException">If the <paramref name="mediation" /> parameter contains a value not defined in the <see cref="CredentialMediationRequirement" /> enum.</exception>
     [JsonConstructor]
     public CredentialRequestOptions(
         CredentialMediationRequirement? mediation,

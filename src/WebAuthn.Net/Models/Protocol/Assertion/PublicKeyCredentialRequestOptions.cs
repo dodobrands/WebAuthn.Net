@@ -3,10 +3,11 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
+using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Static;
 
-namespace WebAuthn.Net.Models.Protocol.Request;
+namespace WebAuthn.Net.Models.Protocol.Assertion;
 
 /// <summary>
 ///     Options for assertion generation.
@@ -60,9 +61,7 @@ public class PublicKeyCredentialRequestOptions
         AuthenticationExtensionsClientInputs? extensions)
     {
         ArgumentNullException.ThrowIfNull(challenge);
-        var challengeCopy = new byte[challenge.Length];
-        challenge.CopyTo(challengeCopy, 0);
-        Challenge = challengeCopy;
+        Challenge = challenge.CreateCopy();
         Timeout = timeout;
         if (rpId is not null)
         {
@@ -82,9 +81,7 @@ public class PublicKeyCredentialRequestOptions
                 throw new ArgumentException($"One or more objects contained in the {nameof(allowCredentials)} array are equal to null.", nameof(allowCredentials));
             }
 
-            var allowCredentialsCopy = new PublicKeyCredentialDescriptor[allowCredentials.Length];
-            allowCredentials.CopyTo(allowCredentialsCopy, 0);
-            AllowCredentials = allowCredentialsCopy;
+            AllowCredentials = allowCredentials.CreateCopy();
         }
 
         if (userVerification.HasValue)

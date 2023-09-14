@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models.Protocol.Creation;
+namespace WebAuthn.Net.Models.Protocol.Attestation;
 
 /// <summary>
 ///     Credential request options.

@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
 
 namespace WebAuthn.Net.Models.Protocol;
@@ -52,7 +53,7 @@ public class PublicKeyCredentialDescriptor
         Type = type;
 
         ArgumentNullException.ThrowIfNull(id);
-        Id = id;
+        Id = id.CreateCopy();
 
         if (transports?.Length > 0)
         {
@@ -64,9 +65,7 @@ public class PublicKeyCredentialDescriptor
                 }
             }
 
-            var transportsCopy = new AuthenticatorTransport[transports.Length];
-            transports.CopyTo(transportsCopy, 0);
-            Transports = transportsCopy;
+            Transports = transports.CreateCopy();
         }
     }
 
