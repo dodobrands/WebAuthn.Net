@@ -24,4 +24,9 @@
     <ProjectReference Include="..\..\src\WebAuthn.Net\WebAuthn.Net.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="DSL\Json\*.json" />
+    <EmbeddedResource Include="DSL\Json\*.json" />
+  </ItemGroup>
+
 </Project>

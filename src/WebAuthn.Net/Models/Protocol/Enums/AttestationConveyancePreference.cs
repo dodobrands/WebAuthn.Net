@@ -1,6 +1,6 @@
 ﻿using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Serialization;
+using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
@@ -10,7 +10,7 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/webauthn-3/#enum-attestation-convey">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.4.7. Attestation Conveyance Preference Enumeration</a>
 /// </remarks>
-[JsonConverter(typeof(EnumAsStringConverter<AttestationConveyancePreference>))]
+[JsonConverter(typeof(EnumValueAttributeConverter<AttestationConveyancePreference>))]
 public enum AttestationConveyancePreference
 {
     /// <summary>

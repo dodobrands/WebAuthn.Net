@@ -6,9 +6,9 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 
-namespace WebAuthn.Net.Serialization;
+namespace WebAuthn.Net.Services.Static;
 
-static class EnumNameMapper<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>
+internal static class EnumNameMapper<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>
     where TEnum : struct, Enum
 {
     private static readonly Dictionary<TEnum, string> ValueToNames = GetIdToNameMap().ToDictionary(i => i.value, i => i.name);
@@ -51,7 +51,7 @@ static class EnumNameMapper<[DynamicallyAccessedMembers(DynamicallyAccessedMembe
                 throw new JsonException("EnumMemberAttribute must specify json property name.");
             }
 
-            var value = (TEnum) (field.GetValue(null)!);
+            var value = (TEnum) field.GetValue(null)!;
             var name = description.Value;
 
             yield return (value, name);

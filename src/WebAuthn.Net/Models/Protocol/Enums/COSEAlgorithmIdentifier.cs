@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 
 namespace WebAuthn.Net.Models.Protocol.Enums;
 #pragma warning disable CA1008
