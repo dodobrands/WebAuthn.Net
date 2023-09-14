@@ -29,12 +29,12 @@ public static class JsonToVerify
         }
 
         var jsonDocument = JsonSerializer.Deserialize<JsonDocument>(resourceStream);
-        var unintendedValue = JsonSerializer.Serialize(jsonDocument, new JsonSerializerOptions(JsonSerializerDefaults.General)
+        var unindentedValue = JsonSerializer.Serialize(jsonDocument, new JsonSerializerOptions(JsonSerializerDefaults.General)
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             DefaultIgnoreCondition = JsonIgnoreCondition.Never,
             WriteIndented = false
         });
-        return unintendedValue;
+        return unindentedValue;
     }
 }

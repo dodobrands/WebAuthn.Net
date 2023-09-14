@@ -7,16 +7,13 @@ namespace WebAuthn.Net.Models.Protocol.Attestation;
 public class CredentialCreationOptionsSerializationTests
 {
     [Test]
-    public void CredentialCreationOptionsCanRoundtrip()
+    public void CanRoundtrip()
     {
-        var original = CredentialCreationOptionsExample1;
-        var deserialized = JsonSerializer.Deserialize<CredentialCreationOptions>(original);
-        var serialized = JsonSerializer.Serialize(deserialized, new JsonSerializerOptions
-        {
-            WriteIndented = false
-        });
-        Assert.That(serialized, Is.EqualTo(original));
+        var expected = CredentialCreationOptionsExample1();
+        var deserialized = JsonSerializer.Deserialize<CredentialCreationOptions>(expected);
+        var reSerialized = JsonSerializer.Serialize(deserialized);
+        Assert.That(reSerialized, Is.EqualTo(expected));
     }
 
-    private static string CredentialCreationOptionsExample1 => JsonToVerify.Get();
+    private static string CredentialCreationOptionsExample1() => JsonToVerify.Get();
 }
