@@ -3,9 +3,10 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
+using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Models.Protocol.Creation;
+namespace WebAuthn.Net.Models.Protocol.Attestation;
 
 /// <summary>
 ///     Options for credential creation.
@@ -32,9 +33,7 @@ public class PublicKeyCredentialCreationOptions
         ArgumentNullException.ThrowIfNull(pubKeyCredParams);
         Rp = rp;
         User = user;
-        var challengeCopy = new byte[challenge.Length];
-        challenge.CopyTo(challengeCopy, 0);
-        Challenge = challengeCopy;
+        Challenge = challenge.CreateCopy();
         if (pubKeyCredParams.Length == 0)
         {
             throw new ArgumentException("Value cannot be an empty collection.", nameof(pubKeyCredParams));
@@ -46,9 +45,7 @@ public class PublicKeyCredentialCreationOptions
             throw new ArgumentException($"One or more objects contained in the {nameof(pubKeyCredParams)} array are equal to null.", nameof(pubKeyCredParams));
         }
 
-        var pubKeyCredParamsCopy = new PublicKeyCredentialParameters[pubKeyCredParams.Length];
-        pubKeyCredParams.CopyTo(pubKeyCredParamsCopy, 0);
-        PubKeyCredParams = pubKeyCredParamsCopy;
+        PubKeyCredParams = pubKeyCredParams.CreateCopy();
         Timeout = timeout;
         if (excludeCredentials?.Length > 0)
         {
@@ -58,9 +55,7 @@ public class PublicKeyCredentialCreationOptions
                 throw new ArgumentException($"One or more objects contained in the {nameof(excludeCredentials)} array are equal to null.", nameof(excludeCredentials));
             }
 
-            var excludeCredentialsCopy = new PublicKeyCredentialDescriptor[excludeCredentials.Length];
-            excludeCredentials.CopyTo(excludeCredentialsCopy, 0);
-            ExcludeCredentials = excludeCredentialsCopy;
+            ExcludeCredentials = excludeCredentials.CreateCopy();
         }
 
         AuthenticatorSelection = authenticatorSelection;

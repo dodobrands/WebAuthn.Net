@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Models.Protocol.Creation;
+namespace WebAuthn.Net.Models.Protocol.Attestation;
 
 /// <summary>
 ///     Authenticator Selection Criteria
