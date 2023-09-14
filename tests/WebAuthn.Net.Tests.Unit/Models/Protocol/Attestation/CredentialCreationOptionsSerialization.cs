@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Models.Protocol.Attestation;
 public class CredentialCreationOptionsSerializationTests
 {
     [Test]
-    public void CredentialCreationOptionsCanRoundtrip1()
+    public void CredentialCreationOptionsCanRoundtrip()
     {
         var original = CredentialCreationOptionsExample1;
         var deserialized = JsonSerializer.Deserialize<CredentialCreationOptions>(original);
