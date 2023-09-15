@@ -7,6 +7,16 @@ namespace WebAuthn.Net.Serialization.Json;
 
 public class EnumAsStringConverterIntegrationTests
 {
+    [JsonConverter(typeof(EnumAsStringConverter<Fruit>))]
+    public enum Fruit
+    {
+        [EnumMember(Value = "banana-fruit")]
+        Banana,
+
+        [EnumMember(Value = "apple-fruit")]
+        Apple
+    }
+
     [TestCase(Fruit.Apple, "apple-fruit")]
     [TestCase(Fruit.Banana, "banana-fruit")]
     public void SerializeEnum(Fruit expectedValue, string expectedStringRepresentation)
@@ -22,16 +32,6 @@ public class EnumAsStringConverterIntegrationTests
         Assert.That(x, Is.EqualTo(expectedStringRepresentation));
         var deserialized = JsonSerializer.Deserialize<Dto>(serialized);
         Assert.That(deserialized!.Fruit, Is.EqualTo(expectedValue));
-    }
-
-    [JsonConverter(typeof(EnumAsStringConverter<Fruit>))]
-    public enum Fruit
-    {
-        [EnumMember(Value = "banana-fruit")]
-        Banana,
-
-        [EnumMember(Value = "apple-fruit")]
-        Apple
     }
 
 

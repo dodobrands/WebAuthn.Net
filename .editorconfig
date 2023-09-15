@@ -320,9 +320,6 @@ dotnet_diagnostic.CA1711.severity = suggestion
 # CA1716: Identifiers should not match keywords
 # The name of a namespace, type, or virtual or interface member matches a reserved keyword in a programming language.
 dotnet_diagnostic.CA1716.severity = suggestion
-# CA1721: Property names should not match get methods
-# The name of a member starts with 'Get' and otherwise matches the name of a property. For example, a type that contains a method that's named 'GetColor' and a property that's named 'Color' cause a rule violation
-dotnet_diagnostic.CA1721.severity = none
 # CA1819: Properties should not return arrays
 # A property returns an array.
 dotnet_diagnostic.CA1819.severity = suggestion
