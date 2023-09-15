@@ -6,13 +6,23 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 
-namespace WebAuthn.Net.Serialization.Json;
+namespace WebAuthn.Net.Services.Static;
 
 internal static class EnumNameMapper<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>
     where TEnum : struct, Enum
 {
     private static readonly Dictionary<TEnum, string> ValueToNames = GetIdToNameMap().ToDictionary(i => i.value, i => i.name);
     private static readonly Dictionary<string, TEnum> NamesToValues = Invert(ValueToNames);
+
+    public static bool TryGetValue(string name, out TEnum value)
+    {
+        return NamesToValues.TryGetValue(name, out value);
+    }
+
+    public static string GetName(TEnum value)
+    {
+        return ValueToNames[value];
+    }
 
     private static Dictionary<string, TEnum> Invert(Dictionary<TEnum, string> map)
     {
@@ -24,16 +34,6 @@ internal static class EnumNameMapper<[DynamicallyAccessedMembers(DynamicallyAcce
         }
 
         return result;
-    }
-
-    public static bool TryGetValue(string name, out TEnum value)
-    {
-        return NamesToValues.TryGetValue(name, out value);
-    }
-
-    public static string GetName(TEnum value)
-    {
-        return ValueToNames[value];
     }
 
     private static IEnumerable<(TEnum value, string name)> GetIdToNameMap()

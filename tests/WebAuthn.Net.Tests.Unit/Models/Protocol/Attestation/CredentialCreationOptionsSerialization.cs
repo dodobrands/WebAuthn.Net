@@ -15,5 +15,8 @@ public class CredentialCreationOptionsSerializationTests
         Assert.That(reSerialized, Is.EqualTo(expected));
     }
 
-    private static string CredentialCreationOptionsExample1() => JsonToVerify.Get();
+    private static string CredentialCreationOptionsExample1()
+    {
+        return JsonToVerify.Get();
+    }
 }
