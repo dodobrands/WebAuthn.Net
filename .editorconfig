@@ -311,6 +311,9 @@ dotnet_diagnostic.CA1056.severity = suggestion
 # CA1200: Avoid using cref tags with a prefix
 # The cref tag in an XML documentation comment uses a prefix.
 dotnet_diagnostic.CA1200.severity = suggestion
+# CA1707: Identifiers should not contain underscores
+# The name of an identifier contains the underscore (_) character.
+dotnet_diagnostic.CA1707.severity = none
 # CA1711: Identifiers should not have incorrect suffix
 # An identifier has an incorrect suffix.
 dotnet_diagnostic.CA1711.severity = suggestion

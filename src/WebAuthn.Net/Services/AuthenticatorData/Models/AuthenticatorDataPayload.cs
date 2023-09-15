@@ -10,10 +10,10 @@ public class AuthenticatorDataPayload
     public IReadOnlySet<AuthenticatorDataFlags> Flags { get; }
     public uint SignCount { get; }
 
-    public AuthenticatorDataPayload()
+    public AuthenticatorDataPayload(byte[] rpIdHash, IReadOnlySet<AuthenticatorDataFlags> flags)
     {
-        RpIdHash = Array.Empty<byte>();
-        Flags = new HashSet<AuthenticatorDataFlags>(0);
+        RpIdHash = rpIdHash;
+        Flags = flags;
         SignCount = 0;
     }
 }
