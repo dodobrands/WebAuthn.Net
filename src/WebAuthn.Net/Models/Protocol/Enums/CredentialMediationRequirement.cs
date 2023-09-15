@@ -10,7 +10,7 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/credential-management-1/#enumdef-credentialmediationrequirement">Credential Management Level 1 - § 2.3.2. Mediation Requirements</a>
 /// </remarks>
-[JsonConverter(typeof(EnumValueAttributeConverter<CredentialMediationRequirement>))]
+[JsonConverter(typeof(EnumMemberAttributeValueConverter<CredentialMediationRequirement>))]
 public enum CredentialMediationRequirement
 {
     /// <summary>

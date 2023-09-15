@@ -5,8 +5,12 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace WebAuthn.Net.Serialization.Json;
 
+/// <summary>
+///     Converter for overriding serialization of a byte array to Base64Urlencoded format.
+/// </summary>
 public class Base64UrlConverter : JsonConverter<byte[]>
 {
+    /// <inheritdoc />
     public override byte[]? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Null)
@@ -28,6 +32,7 @@ public class Base64UrlConverter : JsonConverter<byte[]>
         return WebEncoders.Base64UrlDecode(encodedString);
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, byte[]? value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
