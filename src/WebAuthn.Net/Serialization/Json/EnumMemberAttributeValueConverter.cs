@@ -12,7 +12,7 @@ namespace WebAuthn.Net.Serialization.Json;
 ///     All <typeparamref name="TEnum" /> values must be annotated with this attribute.
 /// </summary>
 /// <typeparam name="TEnum">The <see cref="Enum" /> type for which serialization needs to be overridden.</typeparam>
-public sealed class EnumMemberAttributeValueConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum> : JsonConverter<TEnum>
+public sealed class EnumAsStringConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum> : JsonConverter<TEnum>
     where TEnum : struct, Enum
 {
     private static readonly EnumMemberAttributeMapper<TEnum> Mapper = new();

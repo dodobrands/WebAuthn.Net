@@ -9,18 +9,18 @@ namespace WebAuthn.Net.Serialization.Json;
 public class Base64UrlConverterIntegrationTests
 {
     [TestCase(new byte[] { 0, 0, 62, 0, 0, 63 }, "AAA-AAA_")]
-    public void SerializesBinary(byte[] bytes, string expectedStringRepresentation)
+    public void SerializesBinary(byte[] expectedValue, string expectedStringRepresentation)
     {
         var expected = new Dto
         {
-            Bytes = bytes.ToArray()
+            Bytes = expectedValue.ToArray()
         };
         var serialized = JsonSerializer.Serialize(expected);
         var neutrallyDeserialized = JsonSerializer.Deserialize<JsonDocument>(serialized);
         var x = neutrallyDeserialized!.RootElement.GetProperty("Bytes").GetString();
         Assert.That(x, Is.EqualTo(expectedStringRepresentation));
         var deserialized = JsonSerializer.Deserialize<Dto>(serialized);
-        Assert.That(deserialized!.Bytes, Is.EqualTo(bytes));
+        Assert.That(deserialized!.Bytes, Is.EqualTo(expectedValue));
     }
 
     private class Dto
