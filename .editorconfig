@@ -290,9 +290,15 @@ csharp_place_accessorholder_attribute_on_same_line = false
 csharp_place_accessor_attribute_on_same_line = false
 csharp_place_field_attribute_on_same_line = false
 # Diagnostics
+# CA1008: Enums should have zero value
+# An enumeration without an applied System.FlagsAttribute does not define a member that has a value of zero. Or, an enumeration that has an applied FlagsAttribute defines a member that has a value of zero but its name is not 'None'. Or, the enumeration defines multiple, zero-valued members.
+dotnet_diagnostic.CA1008.severity = suggestion
 # CA1014: Mark assemblies with CLSCompliantAttribute
 # An assembly does not have the System.CLSCompliantAttribute attribute applied to it.
 dotnet_diagnostic.CA1014.severity = none
+# CA1028: Enum storage should be Int32
+# The underlying type of an enumeration is not System.Int32.
+dotnet_diagnostic.CA1028.severity = suggestion
 # CA1054: URI parameters should not be strings
 # A type declares a method with a string parameter whose name contains "uri", "Uri", "urn", "Urn", "url", or "Url", and the type does not declare a corresponding overload that takes a System.Uri parameter.
 dotnet_diagnostic.CA1054.severity = suggestion
@@ -305,6 +311,12 @@ dotnet_diagnostic.CA1056.severity = suggestion
 # CA1200: Avoid using cref tags with a prefix
 # The cref tag in an XML documentation comment uses a prefix.
 dotnet_diagnostic.CA1200.severity = suggestion
+# CA1707: Identifiers should not contain underscores
+# The name of an identifier contains the underscore (_) character.
+dotnet_diagnostic.CA1707.severity = suggestion
+# CA1711: Identifiers should not have incorrect suffix
+# An identifier has an incorrect suffix.
+dotnet_diagnostic.CA1711.severity = suggestion
 # CA1716: Identifiers should not match keywords
 # The name of a namespace, type, or virtual or interface member matches a reserved keyword in a programming language.
 dotnet_diagnostic.CA1716.severity = suggestion
