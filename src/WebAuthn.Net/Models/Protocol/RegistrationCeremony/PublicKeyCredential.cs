@@ -43,6 +43,7 @@ public class PublicKeyCredential
     /// <exception cref="InvalidEnumArgumentException">If the <paramref name="type" /> parameter contains a value not defined in the <see cref="PublicKeyCredentialType" /> enum.</exception>
     /// <exception cref="ArgumentNullException">If the <paramref name="id" />, <paramref name="rawId" />, or <paramref name="response" /> parameters are <see langword="null" />.</exception>
     /// <exception cref="ArgumentException">If the <paramref name="id" /> parameter contains surrogate pairs.</exception>
+    [JsonConstructor]
     public PublicKeyCredential(string id, PublicKeyCredentialType type, byte[] rawId, AuthenticatorAttestationResponse response)
     {
         ArgumentNullException.ThrowIfNull(id, nameof(id));

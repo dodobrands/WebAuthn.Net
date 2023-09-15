@@ -43,6 +43,7 @@ public class AuthenticatorSelectionCriteria
     ///     but <a href="https://www.w3.org/TR/webauthn-3/#client-platform">client platforms</a> must ignore unknown values,
     ///     treating an unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>.
     /// </param>
+    [JsonConstructor]
     public AuthenticatorSelectionCriteria(
         AuthenticatorAttachment? authenticatorAttachment,
         ResidentKeyRequirement? residentKey,

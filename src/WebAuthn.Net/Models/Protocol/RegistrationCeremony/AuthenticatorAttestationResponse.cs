@@ -40,6 +40,7 @@ public class AuthenticatorAttestationResponse
     ///     <a href="https://www.w3.org/TR/webauthn-3/#collectedclientdata-json-compatible-serialization-of-client-data">JSON-compatible serialization of client data</a>.
     /// </param>
     /// <exception cref="ArgumentNullException">If the <paramref name="clientDataJson" /> or <paramref name="attestationObject" /> parameter is <see langword="null" />.</exception>
+    [JsonConstructor]
     public AuthenticatorAttestationResponse(byte[] clientDataJson, byte[] attestationObject)
     {
         ArgumentNullException.ThrowIfNull(clientDataJson);

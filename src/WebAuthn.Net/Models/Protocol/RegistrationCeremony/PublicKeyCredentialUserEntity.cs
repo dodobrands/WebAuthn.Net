@@ -40,6 +40,7 @@ public class PublicKeyCredentialUserEntity
     ///     If the <paramref name="id" /> parameter contains an empty sequence or if the <paramref name="id" /> parameter contains a sequence longer than 64 bytes,
     ///     or if the <paramref name="displayName" /> or <paramref name="name" /> parameters equal to empty string or <see langword="null" />.
     /// </exception>
+    [JsonConstructor]
     public PublicKeyCredentialUserEntity(byte[] id, string displayName, string name)
     {
         ArgumentNullException.ThrowIfNull(id);

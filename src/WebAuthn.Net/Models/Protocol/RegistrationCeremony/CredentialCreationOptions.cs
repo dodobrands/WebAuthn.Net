@@ -19,6 +19,7 @@ public class CredentialCreationOptions
     /// </summary>
     /// <param name="publicKey">Options for credential creation.</param>
     /// <exception cref="ArgumentNullException">If the parameter <paramref name="publicKey" /> is equal to <see langword="null" />.</exception>
+    [JsonConstructor]
     public CredentialCreationOptions(PublicKeyCredentialCreationOptions publicKey)
     {
         ArgumentNullException.ThrowIfNull(publicKey, nameof(publicKey));

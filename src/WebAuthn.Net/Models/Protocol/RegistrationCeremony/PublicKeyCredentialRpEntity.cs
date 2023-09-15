@@ -27,6 +27,7 @@ public class PublicKeyCredentialRpEntity
     ///     intended only for display. For example, "ACME Corporation", "Wonderful Widgets, Inc." or "ОАО Примертех".
     /// </param>
     /// <exception cref="ArgumentException">If the parameter <paramref name="name" /> contains an empty string or <see langword="null" /> value.</exception>
+    [JsonConstructor]
     public PublicKeyCredentialRpEntity(string? id, string name)
     {
         if (string.IsNullOrEmpty(name))

@@ -34,6 +34,7 @@ public class AuthenticatorAssertionResponse
     ///     or null if the authenticator did not return a <a href="https://www.w3.org/TR/webauthn-3/#user-handle">user handle</a>.
     /// </param>
     /// <exception cref="ArgumentNullException">If one of the parameters <paramref name="clientDataJson" />, <paramref name="authenticatorData" />, or <paramref name="signature" /> is <see langword="null" />.</exception>
+    [JsonConstructor]
     public AuthenticatorAssertionResponse(byte[] clientDataJson, byte[] authenticatorData, byte[] signature, byte[]? userHandle)
     {
         ArgumentNullException.ThrowIfNull(clientDataJson);

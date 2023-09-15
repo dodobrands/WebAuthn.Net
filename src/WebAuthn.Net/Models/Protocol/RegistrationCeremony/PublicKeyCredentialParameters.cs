@@ -30,6 +30,7 @@ public class PublicKeyCredentialParameters
     ///     If the <paramref name="type" /> or <paramref name="alg" /> parameters
     ///     contain a value that is not defined in the <see cref="PublicKeyCredentialType" /> and <see cref="COSEAlgorithmIdentifier" /> enums, respectively.
     /// </exception>
+    [JsonConstructor]
     public PublicKeyCredentialParameters(PublicKeyCredentialType type, COSEAlgorithmIdentifier alg)
     {
         if (!Enum.IsDefined(typeof(PublicKeyCredentialType), type))
