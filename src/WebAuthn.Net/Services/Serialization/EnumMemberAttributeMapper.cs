@@ -75,11 +75,13 @@ public class EnumMemberAttributeMapper<[DynamicallyAccessedMembers(DynamicallyAc
         var result = new Dictionary<string, TEnum>(enumValues.Length, StringComparer.Ordinal);
         foreach (var enumValue in enumValues)
         {
-            var systemName = enumValue.ToString("G");
-            var memberInfo = enumType
-                .GetMember(systemName, BindingFlags.Public | BindingFlags.Static)
-                .Single();
-            var enumMemberAttribute = memberInfo.GetCustomAttribute<EnumMemberAttribute>(false);
+            var systemName = Enum.GetName(enumValue);
+            if (systemName is null)
+            {
+                throw new InvalidOperationException($"Can't get {systemName} value of {enumType.FullName} type");
+            }
+
+            var enumMemberAttribute = enumType.GetField(systemName)?.GetCustomAttributes<EnumMemberAttribute>(false).Single();
             if (enumMemberAttribute is null)
             {
                 throw new InvalidOperationException($"Can't get [EnumMember] attribute for {systemName} value of {enumType.FullName} type");
