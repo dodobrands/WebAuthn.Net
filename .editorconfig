@@ -277,9 +277,11 @@ csharp_indent_nested_foreach_stmt = true
 csharp_indent_nested_while_stmt = true
 csharp_wrap_after_declaration_lpar = true
 csharp_wrap_parameters_style = chop_if_long
-csharp_max_initializer_elements_on_line = 0
-csharp_max_array_initializer_elements_on_line = 0
-resharper_csharp_wrap_object_and_collection_initializer_style = chop_always
+csharp_max_initializer_elements_on_line = 10000
+csharp_max_array_initializer_elements_on_line = 10000
+csharp_wrap_extends_list_style = chop_if_long
+csharp_wrap_object_and_collection_initializer_style = chop_always
+csharp_wrap_array_initializer_style = chop_if_long
 # Arrangement of attributes
 csharp_keep_existing_attribute_arrangement = false
 csharp_place_type_attribute_on_same_line = false

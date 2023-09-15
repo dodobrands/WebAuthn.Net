@@ -8,15 +8,7 @@ namespace WebAuthn.Net.Serialization.Json;
 
 public class Base64UrlConverterIntegrationTests
 {
-    [TestCase(new byte[]
-    {
-        0,
-        0,
-        62,
-        0,
-        0,
-        63
-    }, "AAA-AAA_")]
+    [TestCase(new byte[] { 0, 0, 62, 0, 0, 63 }, "AAA-AAA_")]
     public void SerializesBinary(byte[] bytes, string expectedStringRepresentation)
     {
         var expected = new Dto
