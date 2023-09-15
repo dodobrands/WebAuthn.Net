@@ -17,7 +17,7 @@ public class EnumMemberAttributeMapper<[DynamicallyAccessedMembers(DynamicallyAc
     where TEnum : struct, Enum
 {
     private readonly Dictionary<string, TEnum> _namesToValues;
-    private readonly Dictionary<TEnum, string> _valueToNames;
+    private readonly Dictionary<TEnum, string> _valuesToNames;
 
     /// <summary>
     ///     Constructs <see cref="EnumMemberAttributeMapper{TEnum}" />.
@@ -25,7 +25,7 @@ public class EnumMemberAttributeMapper<[DynamicallyAccessedMembers(DynamicallyAc
     public EnumMemberAttributeMapper()
     {
         _namesToValues = GetSerializedValueToEnumMap();
-        _valueToNames = _namesToValues.ToDictionary(static x => x.Value, static x => x.Key);
+        _valuesToNames = _namesToValues.ToDictionary(static x => x.Value, static x => x.Key);
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public class EnumMemberAttributeMapper<[DynamicallyAccessedMembers(DynamicallyAc
             return false;
         }
 
-        return _valueToNames.TryGetValue(key, out value);
+        return _valuesToNames.TryGetValue(key, out value);
     }
 
     private static Dictionary<string, TEnum> GetSerializedValueToEnumMap()

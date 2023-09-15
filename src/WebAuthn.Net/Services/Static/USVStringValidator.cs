@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace WebAuthn.Net.Services.Static;
 
 /// <summary>
-///     The USVString type corresponds to <a href="https://infra.spec.whatwg.org/#scalar-value-string">scalar value strings</a>. Depending on the context, these can be treated as sequences of either 16-bit unsigned integer
+///     The <a href="https://webidl.spec.whatwg.org/#idl-USVString">USVString</a> type corresponds to <a href="https://infra.spec.whatwg.org/#scalar-value-string">scalar value strings</a>. Depending on the context, these can be treated as sequences of either 16-bit unsigned integer
 ///     <a href="https://infra.spec.whatwg.org/#code-unit">code units</a> or <a href="https://infra.spec.whatwg.org/#scalar-value">scalar values</a>.
 /// </summary>
 /// <remarks>
@@ -18,6 +18,11 @@ public static class USVStringValidator
     private const char TrailingSurrogateStart = '\uDC00';
     private const char TrailingSurrogateEnd = '\uDFFF';
 
+    /// <summary>
+    ///     Validating that the specified character sequence is a <a href="https://webidl.spec.whatwg.org/#idl-USVString">USVString</a>.
+    /// </summary>
+    /// <param name="input">The character sequence that needs to be validated.</param>
+    /// <returns><see langword="true" /> if the passed character sequence is a <a href="https://webidl.spec.whatwg.org/#idl-USVString">USVString</a>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static bool IsValid(ReadOnlySpan<char> input)
     {

@@ -17,6 +17,48 @@ namespace WebAuthn.Net.Models.Protocol.Attestation;
 /// </remarks>
 public class PublicKeyCredentialCreationOptions
 {
+    /// <summary>
+    ///     Constructs <see cref="PublicKeyCredentialCreationOptions" />.
+    /// </summary>
+    /// <param name="rp">This member contains data about the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a> responsible for the request.</param>
+    /// <param name="user">This member contains data about the user account for which the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a> is requesting attestation.</param>
+    /// <param name="challenge">This member contains a challenge intended to be used for generating the newly created credential’s <a href="https://www.w3.org/TR/webauthn-3/#attestation-object">attestation object</a>.</param>
+    /// <param name="pubKeyCredParams">
+    ///     This member contains information about the desired properties of the credential to be created.
+    ///     The sequence is ordered from most preferred to least preferred.
+    ///     The <a href="https://www.w3.org/TR/webauthn-3/#client">client</a> makes a best-effort to create the most preferred credential that it can.
+    /// </param>
+    /// <param name="timeout">
+    ///     This member specifies a time, in milliseconds, that the caller is willing to wait for the call to complete.
+    ///     This is treated as a hint, and may be overridden by the <a href="https://www.w3.org/TR/webauthn-3/#client">client</a>.
+    /// </param>
+    /// <param name="excludeCredentials">
+    ///     This member is intended for use by <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Parties</a>
+    ///     that wish to limit the creation of multiple credentials for the same account on a single authenticator.
+    ///     The <a href="https://www.w3.org/TR/webauthn-3/#client">client</a> is requested to return an error
+    ///     if the new credential would be created on an authenticator that also contains one of the credentials enumerated in this parameter.
+    /// </param>
+    /// <param name="authenticatorSelection">
+    ///     This member is intended for use by <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Parties</a> that wish to select the appropriate authenticators
+    ///     to participate in the <a href="https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-create">create()</a> operation.
+    /// </param>
+    /// <param name="attestation">
+    ///     This member is intended for use by <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Parties</a> that wish to
+    ///     express their preference for <a href="https://www.w3.org/TR/webauthn-3/#attestation-conveyance">attestation conveyance</a>.
+    ///     Its values should be members of <see cref="AttestationConveyancePreference" />. Client platforms must ignore unknown values,
+    ///     treating an unknown value as if the member does not exist. Its default value is <see cref="AttestationConveyancePreference.None" />.
+    /// </param>
+    /// <param name="extensions">
+    ///     This member contains additional parameters requesting additional processing by the client and authenticator.
+    ///     For example, the caller may request that only authenticators with certain capabilities be used to create the credential,
+    ///     or that particular information be returned in the <a href="https://www.w3.org/TR/webauthn-3/#attestation-object">attestation object</a>.
+    /// </param>
+    /// <exception cref="ArgumentNullException">If <paramref name="rp" />, <paramref name="user" />, <paramref name="challenge" />, or <paramref name="pubKeyCredParams" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentException">
+    ///     If <paramref name="pubKeyCredParams" /> contains an empty array or if any of the elements in the <paramref name="pubKeyCredParams" /> array is <see langword="null" />.
+    ///     Also, if <paramref name="excludeCredentials" /> contains a non-empty array and any of its members is <see langword="null" />.
+    /// </exception>
+    /// <exception cref="InvalidEnumArgumentException"></exception>
     public PublicKeyCredentialCreationOptions(
         PublicKeyCredentialRpEntity rp,
         PublicKeyCredentialUserEntity user,
