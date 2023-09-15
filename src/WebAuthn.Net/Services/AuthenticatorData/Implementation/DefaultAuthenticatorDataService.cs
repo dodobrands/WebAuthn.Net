@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Buffers.Binary;
+using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Services.AuthenticatorData.Models;
 using WebAuthn.Net.Services.AuthenticatorData.Models.Enums;
 
@@ -8,20 +8,26 @@ namespace WebAuthn.Net.Services.AuthenticatorData.Implementation;
 
 public class DefaultAuthenticatorDataService : IAuthenticatorDataService
 {
-    private const int RpIdHashLength = 32;
-    private const int MinimalValidLength = 37;
+    private const int RpIdHashSize = 32;
+    private const int SignCountSize = 4;
+    private const int RpIdHashOffset = 0;
+    private const int FlagsOffset = 32;
+    private const int SignCountOffset = 33;
+    private const int EncodedDataMinLength = 37;
 
     public AuthenticatorDataPayload GetAuthenticatorData(byte[] encodedAuthenticatorData)
     {
-        if (encodedAuthenticatorData is null || encodedAuthenticatorData.Length < MinimalValidLength)
+        ArgumentNullException.ThrowIfNull(encodedAuthenticatorData);
+
+        if (encodedAuthenticatorData.Length < EncodedDataMinLength)
         {
-            //TODO: custom exception
-            throw new ArgumentException("Array too short");
+            throw new ArgumentException($"The minimum size of the encoded authenticator data structure is {EncodedDataMinLength} bytes.");
         }
 
-        var rpIdHashBytes = encodedAuthenticatorData.Take(RpIdHashLength).ToArray();
+        var rpIdHashBytes = encodedAuthenticatorData.AsSpan(RpIdHashOffset, RpIdHashSize).ToArray();
+        var flags = ((AuthenticatorDataFlags) encodedAuthenticatorData[FlagsOffset]).FlagsToSet();
+        var signCount = BinaryPrimitives.ReadUInt32BigEndian(encodedAuthenticatorData.AsSpan(SignCountOffset, SignCountSize));
 
-        return new AuthenticatorDataPayload(rpIdHashBytes, new HashSet<AuthenticatorDataFlags>(0));
-        //BinaryPrimitives.ReadUInt32BigEndian(bytes)
+        return new(rpIdHashBytes, flags, signCount);
     }
 }
