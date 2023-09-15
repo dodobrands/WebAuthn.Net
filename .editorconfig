@@ -313,7 +313,7 @@ dotnet_diagnostic.CA1056.severity = suggestion
 dotnet_diagnostic.CA1200.severity = suggestion
 # CA1707: Identifiers should not contain underscores
 # The name of an identifier contains the underscore (_) character.
-dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1707.severity = suggestion
 # CA1711: Identifiers should not have incorrect suffix
 # An identifier has an incorrect suffix.
 dotnet_diagnostic.CA1711.severity = suggestion
