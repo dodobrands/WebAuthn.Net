@@ -1,6 +1,8 @@
-﻿namespace WebAuthn.Net.Services.AuthenticatorData;
+﻿using WebAuthn.Net.Services.AuthenticatorData.Models;
+
+namespace WebAuthn.Net.Services.AuthenticatorData;
 
 public interface IAuthenticatorDataService
 {
-    void GetAuthenticatorData(byte[] encodedAuthenticatorData);
+    AuthenticatorDataPayload GetAuthenticatorData(byte[] encodedAuthenticatorData);
 }
