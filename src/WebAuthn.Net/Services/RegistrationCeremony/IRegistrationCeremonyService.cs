@@ -13,8 +13,8 @@ public interface IRegistrationCeremonyService
         BeginCeremonyRequest request,
         CancellationToken cancellationToken);
 
-    Task<Result<RegistrationCeremonyResult>> HandleAsync(
+    Task<Result<CompleteCeremonyResult>> CompleteCeremonyAsync(
         HttpContext httpContext,
-        RegistrationCeremonyRequest request,
+        CompleteCeremonyRequest request,
         CancellationToken cancellationToken);
 }

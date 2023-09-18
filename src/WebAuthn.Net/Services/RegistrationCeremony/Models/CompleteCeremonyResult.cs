@@ -1,5 +1,5 @@
 ﻿namespace WebAuthn.Net.Services.RegistrationCeremony.Models;
 
-public class RegistrationCeremonyResult
+public class CompleteCeremonyResult
 {
 }

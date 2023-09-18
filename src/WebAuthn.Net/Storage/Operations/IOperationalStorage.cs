@@ -1,10 +1,9 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol;
-using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony;
+using WebAuthn.Net.Storage.Operations.Models;
 
 namespace WebAuthn.Net.Storage.Operations;
 
@@ -17,17 +16,13 @@ public interface IOperationalStorage<TContext>
         PublicKeyCredentialUserEntity user,
         CancellationToken cancellationToken);
 
-    Task<string> SaveRegistrationCeremonyAsync(
+    Task<string> SaveRegistrationCeremonyOptionsAsync(
         TContext context,
-        byte[] challenge,
-        PublicKeyCredentialRpEntity rp,
-        PublicKeyCredentialUserEntity user,
-        PublicKeyCredentialParameters[] pubKeyCredParams,
-        uint? timeout,
-        PublicKeyCredentialDescriptor[]? excludeCredentials,
-        AuthenticatorSelectionCriteria? authenticatorSelection,
-        AttestationConveyancePreference? attestation,
-        DateTimeOffset createdAt,
-        DateTimeOffset? expiresAt,
+        RegistrationCeremonyOptionsSaveRequest request,
+        CancellationToken cancellationToken);
+
+    Task<RegistrationCeremonyOptions?> FindRegistrationCeremonyOptionsAsync(
+        TContext context,
+        string registrationCeremonyId,
         CancellationToken cancellationToken);
 }

@@ -7,10 +7,10 @@ using WebAuthn.Net.Storage.Operations;
 
 namespace WebAuthn.Net.Configuration.DependencyInjection;
 
-public static class WebAuthnNetBuilderExtensions
+public static class WebAuthnBuilderExtensions
 {
-    public static IWebAuthnNetBuilder<TContext> AddOperationalStorage<TContext, TOperationalStorage>(
-        this WebAuthnNetBuilder<TContext> builder)
+    public static IWebAuthnBuilder<TContext> AddOperationalStorage<TContext, TOperationalStorage>(
+        this WebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
         where TOperationalStorage : class, IOperationalStorage<TContext>
     {
@@ -19,8 +19,8 @@ public static class WebAuthnNetBuilderExtensions
         return builder;
     }
 
-    public static IWebAuthnNetBuilder<TContext> AddContextFactory<TContext, TContextFactory>(
-        this WebAuthnNetBuilder<TContext> builder)
+    public static IWebAuthnBuilder<TContext> AddContextFactory<TContext, TContextFactory>(
+        this WebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
         where TContextFactory : class, IWebAuthnContextFactory<TContext>
     {
