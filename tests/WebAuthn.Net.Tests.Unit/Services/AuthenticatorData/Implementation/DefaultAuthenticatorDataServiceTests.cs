@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using WebAuthn.Net.Services.AuthenticatorData.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models.Enums;
 
 namespace WebAuthn.Net.Services.AuthenticatorData.Implementation;
 
@@ -11,7 +13,7 @@ public class DefaultAuthenticatorDataServiceTests
     private const int FlagsOffset = 32;
     private const int EncodedDataMinLength = 37;
 
-    private readonly IAuthenticatorDataService _authenticatorDataService = new DefaultAuthenticatorDataService();
+    private readonly IAuthenticatorDataDecoder _authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder();
 
     [TestCase(EncodedDataMinLength)]
     [TestCase(EncodedDataMinLength * 2)]
@@ -19,9 +21,10 @@ public class DefaultAuthenticatorDataServiceTests
     {
         var bytesToParse = CreateArrayWithFixedLength(arrayToParseLength);
 
-        var parsedData = _authenticatorDataService.GetAuthenticatorData(bytesToParse);
+        var parsedData = _authenticatorDataDecoder.Decode(bytesToParse);
 
-        Assert.That(bytesToParse.Take(RpIdHashSize).ToArray(), Is.EqualTo(parsedData.RpIdHash));
+        Assert.That(parsedData.HasError, Is.EqualTo(false));
+        Assert.That(parsedData.Ok!.RpIdHash, Is.EqualTo(bytesToParse.Take(RpIdHashSize).ToArray()));
     }
 
     [Test]
@@ -34,9 +37,10 @@ public class DefaultAuthenticatorDataServiceTests
         };
         var arrayToParse = CreateValidArrayWithFlags(flagsToEncode);
 
-        var parsedData = _authenticatorDataService.GetAuthenticatorData(arrayToParse);
+        var parsedData = _authenticatorDataDecoder.Decode(arrayToParse);
 
-        Assert.That(parsedData.Flags, Is.EquivalentTo(flagsToEncode));
+        Assert.That(parsedData.HasError, Is.EqualTo(false));
+        Assert.That(parsedData.Ok!.Flags, Is.EquivalentTo(flagsToEncode));
     }
 
     private static byte[] CreateArrayWithFixedLength(int length)

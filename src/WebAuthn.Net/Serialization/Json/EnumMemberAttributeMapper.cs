@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 
-namespace WebAuthn.Net.Services.Serialization;
+namespace WebAuthn.Net.Serialization.Json;
 
 /// <summary>
 ///     Mapper for converting <typeparamref name="TEnum" /> values to strings and vice versa.

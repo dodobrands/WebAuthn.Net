@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -11,10 +12,10 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony;
-using WebAuthn.Net.Services.ClientData;
 using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Services.RegistrationCeremony.Models;
 using WebAuthn.Net.Services.RelyingPartyOrigin;
+using WebAuthn.Net.Services.Serialization.Json.ClientData;
 using WebAuthn.Net.Services.TimeProvider;
 using WebAuthn.Net.Storage.Operations;
 using WebAuthn.Net.Storage.Operations.Models;
@@ -25,7 +26,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
     where TContext : class, IWebAuthnContext
 {
     private readonly IChallengeGenerator _challengeGenerator;
-    private readonly IClientDataService _clientDataService;
+    private readonly IClientDataDecoder _clientDataDecoder;
     private readonly IWebAuthnContextFactory<TContext> _contextFactory;
     private readonly WebAuthnOptions _options;
     private readonly IRelyingPartyOriginProvider<TContext> _originProvider;
@@ -38,7 +39,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         IChallengeGenerator challengeGenerator,
         IOperationalStorage<TContext> storage,
         ITimeProvider timeProvider,
-        IClientDataService clientDataService,
+        IClientDataDecoder clientDataDecoder,
         IRelyingPartyOriginProvider<TContext> originProvider)
     {
         ArgumentNullException.ThrowIfNull(contextFactory);
@@ -49,7 +50,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         _challengeGenerator = challengeGenerator;
         _storage = storage;
         _timeProvider = timeProvider;
-        _clientDataService = clientDataService;
+        _clientDataDecoder = clientDataDecoder;
         _originProvider = originProvider;
         _options = options;
     }
@@ -86,7 +87,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         var options = await _storage.FindRegistrationCeremonyOptionsAsync(context, request.RegistrationCeremonyId, cancellationToken);
         if (options is null)
         {
-            return new("Can't find existing registration ceremony");
+            return Result<CompleteCeremonyResult>.Failed("Can't find existing registration ceremony");
         }
 
         // https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential
@@ -106,10 +107,10 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         // 6. Let C, the client data claimed as collected during the credential creation,
         // be the result of running an implementation-specific JSON parser on JSONtext.
         // Note: C may be any implementation-specific data structure representation, as long as C’s components are referenceable, as required by this algorithm.
-        var clientDataResult = _clientDataService.GetClientData(request.Credential.Response.ClientDataJson);
+        var clientDataResult = _clientDataDecoder.Decode(request.Credential.Response.ClientDataJson);
         if (clientDataResult.HasError)
         {
-            return new(clientDataResult.Error);
+            return Result<CompleteCeremonyResult>.Failed(clientDataResult.Error);
         }
 
         // ReSharper disable once InconsistentNaming
@@ -117,20 +118,20 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         // 7. Verify that the value of C.type is webauthn.create.
         if (C.Type is not "webauthn.create")
         {
-            return new($"AttestationResponse type must be 'webauthn.create', but was {C.Type}");
+            return Result<CompleteCeremonyResult>.Failed($"AttestationResponse type must be 'webauthn.create', but was {C.Type}");
         }
 
         // 8. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
         if (!string.Equals(C.Challenge, WebEncoders.Base64UrlEncode(options.Challenge), StringComparison.Ordinal))
         {
-            return new($"AttestationResponse type must be 'webauthn.create', but was {C.Type}");
+            return Result<CompleteCeremonyResult>.Failed($"AttestationResponse type must be 'webauthn.create', but was {C.Type}");
         }
 
         // 9. Verify that the value of C.origin matches the Relying Party's origin.
         var relyingPartyOrigin = await _originProvider.GetAsync(context, cancellationToken);
         if (!string.Equals(C.Origin, relyingPartyOrigin, StringComparison.Ordinal))
         {
-            return new($"The value of origin in clientData: '{C.Origin}' does not match the relying party's origin: '{relyingPartyOrigin}'");
+            return Result<CompleteCeremonyResult>.Failed($"The value of origin in clientData: '{C.Origin}' does not match the relying party's origin: '{relyingPartyOrigin}'");
         }
         // 10. Verify that the value of C.tokenBinding.status matches the state of Token Binding for the TLS connection
         // over which the assertion was obtained. If Token Binding was used on that TLS connection, also verify that
@@ -139,7 +140,17 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         // Web Authentication: An API for accessing Public Key Credentials Level 3. Editor’s Draft, 12 September 2023 - § 5.8.1. Client Data Used in WebAuthn Signatures
         // NOTE: While Token Binding was present in Level 1 and Level 2 of WebAuthn, its use is not expected in Level 3.
         // The tokenBinding field is reserved so that it will not be reused for a different purpose.
+        // -----
         // skip token binding
+
+        // 11. Let hash be the result of computing a hash over response.clientDataJSON using SHA-256.
+        var hash = SHA256.HashData(request.Credential.Response.ClientDataJson);
+
+        // 12. Perform CBOR decoding on the attestationObject field of the AuthenticatorAttestationResponse structure
+        // to obtain the attestation statement format fmt, the authenticator data authData, and the attestation statement attStmt.
+        // var fmt = (string?) null;
+        // var authData = (string?) null;
+        // var attStmt = (string?) null;
 
 
         throw new NotImplementedException();

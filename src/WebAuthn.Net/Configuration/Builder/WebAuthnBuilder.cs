@@ -6,10 +6,10 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
-using WebAuthn.Net.Services.AuthenticatorData;
-using WebAuthn.Net.Services.AuthenticatorData.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
 using WebAuthn.Net.Services.TimeProvider;
 using WebAuthn.Net.Services.TimeProvider.Implementation;
 
@@ -36,7 +36,7 @@ public class WebAuthnBuilder<TContext> : IWebAuthnBuilder<TContext>
 
         Services.TryAddSingleton<WebAuthnOptions>(resolver => resolver.GetRequiredService<IOptions<WebAuthnOptions>>().Value);
         Services.TryAddSingleton<IAuthenticationCeremonyService, DefaultAuthenticationCeremonyService<TContext>>();
-        Services.TryAddSingleton<IAuthenticatorDataService, DefaultAuthenticatorDataService>();
+        Services.TryAddSingleton<IAuthenticatorDataDecoder, DefaultAuthenticatorDataDecoder>();
         Services.TryAddSingleton<IChallengeGenerator, DefaultChallengeGenerator>();
         Services.TryAddSingleton<IRegistrationCeremonyService, DefaultRegistrationCeremonyService<TContext>>();
         Services.TryAddSingleton<ITimeProvider, DefaultTimeProvider>();

@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Services.ClientData.Models;
+namespace WebAuthn.Net.Services.Serialization.Json.ClientData.Models;
 
-public class CollectedClientData
+public class DecodedCollectedClientData
 {
-    public CollectedClientData(string type, string challenge, string origin, bool? crossOrigin)
+    public DecodedCollectedClientData(string type, string challenge, string origin, bool? crossOrigin)
     {
         Type = type;
         Challenge = challenge;

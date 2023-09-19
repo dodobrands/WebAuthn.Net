@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Services.Serialization;
+using WebAuthn.Net.Services.Serialization.Json;
 
 namespace WebAuthn.Net.Serialization.Json;
 
