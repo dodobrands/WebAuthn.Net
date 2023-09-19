@@ -10,13 +10,13 @@ namespace WebAuthn.Net.DSL;
 
 public static class JsonToVerify
 {
-    private static readonly string SelfNamespace = typeof(JsonToVerify).Namespace!;
     private static readonly Assembly SelfAssembly = typeof(JsonToVerify).Assembly;
     private static readonly string[] ResourceNames = SelfAssembly.GetManifestResourceNames();
 
-    public static string Get([CallerMemberName] string jsonFileName = "")
+    public static string GetResourceByMethodName<T>(this T caller, [CallerMemberName] string jsonFileName = "")
     {
-        var resourceName = $"{SelfNamespace}.Json.{jsonFileName}.json";
+        var @namespace = caller!.GetType().Namespace;
+        var resourceName = $"{@namespace}.{jsonFileName}.json";
         if (!ResourceNames.Contains(resourceName))
         {
             throw new ArgumentException($"Can't locate json resource file: {resourceName}");
