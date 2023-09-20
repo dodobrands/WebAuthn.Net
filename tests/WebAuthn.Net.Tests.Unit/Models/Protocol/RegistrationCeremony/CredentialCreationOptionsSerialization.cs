@@ -17,7 +17,7 @@ public class CredentialCreationOptionsSerializationTests
                 new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5 },
                 new PublicKeyCredentialParameters[] { new(PublicKeyCredentialType.PublicKey, COSEAlgorithmIdentifier.ES256) },
                 3,
-                new PublicKeyCredentialDescriptor[] { new(PublicKeyCredentialType.PublicKey, new byte[] { 4 }, new AuthenticatorTransport[] { AuthenticatorTransport.Ble }) },
+                new PublicKeyCredentialDescriptor[] { new(PublicKeyCredentialType.PublicKey, new byte[] { 4 }, new[] { AuthenticatorTransport.Ble }) },
                 new(AuthenticatorAttachment.Platform, ResidentKeyRequirement.Preferred, true, UserVerificationRequirement.Required),
                 AttestationConveyancePreference.Enterprise, new()
             )
@@ -34,5 +34,8 @@ public class CredentialCreationOptionsSerializationTests
         Assert.That(reSerialized, Is.EqualTo(expected));
     }
 
-    private string CredentialCreationOptionsExample1() => this.GetResourceByMethodName();
+    private string CredentialCreationOptionsExample1()
+    {
+        return this.GetResourceByMethodName();
+    }
 }

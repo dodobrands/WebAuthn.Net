@@ -4,6 +4,8 @@ using NUnit.Framework;
 using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData;
 using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
 using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Implementation;
+using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
 
 namespace WebAuthn.Net.Services.AuthenticatorData.Implementation;
 
@@ -13,7 +15,10 @@ public class DefaultAuthenticatorDataServiceTests
     private const int FlagsOffset = 32;
     private const int EncodedDataMinLength = 37;
 
-    private readonly IAuthenticatorDataDecoder _authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder();
+    private readonly IAuthenticatorDataDecoder _authenticatorDataDecoder =
+        new DefaultAuthenticatorDataDecoder(
+            new DefaultCredentialPublicKeyDecoder(
+                new DefaultCborDecoder()));
 
     [TestCase(EncodedDataMinLength)]
     [TestCase(EncodedDataMinLength * 2)]

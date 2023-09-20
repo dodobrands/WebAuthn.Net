@@ -4,6 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <RootNamespace>WebAuthn.Net</RootNamespace>
+    <NoWarn>$(NoWarn),CA1034,CA1812</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +26,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Models\**\*.json"/>
+    <None Remove="Services\Serialization\Cbor\Format\Implementation\*.json" />
+    <EmbeddedResource Include="Services\Serialization\Cbor\Format\Implementation\*.json" />
+    <None Remove="Models\Protocol\RegistrationCeremony\*.json" />
+    <EmbeddedResource Include="Models\Protocol\RegistrationCeremony\*.json" />
+    <None Remove="Models\Protocol\AuthenticationCeremony\*.json" />
+    <EmbeddedResource Include="Models\Protocol\AuthenticationCeremony\*.json" />
   </ItemGroup>
 
 </Project>

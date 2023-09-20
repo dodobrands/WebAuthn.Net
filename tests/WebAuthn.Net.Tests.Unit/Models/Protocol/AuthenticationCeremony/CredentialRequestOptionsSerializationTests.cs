@@ -13,18 +13,14 @@ public class CredentialRequestOptionsSerializationTests
         var expected = new CredentialRequestOptions(
             CredentialMediationRequirement.Required,
             new(
-                new byte[]{1},
+                new byte[] { 1 },
                 2, "AA-AA_",
                 new[]
                 {
                     new PublicKeyCredentialDescriptor(
                         PublicKeyCredentialType.PublicKey,
-                        new byte[]{3, 4},
-                        new[]
-                        {
-                            AuthenticatorTransport.Ble,
-                            AuthenticatorTransport.Internal
-                        }),
+                        new byte[] { 3, 4 },
+                        new[] { AuthenticatorTransport.Ble, AuthenticatorTransport.Internal })
                 }, UserVerificationRequirement.Preferred, new()));
         TestContext.WriteLine(JsonSerializer.Serialize(expected));
     }
@@ -38,5 +34,8 @@ public class CredentialRequestOptionsSerializationTests
         Assert.That(reSerialized, Is.EqualTo(expected));
     }
 
-    private string CredentialRequestOptionsExample1() => this.GetResourceByMethodName();
+    private string CredentialRequestOptionsExample1()
+    {
+        return this.GetResourceByMethodName();
+    }
 }

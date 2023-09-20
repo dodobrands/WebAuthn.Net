@@ -37,4 +37,29 @@ public static class JsonToVerify
         });
         return unindentedValue;
     }
+
+    public static string GetResourceByMethodNameForType<T>([CallerMemberName] string jsonFileName = "")
+    {
+        var @namespace = typeof(T).Namespace;
+        var resourceName = $"{@namespace}.{jsonFileName}.json";
+        if (!ResourceNames.Contains(resourceName))
+        {
+            throw new ArgumentException($"Can't locate json resource file: {resourceName}");
+        }
+
+        using var resourceStream = SelfAssembly.GetManifestResourceStream(resourceName);
+        if (resourceStream is null)
+        {
+            throw new ArgumentException($"Can't read json resource file: {resourceName}");
+        }
+
+        var jsonDocument = JsonSerializer.Deserialize<JsonDocument>(resourceStream);
+        var unindentedValue = JsonSerializer.Serialize(jsonDocument, new JsonSerializerOptions(JsonSerializerDefaults.General)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+            WriteIndented = false
+        });
+        return unindentedValue;
+    }
 }

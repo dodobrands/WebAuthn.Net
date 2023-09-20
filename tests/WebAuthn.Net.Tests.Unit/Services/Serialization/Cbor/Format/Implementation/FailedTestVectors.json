@@ -1,0 +1,86 @@
+[
+    {
+        "cbor": "wkkBAAAAAAAAAAA=",
+        "hex": "c249010000000000000000",
+        "roundtrip": true,
+        "decoded": 18446744073709551616,
+        "reason": "tag used"
+    },
+    {
+        "cbor": "w0kBAAAAAAAAAAA=",
+        "hex": "c349010000000000000000",
+        "roundtrip": true,
+        "decoded": -18446744073709551617,
+        "reason": "tag used"
+    },
+    {
+        "cbor": "8A==",
+        "hex": "f0",
+        "roundtrip": true,
+        "diagnostic": "simple(16)",
+        "reason": "unassigned simple value"
+    },
+    {
+        "cbor": "+P8=",
+        "hex": "f8ff",
+        "roundtrip": true,
+        "diagnostic": "simple(255)",
+        "reason": "unassigned simple value used"
+    },
+    {
+        "cbor": "wHQyMDEzLTAzLTIxVDIwOjA0OjAwWg==",
+        "hex": "c074323031332d30332d32315432303a30343a30305a",
+        "roundtrip": true,
+        "diagnostic": "0(\"2013-03-21T20:04:00Z\")",
+        "reason": "tag used"
+    },
+    {
+        "cbor": "wRpRS2ew",
+        "hex": "c11a514b67b0",
+        "roundtrip": true,
+        "diagnostic": "1(1363896240)",
+        "reason": "tag used"
+    },
+    {
+        "cbor": "wftB1FLZ7CAAAA==",
+        "hex": "c1fb41d452d9ec200000",
+        "roundtrip": true,
+        "diagnostic": "1(1363896240.5)",
+        "reason": "tag used"
+    },
+    {
+        "cbor": "10QBAgME",
+        "hex": "d74401020304",
+        "roundtrip": true,
+        "diagnostic": "23(h'01020304')",
+        "reason": "tag used"
+    },
+    {
+        "cbor": "2BhFZElFVEY=",
+        "hex": "d818456449455446",
+        "roundtrip": true,
+        "diagnostic": "24(h'6449455446')",
+        "reason": "tag used"
+    },
+    {
+        "cbor": "2CB2aHR0cDovL3d3dy5leGFtcGxlLmNvbQ==",
+        "hex": "d82076687474703a2f2f7777772e6578616d706c652e636f6d",
+        "roundtrip": true,
+        "diagnostic": "32(\"http://www.example.com\")",
+        "reason": "tag used"
+    },
+    {
+        "cbor": "X0IBAkMDBAX/",
+        "hex": "5f42010243030405ff",
+        "roundtrip": false,
+        "diagnostic": "(_ h'0102', h'030405')",
+        "reason": "byte string with indefinite-length"
+    },
+    {
+        "cbor": "f2VzdHJlYWRtaW5n/w==",
+        "hex": "7f657374726561646d696e67ff",
+        "roundtrip": false,
+        "decoded": "streaming",
+        "reason": "text string with indefinite-length"
+    }
+]

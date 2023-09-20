@@ -45,20 +45,20 @@ public class Result<TOk> where TOk : class
 #pragma warning disable CA1000
 
     /// <summary>
-    /// Returns a result indicating the successful completion of the operation.
+    ///     Returns a result indicating the successful completion of the operation.
     /// </summary>
     /// <param name="result">The result of a successful operation completion.</param>
-    /// <returns>The <see cref="Result{TOk}"/> corresponding to the successful execution of the operation.</returns>
+    /// <returns>The <see cref="Result{TOk}" /> corresponding to the successful execution of the operation.</returns>
     public static Result<TOk> Success(TOk result)
     {
         return new(result);
     }
 
     /// <summary>
-    /// Returns a result indicating the unsuccessful execution of the operation.
+    ///     Returns a result indicating the unsuccessful execution of the operation.
     /// </summary>
     /// <param name="error">The error that occurred during the execution of the operation.</param>
-    /// <returns>The <see cref="Result{TOk}"/> corresponding to the unsuccessful execution of the operation.</returns>
+    /// <returns>The <see cref="Result{TOk}" /> corresponding to the unsuccessful execution of the operation.</returns>
     public static Result<TOk> Failed(string error)
     {
         return new(error);

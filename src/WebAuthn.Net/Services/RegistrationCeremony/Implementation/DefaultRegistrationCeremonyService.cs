@@ -15,6 +15,7 @@ using WebAuthn.Net.Models.Protocol.RegistrationCeremony;
 using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Services.RegistrationCeremony.Models;
 using WebAuthn.Net.Services.RelyingPartyOrigin;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
 using WebAuthn.Net.Services.Serialization.Json.ClientData;
 using WebAuthn.Net.Services.TimeProvider;
 using WebAuthn.Net.Storage.Operations;
@@ -25,6 +26,7 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremonyService
     where TContext : class, IWebAuthnContext
 {
+    private readonly IAttestationObjectDecoder _attestationObjectDecoder;
     private readonly IChallengeGenerator _challengeGenerator;
     private readonly IClientDataDecoder _clientDataDecoder;
     private readonly IWebAuthnContextFactory<TContext> _contextFactory;
@@ -40,18 +42,24 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         IOperationalStorage<TContext> storage,
         ITimeProvider timeProvider,
         IClientDataDecoder clientDataDecoder,
-        IRelyingPartyOriginProvider<TContext> originProvider)
+        IRelyingPartyOriginProvider<TContext> originProvider,
+        IAttestationObjectDecoder attestationObjectDecoder)
     {
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(contextFactory);
         ArgumentNullException.ThrowIfNull(challengeGenerator);
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(clientDataDecoder);
+        ArgumentNullException.ThrowIfNull(originProvider);
+        ArgumentNullException.ThrowIfNull(attestationObjectDecoder);
         _contextFactory = contextFactory;
         _challengeGenerator = challengeGenerator;
         _storage = storage;
         _timeProvider = timeProvider;
         _clientDataDecoder = clientDataDecoder;
         _originProvider = originProvider;
+        _attestationObjectDecoder = attestationObjectDecoder;
         _options = options;
     }
 
@@ -148,6 +156,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
 
         // 12. Perform CBOR decoding on the attestationObject field of the AuthenticatorAttestationResponse structure
         // to obtain the attestation statement format fmt, the authenticator data authData, and the attestation statement attStmt.
+        var attestationObjectResult = _attestationObjectDecoder.Decode(request.Credential.Response.AttestationObject);
         // var fmt = (string?) null;
         // var authData = (string?) null;
         // var attStmt = (string?) null;

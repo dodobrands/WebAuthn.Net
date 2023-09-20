@@ -6,6 +6,8 @@ using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models;
 using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey;
+using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Models;
 
 namespace WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
 
@@ -16,6 +18,13 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 {
     private const int EncodedAuthenticatorDataMinLength = 37;
 
+    private readonly ICredentialPublicKeyDecoder _credentialPublicKeyDecoder;
+
+    public DefaultAuthenticatorDataDecoder(ICredentialPublicKeyDecoder credentialPublicKeyDecoder)
+    {
+        ArgumentNullException.ThrowIfNull(credentialPublicKeyDecoder);
+        _credentialPublicKeyDecoder = credentialPublicKeyDecoder;
+    }
 
     /// <inheritdoc />
     public Result<DecodedAuthenticatorData> Decode(ReadOnlySpan<byte> authenticatorData)
@@ -103,7 +112,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 
     [SuppressMessage("ReSharper", "IdentifierTypo")]
     [SuppressMessage("ReSharper", "UnusedVariable")]
-    private static Result<DecodedAttestedCredentialData> TryConsumeAttestedCredentialData(ref ReadOnlySpan<byte> input)
+    private Result<DecodedAttestedCredentialData> TryConsumeAttestedCredentialData(ref ReadOnlySpan<byte> input)
     {
         if (!TryConsumeAAGUID(ref input, out var aaguid))
         {
@@ -120,7 +129,14 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
             return Result<DecodedAttestedCredentialData>.Failed("Can't read credentialId");
         }
 
-        throw new NotImplementedException();
+        var credentialPublicKeyResult = ConsumeCredentialPublicKey(ref input);
+        if (credentialPublicKeyResult.HasError)
+        {
+            return Result<DecodedAttestedCredentialData>.Failed(credentialPublicKeyResult.Error);
+        }
+
+        var result = new DecodedAttestedCredentialData(aaguid, credentialId, credentialPublicKeyResult.Ok);
+        return Result<DecodedAttestedCredentialData>.Success(result);
     }
 
     [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -159,6 +175,21 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 
         credentialId = consumedBuffer.ToArray();
         return true;
+    }
+
+    private Result<DecodedCredentialPublicKey> ConsumeCredentialPublicKey(ref ReadOnlySpan<byte> input)
+    {
+        var bufferToConsume = input.ToArray();
+        var decodeResult = _credentialPublicKeyDecoder.Decode(bufferToConsume);
+        if (decodeResult.HasError)
+        {
+            return Result<DecodedCredentialPublicKey>.Failed(decodeResult.Error);
+        }
+
+        var credentialPublicKey = decodeResult.Ok.CredentialPublicKey;
+        var bytesConsumed = decodeResult.Ok.BytesConsumed;
+        input = input[bytesConsumed..];
+        return Result<DecodedCredentialPublicKey>.Success(credentialPublicKey);
     }
 
     private static bool TryRead(ref ReadOnlySpan<byte> input, int length, out ReadOnlySpan<byte> consumedBuffer)
