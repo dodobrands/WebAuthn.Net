@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Serialization.Json;
 using WebAuthn.Net.Services.Static;
@@ -47,7 +46,7 @@ public class PublicKeyCredential
     public PublicKeyCredential(string id, PublicKeyCredentialType type, byte[] rawId, AuthenticatorAssertionResponse response)
     {
         ArgumentNullException.ThrowIfNull(id, nameof(id));
-        if (!USVStringValidator.IsValid(id))
+        if (!UsvStringValidator.IsValid(id))
         {
             throw new ArgumentException($"{nameof(id)} must be a string that doesn't contain surrogate pairs.", nameof(id));
         }
@@ -62,7 +61,7 @@ public class PublicKeyCredential
 
         Id = id;
         Type = type;
-        RawId = rawId.CreateCopy();
+        RawId = rawId;
         Response = response;
     }
 

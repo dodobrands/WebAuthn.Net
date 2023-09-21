@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+﻿namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 
 /// <summary>
 ///     Attestation Types
@@ -8,7 +6,6 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enum
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-types">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 6.5.3. Attestation Types</a>
 /// </remarks>
-[SuppressMessage("ReSharper", "InconsistentNaming")]
 public enum AttestationType
 {
     /// <summary>
@@ -43,7 +40,7 @@ public enum AttestationType
     /// <remarks>
     ///     Note: This concept typically leads to multiple attestation certificates. The attestation certificate requested most recently is called "active".
     /// </remarks>
-    AttCA = 2,
+    AttCa = 2,
 
     /// <summary>
     ///     In this case, the <a href="https://www.w3.org/TR/webauthn-3/#authenticator">authenticator</a> uses an <a href="https://www.w3.org/TR/webauthn-3/#anonymization-ca">Anonymization CA</a>
@@ -58,7 +55,7 @@ public enum AttestationType
     ///     so the three attestation types are, in general, distinguishable only with externally provided knowledge regarding the contents
     ///     of the <a href="https://www.w3.org/TR/webauthn-3/#attestation-certificate">attestation certificates</a> conveyed in the <a href="https://www.w3.org/TR/webauthn-3/#attestation-statement">attestation statement</a>.
     /// </remarks>
-    AnonCA = 3,
+    AnonCa = 3,
 
     /// <summary>
     ///     In this case, no attestation information is available. See also <a href="https://www.w3.org/TR/webauthn-3/#sctn-none-attestation">§ 8.7 None Attestation Statement Format</a>

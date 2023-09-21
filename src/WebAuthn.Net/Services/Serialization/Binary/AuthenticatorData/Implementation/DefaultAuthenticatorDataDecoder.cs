@@ -114,7 +114,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
     [SuppressMessage("ReSharper", "UnusedVariable")]
     private Result<DecodedAttestedCredentialData> TryConsumeAttestedCredentialData(ref ReadOnlySpan<byte> input)
     {
-        if (!TryConsumeAAGUID(ref input, out var aaguid))
+        if (!TryConsumeAaguid(ref input, out var aaguid))
         {
             return Result<DecodedAttestedCredentialData>.Failed("Can't read signCount");
         }
@@ -139,9 +139,8 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return Result<DecodedAttestedCredentialData>.Success(result);
     }
 
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
     [SuppressMessage("ReSharper", "IdentifierTypo")]
-    private static bool TryConsumeAAGUID(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out byte[]? aaguid)
+    private static bool TryConsumeAaguid(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out byte[]? aaguid)
     {
         if (!TryRead(ref input, 16, out var consumedBuffer))
         {

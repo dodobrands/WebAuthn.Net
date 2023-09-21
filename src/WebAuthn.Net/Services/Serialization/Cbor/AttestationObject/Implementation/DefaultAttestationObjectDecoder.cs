@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Format;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
@@ -10,12 +11,17 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementat
 
 public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 {
+    private readonly IAttestationStatementDecoder _attestationStatementDecoder;
     private readonly ICborDecoder _cborDecoder;
 
-    public DefaultAttestationObjectDecoder(ICborDecoder cborDecoder)
+    public DefaultAttestationObjectDecoder(
+        ICborDecoder cborDecoder,
+        IAttestationStatementDecoder attestationStatementDecoder)
     {
         ArgumentNullException.ThrowIfNull(cborDecoder);
+        ArgumentNullException.ThrowIfNull(attestationStatementDecoder);
         _cborDecoder = cborDecoder;
+        _attestationStatementDecoder = attestationStatementDecoder;
     }
 
     public Result<DecodedAttestationObject> Decode(byte[] attestationObject)
@@ -26,12 +32,19 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
             return Result<DecodedAttestationObject>.Failed(mapResult.Error);
         }
 
-        if (!TryGetAttestationStatementFormat(mapResult.Ok, out var fmt, out var fmtError))
+        var attestationObjectCbor = mapResult.Ok;
+
+        if (!TryGetAttestationStatementFormat(attestationObjectCbor, out var fmt, out var fmtError))
         {
             return Result<DecodedAttestationObject>.Failed(fmtError);
         }
 
-        var result = new DecodedAttestationObject(fmt.Value);
+        if (!TryGetAttestationStatement(attestationObjectCbor, fmt.Value, out var attestationStatement, out var attStmtError))
+        {
+            return Result<DecodedAttestationObject>.Failed(attStmtError);
+        }
+
+        var result = new DecodedAttestationObject(fmt.Value, attestationStatement);
         return Result<DecodedAttestationObject>.Success(result);
     }
 
@@ -95,7 +108,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
                 error = null;
                 return true;
             case "fido-u2f":
-                value = AttestationStatementFormat.FidoU2f;
+                value = AttestationStatementFormat.FidoU2F;
                 error = null;
                 return true;
             case "apple":
@@ -107,5 +120,39 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
                 error = "The value associated with the 'fmt' key in the attestationObject map contains an unknown attestation statement format.";
                 return false;
         }
+    }
+
+    private bool TryGetAttestationStatement(
+        CborMap attestationObjectCborMap,
+        AttestationStatementFormat format,
+        [NotNullWhen(true)] out AbstractAttestationStatement? value,
+        [NotNullWhen(false)] out string? error)
+    {
+        var dict = attestationObjectCborMap.Value;
+        if (!dict.TryGetValue(new CborTextString("attStmt"), out var attStmtCbor))
+        {
+            value = null;
+            error = "Failed to find the 'attStmt' key in attestationObject.";
+            return false;
+        }
+
+        if (attStmtCbor is not CborMap attStmtCborMap)
+        {
+            value = null;
+            error = "The value associated with the 'attStmt' key in the attestationObject map contains an invalid data type.";
+            return false;
+        }
+
+        var decodeResult = _attestationStatementDecoder.Decode(attStmtCborMap, format);
+        if (decodeResult.HasError)
+        {
+            value = null;
+            error = decodeResult.Error;
+            return false;
+        }
+
+        value = decodeResult.Ok;
+        error = null;
+        return true;
     }
 }

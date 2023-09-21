@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony;
@@ -62,7 +61,7 @@ public class PublicKeyCredentialUserEntity
             throw new ArgumentException("Value cannot be null or empty.", nameof(name));
         }
 
-        Id = id.CreateCopy();
+        Id = id;
         DisplayName = displayName;
         Name = name;
     }

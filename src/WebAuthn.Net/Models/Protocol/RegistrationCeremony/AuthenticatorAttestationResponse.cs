@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony;
@@ -45,8 +44,8 @@ public class AuthenticatorAttestationResponse
     {
         ArgumentNullException.ThrowIfNull(clientDataJson);
         ArgumentNullException.ThrowIfNull(attestationObject);
-        ClientDataJson = clientDataJson.CreateCopy();
-        AttestationObject = attestationObject.CreateCopy();
+        ClientDataJson = clientDataJson;
+        AttestationObject = attestationObject;
     }
 
     /// <summary>

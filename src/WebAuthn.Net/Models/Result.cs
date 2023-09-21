@@ -7,6 +7,7 @@ namespace WebAuthn.Net.Models;
 ///     Generic result of executing any operation.
 /// </summary>
 /// <typeparam name="TOk">The data type returned in case of a successful operation execution.</typeparam>
+[SuppressMessage("Design", "CA1000:Do not declare static members on generic types")]
 public class Result<TOk> where TOk : class
 {
     private Result(string error)
@@ -42,8 +43,6 @@ public class Result<TOk> where TOk : class
     /// </summary>
     public string? Error { get; }
 
-#pragma warning disable CA1000
-
     /// <summary>
     ///     Returns a result indicating the successful completion of the operation.
     /// </summary>
@@ -63,6 +62,4 @@ public class Result<TOk> where TOk : class
     {
         return new(error);
     }
-
-#pragma warning restore CA1000
 }
