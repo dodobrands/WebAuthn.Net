@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.AuthenticationCeremony;
@@ -40,12 +39,12 @@ public class AuthenticatorAssertionResponse
         ArgumentNullException.ThrowIfNull(clientDataJson);
         ArgumentNullException.ThrowIfNull(authenticatorData);
         ArgumentNullException.ThrowIfNull(signature);
-        ClientDataJson = clientDataJson.CreateCopy();
-        AuthenticatorData = authenticatorData.CreateCopy();
-        Signature = signature.CreateCopy();
+        ClientDataJson = clientDataJson;
+        AuthenticatorData = authenticatorData;
+        Signature = signature;
         if (userHandle is not null)
         {
-            UserHandle = userHandle.CreateCopy();
+            UserHandle = userHandle;
         }
     }
 

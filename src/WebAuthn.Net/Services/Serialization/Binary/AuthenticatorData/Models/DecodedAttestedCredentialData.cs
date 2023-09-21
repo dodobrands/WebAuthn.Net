@@ -50,7 +50,7 @@ public class DecodedAttestedCredentialData
         }
 
 
-        AAGUID = aaguid;
+        Aaguid = aaguid;
         CredentialId = credentialId;
         CredentialPublicKey = credentialPublicKey;
     }
@@ -58,9 +58,7 @@ public class DecodedAttestedCredentialData
     /// <summary>
     ///     The AAGUID of the authenticator.
     /// </summary>
-    [SuppressMessage("ReSharper", "IdentifierTypo")]
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public byte[] AAGUID { get; }
+    public byte[] Aaguid { get; }
 
     /// <summary>
     ///     A probabilistically-unique <a href="https://infra.spec.whatwg.org/#byte-sequence">byte sequence</a>

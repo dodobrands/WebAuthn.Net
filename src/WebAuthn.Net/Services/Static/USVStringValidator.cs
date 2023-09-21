@@ -10,8 +10,7 @@ namespace WebAuthn.Net.Services.Static;
 /// <remarks>
 ///     <a href="https://webidl.spec.whatwg.org/#idl-USVString">Web IDL. Living Standard — Last Updated 10 September 2023 - § 2.13.19. USVString</a>.
 /// </remarks>
-// ReSharper disable once InconsistentNaming
-public static class USVStringValidator
+public static class UsvStringValidator
 {
     private const char LeadingSurrogateStart = '\uD800';
     private const char LeadingSurrogateEnd = '\uDBFF';

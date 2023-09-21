@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
 
@@ -17,7 +16,7 @@ public class CborArray : AbstractCborObject, IEquatable<CborArray>, IEquatable<A
 
     public CborArray(IEnumerable<AbstractCborObject> values)
     {
-        Value = values.ToArray().CreateCopy();
+        Value = values.ToArray();
     }
 
     public override CborType Type => ActualType;

@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Serialization.Json;
 
@@ -78,7 +77,7 @@ public class PublicKeyCredentialCreationOptions
         ArgumentNullException.ThrowIfNull(pubKeyCredParams);
         Rp = rp;
         User = user;
-        Challenge = challenge.CreateCopy();
+        Challenge = challenge;
         if (challenge.Length < 16)
         {
             throw new ArgumentException($"The minimum length of the {nameof(challenge)} is 16.", nameof(challenge));
@@ -95,7 +94,7 @@ public class PublicKeyCredentialCreationOptions
             throw new ArgumentException($"One or more objects contained in the {nameof(pubKeyCredParams)} array are equal to null.", nameof(pubKeyCredParams));
         }
 
-        PubKeyCredParams = pubKeyCredParams.CreateCopy();
+        PubKeyCredParams = pubKeyCredParams;
         Timeout = timeout;
         if (excludeCredentials?.Length > 0)
         {
@@ -105,7 +104,7 @@ public class PublicKeyCredentialCreationOptions
                 throw new ArgumentException($"One or more objects contained in the {nameof(excludeCredentials)} array are equal to null.", nameof(excludeCredentials));
             }
 
-            ExcludeCredentials = excludeCredentials.CreateCopy();
+            ExcludeCredentials = excludeCredentials;
         }
 
         AuthenticatorSelection = authenticatorSelection;

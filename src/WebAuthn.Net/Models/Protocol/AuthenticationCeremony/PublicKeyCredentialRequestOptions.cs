@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Serialization.Json;
 using WebAuthn.Net.Services.Static;
@@ -62,11 +61,11 @@ public class PublicKeyCredentialRequestOptions
         AuthenticationExtensionsClientInputs? extensions)
     {
         ArgumentNullException.ThrowIfNull(challenge);
-        Challenge = challenge.CreateCopy();
+        Challenge = challenge;
         Timeout = timeout;
         if (rpId is not null)
         {
-            if (!USVStringValidator.IsValid(rpId))
+            if (!UsvStringValidator.IsValid(rpId))
             {
                 throw new ArgumentException($"{nameof(rpId)} must be a string that doesn't contain surrogate pairs.", nameof(rpId));
             }
@@ -82,7 +81,7 @@ public class PublicKeyCredentialRequestOptions
                 throw new ArgumentException($"One or more objects contained in the {nameof(allowCredentials)} array are equal to null.", nameof(allowCredentials));
             }
 
-            AllowCredentials = allowCredentials.CreateCopy();
+            AllowCredentials = allowCredentials;
         }
 
         if (userVerification.HasValue)

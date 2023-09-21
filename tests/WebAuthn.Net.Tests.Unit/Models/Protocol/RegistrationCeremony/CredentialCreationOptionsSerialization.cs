@@ -15,7 +15,7 @@ public class CredentialCreationOptionsSerializationTests
                 new("PublicKeyCredentialRpEntity_Id", "PublicKeyCredentialRpEntity_Name"),
                 new(new byte[] { 1 }, "PublicKeyCredentialUserEntity_DisplayName", "PublicKeyCredentialUserEntity_Name"),
                 new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5 },
-                new PublicKeyCredentialParameters[] { new(PublicKeyCredentialType.PublicKey, COSEAlgorithmIdentifier.ES256) },
+                new PublicKeyCredentialParameters[] { new(PublicKeyCredentialType.PublicKey, CoseAlgorithmIdentifier.Es256) },
                 3,
                 new PublicKeyCredentialDescriptor[] { new(PublicKeyCredentialType.PublicKey, new byte[] { 4 }, new[] { AuthenticatorTransport.Ble }) },
                 new(AuthenticatorAttachment.Platform, ResidentKeyRequirement.Preferred, true, UserVerificationRequirement.Required),

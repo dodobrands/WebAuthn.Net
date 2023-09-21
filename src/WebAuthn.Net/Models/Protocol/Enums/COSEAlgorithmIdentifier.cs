@@ -1,61 +1,66 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace WebAuthn.Net.Models.Protocol.Enums;
+﻿namespace WebAuthn.Net.Models.Protocol.Enums;
 #pragma warning disable CA1008
 /// <summary>
 ///     Cryptographic Algorithm Identifier.
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-alg-identifier">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.8.5. Cryptographic Algorithm Identifier</a>
-///     <br />
-///     <a href="https://github.com/dotnet/runtime/blob/v7.0.11/src/libraries/System.Security.Cryptography.Cose/src/System/Security/Cryptography/Cose/KnownCoseAlgorithms.cs#L12-L22">.NET supported algorithms</a>
+///     <para>
+///         <a href="https://www.w3.org/TR/webauthn-3/#sctn-alg-identifier">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.8.5. Cryptographic Algorithm Identifier</a>
+///     </para>
+///     <para>
+///         <a href="https://www.iana.org/assignments/cose/cose.xhtml#algorithms">COSE Algorithms</a>
+///     </para>
 /// </remarks>
-[SuppressMessage("ReSharper", "InconsistentNaming")]
-public enum COSEAlgorithmIdentifier
+public enum CoseAlgorithmIdentifier
 {
+    /// <summary>
+    ///     RSASSA-PKCS1-v1_5 w/ SHA-1
+    /// </summary>
+    Rs1 = -65535,
+
     /// <summary>
     ///     RSASSA-PKCS1-v1_5 w/ SHA-512
     /// </summary>
-    RS512 = -259,
+    Rs512 = -259,
 
     /// <summary>
     ///     RSASSA-PKCS1-v1_5 w/ SHA-384
     /// </summary>
-    RS384 = -258,
+    Rs384 = -258,
 
     /// <summary>
     ///     RSASSA-PKCS1-v1_5 w/ SHA-256
     /// </summary>
-    RS256 = -257,
+    Rs256 = -257,
 
     /// <summary>
     ///     RSASSA-PSS w/ SHA-512
     /// </summary>
-    PS512 = -39,
+    Ps512 = -39,
 
     /// <summary>
     ///     RSASSA-PSS w/ SHA-384
     /// </summary>
-    PS384 = -38,
+    Ps384 = -38,
 
     /// <summary>
     ///     RSASSA-PSS w/ SHA-256
     /// </summary>
-    PS256 = -37,
+    Ps256 = -37,
 
     /// <summary>
     ///     ECDSA w/ SHA-512
     /// </summary>
-    ES512 = -36,
+    Es512 = -36,
 
     /// <summary>
     ///     ECDSA w/ SHA-384
     /// </summary>
-    ES384 = -35,
+    Es384 = -35,
 
     /// <summary>
     ///     ECDSA w/ SHA-256
     /// </summary>
-    ES256 = -7
+    Es256 = -7
 }
 #pragma warning restore CA1008

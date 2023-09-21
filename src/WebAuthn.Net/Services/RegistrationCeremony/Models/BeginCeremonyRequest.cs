@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Linq;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony;
 
@@ -88,7 +87,7 @@ public class BeginCeremonyRequest
             throw new ArgumentException($"One or more objects contained in the {nameof(pubKeyCredParams)} array are equal to null.", nameof(pubKeyCredParams));
         }
 
-        PubKeyCredParams = pubKeyCredParams.CreateCopy();
+        PubKeyCredParams = pubKeyCredParams;
         Timeout = timeout;
         ExcludeCredentials = excludeCredentials;
         AuthenticatorSelection = authenticatorSelection;

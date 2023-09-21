@@ -209,6 +209,4 @@ public class DefaultCborDecoder : ICborDecoder
         var result = value ? CborBoolean.True : CborBoolean.False;
         return Result<CborBoolean>.Success(result);
     }
-
-    //Boolean
 }

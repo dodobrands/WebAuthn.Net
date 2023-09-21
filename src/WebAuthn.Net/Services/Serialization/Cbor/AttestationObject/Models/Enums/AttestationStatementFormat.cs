@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Serialization.Json;
@@ -6,7 +5,6 @@ using WebAuthn.Net.Serialization.Json;
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 
 [JsonConverter(typeof(EnumAsStringConverter<AttestationStatementFormat>))]
-[SuppressMessage("ReSharper", "InconsistentNaming")]
 public enum AttestationStatementFormat
 {
     [EnumMember(Value = "none")]
@@ -25,7 +23,7 @@ public enum AttestationStatementFormat
     AndroidSafetynet = 4,
 
     [EnumMember(Value = "fido-u2f")]
-    FidoU2f = 5,
+    FidoU2F = 5,
 
     [EnumMember(Value = "apple")]
     Apple = 6

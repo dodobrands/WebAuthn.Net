@@ -28,19 +28,19 @@ public class PublicKeyCredentialParameters
     /// </param>
     /// <exception cref="InvalidEnumArgumentException">
     ///     If the <paramref name="type" /> or <paramref name="alg" /> parameters
-    ///     contain a value that is not defined in the <see cref="PublicKeyCredentialType" /> and <see cref="COSEAlgorithmIdentifier" /> enums, respectively.
+    ///     contain a value that is not defined in the <see cref="PublicKeyCredentialType" /> and <see cref="CoseAlgorithmIdentifier" /> enums, respectively.
     /// </exception>
     [JsonConstructor]
-    public PublicKeyCredentialParameters(PublicKeyCredentialType type, COSEAlgorithmIdentifier alg)
+    public PublicKeyCredentialParameters(PublicKeyCredentialType type, CoseAlgorithmIdentifier alg)
     {
         if (!Enum.IsDefined(typeof(PublicKeyCredentialType), type))
         {
             throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
         }
 
-        if (!Enum.IsDefined(typeof(COSEAlgorithmIdentifier), alg))
+        if (!Enum.IsDefined(typeof(CoseAlgorithmIdentifier), alg))
         {
-            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(COSEAlgorithmIdentifier));
+            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithmIdentifier));
         }
 
         Type = type;
@@ -64,5 +64,5 @@ public class PublicKeyCredentialParameters
     [Required]
     [JsonPropertyName("alg")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public COSEAlgorithmIdentifier Alg { get; }
+    public CoseAlgorithmIdentifier Alg { get; }
 }
