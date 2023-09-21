@@ -1,10 +1,9 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Format;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;

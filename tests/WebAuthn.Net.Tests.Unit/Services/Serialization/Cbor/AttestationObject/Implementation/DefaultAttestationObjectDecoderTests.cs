@@ -1,10 +1,8 @@
 using System;
 using NUnit.Framework;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Implementation;
-using WebAuthn.Net.Services.Serialization.Cbor.Format;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;

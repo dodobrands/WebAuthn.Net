@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
 

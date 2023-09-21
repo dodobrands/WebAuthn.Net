@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models;

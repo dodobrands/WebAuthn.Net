@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 
-namespace WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models;
+namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
 
 /// <summary>
 ///     Decoded representation of <a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">authenticator data</a>.

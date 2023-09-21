@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey;
 using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Models;
 
-namespace WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
+namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
 
 /// <summary>
 ///     Default implementation of the service for working with the <a href="https://www.w3.org/TR/webauthn-3/#authenticator-data">authenticator data</a> structure.

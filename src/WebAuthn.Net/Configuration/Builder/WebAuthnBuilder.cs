@@ -8,8 +8,8 @@ using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData;
-using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
+using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
 using WebAuthn.Net.Services.TimeProvider;
 using WebAuthn.Net.Services.TimeProvider.Implementation;
 
