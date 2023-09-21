@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
@@ -11,17 +13,21 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementat
 
 public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 {
-    private readonly IAttestationStatementDecoder _attestationStatementDecoder;
     private readonly ICborDecoder _cborDecoder;
+    private readonly IAttestationStatementDecoder _attStmtDecoder;
+    private readonly IAuthenticatorDataDecoder _authDataDecoder;
 
     public DefaultAttestationObjectDecoder(
         ICborDecoder cborDecoder,
-        IAttestationStatementDecoder attestationStatementDecoder)
+        IAttestationStatementDecoder attStmtDecoder,
+        IAuthenticatorDataDecoder authDataDecoder)
     {
         ArgumentNullException.ThrowIfNull(cborDecoder);
-        ArgumentNullException.ThrowIfNull(attestationStatementDecoder);
+        ArgumentNullException.ThrowIfNull(attStmtDecoder);
+        ArgumentNullException.ThrowIfNull(authDataDecoder);
         _cborDecoder = cborDecoder;
-        _attestationStatementDecoder = attestationStatementDecoder;
+        _attStmtDecoder = attStmtDecoder;
+        _authDataDecoder = authDataDecoder;
     }
 
     public Result<DecodedAttestationObject> Decode(byte[] attestationObject)
@@ -34,17 +40,22 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 
         var attestationObjectCbor = mapResult.Ok;
 
-        if (!TryGetAttestationStatementFormat(attestationObjectCbor, out var fmt, out var fmtError))
+        if (!TryDecodeAttestationStatementFormat(attestationObjectCbor, out var fmt, out var fmtError))
         {
             return Result<DecodedAttestationObject>.Failed(fmtError);
         }
 
-        if (!TryGetAttestationStatement(attestationObjectCbor, fmt.Value, out var attestationStatement, out var attStmtError))
+        if (!TryDecodeAttestationStatement(attestationObjectCbor, fmt.Value, out var attStmt, out var attStmtError))
         {
             return Result<DecodedAttestationObject>.Failed(attStmtError);
         }
 
-        var result = new DecodedAttestationObject(fmt.Value, attestationStatement);
+        if (!TryDecodeAuthData(attestationObjectCbor, out var authData, out var authDataError))
+        {
+            return Result<DecodedAttestationObject>.Failed(authDataError);
+        }
+
+        var result = new DecodedAttestationObject(fmt.Value, attStmt, authData);
         return Result<DecodedAttestationObject>.Success(result);
     }
 
@@ -65,7 +76,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         return Result<CborMap>.Success(attestationObjectCborMap);
     }
 
-    private static bool TryGetAttestationStatementFormat(
+    private static bool TryDecodeAttestationStatementFormat(
         CborMap attestationObjectCborMap,
         [NotNullWhen(true)] out AttestationStatementFormat? value,
         [NotNullWhen(false)] out string? error)
@@ -112,7 +123,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
                 error = null;
                 return true;
             case "apple":
-                value = AttestationStatementFormat.Apple;
+                value = AttestationStatementFormat.AppleAnonymous;
                 error = null;
                 return true;
             default:
@@ -122,7 +133,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         }
     }
 
-    private bool TryGetAttestationStatement(
+    private bool TryDecodeAttestationStatement(
         CborMap attestationObjectCborMap,
         AttestationStatementFormat format,
         [NotNullWhen(true)] out AbstractAttestationStatement? value,
@@ -143,7 +154,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
             return false;
         }
 
-        var decodeResult = _attestationStatementDecoder.Decode(attStmtCborMap, format);
+        var decodeResult = _attStmtDecoder.Decode(attStmtCborMap, format);
         if (decodeResult.HasError)
         {
             value = null;
@@ -153,6 +164,39 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 
         value = decodeResult.Ok;
         error = null;
+        return true;
+    }
+
+    private bool TryDecodeAuthData(
+        CborMap attStmt,
+        [NotNullWhen(true)] out DecodedAuthenticatorData? value,
+        [NotNullWhen(false)] out string? error)
+    {
+        var dict = attStmt.Value;
+        if (!dict.TryGetValue(new CborTextString("authData"), out var sigCbor))
+        {
+            error = "Failed to find the 'authData' key in attestationObject.";
+            value = null;
+            return false;
+        }
+
+        if (sigCbor is not CborByteString sigCborByteString)
+        {
+            error = "The value associated with the 'authData' key in the attestationObject map contains an invalid data type.";
+            value = null;
+            return false;
+        }
+
+        var decodeResult = _authDataDecoder.Decode(sigCborByteString.Value);
+        if (decodeResult.HasError)
+        {
+            value = null;
+            error = decodeResult.Error;
+            return false;
+        }
+
+        error = null;
+        value = decodeResult.Ok;
         return true;
     }
 }

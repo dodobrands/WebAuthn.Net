@@ -157,6 +157,13 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         // 12. Perform CBOR decoding on the attestationObject field of the AuthenticatorAttestationResponse structure
         // to obtain the attestation statement format fmt, the authenticator data authData, and the attestation statement attStmt.
         var attestationObjectResult = _attestationObjectDecoder.Decode(request.Credential.Response.AttestationObject);
+        if (attestationObjectResult.HasError)
+        {
+            return Result<CompleteCeremonyResult>.Failed(attestationObjectResult.Error);
+        }
+
+        var attestationObject = attestationObjectResult.Ok;
+
         // var fmt = (string?) null;
         // var authData = (string?) null;
         // var attStmt = (string?) null;

@@ -1,7 +1,10 @@
 using System;
 using NUnit.Framework;
+using WebAuthn.Net.Services.Serialization.Binary.AuthenticatorData.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Implementation;
+using WebAuthn.Net.Services.Serialization.Cbor.Format;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
@@ -35,12 +38,13 @@ public class DefaultAttestationObjectDecoderTests
         new DefaultCborDecoder(),
         new DefaultAttestationStatementDecoder(
             new DefaultPackedAttestationStatementDecoder(),
-            new DefaultNoneAttestationStatementDecoder(),
             new DefaultTpmAttestationStatementDecoder(),
-            new DefaultAndroidSafetyNetAttestationStatementDecoder(),
             new DefaultAndroidKeyAttestationStatementDecoder(),
+            new DefaultAndroidSafetyNetAttestationStatementDecoder(),
             new DefaultFidoU2FAttestationStatementDecoder(),
-            new DefaultAppleAnonymousAttestationStatementDecoder()));
+            new DefaultNoneAttestationStatementDecoder(),
+            new DefaultAppleAnonymousAttestationStatementDecoder()),
+        new DefaultAuthenticatorDataDecoder(new DefaultCredentialPublicKeyDecoder(new DefaultCborDecoder())));
 
     [Test]
     public void CanDecode_Packed()
@@ -95,6 +99,6 @@ public class DefaultAttestationObjectDecoderTests
     {
         var result = _decoder.Decode(AppleAttestationObject);
         Assert.That(result.HasError, Is.False);
-        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Apple));
+        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.AppleAnonymous));
     }
 }
