@@ -15,7 +15,7 @@ public class CborByteString : AbstractCborObject, IEquatable<CborByteString>, IE
 
     public CborByteString(byte[] values)
     {
-        Value = values;
+        RawValue = values;
     }
 
     public override CborType Type => ActualType;
@@ -27,10 +27,10 @@ public class CborByteString : AbstractCborObject, IEquatable<CborByteString>, IE
 
     public bool Equals(CborByteString? other)
     {
-        return other is not null && (ReferenceEquals(this, other) || Value.SequenceEqual(other.Value));
+        return other is not null && (ReferenceEquals(this, other) || RawValue.SequenceEqual(other.RawValue));
     }
 
-    public byte[] Value { get; } = Array.Empty<byte>();
+    public byte[] RawValue { get; } = Array.Empty<byte>();
 
     public override bool Equals(object? obj)
     {
@@ -40,7 +40,7 @@ public class CborByteString : AbstractCborObject, IEquatable<CborByteString>, IE
     public override int GetHashCode()
     {
         var hashCode = (int) ActualType;
-        foreach (var value in Value)
+        foreach (var value in RawValue)
         {
             hashCode = HashCode.Combine(hashCode, value);
         }

@@ -1,7 +1,7 @@
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Json.ClientData.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.ClientData;
 
-namespace WebAuthn.Net.Services.Serialization.Json.ClientData;
+namespace WebAuthn.Net.Services.RegistrationCeremony;
 
 public interface IClientDataDecoder
 {

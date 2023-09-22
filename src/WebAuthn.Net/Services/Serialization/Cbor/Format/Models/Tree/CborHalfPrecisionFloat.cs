@@ -10,7 +10,7 @@ public class CborHalfPrecisionFloat : AbstractCborObject, IEquatable<CborHalfPre
 
     public CborHalfPrecisionFloat(Half value)
     {
-        Value = value;
+        RawValue = value;
     }
 
     public override CborType Type => ActualType;
@@ -22,10 +22,10 @@ public class CborHalfPrecisionFloat : AbstractCborObject, IEquatable<CborHalfPre
 
     public bool Equals(CborHalfPrecisionFloat? other)
     {
-        return other is not null && (ReferenceEquals(this, other) || Value == other.Value);
+        return other is not null && (ReferenceEquals(this, other) || RawValue == other.RawValue);
     }
 
-    public Half Value { get; }
+    public Half RawValue { get; }
 
     public override bool Equals(object? obj)
     {
@@ -34,7 +34,7 @@ public class CborHalfPrecisionFloat : AbstractCborObject, IEquatable<CborHalfPre
 
     public override int GetHashCode()
     {
-        return HashCode.Combine((int) ActualType, Value);
+        return HashCode.Combine((int) ActualType, RawValue);
     }
 
     public static bool operator ==(CborHalfPrecisionFloat? left, CborHalfPrecisionFloat? right)

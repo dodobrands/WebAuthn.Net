@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.Cryptography.Cose;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
-using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey;
-using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Models;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
 
@@ -18,12 +18,12 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 {
     private const int EncodedAuthenticatorDataMinLength = 37;
 
-    private readonly ICredentialPublicKeyDecoder _credentialPublicKeyDecoder;
+    private readonly ICoseKeyDecoder _coseKeyDecoder;
 
-    public DefaultAuthenticatorDataDecoder(ICredentialPublicKeyDecoder credentialPublicKeyDecoder)
+    public DefaultAuthenticatorDataDecoder(ICoseKeyDecoder coseKeyDecoder)
     {
-        ArgumentNullException.ThrowIfNull(credentialPublicKeyDecoder);
-        _credentialPublicKeyDecoder = credentialPublicKeyDecoder;
+        ArgumentNullException.ThrowIfNull(coseKeyDecoder);
+        _coseKeyDecoder = coseKeyDecoder;
     }
 
     /// <inheritdoc />
@@ -176,19 +176,19 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return true;
     }
 
-    private Result<DecodedCredentialPublicKey> ConsumeCredentialPublicKey(ref ReadOnlySpan<byte> input)
+    private Result<AbstractCoseKey> ConsumeCredentialPublicKey(ref ReadOnlySpan<byte> input)
     {
         var bufferToConsume = input.ToArray();
-        var decodeResult = _credentialPublicKeyDecoder.Decode(bufferToConsume);
+        var decodeResult = _coseKeyDecoder.Decode(bufferToConsume);
         if (decodeResult.HasError)
         {
-            return Result<DecodedCredentialPublicKey>.Failed(decodeResult.Error);
+            return Result<AbstractCoseKey>.Failed(decodeResult.Error);
         }
 
-        var credentialPublicKey = decodeResult.Ok.CredentialPublicKey;
+        var credentialPublicKey = decodeResult.Ok.CoseKey;
         var bytesConsumed = decodeResult.Ok.BytesConsumed;
         input = input[bytesConsumed..];
-        return Result<DecodedCredentialPublicKey>.Success(credentialPublicKey);
+        return Result<AbstractCoseKey>.Success(credentialPublicKey);
     }
 
     private static bool TryRead(ref ReadOnlySpan<byte> input, int length, out ReadOnlySpan<byte> consumedBuffer)

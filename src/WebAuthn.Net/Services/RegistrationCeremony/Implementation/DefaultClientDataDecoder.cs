@@ -1,9 +1,9 @@
 using System;
 using System.Text.Json;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Json.ClientData.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.ClientData;
 
-namespace WebAuthn.Net.Services.Serialization.Json.ClientData.Implementation;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 
 public class DefaultClientDataDecoder : IClientDataDecoder
 {

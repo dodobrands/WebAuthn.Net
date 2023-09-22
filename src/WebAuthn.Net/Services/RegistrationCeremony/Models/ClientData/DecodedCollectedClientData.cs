@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Services.Serialization.Json.ClientData.Models;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Models.ClientData;
 
 public class DecodedCollectedClientData
 {

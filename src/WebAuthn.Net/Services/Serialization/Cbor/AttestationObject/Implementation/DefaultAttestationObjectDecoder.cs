@@ -12,9 +12,9 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementat
 
 public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 {
-    private readonly ICborDecoder _cborDecoder;
     private readonly IAttestationStatementDecoder _attStmtDecoder;
     private readonly IAuthenticatorDataDecoder _authDataDecoder;
+    private readonly ICborDecoder _cborDecoder;
 
     public DefaultAttestationObjectDecoder(
         ICborDecoder cborDecoder,
@@ -80,7 +80,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         [NotNullWhen(true)] out AttestationStatementFormat? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attestationObjectCborMap.Value;
+        var dict = attestationObjectCborMap.RawValue;
         if (!dict.TryGetValue(new CborTextString("fmt"), out var fmtCbor))
         {
             value = null;
@@ -95,7 +95,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
             return false;
         }
 
-        switch (fmtCborText.Value)
+        switch (fmtCborText.RawValue)
         {
             case "none":
                 value = AttestationStatementFormat.None;
@@ -138,7 +138,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         [NotNullWhen(true)] out AbstractAttestationStatement? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attestationObjectCborMap.Value;
+        var dict = attestationObjectCborMap.RawValue;
         if (!dict.TryGetValue(new CborTextString("attStmt"), out var attStmtCbor))
         {
             value = null;
@@ -171,7 +171,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         [NotNullWhen(true)] out DecodedAuthenticatorData? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("authData"), out var sigCbor))
         {
             error = "Failed to find the 'authData' key in attestationObject.";
@@ -186,7 +186,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
             return false;
         }
 
-        var decodeResult = _authDataDecoder.Decode(sigCborByteString.Value);
+        var decodeResult = _authDataDecoder.Decode(sigCborByteString.RawValue);
         if (decodeResult.HasError)
         {
             value = null;

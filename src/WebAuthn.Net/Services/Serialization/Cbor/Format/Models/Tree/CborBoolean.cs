@@ -13,7 +13,7 @@ public class CborBoolean : AbstractCborObject, IEquatable<CborBoolean>, IEquatab
 
     public CborBoolean(bool value)
     {
-        Value = value;
+        RawValue = value;
     }
 
     public override CborType Type => ActualType;
@@ -25,10 +25,10 @@ public class CborBoolean : AbstractCborObject, IEquatable<CborBoolean>, IEquatab
 
     public bool Equals(CborBoolean? other)
     {
-        return other is not null && (ReferenceEquals(this, other) || Value == other.Value);
+        return other is not null && (ReferenceEquals(this, other) || RawValue == other.RawValue);
     }
 
-    public bool Value { get; }
+    public bool RawValue { get; }
 
     public override bool Equals(object? obj)
     {
@@ -37,7 +37,7 @@ public class CborBoolean : AbstractCborObject, IEquatable<CborBoolean>, IEquatab
 
     public override int GetHashCode()
     {
-        return HashCode.Combine((int) ActualType, Value);
+        return HashCode.Combine((int) ActualType, RawValue);
     }
 
     public static bool operator ==(CborBoolean? left, CborBoolean? right)

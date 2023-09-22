@@ -10,13 +10,13 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementat
 
 public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
 {
-    private readonly IPackedAttestationStatementDecoder _packedDecoder;
-    private readonly ITpmAttestationStatementDecoder _tpmDecoder;
     private readonly IAndroidKeyAttestationStatementDecoder _androidKeyDecoder;
     private readonly IAndroidSafetyNetAttestationStatementDecoder _androidSafetyNetDecoder;
+    private readonly IAppleAnonymousAttestationStatementDecoder _appleAnonymousDecoder;
     private readonly IFidoU2FAttestationStatementDecoder _fidoU2FDecoder;
     private readonly INoneAttestationStatementDecoder _noneDecoder;
-    private readonly IAppleAnonymousAttestationStatementDecoder _appleAnonymousDecoder;
+    private readonly IPackedAttestationStatementDecoder _packedDecoder;
+    private readonly ITpmAttestationStatementDecoder _tpmDecoder;
 
     public DefaultAttestationStatementDecoder(
         IPackedAttestationStatementDecoder packedDecoder,

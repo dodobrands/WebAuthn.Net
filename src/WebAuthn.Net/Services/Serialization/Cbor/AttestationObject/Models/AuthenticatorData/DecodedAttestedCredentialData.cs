@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Models;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
 
@@ -27,7 +27,7 @@ public class DecodedAttestedCredentialData
         [SuppressMessage("ReSharper", "IdentifierTypo")]
         byte[] aaguid,
         byte[] credentialId,
-        DecodedCredentialPublicKey? credentialPublicKey)
+        AbstractCoseKey? credentialPublicKey)
     {
         if (aaguid == null)
         {
@@ -70,5 +70,5 @@ public class DecodedAttestedCredentialData
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/webauthn-3/#credential-public-key">credential public key</a>.
     /// </summary>
-    public DecodedCredentialPublicKey? CredentialPublicKey { get; }
+    public AbstractCoseKey? CredentialPublicKey { get; }
 }

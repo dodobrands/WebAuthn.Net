@@ -32,7 +32,7 @@ public class CborMap : AbstractCborObject, IEquatable<CborMap>, IEquatable<Abstr
         return other is not null && (ReferenceEquals(this, other) || _values.OrderBy(x => x.Key).SequenceEqual(other._values.OrderBy(x => x.Key)));
     }
 
-    public IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> Value => _values;
+    public IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> RawValue => _values;
 
     public override bool Equals(object? obj)
     {

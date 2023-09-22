@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
-using WebAuthn.Net.Services.Serialization.Cbor.CredentialPublicKey.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
 
 namespace WebAuthn.Net.Services.AuthenticatorData.Implementation;
@@ -16,9 +16,7 @@ public class DefaultAuthenticatorDataServiceTests
     private const int EncodedDataMinLength = 37;
 
     private readonly IAuthenticatorDataDecoder _authenticatorDataDecoder =
-        new DefaultAuthenticatorDataDecoder(
-            new DefaultCredentialPublicKeyDecoder(
-                new DefaultCborDecoder()));
+        new DefaultAuthenticatorDataDecoder(new DefaultCoseKeyDecoder(new DefaultCborDecoder()));
 
     [TestCase(EncodedDataMinLength)]
     [TestCase(EncodedDataMinLength * 2)]

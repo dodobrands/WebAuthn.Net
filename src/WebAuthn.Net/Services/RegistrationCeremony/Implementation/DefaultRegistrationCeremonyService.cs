@@ -16,7 +16,6 @@ using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Services.RegistrationCeremony.Models;
 using WebAuthn.Net.Services.RelyingPartyOrigin;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
-using WebAuthn.Net.Services.Serialization.Json.ClientData;
 using WebAuthn.Net.Services.TimeProvider;
 using WebAuthn.Net.Storage.Operations;
 using WebAuthn.Net.Storage.Operations.Models;

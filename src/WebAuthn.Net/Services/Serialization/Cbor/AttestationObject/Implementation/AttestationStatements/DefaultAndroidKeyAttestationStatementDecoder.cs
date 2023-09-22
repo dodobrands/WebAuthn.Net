@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
@@ -34,10 +34,10 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
 
     private static bool TryDecodeAlg(
         CborMap attStmt,
-        [NotNullWhen(true)] out CoseAlgorithmIdentifier? value,
+        [NotNullWhen(true)] out CoseAlgorithm? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("alg"), out var algCbor))
         {
             error = "Failed to find the 'alg' key in attStmt.";
@@ -55,29 +55,29 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
                 return false;
             }
 
-            if (algCborUnsignedInteger.Value > int.MaxValue)
+            if (algCborUnsignedInteger.RawValue > int.MaxValue)
             {
                 error = "attStmt contains an unsupported alg.";
                 value = null;
                 return false;
             }
 
-            intAlg = (int) algCborUnsignedInteger.Value;
+            intAlg = (int) algCborUnsignedInteger.RawValue;
         }
         else
         {
-            if (algCborNegativeInteger.Value > int.MaxValue)
+            if (algCborNegativeInteger.RawValue > int.MaxValue)
             {
                 error = "attStmt contains an unsupported alg.";
                 value = null;
                 return false;
             }
 
-            var negativeCborArg = (int) algCborNegativeInteger.Value;
+            var negativeCborArg = (int) algCborNegativeInteger.RawValue;
             intAlg = -1 - negativeCborArg;
         }
 
-        var alg = (CoseAlgorithmIdentifier) intAlg;
+        var alg = (CoseAlgorithm) intAlg;
         if (!Enum.IsDefined(alg))
         {
             error = "attStmt contains an unsupported alg.";
@@ -95,7 +95,7 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
         [NotNullWhen(true)] out byte[]? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("sig"), out var sigCbor))
         {
             error = "Failed to find the 'sig' key in attStmt.";
@@ -111,7 +111,7 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
         }
 
         error = null;
-        value = sigCborByteString.Value;
+        value = sigCborByteString.RawValue;
         return true;
     }
 
@@ -120,7 +120,7 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
         [NotNullWhen(true)] out byte[][]? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("x5c"), out var x5CCbor))
         {
             error = "Failed to find the 'x5c' key in attStmt.";
@@ -135,7 +135,7 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
             return false;
         }
 
-        var cborArrayItems = x5CborArray.Value;
+        var cborArrayItems = x5CborArray.RawValue;
         var result = new byte[cborArrayItems.Length][];
         for (var i = 0; i < cborArrayItems.Length; i++)
         {
@@ -146,7 +146,7 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
                 return false;
             }
 
-            result[i] = cborArrayItemByteString.Value;
+            result[i] = cborArrayItemByteString.RawValue;
         }
 
         error = null;

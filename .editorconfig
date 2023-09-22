@@ -296,6 +296,9 @@ dotnet_diagnostic.CA1008.severity = suggestion
 # CA1014: Mark assemblies with CLSCompliantAttribute
 # An assembly does not have the System.CLSCompliantAttribute attribute applied to it.
 dotnet_diagnostic.CA1014.severity = none
+# CA1027: Mark enums with FlagsAttribute
+# The values of an enumeration are powers of two or are combinations of other values that are defined in the enumeration, and the System.FlagsAttribute attribute is not present. To reduce false positives, this rule does not report a violation for enumerations that have contiguous values.
+dotnet_diagnostic.CA1027.severity = suggestion
 # CA1028: Enum storage should be Int32
 # The underlying type of an enumeration is not System.Int32.
 dotnet_diagnostic.CA1028.severity = suggestion
@@ -311,6 +314,9 @@ dotnet_diagnostic.CA1056.severity = suggestion
 # CA1200: Avoid using cref tags with a prefix
 # The cref tag in an XML documentation comment uses a prefix.
 dotnet_diagnostic.CA1200.severity = suggestion
+# CA1700: Do not name enum values 'Reserved'
+# The name of an enumeration member contains the word "reserved".
+dotnet_diagnostic.CA1700.severity = suggestion
 # CA1707: Identifiers should not contain underscores
 # The name of an identifier contains the underscore (_) character.
 dotnet_diagnostic.CA1707.severity = suggestion

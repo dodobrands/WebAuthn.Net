@@ -1,23 +1,23 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Linq;
-using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 
 public class TpmAttestationStatement : AbstractAttestationStatement
 {
-    public TpmAttestationStatement(string ver, CoseAlgorithmIdentifier alg, byte[][] x5C, byte[] sig, byte[] certInfo, byte[] pubArea)
+    public TpmAttestationStatement(string ver, CoseAlgorithm alg, byte[][] x5C, byte[] sig, byte[] certInfo, byte[] pubArea)
     {
         if (string.IsNullOrEmpty(ver))
         {
             throw new ArgumentException("Value cannot be null or empty.", nameof(ver));
         }
 
-        if (!Enum.IsDefined(typeof(CoseAlgorithmIdentifier), alg))
+        if (!Enum.IsDefined(typeof(CoseAlgorithm), alg))
         {
-            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithmIdentifier));
+            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithm));
         }
 
         ArgumentNullException.ThrowIfNull(x5C);
@@ -40,7 +40,7 @@ public class TpmAttestationStatement : AbstractAttestationStatement
 
     public string Ver { get; }
 
-    public CoseAlgorithmIdentifier Alg { get; }
+    public CoseAlgorithm Alg { get; }
 
     public byte[][] X5C { get; }
 

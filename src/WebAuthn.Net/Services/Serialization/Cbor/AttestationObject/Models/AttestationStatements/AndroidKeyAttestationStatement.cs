@@ -1,18 +1,18 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Linq;
-using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 
 public class AndroidKeyAttestationStatement : AbstractAttestationStatement
 {
-    public AndroidKeyAttestationStatement(CoseAlgorithmIdentifier alg, byte[] sig, byte[][] x5C)
+    public AndroidKeyAttestationStatement(CoseAlgorithm alg, byte[] sig, byte[][] x5C)
     {
-        if (!Enum.IsDefined(typeof(CoseAlgorithmIdentifier), alg))
+        if (!Enum.IsDefined(typeof(CoseAlgorithm), alg))
         {
-            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithmIdentifier));
+            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithm));
         }
 
         ArgumentNullException.ThrowIfNull(sig);
@@ -29,7 +29,7 @@ public class AndroidKeyAttestationStatement : AbstractAttestationStatement
         X5C = x5C;
     }
 
-    public CoseAlgorithmIdentifier Alg { get; }
+    public CoseAlgorithm Alg { get; }
 
     public byte[] Sig { get; }
 

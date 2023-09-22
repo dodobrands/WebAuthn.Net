@@ -32,7 +32,7 @@ public class DefaultAndroidSafetyNetAttestationStatementDecoder : IAndroidSafety
         [NotNullWhen(true)] out string? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("ver"), out var verCbor))
         {
             error = "Failed to find the 'ver' key in attStmt.";
@@ -48,7 +48,7 @@ public class DefaultAndroidSafetyNetAttestationStatementDecoder : IAndroidSafety
         }
 
         error = null;
-        value = verCborTextString.Value;
+        value = verCborTextString.RawValue;
         return true;
     }
 
@@ -57,7 +57,7 @@ public class DefaultAndroidSafetyNetAttestationStatementDecoder : IAndroidSafety
         [NotNullWhen(true)] out byte[]? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("response"), out var responseCbor))
         {
             error = "Failed to find the 'response' key in attStmt.";
@@ -73,7 +73,7 @@ public class DefaultAndroidSafetyNetAttestationStatementDecoder : IAndroidSafety
         }
 
         error = null;
-        value = responseCborByteString.Value;
+        value = responseCborByteString.RawValue;
         return true;
     }
 }

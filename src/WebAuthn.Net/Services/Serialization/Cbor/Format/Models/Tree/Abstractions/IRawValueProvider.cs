@@ -2,5 +2,5 @@
 
 public interface IRawValueProvider<out TValue>
 {
-    TValue Value { get; }
+    TValue RawValue { get; }
 }

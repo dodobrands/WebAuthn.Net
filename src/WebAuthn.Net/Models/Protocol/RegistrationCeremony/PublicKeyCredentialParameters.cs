@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony;
 
@@ -28,19 +29,19 @@ public class PublicKeyCredentialParameters
     /// </param>
     /// <exception cref="InvalidEnumArgumentException">
     ///     If the <paramref name="type" /> or <paramref name="alg" /> parameters
-    ///     contain a value that is not defined in the <see cref="PublicKeyCredentialType" /> and <see cref="CoseAlgorithmIdentifier" /> enums, respectively.
+    ///     contain a value that is not defined in the <see cref="PublicKeyCredentialType" /> and <see cref="CoseAlgorithm" /> enums, respectively.
     /// </exception>
     [JsonConstructor]
-    public PublicKeyCredentialParameters(PublicKeyCredentialType type, CoseAlgorithmIdentifier alg)
+    public PublicKeyCredentialParameters(PublicKeyCredentialType type, CoseAlgorithm alg)
     {
         if (!Enum.IsDefined(typeof(PublicKeyCredentialType), type))
         {
             throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
         }
 
-        if (!Enum.IsDefined(typeof(CoseAlgorithmIdentifier), alg))
+        if (!Enum.IsDefined(typeof(CoseAlgorithm), alg))
         {
-            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithmIdentifier));
+            throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithm));
         }
 
         Type = type;
@@ -64,5 +65,5 @@ public class PublicKeyCredentialParameters
     [Required]
     [JsonPropertyName("alg")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public CoseAlgorithmIdentifier Alg { get; }
+    public CoseAlgorithm Alg { get; }
 }

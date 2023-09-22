@@ -11,7 +11,7 @@ public class DefaultNoneAttestationStatementDecoder : INoneAttestationStatementD
     public Result<NoneAttestationStatement> Decode(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (dict.Count > 0)
         {
             return Result<NoneAttestationStatement>.Failed("The attStmt for the 'none' type should consist of an empty CBOR map.");

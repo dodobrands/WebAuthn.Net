@@ -53,7 +53,7 @@ public class CborSinglePrecisionFloat : AbstractCborObject, IEquatable<CborSingl
         return selfBits == otherBits;
     }
 
-    public float Value => _value;
+    public float RawValue => _value;
 
     public override bool Equals(object? obj)
     {

@@ -16,7 +16,7 @@ public class CborArray : AbstractCborObject, IEquatable<CborArray>, IEquatable<A
 
     public CborArray(IEnumerable<AbstractCborObject> values)
     {
-        Value = values.ToArray();
+        RawValue = values.ToArray();
     }
 
     public override CborType Type => ActualType;
@@ -28,10 +28,10 @@ public class CborArray : AbstractCborObject, IEquatable<CborArray>, IEquatable<A
 
     public bool Equals(CborArray? other)
     {
-        return other is not null && (ReferenceEquals(this, other) || Value.SequenceEqual(other.Value));
+        return other is not null && (ReferenceEquals(this, other) || RawValue.SequenceEqual(other.RawValue));
     }
 
-    public AbstractCborObject[] Value { get; } = Array.Empty<AbstractCborObject>();
+    public AbstractCborObject[] RawValue { get; } = Array.Empty<AbstractCborObject>();
 
     public override bool Equals(object? obj)
     {
@@ -41,7 +41,7 @@ public class CborArray : AbstractCborObject, IEquatable<CborArray>, IEquatable<A
     public override int GetHashCode()
     {
         var hashCode = (int) ActualType;
-        foreach (var value in Value)
+        foreach (var value in RawValue)
         {
             hashCode = HashCode.Combine(hashCode, value);
         }

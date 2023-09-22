@@ -31,7 +31,7 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
         [NotNullWhen(true)] out byte[]? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("sig"), out var sigCbor))
         {
             error = "Failed to find the 'sig' key in attStmt.";
@@ -47,7 +47,7 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
         }
 
         error = null;
-        value = sigCborByteString.Value;
+        value = sigCborByteString.RawValue;
         return true;
     }
 
@@ -56,7 +56,7 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
         [NotNullWhen(true)] out byte[][]? value,
         [NotNullWhen(false)] out string? error)
     {
-        var dict = attStmt.Value;
+        var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("x5c"), out var x5CCbor))
         {
             error = "Failed to find the 'x5c' key in attStmt.";
@@ -71,7 +71,7 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
             return false;
         }
 
-        var cborArrayItems = x5CborArray.Value;
+        var cborArrayItems = x5CborArray.RawValue;
         var result = new byte[cborArrayItems.Length][];
         for (var i = 0; i < cborArrayItems.Length; i++)
         {
@@ -82,7 +82,7 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
                 return false;
             }
 
-            result[i] = cborArrayItemByteString.Value;
+            result[i] = cborArrayItemByteString.RawValue;
         }
 
         error = null;

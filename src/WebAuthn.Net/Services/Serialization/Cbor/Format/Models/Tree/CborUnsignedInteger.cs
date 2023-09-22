@@ -1,19 +1,22 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
 
-public class CborUnsignedInteger : AbstractCborObject, IEquatable<CborUnsignedInteger>, IEquatable<AbstractCborObject>, IRawValueProvider<ulong>
+public class CborUnsignedInteger : AbstractCborInteger, IEquatable<CborUnsignedInteger>, IEquatable<AbstractCborObject>
 {
     private const CborType ActualType = CborType.UnsignedInteger;
 
     public CborUnsignedInteger(ulong value)
     {
-        Value = value;
+        RawValue = value;
     }
 
     public override CborType Type => ActualType;
+
+    public override ulong RawValue { get; }
 
     public override bool Equals(AbstractCborObject? other)
     {
@@ -22,10 +25,20 @@ public class CborUnsignedInteger : AbstractCborObject, IEquatable<CborUnsignedIn
 
     public bool Equals(CborUnsignedInteger? other)
     {
-        return other is not null && (ReferenceEquals(this, other) || Value == other.Value);
+        return other is not null && (ReferenceEquals(this, other) || RawValue == other.RawValue);
     }
 
-    public ulong Value { get; }
+    public override bool TryReadAsInt32([NotNullWhen(true)] out int? value)
+    {
+        if (RawValue < int.MaxValue)
+        {
+            value = (int) RawValue;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
 
     public override bool Equals(object? obj)
     {
@@ -34,7 +47,7 @@ public class CborUnsignedInteger : AbstractCborObject, IEquatable<CborUnsignedIn
 
     public override int GetHashCode()
     {
-        return HashCode.Combine((int) ActualType, Value);
+        return HashCode.Combine((int) ActualType, RawValue);
     }
 
     public static bool operator ==(CborUnsignedInteger? left, CborUnsignedInteger? right)
