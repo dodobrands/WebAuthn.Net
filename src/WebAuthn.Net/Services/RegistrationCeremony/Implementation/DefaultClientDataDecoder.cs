@@ -1,21 +1,40 @@
 using System;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.ClientData;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.ClientDataDecoder;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 
 public class DefaultClientDataDecoder : IClientDataDecoder
 {
-    public Result<DecodedCollectedClientData> Decode(byte[] clientDataJson)
+    private readonly ILogger<DefaultClientDataDecoder> _logger;
+
+    public DefaultClientDataDecoder(ILogger<DefaultClientDataDecoder> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+    }
+
+    public Result<CollectedClientData> Decode(byte[] clientDataJson)
     {
         ArgumentNullException.ThrowIfNull(clientDataJson);
-        var deserializedClientData = JsonSerializer.Deserialize<DecodedCollectedClientData>(clientDataJson);
+        var deserializedClientData = JsonSerializer.Deserialize<CollectedClientData>(clientDataJson);
         if (deserializedClientData is null)
         {
-            return Result<DecodedCollectedClientData>.Failed("Can't deserialize client data");
+            _logger.FailedToDeserializeClientData();
+            return Result<CollectedClientData>.Fail();
         }
 
-        return Result<DecodedCollectedClientData>.Success(deserializedClientData);
+        return Result<CollectedClientData>.Success(deserializedClientData);
     }
+}
+
+public static partial class DefaultClientDataDecoderLoggingExtensions
+{
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to deserialize 'clientData'")]
+    public static partial void FailedToDeserializeClientData(this ILogger logger);
 }

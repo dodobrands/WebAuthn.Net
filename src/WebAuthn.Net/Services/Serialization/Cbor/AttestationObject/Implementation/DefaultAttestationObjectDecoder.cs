@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
@@ -15,83 +16,92 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
     private readonly IAttestationStatementDecoder _attStmtDecoder;
     private readonly IAuthenticatorDataDecoder _authDataDecoder;
     private readonly ICborDecoder _cborDecoder;
+    private readonly ILogger<DefaultAttestationObjectDecoder> _logger;
 
     public DefaultAttestationObjectDecoder(
         ICborDecoder cborDecoder,
         IAttestationStatementDecoder attStmtDecoder,
-        IAuthenticatorDataDecoder authDataDecoder)
+        IAuthenticatorDataDecoder authDataDecoder,
+        ILogger<DefaultAttestationObjectDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(cborDecoder);
         ArgumentNullException.ThrowIfNull(attStmtDecoder);
         ArgumentNullException.ThrowIfNull(authDataDecoder);
+        ArgumentNullException.ThrowIfNull(logger);
         _cborDecoder = cborDecoder;
         _attStmtDecoder = attStmtDecoder;
         _authDataDecoder = authDataDecoder;
+        _logger = logger;
     }
 
     public Result<DecodedAttestationObject> Decode(byte[] attestationObject)
     {
-        var mapResult = TryDecodeMap(attestationObject);
+        var mapResult = TryRead(attestationObject);
         if (mapResult.HasError)
         {
-            return Result<DecodedAttestationObject>.Failed(mapResult.Error);
+            _logger.AttObjReadFailure();
+            return Result<DecodedAttestationObject>.Fail();
         }
 
         var attestationObjectCbor = mapResult.Ok;
 
-        if (!TryDecodeAttestationStatementFormat(attestationObjectCbor, out var fmt, out var fmtError))
+        if (!TryDecodeAttestationStatementFormat(attestationObjectCbor, out var fmt))
         {
-            return Result<DecodedAttestationObject>.Failed(fmtError);
+            _logger.AttObjDecodeFailureFmt();
+            return Result<DecodedAttestationObject>.Fail();
         }
 
-        if (!TryDecodeAttestationStatement(attestationObjectCbor, fmt.Value, out var attStmt, out var attStmtError))
+        if (!TryDecodeAttestationStatement(attestationObjectCbor, fmt.Value, out var attStmt))
         {
-            return Result<DecodedAttestationObject>.Failed(attStmtError);
+            _logger.AttObjDecodeFailureAttStmt();
+            return Result<DecodedAttestationObject>.Fail();
         }
 
-        if (!TryDecodeAuthData(attestationObjectCbor, out var authData, out var authDataError))
+        if (!TryDecodeAuthData(attestationObjectCbor, out var authData))
         {
-            return Result<DecodedAttestationObject>.Failed(authDataError);
+            _logger.AttObjDecodeFailureAuthData();
+            return Result<DecodedAttestationObject>.Fail();
         }
 
         var result = new DecodedAttestationObject(fmt.Value, attStmt, authData);
         return Result<DecodedAttestationObject>.Success(result);
     }
 
-    private Result<CborMap> TryDecodeMap(byte[] attestationObject)
+    private Result<CborMap> TryRead(byte[] attestationObject)
     {
         var attestationObjectCborDecode = _cborDecoder.TryDecode(attestationObject);
         if (attestationObjectCborDecode.HasError)
         {
-            return Result<CborMap>.Failed(attestationObjectCborDecode.Error);
+            _logger.AttObjDecodeFailure();
+            return Result<CborMap>.Fail();
         }
 
         var attestationObjectCborRoot = attestationObjectCborDecode.Ok.Root;
         if (attestationObjectCborRoot is not CborMap attestationObjectCborMap)
         {
-            return Result<CborMap>.Failed("While decoding the attestationObject, an incorrect type of CBOR format object was received.");
+            _logger.AttObjMustBeCborMap();
+            return Result<CborMap>.Fail();
         }
 
         return Result<CborMap>.Success(attestationObjectCborMap);
     }
 
-    private static bool TryDecodeAttestationStatementFormat(
+    private bool TryDecodeAttestationStatementFormat(
         CborMap attestationObjectCborMap,
-        [NotNullWhen(true)] out AttestationStatementFormat? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out AttestationStatementFormat? value)
     {
         var dict = attestationObjectCborMap.RawValue;
         if (!dict.TryGetValue(new CborTextString("fmt"), out var fmtCbor))
         {
+            _logger.AttObjFmtKeyNotFound();
             value = null;
-            error = "Failed to find the 'fmt' key in attestationObject.";
             return false;
         }
 
         if (fmtCbor is not CborTextString fmtCborText)
         {
+            _logger.AttObjFmtValueInvalidDataType();
             value = null;
-            error = "The value associated with the 'fmt' key in the attestationObject map contains an invalid data type.";
             return false;
         }
 
@@ -99,35 +109,28 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         {
             case "none":
                 value = AttestationStatementFormat.None;
-                error = null;
                 return true;
             case "packed":
                 value = AttestationStatementFormat.Packed;
-                error = null;
                 return true;
             case "tpm":
                 value = AttestationStatementFormat.Tpm;
-                error = null;
                 return true;
             case "android-key":
                 value = AttestationStatementFormat.AndroidKey;
-                error = null;
                 return true;
             case "android-safetynet":
                 value = AttestationStatementFormat.AndroidSafetynet;
-                error = null;
                 return true;
             case "fido-u2f":
                 value = AttestationStatementFormat.FidoU2F;
-                error = null;
                 return true;
             case "apple":
                 value = AttestationStatementFormat.AppleAnonymous;
-                error = null;
                 return true;
             default:
                 value = null;
-                error = "The value associated with the 'fmt' key in the attestationObject map contains an unknown attestation statement format.";
+                _logger.AttObjFmtValueUnknown(fmtCborText.RawValue);
                 return false;
         }
     }
@@ -135,21 +138,20 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
     private bool TryDecodeAttestationStatement(
         CborMap attestationObjectCborMap,
         AttestationStatementFormat format,
-        [NotNullWhen(true)] out AbstractAttestationStatement? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out AbstractAttestationStatement? value)
     {
         var dict = attestationObjectCborMap.RawValue;
         if (!dict.TryGetValue(new CborTextString("attStmt"), out var attStmtCbor))
         {
+            _logger.AttObjAttStmtKeyNotFound();
             value = null;
-            error = "Failed to find the 'attStmt' key in attestationObject.";
             return false;
         }
 
         if (attStmtCbor is not CborMap attStmtCborMap)
         {
+            _logger.AttObjAttStmtValueInvalidDataType();
             value = null;
-            error = "The value associated with the 'attStmt' key in the attestationObject map contains an invalid data type.";
             return false;
         }
 
@@ -157,31 +159,28 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         if (decodeResult.HasError)
         {
             value = null;
-            error = decodeResult.Error;
             return false;
         }
 
         value = decodeResult.Ok;
-        error = null;
         return true;
     }
 
     private bool TryDecodeAuthData(
         CborMap attStmt,
-        [NotNullWhen(true)] out DecodedAuthenticatorData? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out DecodedAuthenticatorData? value)
     {
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("authData"), out var sigCbor))
         {
-            error = "Failed to find the 'authData' key in attestationObject.";
+            _logger.AttObjAuthDataKeyNotFound();
             value = null;
             return false;
         }
 
         if (sigCbor is not CborByteString sigCborByteString)
         {
-            error = "The value associated with the 'authData' key in the attestationObject map contains an invalid data type.";
+            _logger.AttObjAuthDataValueInvalidDataType();
             value = null;
             return false;
         }
@@ -190,12 +189,78 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         if (decodeResult.HasError)
         {
             value = null;
-            error = decodeResult.Error;
             return false;
         }
 
-        error = null;
         value = decodeResult.Ok;
         return true;
     }
+}
+
+public static partial class DefaultAttestationObjectDecoderLoggingExtensions
+{
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Error attempting to read the byte representation of 'attestationObject' as a CBOR map")]
+    public static partial void AttObjReadFailure(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to decode 'attestationObject' from CBOR")]
+    public static partial void AttObjDecodeFailure(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'attestationObject' must be represented as a CBOR map")]
+    public static partial void AttObjMustBeCborMap(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'fmt' value from 'attestationObject'")]
+    public static partial void AttObjDecodeFailureFmt(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'attStmt' value from 'attestationObject'")]
+    public static partial void AttObjDecodeFailureAttStmt(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'authData' value from 'attestationObject'")]
+    public static partial void AttObjDecodeFailureAuthData(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'fmt' key in 'attestationObject'")]
+    public static partial void AttObjFmtKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'attStmt' key in 'attestationObject'")]
+    public static partial void AttObjAttStmtKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'authData' key in 'attestationObject'")]
+    public static partial void AttObjAuthDataKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'fmt' value in the 'attestationObject' map contains an invalid data type")]
+    public static partial void AttObjFmtValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'attStmt' value in the 'attestationObject' map contains an invalid data type")]
+    public static partial void AttObjAttStmtValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'authData' value in the 'attestationObject' map contains an invalid data type")]
+    public static partial void AttObjAuthDataValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: {UnknownFmt}")]
+    public static partial void AttObjFmtValueUnknown(this ILogger logger, string unknownFmt);
 }

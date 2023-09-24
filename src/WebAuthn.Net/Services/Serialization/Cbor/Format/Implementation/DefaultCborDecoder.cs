@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Formats.Cbor;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
@@ -10,6 +11,14 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
 
 public class DefaultCborDecoder : ICborDecoder
 {
+    private readonly ILogger<DefaultCborDecoder> _logger;
+
+    public DefaultCborDecoder(ILogger<DefaultCborDecoder> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+    }
+
     public Result<CborRoot> TryDecode(byte[] input)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -17,7 +26,8 @@ public class DefaultCborDecoder : ICborDecoder
         var rootResult = Read(reader);
         if (rootResult.HasError)
         {
-            return Result<CborRoot>.Failed(rootResult.Error);
+            //return Result<CborRoot>.Fail(rootResult.Error);
+            return Result<CborRoot>.Fail();
         }
 
         var bytesRead = ComputeBytesRead(input, reader);
@@ -30,41 +40,117 @@ public class DefaultCborDecoder : ICborDecoder
         return input.Length - reader.BytesRemaining;
     }
 
-    private static Result<AbstractCborObject> Read(CborReader reader)
+    private Result<AbstractCborObject> Read(CborReader reader)
     {
         var state = reader.PeekState();
-        return state switch
+        switch (state)
         {
-            CborReaderState.Undefined => Result<AbstractCborObject>.Failed($"An error occurred when attempting to read from the '{nameof(CborReaderState.Undefined)}' of the {nameof(CborReader)}"),
-            CborReaderState.UnsignedInteger => Transform(ReadUnsignedInteger(reader)),
-            CborReaderState.NegativeInteger => Transform(ReadNegativeInteger(reader)),
-            CborReaderState.ByteString => Transform(ReadByteString(reader)),
-            CborReaderState.StartIndefiniteLengthByteString => Result<AbstractCborObject>.Failed("Attempting to start reading a CBOR byte string with indefinite length. All items must have a definite length."),
-            CborReaderState.EndIndefiniteLengthByteString => Result<AbstractCborObject>.Failed("Attempting to end reading a CBOR byte string with indefinite length. All items must have a definite length."),
-            CborReaderState.TextString => Transform(ReadTextString(reader)),
-            CborReaderState.StartIndefiniteLengthTextString => Result<AbstractCborObject>.Failed("Attempting to start reading a CBOR text string with indefinite length. All items must have a definite length."),
-            CborReaderState.EndIndefiniteLengthTextString => Result<AbstractCborObject>.Failed("Attempting to end reading a CBOR text string with indefinite length. All items must have a definite length."),
-            CborReaderState.StartArray => Transform(ReadArray(reader)),
-            CborReaderState.EndArray => Result<AbstractCborObject>.Failed($"Unhandled state. Was {state}"),
-            CborReaderState.StartMap => Transform(ReadMap(reader)),
-            CborReaderState.EndMap => Result<AbstractCborObject>.Failed($"Unhandled state. Was {state}"),
-            CborReaderState.Tag => Result<AbstractCborObject>.Failed("According to the specification, the use of tags is forbidden."),
-            CborReaderState.SimpleValue => ReadSimpleValue(reader),
-            CborReaderState.HalfPrecisionFloat => Transform(ReadHalfPrecisionFloat(reader)),
-            CborReaderState.SinglePrecisionFloat => Transform(ReadSinglePrecisionFloat(reader)),
-            CborReaderState.DoublePrecisionFloat => Transform(ReadDoublePrecisionFloat(reader)),
-            CborReaderState.Null => Transform(ReadNull(reader)),
-            CborReaderState.Boolean => Transform(ReadBoolean(reader)),
-            CborReaderState.Finished => Result<AbstractCborObject>.Failed($"Unhandled state. Was {state}"),
-            _ => Result<AbstractCborObject>.Failed($"Unhandled state. Was {state}")
-        };
+            case CborReaderState.Undefined:
+                {
+                    _logger.CborReaderUndefined();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.UnsignedInteger:
+                {
+                    return Transform(ReadUnsignedInteger(reader));
+                }
+            case CborReaderState.NegativeInteger:
+                {
+                    return Transform(ReadNegativeInteger(reader));
+                }
+            case CborReaderState.ByteString:
+                {
+                    return Transform(ReadByteString(reader));
+                }
+            case CborReaderState.StartIndefiniteLengthByteString:
+                {
+                    _logger.CborReaderStartIndefiniteLengthByteString();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.EndIndefiniteLengthByteString:
+                {
+                    _logger.CborReaderEndIndefiniteLengthByteString();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.TextString:
+                {
+                    return Transform(ReadTextString(reader));
+                }
+            case CborReaderState.StartIndefiniteLengthTextString:
+                {
+                    _logger.CborReaderStartIndefiniteLengthTextString();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.EndIndefiniteLengthTextString:
+                {
+                    _logger.CborReaderEndIndefiniteLengthTextString();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.StartArray:
+                {
+                    return Transform(ReadArray(reader));
+                }
+            case CborReaderState.EndArray:
+                {
+                    _logger.CborReaderEndArray();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.StartMap:
+                {
+                    return Transform(ReadMap(reader));
+                }
+            case CborReaderState.EndMap:
+                {
+                    _logger.CborReaderEndMap();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.Tag:
+                {
+                    _logger.CborReaderTag();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.SimpleValue:
+                {
+                    return ReadSimpleValue(reader);
+                }
+            case CborReaderState.HalfPrecisionFloat:
+                {
+                    return Transform(ReadHalfPrecisionFloat(reader));
+                }
+            case CborReaderState.SinglePrecisionFloat:
+                {
+                    return Transform(ReadSinglePrecisionFloat(reader));
+                }
+            case CborReaderState.DoublePrecisionFloat:
+                {
+                    return Transform(ReadDoublePrecisionFloat(reader));
+                }
+            case CborReaderState.Null:
+                {
+                    return Transform(ReadNull(reader));
+                }
+            case CborReaderState.Boolean:
+                {
+                    return Transform(ReadBoolean(reader));
+                }
+            case CborReaderState.Finished:
+                {
+                    _logger.CborReaderFinished();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            default:
+                {
+                    _logger.CborReaderUnhandledState();
+                    return Result<AbstractCborObject>.Fail();
+                }
+        }
     }
 
     private static Result<AbstractCborObject> Transform<TSource>(Result<TSource> source)
         where TSource : AbstractCborObject
     {
         return source.HasError
-            ? Result<AbstractCborObject>.Failed(source.Error)
+            ? Result<AbstractCborObject>.Fail()
             : Result<AbstractCborObject>.Success(source.Ok);
     }
 
@@ -96,12 +182,13 @@ public class DefaultCborDecoder : ICborDecoder
         return Result<CborTextString>.Success(result);
     }
 
-    private static Result<CborArray> ReadArray(CborReader reader)
+    private Result<CborArray> ReadArray(CborReader reader)
     {
         var count = reader.ReadStartArray();
         if (!count.HasValue)
         {
-            return Result<CborArray>.Failed("An array with indefinite length was detected. All items must have a definite length.");
+            _logger.ArrayIndefiniteLength();
+            return Result<CborArray>.Fail();
         }
 
         var accumulator = new List<AbstractCborObject>(count.Value);
@@ -111,7 +198,7 @@ public class DefaultCborDecoder : ICborDecoder
             var readResult = Read(reader);
             if (readResult.HasError)
             {
-                return Result<CborArray>.Failed(readResult.Error);
+                return Result<CborArray>.Fail();
             }
 
             accumulator.Add(readResult.Ok);
@@ -126,12 +213,13 @@ public class DefaultCborDecoder : ICborDecoder
         return Result<CborArray>.Success(result);
     }
 
-    private static Result<CborMap> ReadMap(CborReader reader)
+    private Result<CborMap> ReadMap(CborReader reader)
     {
         var count = reader.ReadStartMap();
         if (!count.HasValue)
         {
-            return Result<CborMap>.Failed("A map with indefinite length was detected. All items must have a definite length.");
+            _logger.MapIndefiniteLength();
+            return Result<CborMap>.Fail();
         }
 
         var accumulator = new Dictionary<AbstractCborObject, AbstractCborObject>(count.Value);
@@ -141,13 +229,13 @@ public class DefaultCborDecoder : ICborDecoder
             var key = Read(reader);
             if (key.HasError)
             {
-                return Result<CborMap>.Failed(key.Error);
+                return Result<CborMap>.Fail();
             }
 
             var value = Read(reader);
             if (value.HasError)
             {
-                return Result<CborMap>.Failed(value.Error);
+                return Result<CborMap>.Fail();
             }
 
             accumulator.Add(key.Ok, value.Ok);
@@ -162,17 +250,25 @@ public class DefaultCborDecoder : ICborDecoder
         return Result<CborMap>.Success(result);
     }
 
-    private static Result<AbstractCborObject> ReadSimpleValue(CborReader reader)
+    private Result<AbstractCborObject> ReadSimpleValue(CborReader reader)
     {
         var simpleValue = reader.ReadSimpleValue();
-        return simpleValue switch
+        switch (simpleValue)
         {
-            CborSimpleValue.False => Result<AbstractCborObject>.Success(CborBoolean.False),
-            CborSimpleValue.True => Result<AbstractCborObject>.Success(CborBoolean.True),
-            CborSimpleValue.Null => Result<AbstractCborObject>.Success(CborNull.Instance),
-            CborSimpleValue.Undefined => Result<AbstractCborObject>.Success(CborUndefined.Instance),
-            _ => Result<AbstractCborObject>.Failed("Attempting to read an unsupported CBOR simple value type.")
-        };
+            case CborSimpleValue.False:
+                return Result<AbstractCborObject>.Success(CborBoolean.False);
+            case CborSimpleValue.True:
+                return Result<AbstractCborObject>.Success(CborBoolean.True);
+            case CborSimpleValue.Null:
+                return Result<AbstractCborObject>.Success(CborNull.Instance);
+            case CborSimpleValue.Undefined:
+                return Result<AbstractCborObject>.Success(CborUndefined.Instance);
+            default:
+                {
+                    _logger.UnsupportedSimpleValue();
+                    return Result<AbstractCborObject>.Fail();
+                }
+        }
     }
 
     private static Result<CborHalfPrecisionFloat> ReadHalfPrecisionFloat(CborReader reader)
@@ -209,4 +305,72 @@ public class DefaultCborDecoder : ICborDecoder
         var result = value ? CborBoolean.True : CborBoolean.False;
         return Result<CborBoolean>.Success(result);
     }
+}
+
+public static partial class DefaultCborDecoderLoggingExtensions
+{
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The CborReader is in an 'Undefined' state, unable to perform reading")]
+    public static partial void CborReaderUndefined(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Attempt to start reading a CBOR byte string with indefinite length, while all items must have a definite length")]
+    public static partial void CborReaderStartIndefiniteLengthByteString(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Attempt to end reading a CBOR byte string with indefinite length, while all items must have a definite length")]
+    public static partial void CborReaderEndIndefiniteLengthByteString(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Attempt to start reading a CBOR text string with indefinite length, while all items must have a definite length")]
+    public static partial void CborReaderStartIndefiniteLengthTextString(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Attempt to end reading a CBOR text string with indefinite length, while all items must have a definite length")]
+    public static partial void CborReaderEndIndefiniteLengthTextString(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The CborReader is in an 'EndArray' state, unable to perform reading")]
+    public static partial void CborReaderEndArray(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The CborReader is in an 'EndMap' state, unable to perform reading")]
+    public static partial void CborReaderEndMap(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "According to the specification, the use of tags is forbidden")]
+    public static partial void CborReaderTag(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The CborReader is in an 'Finished' state, unable to perform reading")]
+    public static partial void CborReaderFinished(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Unhandled state encountered")]
+    public static partial void CborReaderUnhandledState(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "An array with indefinite length was detected, and all items must have a definite length")]
+    public static partial void ArrayIndefiniteLength(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A map with indefinite length was detected, and all items must have a definite length")]
+    public static partial void MapIndefiniteLength(this ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Attempt to read unsupported CBOR simple value")]
+    public static partial void UnsupportedSimpleValue(this ILogger logger);
 }

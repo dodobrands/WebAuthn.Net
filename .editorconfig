@@ -332,3 +332,7 @@ dotnet_diagnostic.CA1819.severity = suggestion
 # CA2007: Do not directly await a Task
 # An asynchronous method awaits a Task directly.
 dotnet_diagnostic.CA2007.severity = none
+# SYSLIB1006: Multiple logging methods cannot use the same event ID
+# Multiple methods annotated with the LoggerMessageAttribute are using the same event ID value. 
+# Event ID values must be unique within the scope of each assembly.
+dotnet_diagnostic.SYSLIB1006.severity = none

@@ -70,7 +70,7 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
         where TSource : AbstractAttestationStatement
     {
         return source.HasError
-            ? Result<AbstractAttestationStatement>.Failed(source.Error)
+            ? Result<AbstractAttestationStatement>.Fail()
             : Result<AbstractAttestationStatement>.Success(source.Ok);
     }
 }

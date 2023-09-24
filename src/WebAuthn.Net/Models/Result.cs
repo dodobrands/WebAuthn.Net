@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace WebAuthn.Net.Models;
 
@@ -8,18 +7,15 @@ namespace WebAuthn.Net.Models;
 /// </summary>
 /// <typeparam name="TOk">The data type returned in case of a successful operation execution.</typeparam>
 [SuppressMessage("Design", "CA1000:Do not declare static members on generic types")]
-public class Result<TOk> where TOk : class
+public class Result<TOk>
 {
-    private Result(string error)
+    private Result()
     {
-        ArgumentNullException.ThrowIfNull(error);
         HasError = true;
-        Error = error;
     }
 
     private Result(TOk ok)
     {
-        ArgumentNullException.ThrowIfNull(ok);
         Ok = ok;
         HasError = false;
     }
@@ -27,9 +23,7 @@ public class Result<TOk> where TOk : class
     /// <summary>
     ///     Flag indicating the presence of an error.
     ///     If it returns <see langword="false" />, then the <see cref="Ok" /> property contains the result of a successful operation.
-    ///     If it returns <see langword="true" />, then the <see cref="Error" /> property contains a description of the encountered error.
     /// </summary>
-    [MemberNotNullWhen(true, nameof(Error))]
     [MemberNotNullWhen(false, nameof(Ok))]
     public bool HasError { get; }
 
@@ -37,11 +31,6 @@ public class Result<TOk> where TOk : class
     ///     Result of a successful operation execution.
     /// </summary>
     public TOk? Ok { get; }
-
-    /// <summary>
-    ///     Description of the encountered error.
-    /// </summary>
-    public string? Error { get; }
 
     /// <summary>
     ///     Returns a result indicating the successful completion of the operation.
@@ -56,10 +45,9 @@ public class Result<TOk> where TOk : class
     /// <summary>
     ///     Returns a result indicating the unsuccessful execution of the operation.
     /// </summary>
-    /// <param name="error">The error that occurred during the execution of the operation.</param>
     /// <returns>The <see cref="Result{TOk}" /> corresponding to the unsuccessful execution of the operation.</returns>
-    public static Result<TOk> Failed(string error)
+    public static Result<TOk> Fail()
     {
-        return new(error);
+        return new();
     }
 }

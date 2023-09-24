@@ -3,6 +3,7 @@ using System.Formats.Cbor;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using WebAuthn.Net.DSL;
 
@@ -14,7 +15,7 @@ public class DefaultCborDecoderTests
     public void DefaultCborDecoder_DecodesWithoutError_WhenCorrectDataOnInput(TestVector testVector)
     {
         ArgumentNullException.ThrowIfNull(testVector);
-        var decoder = new DefaultCborDecoder();
+        var decoder = new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance);
         var decodeResult = decoder.TryDecode(testVector.Cbor);
         Assert.That(decodeResult.HasError, Is.False);
     }
@@ -23,7 +24,7 @@ public class DefaultCborDecoderTests
     public void DefaultCborDecoder_DecodesWithError_WhenIncorrectDataOnInput(TestVector testVector)
     {
         ArgumentNullException.ThrowIfNull(testVector);
-        var decoder = new DefaultCborDecoder();
+        var decoder = new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance);
         var decodeResult = decoder.TryDecode(testVector.Cbor);
         Assert.That(decodeResult.HasError, Is.True);
     }
@@ -31,7 +32,7 @@ public class DefaultCborDecoderTests
     [Test]
     public void DefaultCborDecoder_DecodesThrowsCborException_WhenMalformedDataOnInput()
     {
-        var decoder = new DefaultCborDecoder();
+        var decoder = new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance);
         Assert.Throws<CborContentException>(() =>
         {
             _ = decoder.TryDecode(new byte[] { 0xf8, 0x18 });

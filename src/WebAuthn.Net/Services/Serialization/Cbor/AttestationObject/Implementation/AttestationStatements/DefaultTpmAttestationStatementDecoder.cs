@@ -1,46 +1,62 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
+using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
 
 public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDecoder
 {
+    private readonly ILogger<DefaultTpmAttestationStatementDecoder> _logger;
+
+    public DefaultTpmAttestationStatementDecoder(ILogger<DefaultTpmAttestationStatementDecoder> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+    }
+
     public Result<TpmAttestationStatement> Decode(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
-        if (!TryDecodeAlg(attStmt, out var alg, out var algError))
+        if (!TryDecodeAlg(attStmt, out var alg))
         {
-            return Result<TpmAttestationStatement>.Failed(algError);
+            _logger.TpmDecodeFailureAlg();
+            return Result<TpmAttestationStatement>.Fail();
         }
 
-        if (!TryDecodeSig(attStmt, out var sig, out var sigError))
+        if (!TryDecodeSig(attStmt, out var sig))
         {
-            return Result<TpmAttestationStatement>.Failed(sigError);
+            _logger.TpmDecodeFailureSig();
+            return Result<TpmAttestationStatement>.Fail();
         }
 
-        if (!TryDecodeVer(attStmt, out var ver, out var verError))
+        if (!TryDecodeVer(attStmt, out var ver))
         {
-            return Result<TpmAttestationStatement>.Failed(verError);
+            _logger.TpmDecodeFailureVer();
+            return Result<TpmAttestationStatement>.Fail();
         }
 
-        if (!TryDecodeX5C(attStmt, out var x5C, out var x5CError))
+        if (!TryDecodeX5C(attStmt, out var x5C))
         {
-            return Result<TpmAttestationStatement>.Failed(x5CError);
+            _logger.TpmDecodeFailureX5C();
+            return Result<TpmAttestationStatement>.Fail();
         }
 
-        if (!TryDecodePubArea(attStmt, out var pubArea, out var pubAreaError))
+        if (!TryDecodePubArea(attStmt, out var pubArea))
         {
-            return Result<TpmAttestationStatement>.Failed(pubAreaError);
+            _logger.TpmDecodeFailurePubArea();
+            return Result<TpmAttestationStatement>.Fail();
         }
 
-        if (!TryDecodeCertInfo(attStmt, out var certInfo, out var certInfoError))
+        if (!TryDecodeCertInfo(attStmt, out var certInfo))
         {
-            return Result<TpmAttestationStatement>.Failed(certInfoError);
+            _logger.TpmDecodeFailureCertInfo();
+            return Result<TpmAttestationStatement>.Fail();
         }
 
         var result = new TpmAttestationStatement(
@@ -53,113 +69,105 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         return Result<TpmAttestationStatement>.Success(result);
     }
 
-    private static bool TryDecodeAlg(
+    private bool TryDecodeAlg(
         CborMap attStmt,
-        [NotNullWhen(true)] out CoseAlgorithm? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out CoseAlgorithm? value)
     {
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("alg"), out var algCbor))
         {
-            error = "Failed to find the 'alg' key in attStmt.";
+            _logger.TpmAlgKeyNotFound();
             value = null;
             return false;
         }
 
-        int intAlg;
-        if (algCbor is not CborNegativeInteger algCborNegativeInteger)
+        if (algCbor is not AbstractCborInteger intCborValue)
         {
-            if (algCbor is not CborUnsignedInteger algCborUnsignedInteger)
-            {
-                error = "The value associated with the 'alg' key in the attStmt map contains an invalid data type.";
-                value = null;
-                return false;
-            }
-
-            if (algCborUnsignedInteger.RawValue > int.MaxValue)
-            {
-                error = "attStmt contains an unsupported 'alg'.";
-                value = null;
-                return false;
-            }
-
-            intAlg = (int) algCborUnsignedInteger.RawValue;
-        }
-        else
-        {
-            if (algCborNegativeInteger.RawValue > int.MaxValue)
-            {
-                error = "attStmt contains an unsupported 'alg'.";
-                value = null;
-                return false;
-            }
-
-            var negativeCborArg = (int) algCborNegativeInteger.RawValue;
-            intAlg = -1 - negativeCborArg;
+            _logger.TpmAlgValueInvalidDataType();
+            value = null;
+            return false;
         }
 
-        var alg = (CoseAlgorithm) intAlg;
+        if (!intCborValue.TryReadAsInt32(out var intAlg))
+        {
+            _logger.TpmAlgValueOutOfRange();
+            value = null;
+            return false;
+        }
+
+        var alg = (CoseAlgorithm) intAlg.Value;
         if (!Enum.IsDefined(alg))
         {
-            error = "attStmt contains an unsupported 'alg'.";
+            _logger.TpmAlgValueUnknown(intAlg.Value);
             value = null;
             return false;
         }
 
-        error = null;
         value = alg;
         return true;
     }
 
-    private static bool TryDecodeSig(
+    private bool TryDecodeSig(
         CborMap attStmt,
-        [NotNullWhen(true)] out byte[]? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out byte[]? value)
     {
-        return TryGetCborByteStringAsByteArray(attStmt, "sig", out value, out error);
+        var dict = attStmt.RawValue;
+        if (!dict.TryGetValue(new CborTextString("sig"), out var sigCbor))
+        {
+            _logger.TpmSigKeyNotFound();
+            value = null;
+            return false;
+        }
+
+        if (sigCbor is not CborByteString sigCborByteString)
+        {
+            _logger.TpmSigValueInvalidDataType();
+            value = null;
+            return false;
+        }
+
+        value = sigCborByteString.RawValue;
+        return true;
     }
 
-    private static bool TryDecodeVer(
+    private bool TryDecodeVer(
         CborMap attStmt,
-        [NotNullWhen(true)] out string? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out string? value)
     {
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("ver"), out var verCbor))
         {
-            error = "Failed to find the 'ver' key in attStmt.";
+            _logger.TpmVerKeyNotFound();
             value = null;
             return false;
         }
 
         if (verCbor is not CborTextString verCborTextString)
         {
-            error = "The value associated with the 'ver' key in the attStmt map contains an invalid data type.";
+            _logger.TpmVerValueInvalidDataType();
             value = null;
             return false;
         }
 
-        error = null;
         value = verCborTextString.RawValue;
         return true;
     }
 
-    private static bool TryDecodeX5C(
+    private bool TryDecodeX5C(
         CborMap attStmt,
-        [NotNullWhen(true)] out byte[][]? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out byte[][]? value)
     {
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("x5c"), out var x5CCbor))
         {
-            error = "Failed to find the 'x5c' key in attStmt.";
+            _logger.TpmX5CKeyNotFound();
             value = null;
             return false;
         }
 
         if (x5CCbor is not CborArray x5CborArray)
         {
-            error = "The value associated with the 'x5c' key in the attStmt map contains an invalid data type.";
+            _logger.TpmX5CValueInvalidDataType();
             value = null;
             return false;
         }
@@ -170,7 +178,7 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         {
             if (cborArrayItems[i] is not CborByteString cborArrayItemByteString)
             {
-                error = "One of the 'x5c' array elements in the attStmt map contains a CBOR element of an invalid type.";
+                _logger.TpmX5CValueInvalidElementDataType();
                 value = null;
                 return false;
             }
@@ -178,50 +186,162 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
             result[i] = cborArrayItemByteString.RawValue;
         }
 
-        error = null;
         value = result;
         return true;
     }
 
-    private static bool TryDecodePubArea(
+    private bool TryDecodePubArea(
         CborMap attStmt,
-        [NotNullWhen(true)] out byte[]? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out byte[]? value)
     {
-        return TryGetCborByteStringAsByteArray(attStmt, "pubArea", out value, out error);
+        return TryGetBytesFromByteString(attStmt, "pubArea", out value);
     }
 
-    private static bool TryDecodeCertInfo(
+    private bool TryDecodeCertInfo(
         CborMap attStmt,
-        [NotNullWhen(true)] out byte[]? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out byte[]? value)
     {
-        return TryGetCborByteStringAsByteArray(attStmt, "certInfo", out value, out error);
+        return TryGetBytesFromByteString(attStmt, "certInfo", out value);
     }
 
-    private static bool TryGetCborByteStringAsByteArray(
+    private bool TryGetBytesFromByteString(
         CborMap attStmt,
-        string keyName,
-        [NotNullWhen(true)] out byte[]? value,
-        [NotNullWhen(false)] out string? error)
+        string cborMapKey,
+        [NotNullWhen(true)] out byte[]? value)
     {
         var dict = attStmt.RawValue;
-        if (!dict.TryGetValue(new CborTextString(keyName), out var cborValue))
+        if (!dict.TryGetValue(new CborTextString(cborMapKey), out var cborValue))
         {
-            error = $"Failed to find the '{keyName}' key in attStmt.";
+            _logger.TpmCantFindCborMapKey(cborMapKey);
             value = null;
             return false;
         }
 
-        if (cborValue is not CborByteString cborByteString)
+        if (cborValue is not CborByteString byteStringCborValue)
         {
-            error = $"The value associated with the '{keyName}' key in the attStmt map contains an invalid data type.";
+            _logger.TpmCborMapKeyInvalidDataType(cborMapKey);
             value = null;
             return false;
         }
 
-        error = null;
-        value = cborByteString.RawValue;
+        value = byteStringCborValue.RawValue;
         return true;
     }
+}
+
+public static partial class DefaultTpmAttestationStatementDecoderLoggingExtensions
+{
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'alg' value from 'attStmt'")]
+    public static partial void TpmDecodeFailureAlg(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'sig' value from 'attStmt'")]
+    public static partial void TpmDecodeFailureSig(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'ver' value from 'attStmt'")]
+    public static partial void TpmDecodeFailureVer(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'x5c' value from 'attStmt'")]
+    public static partial void TpmDecodeFailureX5C(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'pubArea' value from 'attStmt'")]
+    public static partial void TpmDecodeFailurePubArea(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'certInfo' value from 'attStmt'")]
+    public static partial void TpmDecodeFailureCertInfo(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'alg' key in 'attStmt'")]
+    public static partial void TpmAlgKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'alg' value in the 'attStmt' map contains an invalid data type")]
+    public static partial void TpmAlgValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'alg' value in the 'attStmt' map is out of range")]
+    public static partial void TpmAlgValueOutOfRange(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'attStmt' contains an unknown 'alg': {UnknownAlg}")]
+    public static partial void TpmAlgValueUnknown(this ILogger logger, int unknownAlg);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'sig' key in 'attStmt'")]
+    public static partial void TpmSigKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'ver' key in 'attStmt'")]
+    public static partial void TpmVerKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'sig' value in the 'attStmt' map contains an invalid data type")]
+    public static partial void TpmSigValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'ver' value in the 'attStmt' map contains an invalid data type")]
+    public static partial void TpmVerValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'x5c' key in 'attStmt'")]
+    public static partial void TpmX5CKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' value in the 'attStmt' map contains an invalid data type")]
+    public static partial void TpmX5CValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type")]
+    public static partial void TpmX5CValueInvalidElementDataType(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to find the key '{CborMapKey}' in 'attStmt'")]
+    public static partial void TpmCantFindCborMapKey(this ILogger logger, string cborMapKey);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "An invalid data type is used for the '{CborMapKey}' value in 'attStmt'")]
+    public static partial void TpmCborMapKeyInvalidDataType(this ILogger logger, string cborMapKey);
 }

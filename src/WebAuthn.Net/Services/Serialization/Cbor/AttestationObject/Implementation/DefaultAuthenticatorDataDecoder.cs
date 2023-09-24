@@ -2,6 +2,7 @@
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Cose;
@@ -16,39 +17,44 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementat
 /// </summary>
 public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 {
-    private const int EncodedAuthenticatorDataMinLength = 37;
-
     private readonly ICoseKeyDecoder _coseKeyDecoder;
+    private readonly ILogger<DefaultAuthenticatorDataDecoder> _logger;
 
-    public DefaultAuthenticatorDataDecoder(ICoseKeyDecoder coseKeyDecoder)
+    public DefaultAuthenticatorDataDecoder(ICoseKeyDecoder coseKeyDecoder, ILogger<DefaultAuthenticatorDataDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(coseKeyDecoder);
+        ArgumentNullException.ThrowIfNull(logger);
         _coseKeyDecoder = coseKeyDecoder;
+        _logger = logger;
     }
 
     /// <inheritdoc />
     public Result<DecodedAuthenticatorData> Decode(ReadOnlySpan<byte> authenticatorData)
     {
-        if (authenticatorData.Length < EncodedAuthenticatorDataMinLength)
+        if (authenticatorData.Length < 37)
         {
-            return Result<DecodedAuthenticatorData>.Failed($"The minimum size of the encoded authenticator data structure is {EncodedAuthenticatorDataMinLength} bytes.");
+            _logger.AuthDataTooSmall();
+            return Result<DecodedAuthenticatorData>.Fail();
         }
 
         var buffer = authenticatorData;
 
         if (!TryConsumeRpIdHash(ref buffer, out var rpIdHash))
         {
-            return Result<DecodedAuthenticatorData>.Failed("Can't read rpIdHash");
+            _logger.AuthDataReadFailureRpIdHash();
+            return Result<DecodedAuthenticatorData>.Fail();
         }
 
         if (!TryConsumeAuthenticatorDataFlags(ref buffer, out var flags))
         {
-            return Result<DecodedAuthenticatorData>.Failed("Can't read flags");
+            _logger.AuthDataReadFailureFlags();
+            return Result<DecodedAuthenticatorData>.Fail();
         }
 
         if (!TryConsumeSignCount(ref buffer, out var signCount))
         {
-            return Result<DecodedAuthenticatorData>.Failed("Can't read signCount");
+            _logger.AuthDataReadFailureSignCount();
+            return Result<DecodedAuthenticatorData>.Fail();
         }
 
         DecodedAttestedCredentialData? attestedCredentialData = null;
@@ -58,7 +64,8 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
             var attestedCredentialDataResult = TryConsumeAttestedCredentialData(ref buffer);
             if (attestedCredentialDataResult.HasError)
             {
-                return Result<DecodedAuthenticatorData>.Failed(attestedCredentialDataResult.Error);
+                _logger.AuthDataReadFailureAttestedCredentialData();
+                return Result<DecodedAuthenticatorData>.Fail();
             }
 
             attestedCredentialData = attestedCredentialDataResult.Ok;
@@ -116,23 +123,33 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
     {
         if (!TryConsumeAaguid(ref input, out var aaguid))
         {
-            return Result<DecodedAttestedCredentialData>.Failed("Can't read signCount");
+            _logger.AuthDataReadFailureAttestedCredentialDataAaguid();
+            return Result<DecodedAttestedCredentialData>.Fail();
         }
 
         if (!TryConsumeCredentialIdLength(ref input, out var credentialIdLength))
         {
-            return Result<DecodedAttestedCredentialData>.Failed("Can't read credentialIdLength");
+            _logger.AuthDataReadFailureAttestedCredentialDataCredentialIdLength();
+            return Result<DecodedAttestedCredentialData>.Fail();
+        }
+
+        if (credentialIdLength.Value > 1023)
+        {
+            _logger.AuthDataReadFailureAttestedCredentialDataCredentialIdLengthTooBig(credentialIdLength.Value);
+            return Result<DecodedAttestedCredentialData>.Fail();
         }
 
         if (!TryConsumeCredentialId(ref input, credentialIdLength.Value, out var credentialId))
         {
-            return Result<DecodedAttestedCredentialData>.Failed("Can't read credentialId");
+            _logger.AuthDataReadFailureAttestedCredentialDataCredentialId();
+            return Result<DecodedAttestedCredentialData>.Fail();
         }
 
         var credentialPublicKeyResult = ConsumeCredentialPublicKey(ref input);
         if (credentialPublicKeyResult.HasError)
         {
-            return Result<DecodedAttestedCredentialData>.Failed(credentialPublicKeyResult.Error);
+            _logger.AuthDataReadFailureAttestedCredentialDataCredentialPublicKey();
+            return Result<DecodedAttestedCredentialData>.Fail();
         }
 
         var result = new DecodedAttestedCredentialData(aaguid, credentialId, credentialPublicKeyResult.Ok);
@@ -182,7 +199,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         var decodeResult = _coseKeyDecoder.Decode(bufferToConsume);
         if (decodeResult.HasError)
         {
-            return Result<AbstractCoseKey>.Failed(decodeResult.Error);
+            return Result<AbstractCoseKey>.Fail();
         }
 
         var credentialPublicKey = decodeResult.Ok.CoseKey;
@@ -203,4 +220,67 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         input = input[length..];
         return true;
     }
+}
+
+public static partial class DefaultAuthenticatorDataDecoderLoggingExtensions
+{
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The minimum size of the encoded authenticator data structure is 37 bytes")]
+    public static partial void AuthDataTooSmall(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'rpIdHash'")]
+    public static partial void AuthDataReadFailureRpIdHash(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'flags'")]
+    public static partial void AuthDataReadFailureFlags(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'signCount'")]
+    public static partial void AuthDataReadFailureSignCount(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'attestedCredentialData'")]
+    public static partial void AuthDataReadFailureAttestedCredentialData(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'attestedCredentialData.aaguid'")]
+    public static partial void AuthDataReadFailureAttestedCredentialDataAaguid(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "'attestedCredentialData.credentialIdLength' is {CredentialIdLength}, which is greater than the maximum limit of 1023")]
+    public static partial void AuthDataReadFailureAttestedCredentialDataCredentialIdLengthTooBig(this ILogger logger, int credentialIdLength);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'attestedCredentialData.credentialIdLength'")]
+    public static partial void AuthDataReadFailureAttestedCredentialDataCredentialIdLength(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'attestedCredentialData.credentialId'")]
+    public static partial void AuthDataReadFailureAttestedCredentialDataCredentialId(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'attestedCredentialData.credentialPublicKey'")]
+    public static partial void AuthDataReadFailureAttestedCredentialDataCredentialPublicKey(this ILogger logger);
 }

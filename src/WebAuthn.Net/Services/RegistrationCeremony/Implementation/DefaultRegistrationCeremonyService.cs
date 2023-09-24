@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models;
@@ -29,6 +30,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
     private readonly IChallengeGenerator _challengeGenerator;
     private readonly IClientDataDecoder _clientDataDecoder;
     private readonly IWebAuthnContextFactory<TContext> _contextFactory;
+    private readonly ILogger<DefaultRegistrationCeremonyService<TContext>> _logger;
     private readonly WebAuthnOptions _options;
     private readonly IRelyingPartyOriginProvider<TContext> _originProvider;
     private readonly IOperationalStorage<TContext> _storage;
@@ -42,7 +44,8 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         ITimeProvider timeProvider,
         IClientDataDecoder clientDataDecoder,
         IRelyingPartyOriginProvider<TContext> originProvider,
-        IAttestationObjectDecoder attestationObjectDecoder)
+        IAttestationObjectDecoder attestationObjectDecoder,
+        ILogger<DefaultRegistrationCeremonyService<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(contextFactory);
@@ -52,6 +55,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         ArgumentNullException.ThrowIfNull(clientDataDecoder);
         ArgumentNullException.ThrowIfNull(originProvider);
         ArgumentNullException.ThrowIfNull(attestationObjectDecoder);
+        ArgumentNullException.ThrowIfNull(logger);
         _contextFactory = contextFactory;
         _challengeGenerator = challengeGenerator;
         _storage = storage;
@@ -59,6 +63,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         _clientDataDecoder = clientDataDecoder;
         _originProvider = originProvider;
         _attestationObjectDecoder = attestationObjectDecoder;
+        _logger = logger;
         _options = options;
     }
 
@@ -90,85 +95,94 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        await using var context = await _contextFactory.CreateAsync(httpContext, cancellationToken);
-        var options = await _storage.FindRegistrationCeremonyOptionsAsync(context, request.RegistrationCeremonyId, cancellationToken);
-        if (options is null)
+        using (_logger.BeginCompleteRegistrationCeremonyScope(request.RegistrationCeremonyId))
+        await using (var context = await _contextFactory.CreateAsync(httpContext, cancellationToken))
         {
-            return Result<CompleteCeremonyResult>.Failed("Can't find existing registration ceremony");
+            var options = await _storage.FindRegistrationCeremonyOptionsAsync(context, request.RegistrationCeremonyId, cancellationToken);
+            if (options is null)
+            {
+                _logger.RegistrationCeremonyNotFound();
+                return Result<CompleteCeremonyResult>.Fail();
+            }
+
+            // https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential
+            // 1. Let options be a new PublicKeyCredentialCreationOptions structure configured to the Relying Party's needs for the ceremony.
+            // 2. Call navigator.credentials.create() and pass options as the publicKey option. Let credential be the result
+            // of the successfully resolved promise. If the promise is rejected, abort the ceremony with a user-visible error,
+            // or otherwise guide the user experience as might be determinable from the context available in the rejected promise.
+            // For example if the promise is rejected with an error code equivalent to "InvalidStateError",
+            // the user might be instructed to use a different authenticator.
+            // For information on different error contexts and the circumstances leading to them, see § .3.2 The authenticatorMakeCredential Operation.
+            // 3. Let response be credential.response. If response is not an instance of AuthenticatorAttestationResponse,
+            // abort the ceremony with a user-visible error.
+            // 4. Let clientExtensionResults be the result of calling credential.getClientExtensionResults().
+            // 5. Let JSONtext be the result of running UTF-8 decode on the value of response.clientDataJSON.
+            // Note: Using any implementation of UTF-8 decode is acceptable as long as it yields the same result as that yielded by the UTF-8 decode algorithm.
+            // In particular, any leading byte order mark (BOM) MUST be stripped.
+            // 6. Let C, the client data claimed as collected during the credential creation,
+            // be the result of running an implementation-specific JSON parser on JSONtext.
+            // Note: C may be any implementation-specific data structure representation, as long as C’s components are referenceable, as required by this algorithm.
+            var clientDataResult = _clientDataDecoder.Decode(request.Credential.Response.ClientDataJson);
+            if (clientDataResult.HasError)
+            {
+                _logger.FailedToDecodeClientData();
+                return Result<CompleteCeremonyResult>.Fail();
+            }
+
+            // ReSharper disable once InconsistentNaming
+            var C = clientDataResult.Ok;
+
+            // 7. Verify that the value of C.type is webauthn.create.
+            if (C.Type is not "webauthn.create")
+            {
+                _logger.IncorrectClientDataType(C.Type);
+                return Result<CompleteCeremonyResult>.Fail();
+            }
+
+            // 8. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
+            if (!string.Equals(C.Challenge, WebEncoders.Base64UrlEncode(options.Challenge), StringComparison.Ordinal))
+            {
+                _logger.ChallengeMismatch();
+                return Result<CompleteCeremonyResult>.Fail();
+            }
+
+            // 9. Verify that the value of C.origin matches the Relying Party's origin.
+            var relyingPartyOrigin = await _originProvider.GetAsync(context, cancellationToken);
+            if (!string.Equals(C.Origin, relyingPartyOrigin, StringComparison.Ordinal))
+            {
+                _logger.OriginMismatch(C.Origin, relyingPartyOrigin);
+                return Result<CompleteCeremonyResult>.Fail();
+            }
+            // 10. Verify that the value of C.tokenBinding.status matches the state of Token Binding for the TLS connection
+            // over which the assertion was obtained. If Token Binding was used on that TLS connection, also verify that
+            // C.tokenBinding.id matches the base64url encoding of the Token Binding ID for the connection.
+            // https://w3c.github.io/webauthn/#collectedclientdata-tokenbinding
+            // Web Authentication: An API for accessing Public Key Credentials Level 3. Editor’s Draft, 12 September 2023 - § 5.8.1. Client Data Used in WebAuthn Signatures
+            // NOTE: While Token Binding was present in Level 1 and Level 2 of WebAuthn, its use is not expected in Level 3.
+            // The tokenBinding field is reserved so that it will not be reused for a different purpose.
+            // -----
+            // skip token binding
+
+            // 11. Let hash be the result of computing a hash over response.clientDataJSON using SHA-256.
+            var hash = SHA256.HashData(request.Credential.Response.ClientDataJson);
+
+            // 12. Perform CBOR decoding on the attestationObject field of the AuthenticatorAttestationResponse structure
+            // to obtain the attestation statement format fmt, the authenticator data authData, and the attestation statement attStmt.
+            var attestationObjectResult = _attestationObjectDecoder.Decode(request.Credential.Response.AttestationObject);
+            if (attestationObjectResult.HasError)
+            {
+                return Result<CompleteCeremonyResult>.Fail();
+            }
+
+            var attestationObject = attestationObjectResult.Ok;
+
+            // var fmt = (string?) null;
+            // var authData = (string?) null;
+            // var attStmt = (string?) null;
+
+
+            throw new NotImplementedException();
         }
-
-        // https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential
-        // 1. Let options be a new PublicKeyCredentialCreationOptions structure configured to the Relying Party's needs for the ceremony.
-        // 2. Call navigator.credentials.create() and pass options as the publicKey option. Let credential be the result
-        // of the successfully resolved promise. If the promise is rejected, abort the ceremony with a user-visible error,
-        // or otherwise guide the user experience as might be determinable from the context available in the rejected promise.
-        // For example if the promise is rejected with an error code equivalent to "InvalidStateError",
-        // the user might be instructed to use a different authenticator.
-        // For information on different error contexts and the circumstances leading to them, see § .3.2 The authenticatorMakeCredential Operation.
-        // 3. Let response be credential.response. If response is not an instance of AuthenticatorAttestationResponse,
-        // abort the ceremony with a user-visible error.
-        // 4. Let clientExtensionResults be the result of calling credential.getClientExtensionResults().
-        // 5. Let JSONtext be the result of running UTF-8 decode on the value of response.clientDataJSON.
-        // Note: Using any implementation of UTF-8 decode is acceptable as long as it yields the same result as that yielded by the UTF-8 decode algorithm.
-        // In particular, any leading byte order mark (BOM) MUST be stripped.
-        // 6. Let C, the client data claimed as collected during the credential creation,
-        // be the result of running an implementation-specific JSON parser on JSONtext.
-        // Note: C may be any implementation-specific data structure representation, as long as C’s components are referenceable, as required by this algorithm.
-        var clientDataResult = _clientDataDecoder.Decode(request.Credential.Response.ClientDataJson);
-        if (clientDataResult.HasError)
-        {
-            return Result<CompleteCeremonyResult>.Failed(clientDataResult.Error);
-        }
-
-        // ReSharper disable once InconsistentNaming
-        var C = clientDataResult.Ok;
-        // 7. Verify that the value of C.type is webauthn.create.
-        if (C.Type is not "webauthn.create")
-        {
-            return Result<CompleteCeremonyResult>.Failed($"AttestationResponse type must be 'webauthn.create', but was {C.Type}");
-        }
-
-        // 8. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
-        if (!string.Equals(C.Challenge, WebEncoders.Base64UrlEncode(options.Challenge), StringComparison.Ordinal))
-        {
-            return Result<CompleteCeremonyResult>.Failed($"AttestationResponse type must be 'webauthn.create', but was {C.Type}");
-        }
-
-        // 9. Verify that the value of C.origin matches the Relying Party's origin.
-        var relyingPartyOrigin = await _originProvider.GetAsync(context, cancellationToken);
-        if (!string.Equals(C.Origin, relyingPartyOrigin, StringComparison.Ordinal))
-        {
-            return Result<CompleteCeremonyResult>.Failed($"The value of origin in clientData: '{C.Origin}' does not match the relying party's origin: '{relyingPartyOrigin}'");
-        }
-        // 10. Verify that the value of C.tokenBinding.status matches the state of Token Binding for the TLS connection
-        // over which the assertion was obtained. If Token Binding was used on that TLS connection, also verify that
-        // C.tokenBinding.id matches the base64url encoding of the Token Binding ID for the connection.
-        // https://w3c.github.io/webauthn/#collectedclientdata-tokenbinding
-        // Web Authentication: An API for accessing Public Key Credentials Level 3. Editor’s Draft, 12 September 2023 - § 5.8.1. Client Data Used in WebAuthn Signatures
-        // NOTE: While Token Binding was present in Level 1 and Level 2 of WebAuthn, its use is not expected in Level 3.
-        // The tokenBinding field is reserved so that it will not be reused for a different purpose.
-        // -----
-        // skip token binding
-
-        // 11. Let hash be the result of computing a hash over response.clientDataJSON using SHA-256.
-        var hash = SHA256.HashData(request.Credential.Response.ClientDataJson);
-
-        // 12. Perform CBOR decoding on the attestationObject field of the AuthenticatorAttestationResponse structure
-        // to obtain the attestation statement format fmt, the authenticator data authData, and the attestation statement attStmt.
-        var attestationObjectResult = _attestationObjectDecoder.Decode(request.Credential.Response.AttestationObject);
-        if (attestationObjectResult.HasError)
-        {
-            return Result<CompleteCeremonyResult>.Failed(attestationObjectResult.Error);
-        }
-
-        var attestationObject = attestationObjectResult.Ok;
-
-        // var fmt = (string?) null;
-        // var authData = (string?) null;
-        // var attStmt = (string?) null;
-
-
-        throw new NotImplementedException();
     }
 
     private async Task<PublicKeyCredentialDescriptor[]?> GetCredentialsToExcludeAsync(
@@ -255,4 +269,47 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             request.Attestation,
             null));
     }
+}
+
+public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
+{
+    private static readonly Func<ILogger, string, IDisposable?> CompleteRegistrationCeremony = LoggerMessage.DefineScope<string>(
+        "Completion of registration ceremony with Id: {RegistrationCeremonyId}");
+
+    public static IDisposable? BeginCompleteRegistrationCeremonyScope(
+        this ILogger logger,
+        string registrationCeremonyId)
+    {
+        return CompleteRegistrationCeremony(logger, registrationCeremonyId);
+    }
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Registration ceremony not found")]
+    public static partial void RegistrationCeremonyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode 'clientData'")]
+    public static partial void FailedToDecodeClientData(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'clientData.type' is incorrect, as it expected 'webauthn.create' but received '{ClientDataType}'")]
+    public static partial void IncorrectClientDataType(this ILogger logger, string clientDataType);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The challenge in the registration completion request doesn't match the one generated for this registration ceremony")]
+    public static partial void ChallengeMismatch(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The value of clientData.origin: '{ClientDataOrigin}' doesn't match the relying party's origin: '{RelyingPartyOrigin}'.")]
+    public static partial void OriginMismatch(this ILogger logger, string clientDataOrigin, string relyingPartyOrigin);
 }

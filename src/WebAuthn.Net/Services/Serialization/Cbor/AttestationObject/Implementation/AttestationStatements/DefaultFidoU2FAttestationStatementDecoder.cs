@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
@@ -9,64 +10,71 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementat
 
 public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStatementDecoder
 {
+    private readonly ILogger<DefaultFidoU2FAttestationStatementDecoder> _logger;
+
+    public DefaultFidoU2FAttestationStatementDecoder(ILogger<DefaultFidoU2FAttestationStatementDecoder> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+    }
+
     public Result<FidoU2FAttestationStatement> Decode(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
-        if (!TryDecodeSig(attStmt, out var sig, out var sigError))
+        if (!TryDecodeSig(attStmt, out var sig))
         {
-            return Result<FidoU2FAttestationStatement>.Failed(sigError);
+            _logger.FidoU2FDecodeFailureSig();
+            return Result<FidoU2FAttestationStatement>.Fail();
         }
 
-        if (!TryDecodeX5C(attStmt, out var x5C, out var x5CError))
+        if (!TryDecodeX5C(attStmt, out var x5C))
         {
-            return Result<FidoU2FAttestationStatement>.Failed(x5CError);
+            _logger.FidoU2FDecodeFailureX5C();
+            return Result<FidoU2FAttestationStatement>.Fail();
         }
 
         var result = new FidoU2FAttestationStatement(sig, x5C);
         return Result<FidoU2FAttestationStatement>.Success(result);
     }
 
-    private static bool TryDecodeSig(
+    private bool TryDecodeSig(
         CborMap attStmt,
-        [NotNullWhen(true)] out byte[]? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out byte[]? value)
     {
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("sig"), out var sigCbor))
         {
-            error = "Failed to find the 'sig' key in attStmt.";
+            _logger.FidoU2FSigKeyNotFound();
             value = null;
             return false;
         }
 
         if (sigCbor is not CborByteString sigCborByteString)
         {
-            error = "The value associated with the 'sig' key in the attStmt map contains an invalid data type.";
+            _logger.FidoU2FSigValueInvalidDataType();
             value = null;
             return false;
         }
 
-        error = null;
         value = sigCborByteString.RawValue;
         return true;
     }
 
-    private static bool TryDecodeX5C(
+    private bool TryDecodeX5C(
         CborMap attStmt,
-        [NotNullWhen(true)] out byte[][]? value,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(true)] out byte[][]? value)
     {
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("x5c"), out var x5CCbor))
         {
-            error = "Failed to find the 'x5c' key in attStmt.";
+            _logger.FidoU2Fx5CKeyNotFound();
             value = null;
             return false;
         }
 
         if (x5CCbor is not CborArray x5CborArray)
         {
-            error = "The value associated with the 'x5c' key in the attStmt map contains an invalid data type.";
+            _logger.FidoU2Fx5CValueInvalidDataType();
             value = null;
             return false;
         }
@@ -77,7 +85,7 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
         {
             if (cborArrayItems[i] is not CborByteString cborArrayItemByteString)
             {
-                error = "One of the 'x5c' array elements in the attStmt map contains a CBOR element of an invalid type.";
+                _logger.FidoU2Fx5CValueInvalidElementDataType();
                 value = null;
                 return false;
             }
@@ -85,8 +93,53 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
             result[i] = cborArrayItemByteString.RawValue;
         }
 
-        error = null;
         value = result;
         return true;
     }
+}
+
+public static partial class DefaultFidoU2FAttestationStatementDecoderLoggingExtensions
+{
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'sig' value from 'attStmt'")]
+    public static partial void FidoU2FDecodeFailureSig(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the 'x5c' value from 'attStmt'")]
+    public static partial void FidoU2FDecodeFailureX5C(this ILogger logger);
+
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'sig' key in 'attStmt'")]
+    public static partial void FidoU2FSigKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'sig' value in the 'attStmt' map contains an invalid data type")]
+    public static partial void FidoU2FSigValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to find the 'x5c' key in 'attStmt'")]
+    public static partial void FidoU2Fx5CKeyNotFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' value in the 'attStmt' map contains an invalid data type")]
+    public static partial void FidoU2Fx5CValueInvalidDataType(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type")]
+    public static partial void FidoU2Fx5CValueInvalidElementDataType(this ILogger logger);
 }

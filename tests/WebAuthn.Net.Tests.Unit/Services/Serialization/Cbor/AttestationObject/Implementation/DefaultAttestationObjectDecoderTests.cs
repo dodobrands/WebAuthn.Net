@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
@@ -36,16 +37,22 @@ public class DefaultAttestationObjectDecoderTests
 
 
     private readonly DefaultAttestationObjectDecoder _decoder = new(
-        new DefaultCborDecoder(),
+        new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance),
         new DefaultAttestationStatementDecoder(
-            new DefaultPackedAttestationStatementDecoder(),
-            new DefaultTpmAttestationStatementDecoder(),
-            new DefaultAndroidKeyAttestationStatementDecoder(),
-            new DefaultAndroidSafetyNetAttestationStatementDecoder(),
-            new DefaultFidoU2FAttestationStatementDecoder(),
-            new DefaultNoneAttestationStatementDecoder(),
-            new DefaultAppleAnonymousAttestationStatementDecoder()),
-        new DefaultAuthenticatorDataDecoder(new DefaultCoseKeyDecoder(new DefaultCborDecoder())));
+            new DefaultPackedAttestationStatementDecoder(NullLogger<DefaultPackedAttestationStatementDecoder>.Instance),
+            new DefaultTpmAttestationStatementDecoder(NullLogger<DefaultTpmAttestationStatementDecoder>.Instance),
+            new DefaultAndroidKeyAttestationStatementDecoder(NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance),
+            new DefaultAndroidSafetyNetAttestationStatementDecoder(NullLogger<DefaultAndroidSafetyNetAttestationStatementDecoder>.Instance),
+            new DefaultFidoU2FAttestationStatementDecoder(NullLogger<DefaultFidoU2FAttestationStatementDecoder>.Instance),
+            new DefaultNoneAttestationStatementDecoder(NullLogger<DefaultNoneAttestationStatementDecoder>.Instance),
+            new DefaultAppleAnonymousAttestationStatementDecoder(NullLogger<DefaultAppleAnonymousAttestationStatementDecoder>.Instance)),
+        new DefaultAuthenticatorDataDecoder(
+            new DefaultCoseKeyDecoder(
+                new DefaultCborDecoder(
+                    NullLogger<DefaultCborDecoder>.Instance),
+                NullLogger<DefaultCoseKeyDecoder>.Instance),
+            NullLogger<DefaultAuthenticatorDataDecoder>.Instance),
+        NullLogger<DefaultAttestationObjectDecoder>.Instance);
 
     [Test]
     public void CanDecode_Packed()
