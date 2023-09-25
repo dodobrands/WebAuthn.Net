@@ -206,8 +206,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                         Q = point,
                         Curve = curve
                     });
-                    var dotnetSig = GetP1363SigFromAsn1(signature, ecdsa.KeySize);
-                    return ecdsa.VerifyData(dataToVerify, dotnetSig, hashAlgorithmName.Value);
+                    return ecdsa.VerifyData(dataToVerify, signature, hashAlgorithmName.Value, DSASignatureFormat.Rfc3279DerSequence);
                 }
             case CoseKeyType.RSA:
                 {
@@ -246,52 +245,6 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                 return false;
         }
     }
-
-    private static byte[] GetP1363SigFromAsn1(byte[] signature, int keySize)
-    {
-        // .NET requires IEEE P-1363 fixed size unsigned big endian values for R and S
-        // ASN.1 requires storing positive integer values with any leading 0s removed
-
-        // Read ASN.1 DER Ecdsa-Sig-Value into rawR and rawS values
-        var reader = new AsnReader(signature, AsnEncodingRules.DER);
-        var sequenceReader = reader.ReadSequence();
-        var rawR = sequenceReader.ReadIntegerBytes().ToArray();
-        var rawS = sequenceReader.ReadIntegerBytes().ToArray();
-
-        // Determine coefficient size
-        var coefficientSize = (int) Math.Ceiling((decimal) keySize / 8);
-
-        // Adjust sizes
-        var r = AdjustValue(coefficientSize, rawR);
-        var s = AdjustValue(coefficientSize, rawS);
-
-        // Combine r and s into one byte array.
-        var result = new byte[r.Length + s.Length];
-        Array.Copy(r, 0, result, 0, r.Length);
-        Array.Copy(s, 0, result, r.Length, s.Length);
-        return result;
-
-        static byte[] AdjustValue(int coefficientSize, byte[] valueBytes)
-        {
-            var result = new byte[coefficientSize];
-            //  remove any leading 0x00 byte if it exists solely for sign non-negativity
-            if (valueBytes[0] == 0x0 && (valueBytes[1] & 0x80) != 0)
-            {
-                var offset = coefficientSize - valueBytes.Length + 1;
-                var p1363 = result.AsSpan(offset);
-                valueBytes.AsSpan(1).CopyTo(p1363);
-            }
-            else
-            {
-                var offset = coefficientSize - valueBytes.Length;
-                var p1363 = result.AsSpan(offset);
-                valueBytes.CopyTo(p1363);
-            }
-
-            return result;
-        }
-    }
-
 
     private static bool VerifyTpm(
         TpmAttestationStatement attStmt,
