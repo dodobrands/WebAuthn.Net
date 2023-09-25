@@ -21,10 +21,4 @@ public class AndroidSafetyNetAttestationStatement : AbstractAttestationStatement
     public string Ver { get; }
 
     public byte[] Response { get; }
-
-    public override TResult Accept<TResult>(IAttestationStatementVisitor<TResult> visitor)
-    {
-        ArgumentNullException.ThrowIfNull(visitor);
-        return visitor.VisitAndroidSafetyNetAttestationStatement(this);
-    }
 }

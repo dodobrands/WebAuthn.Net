@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
 
 namespace WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
@@ -58,7 +58,170 @@ public static class CoseAlgorithmIdentifierExtensions
                     return true;
                 }
             default:
-                throw new InvalidEnumArgumentException(nameof(coseAlgorithm), (int) coseAlgorithm, typeof(CoseAlgorithm));
+                {
+                    ellipticCurves = null;
+                    return false;
+                }
+        }
+    }
+
+    public static bool TryGetCoseKeyType(
+        this CoseAlgorithm coseAlgorithm,
+        [NotNullWhen(true)] out CoseKeyType? kty)
+    {
+        switch (coseAlgorithm)
+        {
+            case CoseAlgorithm.RS1:
+                {
+                    kty = CoseKeyType.RSA;
+                    return true;
+                }
+            case CoseAlgorithm.RS512:
+                {
+                    kty = CoseKeyType.RSA;
+                    return true;
+                }
+            case CoseAlgorithm.RS384:
+                {
+                    kty = CoseKeyType.RSA;
+                    return true;
+                }
+            case CoseAlgorithm.RS256:
+                {
+                    kty = CoseKeyType.RSA;
+                    return true;
+                }
+            case CoseAlgorithm.PS512:
+                {
+                    kty = CoseKeyType.RSA;
+                    return true;
+                }
+            case CoseAlgorithm.PS384:
+                {
+                    kty = CoseKeyType.RSA;
+                    return true;
+                }
+            case CoseAlgorithm.PS256:
+                {
+                    kty = CoseKeyType.RSA;
+                    return true;
+                }
+            case CoseAlgorithm.ES512:
+                {
+                    kty = CoseKeyType.EC2;
+                    return true;
+                }
+            case CoseAlgorithm.ES384:
+                {
+                    kty = CoseKeyType.EC2;
+                    return true;
+                }
+            case CoseAlgorithm.ES256:
+                {
+                    kty = CoseKeyType.EC2;
+                    return true;
+                }
+            default:
+                {
+                    kty = null;
+                    return false;
+                }
+        }
+    }
+
+    public static bool TryToHashAlgorithmName(
+        this CoseAlgorithm coseAlgorithm,
+        [NotNullWhen(true)] out HashAlgorithmName? alg)
+    {
+        switch (coseAlgorithm)
+        {
+            case CoseAlgorithm.RS1:
+                {
+                    alg = HashAlgorithmName.SHA1;
+                    return true;
+                }
+            case CoseAlgorithm.RS512:
+                {
+                    alg = HashAlgorithmName.SHA512;
+                    return true;
+                }
+            case CoseAlgorithm.RS384:
+                {
+                    alg = HashAlgorithmName.SHA384;
+                    return true;
+                }
+            case CoseAlgorithm.RS256:
+                {
+                    alg = HashAlgorithmName.SHA256;
+                    return true;
+                }
+            case CoseAlgorithm.PS512:
+                {
+                    alg = HashAlgorithmName.SHA512;
+                    return true;
+                }
+            case CoseAlgorithm.PS384:
+                {
+                    alg = HashAlgorithmName.SHA384;
+                    return true;
+                }
+            case CoseAlgorithm.PS256:
+                {
+                    alg = HashAlgorithmName.SHA256;
+                    return true;
+                }
+            case CoseAlgorithm.ES512:
+                {
+                    alg = HashAlgorithmName.SHA512;
+                    return true;
+                }
+            case CoseAlgorithm.ES384:
+                {
+                    alg = HashAlgorithmName.SHA384;
+                    return true;
+                }
+            case CoseAlgorithm.ES256:
+                {
+                    alg = HashAlgorithmName.SHA256;
+                    return true;
+                }
+            default:
+                {
+                    alg = null;
+                    return false;
+                }
+        }
+    }
+
+    public static bool TryGetRsaPadding(
+        this CoseAlgorithm coseAlgorithm,
+        [NotNullWhen(true)] out RSASignaturePadding? padding)
+    {
+        switch (coseAlgorithm)
+        {
+            case CoseAlgorithm.RS1:
+            case CoseAlgorithm.RS512:
+            case CoseAlgorithm.RS384:
+            case CoseAlgorithm.RS256:
+                {
+                    padding = RSASignaturePadding.Pkcs1;
+                    return true;
+                }
+            case CoseAlgorithm.PS512:
+            case CoseAlgorithm.PS384:
+            case CoseAlgorithm.PS256:
+                {
+                    padding = RSASignaturePadding.Pss;
+                    return true;
+                }
+            case CoseAlgorithm.ES512:
+            case CoseAlgorithm.ES384:
+            case CoseAlgorithm.ES256:
+            default:
+                {
+                    padding = null;
+                    return false;
+                }
         }
     }
 }

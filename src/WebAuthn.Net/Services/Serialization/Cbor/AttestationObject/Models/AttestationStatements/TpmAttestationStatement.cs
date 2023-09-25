@@ -49,11 +49,4 @@ public class TpmAttestationStatement : AbstractAttestationStatement
     public byte[] CertInfo { get; }
 
     public byte[] PubArea { get; }
-
-
-    public override TResult Accept<TResult>(IAttestationStatementVisitor<TResult> visitor)
-    {
-        ArgumentNullException.ThrowIfNull(visitor);
-        return visitor.VisitTpmAttestationStatement(this);
-    }
 }

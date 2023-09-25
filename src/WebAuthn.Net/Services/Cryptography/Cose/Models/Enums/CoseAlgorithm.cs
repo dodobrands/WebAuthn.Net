@@ -17,22 +17,22 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 public enum CoseAlgorithm
 {
     /// <summary>
-    ///     RSASSA-PKCS1-v1_5 w/ SHA-1
+    ///     RSASSA-PKCS1-v1_5 using SHA-1
     /// </summary>
     RS1 = -65535,
 
     /// <summary>
-    ///     RSASSA-PKCS1-v1_5 w/ SHA-512
+    ///     RSASSA-PKCS1-v1_5 using SHA-512
     /// </summary>
     RS512 = -259,
 
     /// <summary>
-    ///     RSASSA-PKCS1-v1_5 w/ SHA-384
+    ///     RSASSA-PKCS1-v1_5 using SHA-384
     /// </summary>
     RS384 = -258,
 
     /// <summary>
-    ///     RSASSA-PKCS1-v1_5 w/ SHA-256
+    ///     RSASSA-PKCS1-v1_5 using SHA-256
     /// </summary>
     RS256 = -257,
 

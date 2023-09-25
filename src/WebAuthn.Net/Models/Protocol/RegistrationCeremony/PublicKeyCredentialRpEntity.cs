@@ -28,7 +28,7 @@ public class PublicKeyCredentialRpEntity
     /// </param>
     /// <exception cref="ArgumentException">If the parameter <paramref name="name" /> contains an empty string or <see langword="null" /> value.</exception>
     [JsonConstructor]
-    public PublicKeyCredentialRpEntity(string? id, string name)
+    public PublicKeyCredentialRpEntity(string id, string name)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -41,14 +41,14 @@ public class PublicKeyCredentialRpEntity
 
     /// <summary>
     ///     This member specifies the <a href="https://www.w3.org/TR/webauthn-3/#rp-id">RP ID</a> the credential should be <a href="https://www.w3.org/TR/webauthn-3/#scope">scoped</a> to.
-    ///     If omitted, its value will be the <a href="https://www.w3.org/TR/credential-management-1/#credentialscontainer">CredentialsContainer</a> object’s
-    ///     <a href="https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object">relevant settings object's</a>
-    ///     <a href="https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin">origin's</a>
-    ///     <a href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-effective-domain">effective domain</a>.
     /// </summary>
+    /// <remarks>
+    ///     Despite the fact that this parameter is optional according to the specification,
+    ///     in this implementation it is mandatory in order to "bind" the registration ceremony to the specific identifier of the relying party.
+    /// </remarks>
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Id { get; }
+    public string Id { get; }
 
     /// <summary>
     ///     A <a href="https://www.w3.org/TR/webauthn-3/#human-palatability">human-palatable</a> identifier

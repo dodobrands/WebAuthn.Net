@@ -27,11 +27,6 @@ public class AppleAnonymousAttestationStatement : AbstractAttestationStatement
     }
 
     public CoseAlgorithm Alg { get; }
-    public byte[][] X5C { get; }
 
-    public override TResult Accept<TResult>(IAttestationStatementVisitor<TResult> visitor)
-    {
-        ArgumentNullException.ThrowIfNull(visitor);
-        return visitor.VisitAppleAnonymousAttestationStatement(this);
-    }
+    public byte[][] X5C { get; }
 }

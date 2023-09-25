@@ -24,10 +24,4 @@ public class FidoU2FAttestationStatement : AbstractAttestationStatement
     public byte[] Sig { get; }
 
     public byte[][] X5C { get; }
-
-    public override TResult Accept<TResult>(IAttestationStatementVisitor<TResult> visitor)
-    {
-        ArgumentNullException.ThrowIfNull(visitor);
-        return visitor.VisitFidoU2FAttestationStatement(this);
-    }
 }

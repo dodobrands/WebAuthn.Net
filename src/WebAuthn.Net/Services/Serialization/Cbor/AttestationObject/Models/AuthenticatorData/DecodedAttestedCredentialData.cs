@@ -27,7 +27,7 @@ public class DecodedAttestedCredentialData
         [SuppressMessage("ReSharper", "IdentifierTypo")]
         byte[] aaguid,
         byte[] credentialId,
-        AbstractCoseKey? credentialPublicKey)
+        AbstractCoseKey credentialPublicKey)
     {
         if (aaguid == null)
         {
@@ -70,5 +70,5 @@ public class DecodedAttestedCredentialData
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/webauthn-3/#credential-public-key">credential public key</a>.
     /// </summary>
-    public AbstractCoseKey? CredentialPublicKey { get; }
+    public AbstractCoseKey CredentialPublicKey { get; }
 }

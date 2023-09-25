@@ -57,13 +57,13 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
             return Result<DecodedAttestationObject>.Fail();
         }
 
-        if (!TryDecodeAuthData(attestationObjectCbor, out var authData))
+        if (!TryDecodeAuthData(attestationObjectCbor, out var authData, out var rawAuthData))
         {
             _logger.AttObjDecodeFailureAuthData();
             return Result<DecodedAttestationObject>.Fail();
         }
 
-        var result = new DecodedAttestationObject(fmt.Value, attStmt, authData);
+        var result = new DecodedAttestationObject(fmt.Value, attStmt, authData, rawAuthData);
         return Result<DecodedAttestationObject>.Success(result);
     }
 
@@ -168,31 +168,36 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 
     private bool TryDecodeAuthData(
         CborMap attStmt,
-        [NotNullWhen(true)] out DecodedAuthenticatorData? value)
+        [NotNullWhen(true)] out DecodedAuthenticatorData? decodedValue,
+        [NotNullWhen(true)] out byte[]? rawValue)
     {
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("authData"), out var sigCbor))
         {
             _logger.AttObjAuthDataKeyNotFound();
-            value = null;
+            decodedValue = null;
+            rawValue = null;
             return false;
         }
 
         if (sigCbor is not CborByteString sigCborByteString)
         {
             _logger.AttObjAuthDataValueInvalidDataType();
-            value = null;
+            decodedValue = null;
+            rawValue = null;
             return false;
         }
 
         var decodeResult = _authDataDecoder.Decode(sigCborByteString.RawValue);
         if (decodeResult.HasError)
         {
-            value = null;
+            decodedValue = null;
+            rawValue = null;
             return false;
         }
 
-        value = decodeResult.Ok;
+        decodedValue = decodeResult.Ok;
+        rawValue = sigCborByteString.RawValue;
         return true;
     }
 }

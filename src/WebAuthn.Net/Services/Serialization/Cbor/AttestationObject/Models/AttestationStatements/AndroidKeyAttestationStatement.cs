@@ -34,10 +34,4 @@ public class AndroidKeyAttestationStatement : AbstractAttestationStatement
     public byte[] Sig { get; }
 
     public byte[][] X5C { get; }
-
-    public override TResult Accept<TResult>(IAttestationStatementVisitor<TResult> visitor)
-    {
-        ArgumentNullException.ThrowIfNull(visitor);
-        return visitor.VisitAndroidKeyAttestationStatement(this);
-    }
 }

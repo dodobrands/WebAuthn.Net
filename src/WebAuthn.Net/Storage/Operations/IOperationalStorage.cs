@@ -18,7 +18,7 @@ public interface IOperationalStorage<TContext>
 
     Task<string> SaveRegistrationCeremonyOptionsAsync(
         TContext context,
-        RegistrationCeremonyOptionsSaveRequest request,
+        RegistrationCeremonyOptions registrationCeremonyOptions,
         CancellationToken cancellationToken);
 
     Task<RegistrationCeremonyOptions?> FindRegistrationCeremonyOptionsAsync(

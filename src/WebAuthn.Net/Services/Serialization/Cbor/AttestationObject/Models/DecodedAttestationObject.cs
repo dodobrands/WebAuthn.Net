@@ -11,7 +11,8 @@ public class DecodedAttestationObject
     public DecodedAttestationObject(
         AttestationStatementFormat fmt,
         AbstractAttestationStatement attStmt,
-        DecodedAuthenticatorData authData)
+        DecodedAuthenticatorData authData,
+        byte[] rawAuthData)
     {
         if (!Enum.IsDefined(typeof(AttestationStatementFormat), fmt))
         {
@@ -24,6 +25,7 @@ public class DecodedAttestationObject
         Fmt = fmt;
         AttStmt = attStmt;
         AuthData = authData;
+        RawAuthData = rawAuthData;
     }
 
     public AttestationStatementFormat Fmt { get; }
@@ -31,4 +33,6 @@ public class DecodedAttestationObject
     public AbstractAttestationStatement AttStmt { get; }
 
     public DecodedAuthenticatorData AuthData { get; }
+
+    public byte[] RawAuthData { get; }
 }

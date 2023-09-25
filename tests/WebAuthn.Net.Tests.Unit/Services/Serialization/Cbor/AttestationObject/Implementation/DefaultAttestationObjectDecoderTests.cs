@@ -1,12 +1,41 @@
 using System;
+using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
+using WebAuthn.Net.Services.TimeProvider.Implementation;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
+
+public class TestWebAuthnContext : IWebAuthnContext
+{
+    public TestWebAuthnContext(HttpContext? httpContext)
+    {
+        HttpContext = httpContext!;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        GC.SuppressFinalize(this);
+        return ValueTask.CompletedTask;
+    }
+
+    public HttpContext HttpContext { get; }
+
+    public Task CommitAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+}
 
 [TestFixture]
 public class DefaultAttestationObjectDecoderTests
@@ -53,6 +82,33 @@ public class DefaultAttestationObjectDecoderTests
                 NullLogger<DefaultCoseKeyDecoder>.Instance),
             NullLogger<DefaultAuthenticatorDataDecoder>.Instance),
         NullLogger<DefaultAttestationObjectDecoder>.Instance);
+
+    [Test]
+    public async Task CanDecode_Packed_WithClientData()
+    {
+        var result = _decoder.Decode(PackedAttestationObject);
+        if (result.HasError)
+        {
+            throw new InvalidOperationException();
+        }
+
+        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
+        await using var ctx = new TestWebAuthnContext(null);
+        await ver.VerifyAttestationStatementAsync(ctx, new(
+                AttestationStatementFormat.Packed,
+                result.Ok.AttStmt,
+                new(
+                    result.Ok.AuthData.RpIdHash,
+                    result.Ok.AuthData.Flags,
+                    result.Ok.AuthData.SignCount,
+                    result.Ok.AuthData.AttestedCredentialData!,
+                    result.Ok.RawAuthData),
+                SHA256.HashData(WebEncoders.Base64UrlDecode(
+                    "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiXzQwblgweWFLanNHMGprbUxrVXBrLTBPY2xKSVF6bGhVcW5aRkp1MUgyQSIsIm9yaWdpbiI6Imh0dHBzOi8vbG9jYWxob3N0OjUwMDEiLCJjcm9zc09yaWdpbiI6ZmFsc2UsIm90aGVyX2tleXNfY2FuX2JlX2FkZGVkX2hlcmUiOiJkbyBub3QgY29tcGFyZSBjbGllbnREYXRhSlNPTiBhZ2FpbnN0IGEgdGVtcGxhdGUuIFNlZSBodHRwczovL2dvby5nbC95YWJQZXgifQ"))),
+            default);
+        Assert.That(result.HasError, Is.False);
+        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Packed));
+    }
 
     [Test]
     public void CanDecode_Packed()
