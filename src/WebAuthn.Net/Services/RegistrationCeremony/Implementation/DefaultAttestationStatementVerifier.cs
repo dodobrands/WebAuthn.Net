@@ -252,7 +252,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
         // .NET requires IEEE P-1363 fixed size unsigned big endian values for R and S
         // ASN.1 requires storing positive integer values with any leading 0s removed
 
-        // Read ASN.1 DER Ecdsa-Sig-Value into r and s values
+        // Read ASN.1 DER Ecdsa-Sig-Value into rawR and rawS values
         var reader = new AsnReader(signature, AsnEncodingRules.DER);
         var sequenceReader = reader.ReadSequence();
         var rawR = sequenceReader.ReadIntegerBytes().ToArray();
@@ -277,13 +277,15 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
             //  remove any leading 0x00 byte if it exists solely for sign non-negativity
             if (valueBytes[0] == 0x0 && (valueBytes[1] & 0x80) != 0)
             {
-                var p1363R = result.AsSpan(coefficientSize - valueBytes.Length + 1);
-                valueBytes.AsSpan(1).CopyTo(p1363R);
+                var offset = coefficientSize - valueBytes.Length + 1;
+                var p1363 = result.AsSpan(offset);
+                valueBytes.AsSpan(1).CopyTo(p1363);
             }
             else
             {
-                var p1363R = result.AsSpan(coefficientSize - valueBytes.Length);
-                valueBytes.CopyTo(p1363R);
+                var offset = coefficientSize - valueBytes.Length;
+                var p1363 = result.AsSpan(offset);
+                valueBytes.CopyTo(p1363);
             }
 
             return result;
