@@ -8,7 +8,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
+using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
@@ -92,7 +94,17 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
+        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
+        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
+            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultAndroidKeyAttestationStatementVerifier(),
+            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
+            new DefaultFidoU2FAttestationStatementVerifier(),
+            new DefaultNoneAttestationStatementVerifier(),
+            new DefaultAppleAnonymousAttestationStatementVerifier(),
+            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
+        );
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.Packed,
@@ -130,6 +142,123 @@ public class DefaultAttestationObjectDecoderTests
     public void CanDecode_Tpm()
     {
         var result = _decoder.Decode(TpmAttestationObject);
+        Assert.That(result.HasError, Is.False);
+        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Tpm));
+    }
+
+    [Test]
+    public async Task CanDecode_Tpm_RsaSha1_WithClientData()
+    {
+        var result = _decoder.Decode(WebEncoders.Base64UrlDecode(
+            "o2NmbXRjdHBtZ2F0dFN0bXSmY2FsZzn__mNzaWdZAQBIwu9LPAl-LgxlRzPlvn7L-0yuMnFFn1XALxXtGnmC5-oMIIqfUJWFbgBbkN2l2zPsqOCRT5GQU8ucKNI6HrlbuDAUIq7wjcxG5TzgQt3YtGMWtgEcrZn2ecUlQFKjY67_wZIuHLy443Ki1SjErNPrMrkIPe9lyFhIalMgrWLCol40gYIVr_9xLfgyX55c7XiB-XbUKhDLUv5uPA3CSAiWeWwWx26K2BTV85vHsaG6f2YFTfcQTFs1cTSwMm7A9C2SiQ7N01ENwM1urVxlCvuEsBgiXapR70Oyq_cfiENYY0ti7_w2fvikmfv0z0O1cJOAyUlYWjnWhT707chrVmkFY3ZlcmMyLjBjeDVjglkEXzCCBFswggNDoAMCAQICDwRsOt2imXnV5Z4BftcqfzANBgkqhkiG9w0BAQsFADBBMT8wPQYDVQQDEzZOQ1UtTlRDLUtFWUlELTM2MTA0Q0U0MEJCQ0MxRjQwRDg0QTRCQkQ1MEJFOTkwMjREOTU3RDQwHhcNMTgwMjAxMDAwMDAwWhcNMjUwMTMxMjM1OTU5WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmw-4ficURR_sgVfW7cs1iRoDGdxjBpCczF233ba_5WTP-RrsYZPlzWgSN9WXptuywzjZoDlbid7NlduSR1ZFsds4bW71LyKDL62eyqaiAc645gocXAyxdDIDJAeo-3N9Dm4vsw-Gy_0sd2v1UEkBhWjuE1gL5hcaB9EtXSDvHPwmrf0eYn_4cWu9AxqSxpn79JIPYEOUrURr2H8zyG4_P0j1a3MVBmtAymhpXBn9ila-bW7K_k0JYXBh5yAYZDsmHgFsXbUauDWdja3HYzkep9jXkFcegXOMjPr_QSqWRjawEvzoprnJ-QqoWNbaRhuD-UnfgCNbwseU8kZ0aQNjBQIDAQABo4IBjzCCAYswDgYDVR0PAQH_BAQDAgeAMAwGA1UdEwEB_wQCMAAwUwYDVR0gAQH_BEkwRzBFBgkrBgEEAYI3FR8wODA2BggrBgEFBQcCAjAqEyhGQUtFIEZJRE8gVENQQSBUcnVzdGVkIFBsYXRmb3JtIElkZW50aXR5MBAGA1UdJQQJMAcGBWeBBQgDMEoGA1UdEQEB_wRAMD6kPDA6MTgwDgYFZ4EFAgMMBWlkOjEzMBAGBWeBBQICDAdOUENUNnh4MBQGBWeBBQIBDAtpZDpGRkZGRjFEMDAfBgNVHSMEGDAWoBRRfyLI5lOlfNVM3TBYfjD_ZzaMXTAdBgNVHQ4EFgQUO6SUmiOhCHVZcq-88acg2uQkQz8weAYIKwYBBQUHAQEEbDBqMGgGCCsGAQUFBzAChlxodHRwczovL2ZpZG9hbGxpYW5jZS5jby5uei90cG1wa2kvTkNVLU5UQy1LRVlJRC0zNjEwNENFNDBCQkNDMUY0MEQ4NEE0QkJENTBCRTk5MDI0RDk1N0Q0LmNydDANBgkqhkiG9w0BAQsFAAOCAQEAIIyVBkck_SD2nbj4KOwUI6cYZHrjwrcULoEiOSXn9TjTIiB5MdBMvqqNyAXiyWoWd1GEc_MI3mKOzu4g5UTVQQqfiOTrqfuZrpoU0tAeojKnZLj2wYj5GpyOfEkPK3m9qVaDxiYrh6aS8a3w_Iog878EiIaoVALbBt5uAfh0TAHHwSdxHtU8DRJrC43yIqcP9byRqssJmgSNcpMAjw_hcKJxDMD2UurvsMasqyWvK533yNA0-VwXvk3HI0ItSOw_g352D-qOTHI82lJIjc3yKoaNeYKn7RzgcLAF7AesTiiJReY2kU_vLyf-wH54-08T3oyBBJpBCHc1y_Lt5d2qWFkGCDCCBgQwggPsoAMCAQICENBTpEeEh5lpTgeR7VT9oQcwDQYJKoZIhvcNAQELBQAwgb8xCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJNWTESMBAGA1UEBwwJV2FrZWZpZWxkMRYwFAYDVQQKDA1GSURPIEFsbGlhbmNlMQwwCgYDVQQLDANDV0cxNjA0BgNVBAMMLUZJRE8gRmFrZSBUUE0gUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgMjAxODExMC8GCSqGSIb3DQEJARYiY29uZm9ybWFuY2UtdG9vbHNAZmlkb2FsbGlhbmNlLm9yZzAeFw0xNzAyMDEwMDAwMDBaFw0zNTAxMzEyMzU5NTlaMEExPzA9BgNVBAMTNk5DVS1OVEMtS0VZSUQtMzYxMDRDRTQwQkJDQzFGNDBEODRBNEJCRDUwQkU5OTAyNEQ5NTdENDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANc-c30RpQd-_LCoiLJbXz3t_vqciOIovwjez79_DtVgi8G9Ph-tPL-lC0ueFGBMSPcKd_RDdSFe2QCYQd9e0DtiFxra-uWGa0olI1hHI7bK2GzNAZSTKEbwgqpf8vXMQ-7SPajg6PfxSOLH_Nj2yd6tkNkUSdlGtWfY8XGB3n-q--nt3UHdUQWEtgUoTe5abBXsG7MQSuTNoad3v6vk-tLd0W44ivM6pbFqFUHchx8mGLApCpjlVXrfROaCoc9E91hG9B-WNvekJ0dM6kJ658Hy7yscQ6JdqIEolYojCtWaWNmwcfv--OE1Ax_4Ub24gl3hpB9EOcBCzpb4UFmLYUECAwEAAaOCAXcwggFzMAsGA1UdDwQEAwIBhjAWBgNVHSAEDzANMAsGCSsGAQQBgjcVHzAbBgNVHSUEFDASBgkrBgEEAYI3FSQGBWeBBQgDMBIGA1UdEwEB_wQIMAYBAf8CAQAwHwYDVR0OBBgEFsIUUX8iyOZTpXzVTN0wWH4w_2c2jF0wHwYDVR0jBBgwFqAUXH82LZCtWry6jnXa3jqg7cFOAoswaAYDVR0fBGEwXzBdoFugWYZXaHR0cHM6Ly9maWRvYWxsaWFuY2UuY28ubnovdHBtcGtpL2NybC9GSURPIEZha2UgVFBNIFJvb3QgQ2VydGlmaWNhdGUgQXV0aG9yaXR5IDIwMTguY3JsMG8GCCsGAQUFBwEBBGMwYTBfBggrBgEFBQcwAoZTaHR0cHM6Ly9maWRvYWxsaWFuY2UuY28ubnovdHBtcGtpL0ZJRE8gRmFrZSBUUE0gUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgMjAxOC5jcnQwDQYJKoZIhvcNAQELBQADggIBAG138t55DF9nPJbvbPQZOypmyTPpNne0A5fh69P1fHZ5qdE2PDz3cf5Tl-8OPI4xQniEFNPcXMb7KlhMM6zCl4GkZtNN4MxygdFjQ1gTZOBDpt7Dwziij0MakmwyC0RYTNtbSyVhHUevgw9rnu13EzqxPyL5JD-UqADh2Y51MS0qy7IOgegLQv-eJzSNUgHxFJreUzz4PU6yzSsTyyYDW-H4ZjAQKienVp8ewZf8oHGWHGQFGa5E9m1P8vxCMZ7pIzeQweCVYrs3q7unu4nzBAIXLPI092kYFUgyz3lIaSB3XEiPBokpupX6Zmgrfphb-XX3tbenH5hkxfumueA5RMHTMu5TVjhJXiV0yM3q5W5xrQHdJlF5nOdJDEE-Kb7nm6xaT1DDpafqBc5vEDMkJmBA4AXHUY7JPGqEEzEenT7k6Wn5IQLZg4qc8Irnj__yM7xUhJWJam47KVbLA4WFu-IKvJrkP5GSglZ9qASOCxBHaOL2UcTAg50uvhUSwur2KSak2vlENdmAijwdAL4LLQWrkFd-9NBwcNwTdfK4ekEHP1l4BwJtkNwW6etUgeA5rkW2JLocXoBq5v7GSk4_CBoKhyiahQGQQ9SZFGeBJhzzkK9yN-yKskcVjjjInSHPl-ZpeOK3sI08sEyTH0gxlTtRoX0MKDsMAHEVToe5o1u9Z3B1YkFyZWFZATYAAQALAAYEcgAgnf_L82w4OuaZ-5ho3G3LidcVOIS-KAOSLBJBWL-tIq4AEAAQCAAAAAAAAQCl9siJwqoHJ2pCwEKyLQ_u6zGcZDKZtA0jtvtn1aPlIe7wFAvQNgjI6KDiQsDPTCVeJj_RA441VbV0Z4oX2b68quDY0Gf4VpF4KWfNPdKH6H4E882m8OnBb10mhaNbPxTmDVDZLQZjh3ubX1Z56FNg6cQmz4bEnHF-7X1l7AcNORhzdzgM7uRXhwo9UsAzpu4Io1OCTsb5DaDnng3f3Y9qDn8OG3MI_5IYtm1qGgmY72nSEiIhhPCk2lvmajN6A4tWgUstc7QtdlKEPBd-ITtGdKYTSwqihaHzBQd8D-d_HDqgcOWECLKo51_YqyaEiuGlv6sPon1LMsEL6PlVw47PaGNlcnRJbmZvWKH_VENHgBcAIgALEeaO1E21Ny4UKW4vhKzHg5h1GIGSHjD8IqBvi3PHlFMAFF6MXAvgUX_Rbc04fmdB2TyLG-mdAAAAAUdwF0hVaXtLxoVgpQFzfvmNNFZV-wAiAAuYlrm-5Jg3251TsEdZ8NV11xd4X5O3q0AFLmammw658QAiAAtuzX-04mcxAHq9kO70Ew3vJCOmCS0UvQzZB2CNCeGXpWhhdXRoRGF0YVkBZ0mWDeWIDoxodDQXD2R2YFuP5K65ooYyx5lc87qDHZdjQQAAAHXyRLZ-U2RP1Z-Qw5YicxfbACBQkOhQmgaINAX8QRncb_P0t-rXr8oVpe0xOPBNSutGV6QBAwM5__4gWQEApfbIicKqBydqQsBCsi0P7usxnGQymbQNI7b7Z9Wj5SHu8BQL0DYIyOig4kLAz0wlXiY_0QOONVW1dGeKF9m-vKrg2NBn-FaReClnzT3Sh-h-BPPNpvDpwW9dJoWjWz8U5g1Q2S0GY4d7m19WeehTYOnEJs-GxJxxfu19ZewHDTkYc3c4DO7kV4cKPVLAM6buCKNTgk7G-Q2g554N392Pag5_DhtzCP-SGLZtahoJmO9p0hIiIYTwpNpb5mozegOLVoFLLXO0LXZShDwXfiE7RnSmE0sKooWh8wUHfA_nfxw6oHDlhAiyqOdf2KsmhIrhpb-rD6J9SzLBC-j5VcOOzyFDAQAB"));
+        if (result.HasError)
+        {
+            throw new InvalidOperationException();
+        }
+
+        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
+        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
+            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultAndroidKeyAttestationStatementVerifier(),
+            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
+            new DefaultFidoU2FAttestationStatementVerifier(),
+            new DefaultNoneAttestationStatementVerifier(),
+            new DefaultAppleAnonymousAttestationStatementVerifier(),
+            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
+        );
+        await using var ctx = new TestWebAuthnContext(null);
+        await ver.VerifyAttestationStatementAsync(ctx, new(
+                AttestationStatementFormat.Tpm,
+                result.Ok.AttStmt,
+                new(
+                    result.Ok.AuthData.RpIdHash,
+                    result.Ok.AuthData.Flags,
+                    result.Ok.AuthData.SignCount,
+                    result.Ok.AuthData.AttestedCredentialData!,
+                    result.Ok.RawAuthData),
+                SHA256.HashData(WebEncoders.Base64UrlDecode(
+                    "eyJvcmlnaW4iOiJodHRwczovL2xvY2FsaG9zdDo0NDMyOSIsImNoYWxsZW5nZSI6IjlKeVVmSmtnOFBxb0tadUQ3Rkh6T0U5ZGJ5Y3VsQzl1ckdUcEdxQm5Fd25oS21uaTRyR1JYeG0zLVpCSEs4eDZyaUpRcUlwQzhxRWEtVDBxSUZUS1RRIiwidHlwZSI6IndlYmF1dGhuLmNyZWF0ZSJ9"))),
+            default);
+
+        Assert.That(result.HasError, Is.False);
+        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Tpm));
+    }
+
+    [Test]
+    public async Task CanDecode_Tpm_ECC_WithClientData()
+    {
+        var result = _decoder.Decode(WebEncoders.Base64UrlDecode(
+            "o2NmbXRjdHBtZ2F0dFN0bXSmY2FsZzn__mNzaWdZAQAzaz3HmrpCUlkEV2iv-TF2_y0MD7MVc0rLyuD_Ah3X9vx3G21WgeI89PyyvEYw3yEUUdO7sn6YxubMfuePpuSawYKAeSbw3O4LkMDC2fqZmlLyTfoC8L1_8vExv6mWPN7H5U6E_K7IZ38H3mO736ie-mDyoXxalj4WkA9zjKXJM5t7GhHQAqtDaX4HmM47pFH25atgQnoLdB0MTzh6jgYjIiDrMSOqhrQYskiaX_LFfKTiWfviwMOYcMA8FkRPc05LKvPTxp-bx_ghHrd_gIAUA3MjfElVYCVfveMnI61ZwARnf0cTrFp7vfga85YeAXaLOu29JifjodW6DsjL_dnXY3ZlcmMyLjBjeDVjglkFtTCCBbEwggOZoAMCAQICEAaSyUKea0mgpfZbwvZ7byMwDQYJKoZIhvcNAQELBQAwQTE_MD0GA1UEAxM2RVVTLU5UQy1LRVlJRC0yM0Y0RTIyQUQzQkUzNzRBNDQ5NzcyOTU0QUEyODNBRUQ3NTI1NzJFMB4XDTIxMTEyNTIxMzA1NFoXDTI3MDYwMzE3NTE0N1owADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANwiGFmQdIOYto4qGegANWT-LdSr5T5_tj7E_aKtLSNP8bqc6eP11VvCi9ZFnbjiFxi1NdY2GAbUDb3zr1PnZpOcwvn1gh704PLtkZYFkwvFRvm5bIvtsuqYgn71MCup1GCTeJ3EcylidbVpmwX5s9XK5vyRsMpQ1TxPwxPq32toIBcQ3pgZyb9Ic_m1IfWE_hC_XlwZzqfFnFL7XszCGwJmziFjML9VeBrdv0dkrDWMv1sNI1PDDm_JQ8iZwZ83At3qsgnmwN4zudOMUPRMJBNeiVBj9GjW7tV9tSG2Oa_F_JUo0b1Gr_y08PSMhAckj6ZaR8_EBppoty9CbTm65nsCAwEAAaOCAeQwggHgMA4GA1UdDwEB_wQEAwIHgDAMBgNVHRMBAf8EAjAAMG0GA1UdIAEB_wRjMGEwXwYJKwYBBAGCNxUfMFIwUAYIKwYBBQUHAgIwRB5CAFQAQwBQAEEAIAAgAFQAcgB1AHMAdABlAGQAIAAgAFAAbABhAHQAZgBvAHIAbQAgACAASQBkAGUAbgB0AGkAdAB5MBAGA1UdJQQJMAcGBWeBBQgDMEoGA1UdEQEB_wRAMD6kPDA6MTgwDgYFZ4EFAgMMBWlkOjcyMBAGBWeBBQICDAdOUENUNzV4MBQGBWeBBQIBDAtpZDo0RTU0NDMwMDAfBgNVHSMEGDAWgBTTjd-fy_wwa14b1TQrBpJk2U7fpTAdBgNVHQ4EFgQUeq9wlX_04m4THgx-yMSO7QwViv8wgbIGCCsGAQUFBwEBBIGlMIGiMIGfBggrBgEFBQcwAoaBkmh0dHA6Ly9hemNzcHJvZGV1c2Fpa3B1Ymxpc2guYmxvYi5jb3JlLndpbmRvd3MubmV0L2V1cy1udGMta2V5aWQtMjNmNGUyMmFkM2JlMzc0YTQ0OTc3Mjk1NGFhMjgzYWVkNzUyNTcyZS8xMzY0YTJkMy1hZTU0LTQ3YjktODdmMy0zMjA1NDE5NDc0MGUuY2VyMA0GCSqGSIb3DQEBCwUAA4ICAQCiPgQwqysYPQpMiRDpxbsx24d1xVX_kiUwwcQJE3mSYvwe4tnaQSHjlfB3OkpDMjotxFl33oUMxxScjSrgp_1o6rdkiO6QvPMgsqDMX4w-dmWn00akwNbMasTxg39Ceqtocw4i-R9AlNwndpe3QUIt8xkQ5dhlcIF8lc1dXmgz4mkMAtOi3VgaNvHTsRF9pLbTczJss608X8b4gHqM4t7lfIcRB8DvSyfXc7T3k21-4_3jvAb2HRoCCAyv8_XXn1UwkWTrXMLUSiE1p5Sl8ba8I_86Hsemsc0aflwRZrrY2pC3aaA3QbbfAyskiaFPw-ZibY9p0_QVq1XhAKa-dDd70mWvTGKQdrqfZI_SC5zccvDAm6aefAfnYBY2fV92ZFriihA2ULcJaESz3X3JkiK4eO1k0T2uf9-rL4lUEADibwpnsZOBeNWBsztvXDmcZGR_MSoRIQygKMw2U7AproqBPDRDFwhS5yc9UHvD6dMZ3PLx4i_eo-BLr-QJ2HARoyK8KuV0xLEq3XyjWdfZDbAueUVgtic14wK9jiSbhycRT2WV3-QU8KPm5_QCt_eBPwY81a-q84jm2ue_ok8-LYrmWpvihqRhFhK9MLVS96QaHeeuDehYNDWsSIVCr9jB-lchueZ-kZqwyl_4pPMrM7wLXBOR-bV5_pAPv3u_RvQmhVkG7zCCBuswggTToAMCAQICEzMAAAQHrjuoB9SvW8wAAAAABAcwDQYJKoZIhvcNAQELBQAwgYwxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpXYXNoaW5ndG9uMRAwDgYDVQQHEwdSZWRtb25kMR4wHAYDVQQKExVNaWNyb3NvZnQgQ29ycG9yYXRpb24xNjA0BgNVBAMTLU1pY3Jvc29mdCBUUE0gUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgMjAxNDAeFw0yMTA2MDMxNzUxNDdaFw0yNzA2MDMxNzUxNDdaMEExPzA9BgNVBAMTNkVVUy1OVEMtS0VZSUQtMjNGNEUyMkFEM0JFMzc0QTQ0OTc3Mjk1NEFBMjgzQUVENzUyNTcyRTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAMkPU9X8JhPBwDxmFm84D31b8xN5NQz0XR8Nji_-Z8v3WtC4lSdEwJUwqvZkj5OQ3wPA_6haONcCHzqTZhyz1aheOPhXmEeWFWjEiJFj07crEZb9wM4rM1fdcf3vCQNSSDlogC5AM-tITx31hm0YffIrzM3n70fNBBfvlw8t-yhZVOavj7l29gKsyvkR0IadruvLVWWVeH9rueHVrOwlU4wUJpjD41d4U87M3FgUGK2YacQxT0BPHzaOCTE9YhylG5fA_eCF7Q1SxAe347uIaS6I3GhAootzJy9XYeFp_uhc1Yp2hMh5wdeRkm15WKb7tE9T4vwHp0VCQEkUQn1ClN_s7PpfKNFp-DB9ez0Fh7tqag6AssrKE6LgOjfWDWUcgzgIiFLvv9Gx797IZj8LDazK1iGSqI2D8zmmxnGG47MevfY8q2udJW1G4nOcjw49x6XZHmnT3VpVKcTDbI9bEsyc2R9vngftF9FgnEVdyt-QRqE0UqEXJmjLhcxBMeyFZJd_bEAutSBpWugPk10IPFRkXppsuHMZFHJVP96IWwVmm6Q4mX018K996XDubAGblbhvPzJ9NFL_e7xM2ev3rAalz2CzSLYs48EXym7dqGTnP7F9DaF2O0IHT0GQ951wFVoGmA-IYsTMVsdlhVaImCuHgahu1W94H6BvtDkGGku7AgMBAAGjggGOMIIBijAOBgNVHQ8BAf8EBAMCAoQwGwYDVR0lBBQwEgYJKwYBBAGCNxUkBgVngQUIAzAWBgNVHSAEDzANMAsGCSsGAQQBgjcVHzASBgNVHRMBAf8ECDAGAQH_AgEAMB0GA1UdDgQWBBTTjd-fy_wwa14b1TQrBpJk2U7fpTAfBgNVHSMEGDAWgBR6jArOL0hiF-KU0a5VwVLscXSkVjBwBgNVHR8EaTBnMGWgY6Bhhl9odHRwOi8vd3d3Lm1pY3Jvc29mdC5jb20vcGtpb3BzL2NybC9NaWNyb3NvZnQlMjBUUE0lMjBSb290JTIwQ2VydGlmaWNhdGUlMjBBdXRob3JpdHklMjAyMDE0LmNybDB9BggrBgEFBQcBAQRxMG8wbQYIKwYBBQUHMAKGYWh0dHA6Ly93d3cubWljcm9zb2Z0LmNvbS9wa2lvcHMvY2VydHMvTWljcm9zb2Z0JTIwVFBNJTIwUm9vdCUyMENlcnRpZmljYXRlJTIwQXV0aG9yaXR5JTIwMjAxNC5jcnQwDQYJKoZIhvcNAQELBQADggIBAIQJqhFB71eZzZMq0w866QXDKlHcGyIa_IkTK4p5ejIdIA7FJ8neeVToAKUt9ULEb1Od2ir1y5Qx5Zp_edf4F8aikn-yw61hNB3FQ4iSV49eqEMe2Fx6OMBmHRWGtUjAlf5g_N2Qc6rHela2d69nQbpSF3Nq7AESguXxnoqZ-4CGUW0jC_b93sTd5fESHs_iwFX-zWKCwCXerqCuI3PqYWOlbCnftYhsI1CD638wJxw4YFXdSmOrF8dDnd6tlH_0qCZrBX-k4N-8QgK1-BDYIxmvUBnpLFDDitB2dP6YIglY0VcjkPd3BDmodHknG4GQeAvJKHpqF91Y3K1rOWvn4JqzHFvL3JgXgL7LbC_h9EF50HeHayPCToTS8Pmg_4dfUaCwNlxPvu9GvjrDKDNNEV5T73iWMV_GQbVsx6JULAljCthYLo-55mONDcr1x7kakXlQT-yIdIQ57Ix8eHz_qkJkvWxbw8vOgrXhkLK0jGAvW_YSkTV7G9_TYDJ--8IjPPHC1bexKq72-L7KetwH6LbWHGeYkJnaZ1zqeN4USxyJn8K4uhwnjSeK2sZ942zn5EnZnjd85yfdkPLcQY8xtYiWNjc_PprTrjhLyMO71VdMkTDiTTtDha37qywNISPV7vBv8YDiDjX8ElsWbTHTC0XgBp0h-RkjaRKI5C4eTUebZ3B1YkFyZWFYdgAjAAsABAByACCd_8vzbDg65pn7mGjcbcuJ1xU4hL4oA5IsEkFYv60irgAQABAAAwAQACCweOEk52r8mnJ6y9bsGcM3V4dL1LWt8I67Jjx5mcrFuAAgjwd_jaCEEOAJLV97kX3VgbxzopPYMC4NqEFjD0m55PpoY2VydEluZm9Yof9UQ0eAFwAiAAvgBLotxyAAbygBG4efe84V0SVYnO6xLrYaC1oyLgTt3QAUjcjAdORvuzxCfLBU7KNxPFSPE84AAAAUHn9jxccO2yRJARoXARNN0IPNWxnEACIACxfcHNQuRgb_05OKyBrS_1kY5IYxOl67gTlqkHd4g6slACIAC7tcXSHNTw8ANLeZd3PKooKsgrMIlGD47aunn05BcquwaGF1dGhEYXRhWKRqubvw35oW-R27M7uxMvr50Xx4LEgmxuxw7O5Y2X71KkUAAAAACJhwWMrcS4G24TDeUNy-lgAgBoLAd0jIDI0ztrH1N45XQ_0w_N5ndt3hpNixQi3J2NqlAQIDJiABIVggsHjhJOdq_JpyesvW7BnDN1eHS9S1rfCOuyY8eZnKxbgiWCCPB3-NoIQQ4AktX3uRfdWBvHOik9gwLg2oQWMPSbnk-g"));
+        if (result.HasError)
+        {
+            throw new InvalidOperationException();
+        }
+
+        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
+        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
+            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultAndroidKeyAttestationStatementVerifier(),
+            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
+            new DefaultFidoU2FAttestationStatementVerifier(),
+            new DefaultNoneAttestationStatementVerifier(),
+            new DefaultAppleAnonymousAttestationStatementVerifier(),
+            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
+        );
+        await using var ctx = new TestWebAuthnContext(null);
+        await ver.VerifyAttestationStatementAsync(ctx, new(
+                AttestationStatementFormat.Tpm,
+                result.Ok.AttStmt,
+                new(
+                    result.Ok.AuthData.RpIdHash,
+                    result.Ok.AuthData.Flags,
+                    result.Ok.AuthData.SignCount,
+                    result.Ok.AuthData.AttestedCredentialData!,
+                    result.Ok.RawAuthData),
+                SHA256.HashData(WebEncoders.Base64UrlDecode(
+                    "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiRTJZZWJNbUc5OTkyWGlhbHBGTDFsa1BwdE9JQlBlS3NwaE5rdDFKY2JLayIsIm9yaWdpbiI6Imh0dHBzOi8vd2ViYXV0aG4uZmlyc3R5ZWFyLmlkLmF1IiwiY3Jvc3NPcmlnaW4iOmZhbHNlLCJvdGhlcl9rZXlzX2Nhbl9iZV9hZGRlZF9oZXJlIjoiZG8gbm90IGNvbXBhcmUgY2xpZW50RGF0YUpTT04gYWdhaW5zdCBhIHRlbXBsYXRlLiBTZWUgaHR0cHM6Ly9nb28uZ2wveWFiUGV4In0"))),
+            default);
+
+        Assert.That(result.HasError, Is.False);
+        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Tpm));
+    }
+
+    [Test]
+    public async Task CanDecode_Tpm_RsaSha256_WithClientData()
+    {
+        var result = _decoder.Decode(WebEncoders.Base64UrlDecode(
+            "o2NmbXRjdHBtZ2F0dFN0bXSmY2FsZzkBAGNzaWdZAQA6Gh1Oa3-8vCY8bTrpUHA4zp4UCsbuh36tH09G-qWlvQdoqEQsJJQu1Rz61_mFes9CXE2cxiJV8pEwxtUUTSZQWnamVU1x9bBk07qcHqAuamP_NDAahHhZ9D46q9JklT3aVdhbaZVh0y5b8NZB2eUfKqcUmM0JCxLP9ZfSe7XcVguhQVEduM6Qnl9R1zRh7cquOa8UOEpdXkt1-drsOtrA9c0UJPYzkI8qscCDc-xfzo2xv12tLXjRq395JnynHhjzJIz8Ch2IYQUiMSM6TQDcnvzDEvRgril9NC0aIkHd79omIZNnBjEDfjyqOZbBffjGyvt1Eikz4M0EE8e7N4uRY3ZlcmMyLjBjeDVjglkEXzCCBFswggNDoAMCAQICDwQ_ozlil_l5hh6NlMsLzzANBgkqhkiG9w0BAQsFADBBMT8wPQYDVQQDEzZOQ1UtTlRDLUtFWUlELTM2MTA0Q0U0MEJCQ0MxRjQwRDg0QTRCQkQ1MEJFOTkwMjREOTU3RDQwHhcNMTgwMjAxMDAwMDAwWhcNMjUwMTMxMjM1OTU5WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAor_6-4WYizZdOQ9Ia_offaIdL2BVGtGDq8jQxo16ymBSOWCP15gZt9QAkqowS3ayqEh48Pg5SdA7F5kcjD_FqKaZDBOqkjvJivdo7FKv7EaUI2al9B7h0pXIRb97jn2z0zPlXz6RV_RmBe3CCljyxrhav7bTkCXEJUnkNgxsWgLGBIW6VSVct0z42xBB6_6mYekWIej5vXLqB8AuzsqnLbU5jOohfJiI5urFso12j6YCWZ_kXK4j8e4IoHUOjWgtHXdb3kP8PvI948hcJpIEpuuLDZDDOCOPI1wAlryGwz_tJLarODZzD1XhG3BMlXi1TG7x1s-AriC3A7B89wuSpwIDAQABo4IBjzCCAYswDgYDVR0PAQH_BAQDAgeAMAwGA1UdEwEB_wQCMAAwUwYDVR0gAQH_BEkwRzBFBgkrBgEEAYI3FR8wODA2BggrBgEFBQcCAjAqEyhGQUtFIEZJRE8gVENQQSBUcnVzdGVkIFBsYXRmb3JtIElkZW50aXR5MBAGA1UdJQQJMAcGBWeBBQgDMEoGA1UdEQEB_wRAMD6kPDA6MTgwDgYFZ4EFAgMMBWlkOjEzMBAGBWeBBQICDAdOUENUNnh4MBQGBWeBBQIBDAtpZDpGRkZGRjFEMDAfBgNVHSMEGDAWoBRRfyLI5lOlfNVM3TBYfjD_ZzaMXTAdBgNVHQ4EFgQUS1ZtGu6ZoewTH3mq04Ytxa4kOQcweAYIKwYBBQUHAQEEbDBqMGgGCCsGAQUFBzAChlxodHRwczovL2ZpZG9hbGxpYW5jZS5jby5uei90cG1wa2kvTkNVLU5UQy1LRVlJRC0zNjEwNENFNDBCQkNDMUY0MEQ4NEE0QkJENTBCRTk5MDI0RDk1N0Q0LmNydDANBgkqhkiG9w0BAQsFAAOCAQEAbp-Xp9W0vyY08YUHxerc6FnFdXZ6KFuQTZ4hze60BWexCSQOee25gqOoQaQr9ufS3ImLAoV4Ifc3vKVBQvBRwMjG3pJINoWr0p2McI0F2SNclH4M0sXFYHRlmHQ2phZB6Ddd-XL8PsGyiXRI6gVacVw5ZiVEBsRrekLH-Zy25EeqS3SxaBVnEd-HZ6BGGgbflgFtyGP9fQ5YSORC-Btno_uJbmRiZm4iHiEULp9wWEWOJIOXv9tVQKsYpPg58L1_Dgc8oml1YG5a8qK3jaR77tcUgZyYy5GOk1zIsXv36f0SkmLcNTiTjrhdGVcKs2KpW5fQgm_llQ5cvhR1jlY6dFkGCDCCBgQwggPsoAMCAQICENBTpEeEh5lpTgeR7VT9oQcwDQYJKoZIhvcNAQELBQAwgb8xCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJNWTESMBAGA1UEBwwJV2FrZWZpZWxkMRYwFAYDVQQKDA1GSURPIEFsbGlhbmNlMQwwCgYDVQQLDANDV0cxNjA0BgNVBAMMLUZJRE8gRmFrZSBUUE0gUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgMjAxODExMC8GCSqGSIb3DQEJARYiY29uZm9ybWFuY2UtdG9vbHNAZmlkb2FsbGlhbmNlLm9yZzAeFw0xNzAyMDEwMDAwMDBaFw0zNTAxMzEyMzU5NTlaMEExPzA9BgNVBAMTNk5DVS1OVEMtS0VZSUQtMzYxMDRDRTQwQkJDQzFGNDBEODRBNEJCRDUwQkU5OTAyNEQ5NTdENDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANc-c30RpQd-_LCoiLJbXz3t_vqciOIovwjez79_DtVgi8G9Ph-tPL-lC0ueFGBMSPcKd_RDdSFe2QCYQd9e0DtiFxra-uWGa0olI1hHI7bK2GzNAZSTKEbwgqpf8vXMQ-7SPajg6PfxSOLH_Nj2yd6tkNkUSdlGtWfY8XGB3n-q--nt3UHdUQWEtgUoTe5abBXsG7MQSuTNoad3v6vk-tLd0W44ivM6pbFqFUHchx8mGLApCpjlVXrfROaCoc9E91hG9B-WNvekJ0dM6kJ658Hy7yscQ6JdqIEolYojCtWaWNmwcfv--OE1Ax_4Ub24gl3hpB9EOcBCzpb4UFmLYUECAwEAAaOCAXcwggFzMAsGA1UdDwQEAwIBhjAWBgNVHSAEDzANMAsGCSsGAQQBgjcVHzAbBgNVHSUEFDASBgkrBgEEAYI3FSQGBWeBBQgDMBIGA1UdEwEB_wQIMAYBAf8CAQAwHwYDVR0OBBgEFsIUUX8iyOZTpXzVTN0wWH4w_2c2jF0wHwYDVR0jBBgwFqAUXH82LZCtWry6jnXa3jqg7cFOAoswaAYDVR0fBGEwXzBdoFugWYZXaHR0cHM6Ly9maWRvYWxsaWFuY2UuY28ubnovdHBtcGtpL2NybC9GSURPIEZha2UgVFBNIFJvb3QgQ2VydGlmaWNhdGUgQXV0aG9yaXR5IDIwMTguY3JsMG8GCCsGAQUFBwEBBGMwYTBfBggrBgEFBQcwAoZTaHR0cHM6Ly9maWRvYWxsaWFuY2UuY28ubnovdHBtcGtpL0ZJRE8gRmFrZSBUUE0gUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgMjAxOC5jcnQwDQYJKoZIhvcNAQELBQADggIBAG138t55DF9nPJbvbPQZOypmyTPpNne0A5fh69P1fHZ5qdE2PDz3cf5Tl-8OPI4xQniEFNPcXMb7KlhMM6zCl4GkZtNN4MxygdFjQ1gTZOBDpt7Dwziij0MakmwyC0RYTNtbSyVhHUevgw9rnu13EzqxPyL5JD-UqADh2Y51MS0qy7IOgegLQv-eJzSNUgHxFJreUzz4PU6yzSsTyyYDW-H4ZjAQKienVp8ewZf8oHGWHGQFGa5E9m1P8vxCMZ7pIzeQweCVYrs3q7unu4nzBAIXLPI092kYFUgyz3lIaSB3XEiPBokpupX6Zmgrfphb-XX3tbenH5hkxfumueA5RMHTMu5TVjhJXiV0yM3q5W5xrQHdJlF5nOdJDEE-Kb7nm6xaT1DDpafqBc5vEDMkJmBA4AXHUY7JPGqEEzEenT7k6Wn5IQLZg4qc8Irnj__yM7xUhJWJam47KVbLA4WFu-IKvJrkP5GSglZ9qASOCxBHaOL2UcTAg50uvhUSwur2KSak2vlENdmAijwdAL4LLQWrkFd-9NBwcNwTdfK4ekEHP1l4BwJtkNwW6etUgeA5rkW2JLocXoBq5v7GSk4_CBoKhyiahQGQQ9SZFGeBJhzzkK9yN-yKskcVjjjInSHPl-ZpeOK3sI08sEyTH0gxlTtRoX0MKDsMAHEVToe5o1u9Z3B1YkFyZWFZATYAAQALAAYEcgAgnf_L82w4OuaZ-5ho3G3LidcVOIS-KAOSLBJBWL-tIq4AEAAQCAAAAAAAAQDPtSggWlsjcFiQO61-hUF8i-3FPcyvuARcy3p1seZ-_B4ClhNh5U-T0v0flMU5p6nsNDWj4f6-soe-2vVJMTm2d26uKYD2zwdrkrYYXRu5IFqUXqF-kY99v8RcrAF7DQKDo-E4XhiMz6uECvnjEloGfTYZrVuQ1mdjQ8Qki7U-9SQHMW_IsaI8ZKHtupXNhM5YPQyFbDHHXSE_iyPGh2mY4SR466ouesIuG0NccCUk5UDIvS__OUmNaX7aBrKTlnkMFjkCA1ZDFC99ZQoLFCJQHqnOU7m8zSvTJpUyG2feWgAL2Gl05V3I_lb_v5yELXcihFoA33QIOSpDmKqKV3SXaGNlcnRJbmZvWK3_VENHgBcAIgALEeaO1E21Ny4UKW4vhKzHg5h1GIGSHjD8IqBvi3PHlFMAIBo8rAwJFDGsmQjauX_FCBQenvBa2ApBcR_gOx2qW2QAAAAAAUdwF0hVaXtLxoVgpQFzfvmNNFZV-wAiAAsXPoJSq0uhvU6VLf0uIelHBNFHEanasKAoTp-lQ2dRGAAiAAuO1HPzTRRabZhwPvHQh0b1MnLIG8EVGNfpshASWSfjQWhhdXRoRGF0YVkBZ0mWDeWIDoxodDQXD2R2YFuP5K65ooYyx5lc87qDHZdjQQAAAEOn1tk6ig0R6JqUps9xBy9zACCH1cyGRV483U-ur0qz9V_AixVm-36OZJFMSd69Nz4oH6QBAwM5AQAgWQEAz7UoIFpbI3BYkDutfoVBfIvtxT3Mr7gEXMt6dbHmfvweApYTYeVPk9L9H5TFOaep7DQ1o-H-vrKHvtr1STE5tndurimA9s8Ha5K2GF0buSBalF6hfpGPfb_EXKwBew0Cg6PhOF4YjM-rhAr54xJaBn02Ga1bkNZnY0PEJIu1PvUkBzFvyLGiPGSh7bqVzYTOWD0MhWwxx10hP4sjxodpmOEkeOuqLnrCLhtDXHAlJOVAyL0v_zlJjWl-2gayk5Z5DBY5AgNWQxQvfWUKCxQiUB6pzlO5vM0r0yaVMhtn3loAC9hpdOVdyP5W_7-chC13IoRaAN90CDkqQ5iqild0lyFDAQAB"));
+        if (result.HasError)
+        {
+            throw new InvalidOperationException();
+        }
+
+        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
+        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
+            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultAndroidKeyAttestationStatementVerifier(),
+            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
+            new DefaultFidoU2FAttestationStatementVerifier(),
+            new DefaultNoneAttestationStatementVerifier(),
+            new DefaultAppleAnonymousAttestationStatementVerifier(),
+            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
+        );
+        await using var ctx = new TestWebAuthnContext(null);
+        await ver.VerifyAttestationStatementAsync(ctx, new(
+                AttestationStatementFormat.Tpm,
+                result.Ok.AttStmt,
+                new(
+                    result.Ok.AuthData.RpIdHash,
+                    result.Ok.AuthData.Flags,
+                    result.Ok.AuthData.SignCount,
+                    result.Ok.AuthData.AttestedCredentialData!,
+                    result.Ok.RawAuthData),
+                SHA256.HashData(WebEncoders.Base64UrlDecode(
+                    "eyJvcmlnaW4iOiJodHRwczovL2xvY2FsaG9zdDo0NDMyOSIsImNoYWxsZW5nZSI6ImdIckFrNHBOZTJWbEIwSExlS2NsSTJQNlFFYTgzUHVHZWlqVEhNdHBiaFk5S2x5YnlobHdGX1Z6UmU3eWhhYlhhZ1d1WTZya0RXZnZ2aE5xZ2gybzdBIiwidHlwZSI6IndlYmF1dGhuLmNyZWF0ZSJ9"))),
+            default);
+
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Tpm));
     }

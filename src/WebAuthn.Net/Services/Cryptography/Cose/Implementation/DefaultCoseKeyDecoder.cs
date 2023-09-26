@@ -387,7 +387,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         CoseAlgorithm alg,
         Dictionary<AbstractCborObject, AbstractCborObject> cborCoseKey)
     {
-        if (!TryGetRsaModulusN(cborCoseKey, out var n, out var nKey))
+        if (!TryGetRsaModulusN(cborCoseKey, out var modulusN, out var nKey))
         {
             _logger.RsaModulusNObtainingFailure();
             return Result<CoseRsaKey>.Fail();
@@ -399,7 +399,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
             return Result<CoseRsaKey>.Fail();
         }
 
-        if (!TryGetRsaPublicExponentE(cborCoseKey, out var e, out var eKey))
+        if (!TryGetRsaPublicExponentE(cborCoseKey, out var publicExponentE, out var eKey))
         {
             _logger.RsaPublicExponentEObtainingFailure();
             return Result<CoseRsaKey>.Fail();
@@ -417,13 +417,13 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
             return Result<CoseRsaKey>.Fail();
         }
 
-        var result = new CoseRsaKey(alg, n, e);
+        var result = new CoseRsaKey(alg, modulusN, publicExponentE);
         return Result<CoseRsaKey>.Success(result);
     }
 
     private bool TryGetRsaModulusN(
         IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> cborCoseKey,
-        [NotNullWhen(true)] out byte[]? n,
+        [NotNullWhen(true)] out byte[]? modulusN,
         [NotNullWhen(true)] out AbstractCborObject? nKey)
     {
         // https://www.rfc-editor.org/rfc/rfc9052#section-1.5
@@ -436,7 +436,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         // https://www.rfc-editor.org/rfc/rfc9052#section-1.4
         // bstr: Byte string (major type 2).
         var key = new CborNegativeInteger((int) CoseRsaKeyParameter.n);
-        if (!TryGetBytesFromByteString(cborCoseKey, "n", key, out n))
+        if (!TryGetBytesFromByteString(cborCoseKey, "n", key, out modulusN))
         {
             nKey = null;
             return false;
@@ -448,7 +448,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
 
     private bool TryGetRsaPublicExponentE(
         IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> cborCoseKey,
-        [NotNullWhen(true)] out byte[]? e,
+        [NotNullWhen(true)] out byte[]? publicExponentE,
         [NotNullWhen(true)] out AbstractCborObject? eKey)
     {
         // https://www.rfc-editor.org/rfc/rfc9052#section-1.5
@@ -461,7 +461,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         // https://www.rfc-editor.org/rfc/rfc9052#section-1.4
         // bstr: Byte string (major type 2).
         var key = new CborNegativeInteger((int) CoseRsaKeyParameter.e);
-        if (!TryGetBytesFromByteString(cborCoseKey, "e", key, out e))
+        if (!TryGetBytesFromByteString(cborCoseKey, "e", key, out publicExponentE))
         {
             eKey = null;
             return false;

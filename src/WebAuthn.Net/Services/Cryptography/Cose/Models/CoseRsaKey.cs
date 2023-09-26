@@ -7,22 +7,22 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Models;
 
 public class CoseRsaKey : AbstractCoseKey
 {
-    public CoseRsaKey(CoseAlgorithm alg, byte[] n, byte[] e)
+    public CoseRsaKey(CoseAlgorithm alg, byte[] modulusN, byte[] publicExponentE)
     {
         if (!CoseKeyType.RSA.GetSupportedAlgorithms().Contains(alg))
         {
             throw new ArgumentOutOfRangeException(nameof(alg), "The specified 'alg' is not included in the list of permitted values for kty = RSA.");
         }
 
-        ArgumentNullException.ThrowIfNull(n);
-        ArgumentNullException.ThrowIfNull(e);
+        ArgumentNullException.ThrowIfNull(modulusN);
+        ArgumentNullException.ThrowIfNull(publicExponentE);
         Alg = alg;
-        N = n;
-        E = e;
+        ModulusN = modulusN;
+        PublicExponentE = publicExponentE;
     }
 
     public override CoseKeyType Kty => CoseKeyType.RSA;
     public override CoseAlgorithm Alg { get; }
-    public byte[] N { get; }
-    public byte[] E { get; }
+    public byte[] ModulusN { get; }
+    public byte[] PublicExponentE { get; }
 }

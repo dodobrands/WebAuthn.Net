@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Cose;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
@@ -101,7 +100,16 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 
         var flagsByte = consumedBuffer[0];
         var enumFlags = (AuthenticatorDataFlags) flagsByte;
-        flags = enumFlags.FlagsToSet();
+        var set = new HashSet<AuthenticatorDataFlags>();
+        foreach (var element in Enum.GetValues<AuthenticatorDataFlags>())
+        {
+            if (enumFlags.HasFlag(element))
+            {
+                set.Add(element);
+            }
+        }
+
+        flags = set;
         return true;
     }
 
