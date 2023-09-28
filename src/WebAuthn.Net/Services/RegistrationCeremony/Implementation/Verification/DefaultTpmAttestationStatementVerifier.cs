@@ -1,18 +1,37 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
+using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Verification;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
+using WebAuthn.Net.Services.TimeProvider;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification;
 
 public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVerifier
 {
+    private readonly IDigitalSignatureVerifier _signatureVerifier;
+    private readonly ITimeProvider _timeProvider;
+
+    public DefaultTpmAttestationStatementVerifier(
+        ITimeProvider timeProvider,
+        IDigitalSignatureVerifier signatureVerifier)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(signatureVerifier);
+        _timeProvider = timeProvider;
+        _signatureVerifier = signatureVerifier;
+    }
+
     public Result<AttestationStatementVerificationResult> Verify(
         TpmAttestationStatement attStmt,
         AttestationStatementVerificationAuthData authData,
@@ -38,7 +57,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         var attToBeSigned = Concat(authData.RawAuthData, clientDataHash);
 
         // 4 - Validate that certInfo is valid
-        if (!IsCertInfoValid(attStmt.CertInfo))
+        if (!IsCertInfoValid(attStmt, attToBeSigned))
         {
             return Result<AttestationStatementVerificationResult>.Fail();
         }
@@ -181,9 +200,115 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         }
     }
 
-    private static bool IsCertInfoValid(byte[] certInfo)
+    private bool IsCertInfoValid(
+        TpmAttestationStatement attStmt,
+        byte[] attToBeSigned)
     {
+        // Validate that certInfo is valid:
+        // 1) Verify that magic is set to TPM_GENERATED_VALUE.
+        // Handled in CertInfo.TryParse
+        // 2) Verify that type is set to TPM_ST_ATTEST_CERTIFY.
+        // Handled in CertInfo.TryParse
+        if (!CertInfo.TryParse(attStmt.CertInfo, out var certInfo))
+        {
+            return false;
+        }
+
+        // 3) Verify that extraData is set to the hash of attToBeSigned using the hash algorithm employed in "alg".
+        if (!attStmt.Alg.TryComputeHash(attToBeSigned, out var attToBeSignedHash))
+        {
+            return false;
+        }
+
+        if (!certInfo.ExtraData.AsSpan().SequenceEqual(attToBeSignedHash.AsSpan()))
+        {
+            return false;
+        }
+
+        // 4) Verify that 'attested' contains a TPMS_CERTIFY_INFO structure as specified in [TPMv2-Part2] section 10.12.3,
+        // whose 'name' field contains a valid 'Name' for 'pubArea',
+        // as computed using the algorithm in the nameAlg field of pubArea using the procedure specified in [TPMv2-Part1] section 16.
+        if (certInfo.Attested.Name.Digest is null)
+        {
+            return false;
+        }
+
+        var nameAlg = certInfo.Attested.Name.Digest.HashAlg;
+        var attestedNameHash = certInfo.Attested.Name.Digest.Digest;
+        if (!TryComputeHash(nameAlg, attStmt.PubArea, out var pubAreaHash))
+        {
+            return false;
+        }
+
+        if (!pubAreaHash.AsSpan().SequenceEqual(attestedNameHash.AsSpan()))
+        {
+            return false;
+        }
+
+        // 5) Note that the remaining fields in the "Standard Attestation Structure" [TPMv2-Part1] section 31.2,
+        // i.e., qualifiedSigner, clockInfo and firmwareVersion are ignored. These fields MAY be used as an input to risk engines.
+
+        // 6) Verify that x5c is present.
+        if (attStmt.X5C.Length < 1)
+        {
+            return false;
+        }
+
+        var trustPath = new X509Certificate2[attStmt.X5C.Length];
+        for (var i = 0; i < trustPath.Length; i++)
+        {
+            var x5CCert = new X509Certificate2(attStmt.X5C[i]);
+            var currentDate = _timeProvider.GetUtcDateTime();
+            if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+            {
+                return false;
+            }
+
+            trustPath[i] = x5CCert;
+        }
+
+        var aikCert = trustPath.First();
+        // 7) Verify the sig is a valid signature over certInfo using the attestation public key in aikCert with the algorithm specified in alg.
+        if (!_signatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
+        {
+            return false;
+        }
+        // 8) Verify that aikCert meets the requirements in §8.3.1 TPM Attestation Statement Certificate Requirements.
+
         return false;
+
+        [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms")]
+        static bool TryComputeHash(TpmAlgIdHash tpmAlg, byte[] message, [NotNullWhen(true)] out byte[]? hash)
+        {
+            switch (tpmAlg)
+            {
+                case TpmAlgIdHash.Sha1:
+                    {
+                        hash = SHA1.HashData(message);
+                        return true;
+                    }
+                case TpmAlgIdHash.Sha256:
+                    {
+                        hash = SHA256.HashData(message);
+                        return true;
+                    }
+                case TpmAlgIdHash.Sha384:
+                    {
+                        hash = SHA384.HashData(message);
+                        return true;
+                    }
+                case TpmAlgIdHash.Sha512:
+                    {
+                        hash = SHA512.HashData(message);
+                        return true;
+                    }
+                default:
+                    {
+                        hash = null;
+                        return false;
+                    }
+            }
+        }
     }
 
     private static byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
@@ -1334,261 +1459,463 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
     //
 
     /// <summary>
-    ///     TPM_ALG_ID
+    ///     The TPMS_ATTEST structure over which the above signature was computed, as specified in [TPMv2-Part2] section 10.12.8.
     /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library</a>
-    ///     </para>
-    ///     <para>
-    ///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
-    ///     </para>
-    ///     <para>6.3 TPM_ALG_ID</para>
-    /// </remarks>
-    private enum TPM_ALG_ID : ushort
+    private class CertInfo
     {
-        /// <summary>
-        ///     Should not occur
-        /// </summary>
-        TPM_ALG_ERROR = 0x0000,
+        public CertInfo(
+            Tpm2BName qualifiedSigner,
+            byte[] extraData,
+            ulong clock,
+            uint resetCount,
+            uint restartCount,
+            bool safe,
+            ulong firmwareVersion,
+            Attested attested)
+        {
+            QualifiedSigner = qualifiedSigner;
+            ExtraData = extraData;
+            Clock = clock;
+            ResetCount = resetCount;
+            RestartCount = restartCount;
+            Safe = safe;
+            FirmwareVersion = firmwareVersion;
+            Attested = attested;
+        }
 
-        /// <summary>
-        ///     The RSA algorithm
-        /// </summary>
-        /// <remarks>IETF RFC 8017</remarks>
-        TPM_ALG_RSA = 0x0001,
+        public Tpm2BName QualifiedSigner { get; }
+        public byte[] ExtraData { get; }
+        public ulong Clock { get; }
+        public uint ResetCount { get; }
+        public uint RestartCount { get; }
+        public bool Safe { get; }
+        public ulong FirmwareVersion { get; }
+        public Attested Attested { get; }
 
-        /// <summary>
-        ///     Block cipher with various key sizes (Triple Data Encryption Algorithm, commonly called Triple Data Encryption Standard)
-        /// </summary>
-        /// <remarks>ISO/IEC 18033-3</remarks>
-        TPM_ALG_TDES = 0x0003,
 
-        /// <summary>
-        ///     The SHA1 algorithm
-        /// </summary>
-        /// <remarks>ISO/IEC 10118-3</remarks>
-        TPM_ALG_SHA1 = 0x0004,
+        public static bool TryParse(Span<byte> bytes, [NotNullWhen(true)] out CertInfo? certInfo)
+        {
+            var buffer = bytes;
+            // 10.12.12 TPMS_ATTEST
+            // This structure is used on each TPM-generated signed structure.
+            // The signature is over this structure.
+            // When the structure is signed by a key in the Storage hierarchy, the values of clockInfo.resetCount, clockInfo.restartCount, and firmwareVersion are obfuscated with a per-key obfuscation value.
+            // Table 132 — Definition of TPMS_ATTEST Structure <OUT>
+            // | Parameter       | Type            | Description
+            // | magic           | TPM_GENERATED   | The indication that this structure was created by a TPM (always TPM_GENERATED_VALUE)
+            // | type            | TPMI_ST_ATTEST  | Type of the attestation structure
+            // | qualifiedSigner | TPM2B_NAME      | Qualified Name of the signing key
+            // | extraData       | TPM2B_DATA      | External information supplied by caller.
+            // |                 |                 |   NOTE: A TPM2B_DATA structure provides room for a digest and a method indicator to indicate the components of the digest.
+            // |                 |                 |         The definition of this method indicator is outside the scope of this specification.
+            // | clockInfo       | TPMS_CLOCK_INFO | Clock, resetCount, restartCount, and Safe
+            // | firmwareVersion | UINT64          | TPM-vendor-specific value identifying the version number of the firmware
+            // | [type]attested  | TPMU_ATTEST     | The type-specific attestation information
 
-        /// <summary>
-        ///     Hash Message Authentication Code (HMAC) algorithm
-        /// </summary>
-        /// <remarks>ISO/IEC 9797-2</remarks>
-        TPM_ALG_HMAC = 0x0005,
+            // magic
+            // 6.2 TPM_GENERATED
+            // This constant value differentiates TPM-generated structures from non-TPM structures.
+            // Table 7 — Definition of (UINT32) TPM_GENERATED Constants <O>
+            // | Name                | Value      | Comments
+            // | TPM_GENERATED_VALUE | 0xff544347 | 0xFF 'TCG' (FF 54 43 47)
+            if (!TryConsume(ref buffer, 4, out var rawMagic))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     The AES algorithm with various key sizes
-        /// </summary>
-        /// <remarks>ISO/IEC 18033-3</remarks>
-        TPM_ALG_AES = 0x0006,
+            var magic = BinaryPrimitives.ReadUInt32BigEndian(rawMagic);
+            // Validate that certInfo is valid:
+            // 1) Verify that magic is set to TPM_GENERATED_VALUE.
+            if (magic != 0xff544347)
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     Hash-based mask-generation function
-        /// </summary>
-        /// <remarks>
-        ///     <para>IEEE Std 1363 (TM) - 2000</para>
-        ///     <para>IEEE Std 1363a (TM) - 2004</para>
-        /// </remarks>
-        TPM_ALG_MGF1 = 0x0007,
+            // type
+            // According to the WebAuthn specification, only TPM_ST_ATTEST_CERTIFY is allowed
+            // 10.12.10 TPMI_ST_ATTEST
+            // Table 130 — Definition of (TPM_ST) TPMI_ST_ATTEST Type <OUT>
+            // | Value                       | Description
+            // | TPM_ST_ATTEST_CERTIFY       | generated by TPM2_Certify()
+            // | TPM_ST_ATTEST_QUOTE         | generated by TPM2_Quote()
+            // | TPM_ST_ATTEST_SESSION_AUDIT | generated by TPM2_GetSessionAuditDigest()
+            // | TPM_ST_ATTEST_COMMAND_AUDIT | generated by TPM2_GetCommandAuditDigest()
+            // | TPM_ST_ATTEST_TIME          | generated by TPM2_GetTime()
+            // | TPM_ST_ATTEST_CREATION      | generated by TPM2_CertifyCreation()
+            // | TPM_ST_ATTEST_NV            | generated by TPM2_NV_Certify()
+            // | TPM_ST_ATTEST_NV_DIGEST     | generated by TPM2_NV_Certify()
+            // 6.9 TPM_ST (Structure Tags)
+            // Table 19 — Definition of (UINT16) TPM_ST Constants <IN/OUT, S>
+            // | Name                  | Value  | Comments
+            // | TPM_ST_ATTEST_CERTIFY | 0x8017 | Tag for an attestation structure
+            if (!TryConsume(ref buffer, 2, out var rawType))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     An object type that may use XOR for encryption or an HMAC for signing and may also refer to a data object that is neither signing nor encrypting
-        /// </summary>
-        /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_KEYEDHASH = 0x0008,
+            var type = BinaryPrimitives.ReadUInt16BigEndian(rawType);
+            // Validate that certInfo is valid:
+            // 2) Verify that type is set to TPM_ST_ATTEST_CERTIFY.
+            if (type != 0x8017)
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     The XOR encryption algorithm
-        /// </summary>
-        /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_XOR = 0x000A,
+            // qualifiedSigner
+            // 10.5.3 TPM2B_NAME
+            // This buffer holds a Name for any entity type.
+            // The type of Name in the structure is determined by context and the size parameter.
+            // If size is four, then the Name is a handle.
+            // If size is zero, then no Name is present.
+            // Otherwise, the size shall be the size of a TPM_ALG_ID plus the size of the digest produced by the indicated hash algorithm.
+            // Table 91 — Definition of TPM2B_NAME Structure
+            // | Name                           | Type   | Description
+            // | size                           | UINT16 | size of the Name structure
+            // | name[size]{:sizeof(TPMU_NAME)} | BYTE   | The Name structure
+            if (!Tpm2BName.TryParse(ref buffer, out var qualifiedSigner))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     The SHA 256 algorithm
-        /// </summary>
-        /// <remarks>ISO/IEC 10118-3</remarks>
-        TPM_ALG_SHA256 = 0x000B,
+            // extraData
+            // 10.4.3 TPM2B_DATA
+            // This structure is used for a data buffer that is required to be no larger than the size of the Name of an object.
+            // Table 81 — Definition of TPM2B_DATA Structure
+            // | Name                           | Type   | Description
+            // | size                           | UINT16 | size in octets of the buffer field; may be 0
+            // | buffer[size]{:sizeof(TPMT_HA)} | BYTE   |
+            if (!TryConsume(ref buffer, 2, out var rawExtraDataSize))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     The SHA 384 algorithm
-        /// </summary>
-        /// <remarks>ISO/IEC 10118-3</remarks>
-        TPM_ALG_SHA384 = 0x000C,
+            // extraData.size
+            var extraDataSize = BinaryPrimitives.ReadUInt16BigEndian(rawExtraDataSize);
+            var extraData = new byte[extraDataSize];
+            // extraData.buffer
+            if (extraDataSize > 0)
+            {
+                if (!TryConsume(ref buffer, extraDataSize, out var rawExtraData))
+                {
+                    certInfo = null;
+                    return false;
+                }
 
-        /// <summary>
-        ///     The SHA 512 algorithm
-        /// </summary>
-        /// <remarks>ISO/IEC 10118-3</remarks>
-        TPM_ALG_SHA512 = 0x000D,
+                if (!rawExtraData.TryCopyTo(extraData.AsSpan()))
+                {
+                    certInfo = null;
+                    return false;
+                }
+            }
 
-        /// <summary>
-        ///     Null algorithm
-        /// </summary>
-        /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_NULL = 0x0010,
+            // clockInfo
+            // 10.11.1 TPMS_CLOCK_INFO
+            // This structure is used in each of the attestation commands.
+            // Table 120 — Definition of TPMS_CLOCK_INFO Structure
+            // | Name         | Type        | Description
+            // | clock        | UINT64      | Time value in milliseconds that advances while the TPM is powered
+            // |              |             |   NOTE: The interpretation of the time-origin (clock=0) is out of the scope of this specification,
+            // |              |             |         although Coordinated Universal Time (UTC) is expected to be a common convention.
+            // |              |             |         This structure element is used to report on the TPM's Clock value.
+            // |              |             | This value is reset to zero when the Storage Primary Seed is changed (TPM2_Clear()).
+            // |              |             | This value may be advanced by TPM2_ClockSet().
+            // | resetCount   | UINT32      | Number of occurrences of TPM Reset since the last TPM2_Clear()
+            // | restartCount | UINT32      | Number of times that TPM2_Shutdown() or _TPM_Hash_Start have occurred since the last TPM Reset or TPM2_Clear().
+            // | safe         | TPMI_YES_NO | No value of Clock greater than the current value of Clock has been previously reported by the TPM. Set to YES on TPM2_Clear().
 
-        /// <summary>
-        ///     SM3 hash algorithm
-        /// </summary>
-        /// <remarks>GM/T 0004-2012</remarks>
-        TPM_ALG_SM3_256 = 0x0012,
+            // clockInfo.clock
+            if (!TryConsume(ref buffer, 8, out var rawClockInfoClock))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     SM4 symmetric block cipher
-        /// </summary>
-        /// <remarks>GM/T 0002-2012</remarks>
-        TPM_ALG_SM4 = 0x0013,
+            var clockInfoClock = BinaryPrimitives.ReadUInt64BigEndian(rawClockInfoClock);
 
-        /// <summary>
-        ///     A signature algorithm defined in section 8.2 (RSASSAPKCS1-v1_5)
-        /// </summary>
-        /// <remarks>IETF RFC 8017</remarks>
-        TPM_ALG_RSASSA = 0x0014,
+            // clockInfo.resetCount
+            if (!TryConsume(ref buffer, 4, out var rawClockInfoResetCount))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     A padding algorithm defined in section 7.2 (RSAESPKCS1-v1_5)
-        /// </summary>
-        /// <remarks>IETF RFC 8017</remarks>
-        TPM_ALG_RSAES = 0x0015,
+            var clockInfoResetCount = BinaryPrimitives.ReadUInt32BigEndian(rawClockInfoResetCount);
 
-        /// <summary>
-        ///     A signature algorithm definedin section 8.1 (RSASSA-PSS)
-        /// </summary>
-        /// <remarks>IETF RFC 8017</remarks>
-        TPM_ALG_RSAPSS = 0x0016,
+            // clockInfo.restartCount
+            if (!TryConsume(ref buffer, 4, out var rawClockInfoRestartCount))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     A padding algorithm defined in section 7.1 (RSAES_OAEP)
-        /// </summary>
-        /// <remarks>IETF RFC 8017</remarks>
-        TPM_ALG_OAEP = 0x0017,
+            var clockInfoRestartCount = BinaryPrimitives.ReadUInt32BigEndian(rawClockInfoRestartCount);
 
-        /// <summary>
-        ///     Signature algorithm using elliptic curve cryptography (ECC)
-        /// </summary>
-        /// <remarks>ISO/IEC 14888-3</remarks>
-        TPM_ALG_ECDSA = 0x0018,
+            // clockInfo.safe
+            // 9.2 TPMI_YES_NO
+            // This interface type is used in place of a Boolean type in order to eliminate ambiguity in the handling of a octet that conveys a single bit of information.
+            // This type only has two allowed values, YES (1) and NO (0).
+            // Table 40 — Definition of (BYTE) TPMI_YES_NO Type
+            // | Value | Description
+            // | NO    | a value of 0
+            // | YES   | a value of 1
+            if (!TryConsume(ref buffer, 1, out var rawClockInfoSafe))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     Secret sharing using ECC. Based on context, this can be either One-Pass DiffieHellman, C(1, 1, ECC CDH) defined in 6.2.2.2
-        ///     or Full Unified Model C(2, 2, ECC CDH) defined in 6.1.1.2
-        /// </summary>
-        /// <remarks>NIST SP800-56A</remarks>
-        TPM_ALG_ECDH = 0x0019,
+            bool clockInfoSafe;
+            switch (rawClockInfoSafe[0])
+            {
+                case 0:
+                    clockInfoSafe = false;
+                    break;
+                case 1:
+                    clockInfoSafe = true;
+                    break;
+                default:
+                    certInfo = null;
+                    return false;
+            }
 
-        /// <summary>
-        ///     Elliptic-curve based, anonymous signing scheme
-        /// </summary>
-        /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_ECDAA = 0x001A,
+            // firmwareVersion UINT64
+            if (!TryConsume(ref buffer, 8, out var rawFirmwareVersion))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     SM2 – depending on context, either an elliptic-curve based, signature algorithm or a key exchange protocol
-        ///     <para>NOTE: Type listed as signing but, other uses are allowed according to context.</para>
-        /// </summary>
-        /// <remarks>
-        ///     <para>GM/T 0003.1–2012</para>
-        ///     <para>GM/T 0003.2–2012</para>
-        ///     <para>GM/T 0003.3–2012</para>
-        ///     <para>GM/T 0003.5–2012</para>
-        /// </remarks>
-        TPM_ALG_SM2 = 0x001B,
+            var firmwareVersion = BinaryPrimitives.ReadUInt64BigEndian(rawFirmwareVersion);
 
-        /// <summary>
-        ///     Elliptic-curve based Schnorr signature
-        /// </summary>
-        /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_ECSCHNORR = 0x001C,
+            // [type]attested
+            // According to the WebAuthn specification, only TPM_ST_ATTEST_CERTIFY is allowed
+            // 10.12.11 TPMU_ATTEST
+            // Table 131 — Definition of TPMU_ATTEST Union <OUT>
+            // | Parameter | Type              | Selector
+            // | certify   | TPMS_CERTIFY_INFO | TPM_ST_ATTEST_CERTIFY
+            // 10.12.3 TPMS_CERTIFY_INFO
+            // This is the attested data for TPM2_Certify().
+            // Table 123 — Definition of TPMS_CERTIFY_INFO Structure <OUT>
+            // | Parameter     | Type       | Description
+            // | name          | TPM2B_NAME | Name of the certified object
+            // | qualifiedName | TPM2B_NAME | Qualified Name of the certified object
+            if (!Tpm2BName.TryParse(ref buffer, out var attestedName))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     Two-phase elliptic-curve key exchange – C(2, 2, ECC MQV) section 6.1.1.4
-        /// </summary>
-        /// <remarks>NIST SP800-56A</remarks>
-        TPM_ALG_ECMQV = 0x001D,
+            if (!Tpm2BName.TryParse(ref buffer, out var attestedQualifiedName))
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     Concatenation key derivation function (approved alternative 1) section 5.8.1
-        /// </summary>
-        /// <remarks>NIST SP800-56A</remarks>
-        TPM_ALG_KDF1_SP800_56A = 0x0020,
+            if (buffer.Length > 0)
+            {
+                certInfo = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     Key derivation function KDF2 section 13.2
-        /// </summary>
-        /// <remarks>IEEE Std 1363a-2004</remarks>
-        TPM_ALG_KDF2 = 0x0021,
+            certInfo = new(
+                qualifiedSigner,
+                extraData,
+                clockInfoClock,
+                clockInfoResetCount,
+                clockInfoRestartCount,
+                clockInfoSafe,
+                firmwareVersion,
+                new(attestedName, attestedQualifiedName));
+            return true;
+        }
+    }
 
-        /// <summary>
-        ///     A key derivation method Section 5.1 KDF in Counter Mode
-        /// </summary>
-        /// <remarks>NIST SP800-108</remarks>
-        TPM_ALG_KDF1_SP800_108 = 0x0022,
+    /// <summary>
+    ///     10.12.3 TPMS_CERTIFY_INFO
+    /// </summary>
+    private class Attested
+    {
+        public Attested(Tpm2BName name, Tpm2BName qualifiedName)
+        {
+            Name = name;
+            QualifiedName = qualifiedName;
+        }
 
-        /// <summary>
-        ///     Prime field ECC
-        /// </summary>
-        /// <remarks>ISO/IEC 15946-1</remarks>
-        TPM_ALG_ECC = 0x0023,
+        // According to the WebAuthn specification, only TPM_ST_ATTEST_CERTIFY is allowed
+        // 10.12.11 TPMU_ATTEST
+        // Table 131 — Definition of TPMU_ATTEST Union <OUT>
+        // | Parameter | Type              | Selector
+        // | certify   | TPMS_CERTIFY_INFO | TPM_ST_ATTEST_CERTIFY
+        // 10.12.3 TPMS_CERTIFY_INFO
+        // This is the attested data for TPM2_Certify().
+        // Table 123 — Definition of TPMS_CERTIFY_INFO Structure <OUT>
+        // | Parameter     | Type       | Description
+        // | name          | TPM2B_NAME | Name of the certified object
+        // | qualifiedName | TPM2B_NAME | Qualified Name of the certified object
 
-        /// <summary>
-        ///     The object type for a symmetric block cipher
-        /// </summary>
-        /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_SYMCIPHER = 0x0025,
+        public Tpm2BName Name { get; }
 
-        /// <summary>
-        ///     Camellia is symmetric block cipher. The Camellia algorithm with various key sizes
-        /// </summary>
-        /// <remarks>ISO/IEC 18033-3</remarks>
-        TPM_ALG_CAMELLIA = 0x0026,
+        public Tpm2BName QualifiedName { get; }
+    }
 
-        /// <summary>
-        ///     Hash algorithm producing a 256-bit digest
-        /// </summary>
-        /// <remarks>NIST PUB FIPS 202</remarks>
-        TPM_ALG_SHA3_256 = 0x0027,
+    /// <summary>
+    ///     10.5.3 TPM2B_NAME
+    /// </summary>
+    private class Tpm2BName
+    {
+        private Tpm2BName()
+        {
+            Digest = null;
+            Handle = null;
+        }
 
-        /// <summary>
-        ///     Hash algorithm producing a 384-bit digest
-        /// </summary>
-        /// <remarks>NIST PUB FIPS 202</remarks>
-        TPM_ALG_SHA3_384 = 0x0028,
+        private Tpm2BName(TpmtHa digest)
+        {
+            Digest = digest;
+            Handle = null;
+        }
 
-        /// <summary>
-        ///     Hash algorithm producing a 512-bit digest
-        /// </summary>
-        /// <remarks>NIST PUB FIPS 202</remarks>
-        TPM_ALG_SHA3_512 = 0x0029,
+        private Tpm2BName(TpmHandle handle)
+        {
+            Digest = null;
+            Handle = handle;
+        }
 
-        /// <summary>
-        ///     Counter mode – if implemented, all symmetric block ciphers (S type) implemented shall be capable of using this mode.
-        /// </summary>
-        /// <remarks>ISO/IEC 10116</remarks>
-        TPM_ALG_CTR = 0x0040,
+        public TpmtHa? Digest { get; }
 
-        /// <summary>
-        ///     Output Feedback mode – if implemented, all symmetric block ciphers (S type) implemented shall be capable of using this mode.
-        /// </summary>
-        /// <remarks>ISO/IEC 10116</remarks>
-        TPM_ALG_OFB = 0x0041,
+        public TpmHandle? Handle { get; }
 
-        /// <summary>
-        ///     Cipher Block Chaining mode – if implemented, all symmetric block ciphers (S type) implemented shall be capable of using this mode.
-        /// </summary>
-        /// <remarks>ISO/IEC 10116</remarks>
-        TPM_ALG_CBC = 0x0042,
+        public static bool TryParse(ref Span<byte> buffer, [NotNullWhen(true)] out Tpm2BName? tpm2BName)
+        {
+            // 10.5.3 TPM2B_NAME
+            // This buffer holds a Name for any entity type.
+            // The type of Name in the structure is determined by context and the size parameter.
+            // If size is four, then the Name is a handle.
+            // If size is zero, then no Name is present.
+            // Otherwise, the size shall be the size of a TPM_ALG_ID plus the size of the digest produced by the indicated hash algorithm.
+            // Table 91 — Definition of TPM2B_NAME Structure
+            // | Name                           | Type   | Description
+            // | size                           | UINT16 | size of the Name structure
+            // | name[size]{:sizeof(TPMU_NAME)} | BYTE   | The Name structure
+            // 10.5.2 TPMU_NAME
+            // Table 90 — Definition of TPMU_NAME Union <>
+            // | Parameter | Type       | Selector | Description
+            // | digest    | TPMT_HA    |          | when the Name is a digest
+            // | handle    | TPM_HANDLE |          | when the Name is a handle
+            // 10.3.2 TPMT_HA
+            // Table 79 shows the basic hash-agile structure used in this specification.
+            // To handle hash agility, this structure uses the hashAlg parameter to indicate the algorithm used to compute the digest and,
+            // by implication, the size of the digest.
+            // Table 79 — Definition of TPMT_HA Structure <IN/OUT>
+            // | Parameter        | Type           | Description
+            // | hashAlg          | +TPMI_ALG_HASH | selector of the hash contained in the digest that implies the size of the digest
+            // | [hashAlg] digest | TPMU_HA        | the digest data
+            if (!TryConsume(ref buffer, 2, out var rawSize))
+            {
+                tpm2BName = null;
+                return false;
+            }
 
-        /// <summary>
-        ///     Cipher Feedback mode – if implemented, all symmetric block ciphers (S type) implemented shall be capable of using this mode.
-        /// </summary>
-        /// <remarks>ISO/IEC 10116</remarks>
-        TPM_ALG_CFB = 0x0043,
+            var size = BinaryPrimitives.ReadUInt16BigEndian(rawSize);
+            if (size == 0)
+            {
+                tpm2BName = new();
+                return true;
+            }
 
-        /// <summary>
-        ///     Electronic Codebook mode – if implemented, all symmetric block ciphers (S type) implemented shall be capable of using this mode.
-        ///     <para>NOTE: This mode is not recommended for uses unless the key is frequently rotated such as in video codecs</para>
-        /// </summary>
-        /// <remarks>ISO/IEC 10116</remarks>
-        TPM_ALG_ECB = 0x0044
+            if (size == 4)
+            {
+                if (!TryConsume(ref buffer, 4, out var rawHandle))
+                {
+                    tpm2BName = null;
+                    return false;
+                }
+
+                var handle = BinaryPrimitives.ReadUInt32BigEndian(rawHandle);
+                tpm2BName = new(new TpmHandle(handle));
+                return true;
+            }
+
+            if (size < 4)
+            {
+                tpm2BName = null;
+                return false;
+            }
+
+            if (!TryConsume(ref buffer, size, out var rawName))
+            {
+                tpm2BName = null;
+                return false;
+            }
+
+            var hashAlg = (TpmAlgIdHash) BinaryPrimitives.ReadUInt16BigEndian(rawName[..2]);
+            if (!Enum.IsDefined(hashAlg))
+            {
+                tpm2BName = null;
+                return false;
+            }
+
+            var digest = new byte[size - 2];
+            var rawDigest = rawName[2..];
+            if (!rawDigest.TryCopyTo(digest.AsSpan()))
+            {
+                tpm2BName = null;
+                return false;
+            }
+
+            tpm2BName = new(new TpmtHa(hashAlg, digest));
+            return true;
+        }
+    }
+
+    /// <summary>
+    ///     10.3.2 TPMT_HA
+    /// </summary>
+    private class TpmtHa
+    {
+        public TpmtHa(TpmAlgIdHash hashAlg, byte[] digest)
+        {
+            HashAlg = hashAlg;
+            Digest = digest;
+        }
+
+        // 10.3.2 TPMT_HA
+        // Table 79 shows the basic hash-agile structure used in this specification.
+        // To handle hash agility, this structure uses the hashAlg parameter to indicate the algorithm used to compute the digest and,
+        // by implication, the size of the digest.
+        // Table 79 — Definition of TPMT_HA Structure <IN/OUT>
+        // | Parameter        | Type           | Description
+        // | hashAlg          | +TPMI_ALG_HASH | selector of the hash contained in the digest that implies the size of the digest
+        // | [hashAlg] digest | TPMU_HA        | the digest data
+
+        public TpmAlgIdHash HashAlg { get; }
+
+        public byte[] Digest { get; }
+    }
+
+    /// <summary>
+    ///     7.1 TPM_HANDLE
+    /// </summary>
+    private class TpmHandle
+    {
+        public TpmHandle(uint handle)
+        {
+            Handle = handle;
+        }
+
+        // 7 Handles
+        // 7.1 Introduction
+        // Handles are 32-bit values used to reference shielded locations of various types within the TPM.
+        // Table 26 — Definition of Types for Handles
+        // | Type   | Name       | Description
+        // | UINT32 | TPM_HANDLE |
+
+        public uint Handle { get; }
     }
 }

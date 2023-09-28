@@ -99,7 +99,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -161,7 +161,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -200,7 +200,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -239,7 +239,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -286,7 +286,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),

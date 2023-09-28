@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
@@ -188,6 +189,72 @@ public static class CoseAlgorithmIdentifierExtensions
             default:
                 {
                     alg = null;
+                    return false;
+                }
+        }
+    }
+
+    [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms")]
+    public static bool TryComputeHash(
+        this CoseAlgorithm coseAlgorithm,
+        ReadOnlySpan<byte> data,
+        [NotNullWhen(true)] out byte[]? hash)
+    {
+        switch (coseAlgorithm)
+        {
+            case CoseAlgorithm.RS1:
+                {
+                    hash = SHA1.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.RS512:
+                {
+                    hash = SHA512.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.RS384:
+                {
+                    hash = SHA384.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.RS256:
+                {
+                    hash = SHA256.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.PS512:
+                {
+                    hash = SHA512.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.PS384:
+                {
+                    hash = SHA384.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.PS256:
+                {
+                    hash = SHA256.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.ES512:
+                {
+                    hash = SHA512.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.ES384:
+                {
+                    hash = SHA384.HashData(data);
+                    return true;
+                }
+            case CoseAlgorithm.ES256:
+                {
+                    hash = SHA256.HashData(data);
+                    return true;
+                }
+            default:
+                {
+                    hash = null;
                     return false;
                 }
         }
