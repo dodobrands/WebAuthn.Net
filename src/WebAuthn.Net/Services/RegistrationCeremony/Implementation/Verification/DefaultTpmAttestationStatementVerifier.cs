@@ -178,17 +178,17 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
             {
                 case CoseEllipticCurve.P256:
                     {
-                        tpmiEccCurve = TpmiEccCurve.TPM_ECC_NIST_P256;
+                        tpmiEccCurve = TpmiEccCurve.TpmEccNistP256;
                         return true;
                     }
                 case CoseEllipticCurve.P384:
                     {
-                        tpmiEccCurve = TpmiEccCurve.TPM_ECC_NIST_P384;
+                        tpmiEccCurve = TpmiEccCurve.TpmEccNistP384;
                         return true;
                     }
                 case CoseEllipticCurve.P521:
                     {
-                        tpmiEccCurve = TpmiEccCurve.TPM_ECC_NIST_P521;
+                        tpmiEccCurve = TpmiEccCurve.TpmEccNistP521;
                         return true;
                     }
                 default:
@@ -540,7 +540,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
             // An exponent of zero indicates that the exponent is the default of 2^16 + 1.
             // Support for other values is optional.
             // Use of other exponents in duplicated keys is not recommended because the resulting keys would not be interoperable with other TPMs.
-            // Table 195 — Definition of TPMS_ASYM_PARMS Structure <>
+            // Table 196 — Definition of {RSA} TPMS_RSA_PARMS Structure
             // | Parameter | Type                 | Description
             // | symmetric | TPMT_SYM_DEF_OBJECT+ | For a restricted decryption key, shall be set to a supported symmetric algorithm, key size, and mode. if the key is not a restricted decryption key, this field shall be set to TPM_ALG_NULL.
             // | scheme    | TPMT_RSA_SCHEME+     | scheme.scheme shall be:
@@ -612,7 +612,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
             }
 
             var scheme = (TpmiAlgRsaScheme) BinaryPrimitives.ReadUInt16BigEndian(rawScheme);
-            if (scheme != TpmiAlgRsaScheme.TPM_ALG_NULL)
+            if (scheme != TpmiAlgRsaScheme.TpmAlgNull)
             {
                 rsaDetail = null;
                 return false;
@@ -736,7 +736,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
             }
 
             var scheme = (TpmiAlgEccScheme) BinaryPrimitives.ReadUInt16BigEndian(rawScheme);
-            if (scheme != TpmiAlgEccScheme.TPM_ALG_NULL)
+            if (scheme != TpmiAlgEccScheme.TpmAlgNull)
             {
                 eccDetail = null;
                 return false;
@@ -775,7 +775,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
 
             var kdfScheme = (TpmiAlgKdf) BinaryPrimitives.ReadUInt16BigEndian(rawKdfScheme);
             // We do not expect any other kdf.scheme than TPM_ALG_NULL.
-            if (kdfScheme != TpmiAlgKdf.TPM_ALG_NULL)
+            if (kdfScheme != TpmiAlgKdf.TpmAlgNull)
             {
                 eccDetail = null;
                 return false;
@@ -1352,19 +1352,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         ///     Null algorithm
         /// </summary>
         /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_NULL = 0x0010
-
-        // /// <summary>
-        // ///     A signature algorithm defined in section 8.2 (RSASSAPKCS1-v1_5)
-        // /// </summary>
-        // /// <remarks>IETF RFC 8017</remarks>
-        // TPM_ALG_RSASSA = 0x0014,
-        //
-        // /// <summary>
-        // ///     A signature algorithm definedin section 8.1 (RSASSA-PSS)
-        // /// </summary>
-        // /// <remarks>IETF RFC 8017</remarks>
-        // TPM_ALG_RSAPSS = 0x0016,
+        TpmAlgNull = 0x0010
     }
 
     /// <summary>
@@ -1385,19 +1373,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         ///     Null algorithm
         /// </summary>
         /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_NULL = 0x0010
-
-        // /// <summary>
-        // ///     A signature algorithm defined in section 8.2 (RSASSAPKCS1-v1_5)
-        // /// </summary>
-        // /// <remarks>IETF RFC 8017</remarks>
-        // TPM_ALG_RSASSA = 0x0014,
-        //
-        // /// <summary>
-        // ///     A signature algorithm definedin section 8.1 (RSASSA-PSS)
-        // /// </summary>
-        // /// <remarks>IETF RFC 8017</remarks>
-        // TPM_ALG_RSAPSS = 0x0016,
+        TpmAlgNull = 0x0010
     }
 
     /// <summary>
@@ -1415,24 +1391,19 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
     private enum TpmiEccCurve : ushort
     {
         /// <summary>
-        ///     TPM_ECC_NONE
-        /// </summary>
-        TPM_ECC_NONE = 0x0000,
-
-        /// <summary>
         ///     TPM_ECC_NIST_P256
         /// </summary>
-        TPM_ECC_NIST_P256 = 0x0003,
+        TpmEccNistP256 = 0x0003,
 
         /// <summary>
         ///     TPM_ECC_NIST_P384
         /// </summary>
-        TPM_ECC_NIST_P384 = 0x0004,
+        TpmEccNistP384 = 0x0004,
 
         /// <summary>
         ///     TPM_ECC_NIST_P521
         /// </summary>
-        TPM_ECC_NIST_P521 = 0x0005
+        TpmEccNistP521 = 0x0005
     }
 
 
@@ -1454,7 +1425,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         ///     Null algorithm
         /// </summary>
         /// <remarks>TCG TPM 2.0 library specification</remarks>
-        TPM_ALG_NULL = 0x0010
+        TpmAlgNull = 0x0010
     }
     //
 
