@@ -26,7 +26,6 @@ public class DefaultCborDecoder : ICborDecoder
         var rootResult = Read(reader);
         if (rootResult.HasError)
         {
-            //return Result<CborRoot>.Fail(rootResult.Error);
             return Result<CborRoot>.Fail();
         }
 

@@ -2,7 +2,7 @@
 using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Verification;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Verification.Tpm;
 
 public interface ITpmAttestationStatementVerifier
 {

@@ -6,6 +6,7 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Verification;
+using WebAuthn.Net.Services.RegistrationCeremony.Verification.Tpm;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 

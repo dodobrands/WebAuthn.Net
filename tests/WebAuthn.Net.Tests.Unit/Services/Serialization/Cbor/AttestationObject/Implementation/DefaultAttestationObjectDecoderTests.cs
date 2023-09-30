@@ -11,6 +11,7 @@ using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification;
+using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
@@ -99,7 +100,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -161,7 +162,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -200,7 +201,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -239,7 +240,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
@@ -259,6 +260,45 @@ public class DefaultAttestationObjectDecoderTests
                     result.Ok.RawAuthData),
                 SHA256.HashData(WebEncoders.Base64UrlDecode(
                     "eyJvcmlnaW4iOiJodHRwczovL2xvY2FsaG9zdDo0NDMyOSIsImNoYWxsZW5nZSI6ImdIckFrNHBOZTJWbEIwSExlS2NsSTJQNlFFYTgzUHVHZWlqVEhNdHBiaFk5S2x5YnlobHdGX1Z6UmU3eWhhYlhhZ1d1WTZya0RXZnZ2aE5xZ2gybzdBIiwidHlwZSI6IndlYmF1dGhuLmNyZWF0ZSJ9"))),
+            default);
+
+        Assert.That(result.HasError, Is.False);
+        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Tpm));
+    }
+
+    [Test]
+    public async Task CanDecode_Tpm_RsaSha256_WindowsRealWorld()
+    {
+        var result = _decoder.Decode(WebEncoders.Base64UrlDecode(
+            "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"));
+        if (result.HasError)
+        {
+            throw new InvalidOperationException();
+        }
+
+        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
+        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
+            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
+            new DefaultAndroidKeyAttestationStatementVerifier(),
+            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
+            new DefaultFidoU2FAttestationStatementVerifier(),
+            new DefaultNoneAttestationStatementVerifier(),
+            new DefaultAppleAnonymousAttestationStatementVerifier(),
+            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
+        );
+        await using var ctx = new TestWebAuthnContext(null);
+        await ver.VerifyAttestationStatementAsync(ctx, new(
+                AttestationStatementFormat.Tpm,
+                result.Ok.AttStmt,
+                new(
+                    result.Ok.AuthData.RpIdHash,
+                    result.Ok.AuthData.Flags,
+                    result.Ok.AuthData.SignCount,
+                    result.Ok.AuthData.AttestedCredentialData!,
+                    result.Ok.RawAuthData),
+                SHA256.HashData(WebEncoders.Base64UrlDecode(
+                    "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiR0VqR1dZMGk4U2JoNzJNQjFNRHpCbHU4YXc4c3h4VVhnVFhWa3N4bjdoZyIsIm9yaWdpbiI6Imh0dHBzOi8vbG9jYWxob3N0OjUwMDEiLCJjcm9zc09yaWdpbiI6ZmFsc2V9"))),
             default);
 
         Assert.That(result.HasError, Is.False);
@@ -286,7 +326,7 @@ public class DefaultAttestationObjectDecoderTests
         //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
         var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
             new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
             new DefaultAndroidKeyAttestationStatementVerifier(),
             new DefaultAndroidSafetyNetAttestationStatementVerifier(),
             new DefaultFidoU2FAttestationStatementVerifier(),
