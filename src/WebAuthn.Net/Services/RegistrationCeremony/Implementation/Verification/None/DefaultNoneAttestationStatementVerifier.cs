@@ -4,7 +4,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Verification;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.None;
 
 public class DefaultNoneAttestationStatementVerifier : INoneAttestationStatementVerifier
 {

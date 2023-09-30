@@ -12,7 +12,7 @@ using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Attestat
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
 using WebAuthn.Net.Services.TimeProvider;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Packed;
 
 public class DefaultPackedAttestationStatementVerifier : IPackedAttestationStatementVerifier
 {

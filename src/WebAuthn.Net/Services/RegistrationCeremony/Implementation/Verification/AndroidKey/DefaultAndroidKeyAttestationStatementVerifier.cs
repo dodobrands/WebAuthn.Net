@@ -4,7 +4,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVeri
 using WebAuthn.Net.Services.RegistrationCeremony.Verification;
 using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.AndroidKey;
 
 public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestationStatementVerifier
 {
