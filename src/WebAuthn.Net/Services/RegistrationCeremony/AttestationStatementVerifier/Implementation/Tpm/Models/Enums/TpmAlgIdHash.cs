@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Enums;
+﻿namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums;
 
 /// <summary>
 ///     TPMI_ALG_HASH, based on TPM_ALG_ID (UINT16) - TPM_ALG_!ALG.H, +TPM_ALG_NULL

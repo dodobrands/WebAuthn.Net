@@ -1,4 +1,4 @@
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Enums;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums;
 
 /// <summary>
 ///     TPMI_ECC_CURVE, based on TPM_ECC_CURVE (UINT16).

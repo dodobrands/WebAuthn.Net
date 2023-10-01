@@ -2,11 +2,11 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.AttestationStatements;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Abstractions.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Implementation.AttestationStatements;
 
 public class DefaultAndroidSafetyNetAttestationStatementDecoder : IAndroidSafetyNetAttestationStatementDecoder
 {

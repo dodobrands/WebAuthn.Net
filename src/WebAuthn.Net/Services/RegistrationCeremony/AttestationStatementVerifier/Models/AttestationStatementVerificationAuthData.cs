@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AuthenticatorData;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
 
 /// <summary>
 ///     Representation of authenticator data used for 'attStmt' verification.

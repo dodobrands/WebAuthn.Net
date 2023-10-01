@@ -1,7 +1,7 @@
 ﻿using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models;
+using WebAuthn.Net.Services.Serialization.Cbor.Models;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.Format;
+namespace WebAuthn.Net.Services.Serialization.Cbor;
 
 public interface ICborDecoder
 {

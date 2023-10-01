@@ -3,10 +3,10 @@ using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 
 namespace WebAuthn.Net.Services.AuthenticatorData.Implementation;
 

@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AuthenticatorData;
 
 /// <summary>
 ///     Decoded representation of <a href="https://www.w3.org/TR/webauthn-3/#attested-credential-data">attested credential data</a>.

@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Services.RegistrationCeremony.Verification.Tpm;
+﻿namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions.Tpm;
 
 public interface ITpmManufacturerVerifier
 {

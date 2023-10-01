@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models;
 
 /// <summary>
 ///     The TPMT_PUBLIC structure (see [TPMv2-Part2] section 12.2.4) used by the TPM to represent the credential public key.

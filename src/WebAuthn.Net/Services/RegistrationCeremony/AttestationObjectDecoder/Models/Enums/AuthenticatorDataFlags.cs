@@ -1,6 +1,6 @@
 using System;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
 /// <summary>
 ///     Flags that encode contextual bindings made by the authenticator.

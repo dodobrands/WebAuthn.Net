@@ -2,9 +2,10 @@ using System;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.ClientDataDecoder;
+using WebAuthn.Net.Services.RegistrationCeremony.ClientDataDecoder.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.ClientDataDecoder.Models;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation;
+namespace WebAuthn.Net.Services.RegistrationCeremony.ClientDataDecoder.Implementation;
 
 public class DefaultClientDataDecoder : IClientDataDecoder
 {

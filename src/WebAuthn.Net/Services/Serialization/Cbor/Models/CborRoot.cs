@@ -1,6 +1,6 @@
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Models;
+namespace WebAuthn.Net.Services.Serialization.Cbor.Models;
 
 public class CborRoot
 {

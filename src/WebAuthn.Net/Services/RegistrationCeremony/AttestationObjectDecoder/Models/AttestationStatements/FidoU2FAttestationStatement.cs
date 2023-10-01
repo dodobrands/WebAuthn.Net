@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Linq;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
 
 public class FidoU2FAttestationStatement : AbstractAttestationStatement
 {

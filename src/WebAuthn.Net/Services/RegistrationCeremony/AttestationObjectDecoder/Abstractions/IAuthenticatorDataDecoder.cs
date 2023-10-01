@@ -1,8 +1,8 @@
 ﻿using System;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AuthenticatorData;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Abstractions;
 
 /// <summary>
 ///     Service for working with <a href="https://www.w3.org/TR/webauthn-3/#authenticator-data">authenticator data</a> structure.

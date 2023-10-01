@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using WebAuthn.Net.Services.RegistrationCeremony.Verification.Tpm;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions.Tpm;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm;
 
 public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
 {

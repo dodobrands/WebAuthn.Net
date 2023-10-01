@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using WebAuthn.Net.DSL;
+using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
 

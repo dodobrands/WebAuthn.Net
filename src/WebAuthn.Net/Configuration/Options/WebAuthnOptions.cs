@@ -2,4 +2,5 @@
 
 public class WebAuthnOptions
 {
+    public RegistrationOptions RegistrationCeremony { get; set; } = new();
 }

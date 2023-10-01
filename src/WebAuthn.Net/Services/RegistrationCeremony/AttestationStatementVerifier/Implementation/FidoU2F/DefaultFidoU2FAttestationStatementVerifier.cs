@@ -1,10 +1,10 @@
 ﻿using System;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
-using WebAuthn.Net.Services.RegistrationCeremony.Verification;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions.FidoU2F;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.FidoU2F;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.FidoU2F;
 
 public class DefaultFidoU2FAttestationStatementVerifier : IFidoU2FAttestationStatementVerifier
 {

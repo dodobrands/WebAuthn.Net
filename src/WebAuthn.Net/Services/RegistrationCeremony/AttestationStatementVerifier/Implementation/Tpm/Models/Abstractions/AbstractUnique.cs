@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Abstractions;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Abstractions;
 
 /// <summary>
 ///     12.2.3.2 TPMU_PUBLIC_ID

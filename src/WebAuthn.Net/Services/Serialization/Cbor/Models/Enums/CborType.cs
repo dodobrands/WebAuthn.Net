@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Enums;
+namespace WebAuthn.Net.Services.Serialization.Cbor.Models.Enums;
 
 /// <summary>
 ///     Data types used when decoding values encoded in CBOR.

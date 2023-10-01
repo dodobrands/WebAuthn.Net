@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Abstractions;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models;
 
 /// <summary>
 ///     11.2.4.5 TPM2B_PUBLIC_KEY_RSA

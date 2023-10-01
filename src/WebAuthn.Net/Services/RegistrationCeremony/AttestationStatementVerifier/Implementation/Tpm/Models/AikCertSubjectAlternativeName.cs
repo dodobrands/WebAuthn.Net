@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.Security.Cryptography.X509Certificates;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models;
 
 public class AikCertSubjectAlternativeName
 {

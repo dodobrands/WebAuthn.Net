@@ -2,9 +2,9 @@
 using System.Threading.Tasks;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions;
 
 public interface IAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext

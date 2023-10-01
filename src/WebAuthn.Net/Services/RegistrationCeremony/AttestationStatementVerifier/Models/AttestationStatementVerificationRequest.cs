@@ -1,7 +1,7 @@
-﻿using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+﻿using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
 
 public class AttestationStatementVerificationRequest
 {

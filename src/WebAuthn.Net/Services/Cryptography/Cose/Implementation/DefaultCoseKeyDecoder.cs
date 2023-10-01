@@ -8,11 +8,11 @@ using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.RSA;
-using WebAuthn.Net.Services.Serialization.Cbor.Format;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Enums;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor;
+using WebAuthn.Net.Services.Serialization.Cbor.Models;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 

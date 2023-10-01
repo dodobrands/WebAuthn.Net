@@ -1,7 +1,7 @@
 ﻿using System;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Enums;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
+namespace WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
 public abstract class AbstractCborObject : IEquatable<AbstractCborObject>
 {

@@ -6,13 +6,13 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
-using WebAuthn.Net.Services.RegistrationCeremony.Verification;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions.Packed;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
 using WebAuthn.Net.Services.TimeProvider;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Packed;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Packed;
 
 public class DefaultPackedAttestationStatementVerifier : IPackedAttestationStatementVerifier
 {

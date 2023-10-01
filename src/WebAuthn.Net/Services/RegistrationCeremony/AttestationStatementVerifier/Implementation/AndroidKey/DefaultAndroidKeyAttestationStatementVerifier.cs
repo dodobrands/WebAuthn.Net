@@ -2,29 +2,43 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.Linq;
+using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Options;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
-using WebAuthn.Net.Services.RegistrationCeremony.Verification;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions.AndroidKey;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.Serialization.Asn1;
+using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.TimeProvider;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.AndroidKey;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.AndroidKey;
 
 public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestationStatementVerifier
 {
+    private readonly IAsn1Decoder _asn1Decoder;
+    private readonly IOptionsMonitor<WebAuthnOptions> _options;
     private readonly IDigitalSignatureVerifier _signatureVerifier;
     private readonly ITimeProvider _timeProvider;
 
     public DefaultAndroidKeyAttestationStatementVerifier(
+        IOptionsMonitor<WebAuthnOptions> options,
         ITimeProvider timeProvider,
-        IDigitalSignatureVerifier signatureVerifier)
+        IDigitalSignatureVerifier signatureVerifier,
+        IAsn1Decoder asn1Decoder)
     {
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
+        ArgumentNullException.ThrowIfNull(asn1Decoder);
         _timeProvider = timeProvider;
         _signatureVerifier = signatureVerifier;
+        _asn1Decoder = asn1Decoder;
+        _options = options;
     }
 
     public Result<AttestationStatementVerificationResult> Verify(
@@ -71,22 +85,210 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
         }
 
         // 4) Verify that the attestationChallenge field in the attestation certificate extension data is identical to clientDataHash.
-        if (!IsAttestationChallengeContainsClientDataHash(credCert, clientDataHash))
+        if (!TryGetExtensionData(credCert, out var extensionData))
         {
             return Result<AttestationStatementVerificationResult>.Fail();
         }
 
-        throw new NotImplementedException();
+        if (!TryGetKeyDescriptionAsn1(extensionData, out var keyDescription))
+        {
+            return Result<AttestationStatementVerificationResult>.Fail();
+        }
+
+        if (!IsAttestationChallengeContainsClientDataHash(keyDescription, clientDataHash))
+        {
+            return Result<AttestationStatementVerificationResult>.Fail();
+        }
+
+        // 5) Verify the following using the appropriate authorization list from the attestation certificate extension data:
+        if (!IsAuthorizationListDataValid(keyDescription))
+        {
+            return Result<AttestationStatementVerificationResult>.Fail();
+        }
+
+        // 6) If successful, return implementation-specific values representing attestation type Basic and attestation trust path x5c.
+        var result = new AttestationStatementVerificationResult(AttestationType.Basic, trustPath);
+        return Result<AttestationStatementVerificationResult>.Success(result);
     }
 
-    private static bool IsAttestationChallengeContainsClientDataHash(X509Certificate2 credCert, byte[] clientDataHash)
+    private bool IsAuthorizationListDataValid(Asn1Sequence keyDescription)
     {
-        if (!TryGetExtensionData(credCert, out var extensionData))
+        var keyDescriptionElements = keyDescription.Value;
+        if (keyDescriptionElements.Length < 8)
         {
             return false;
         }
 
-        if (!TryGetAttestationChallenge(extensionData, out var attestationChallenge))
+        if (keyDescriptionElements[6] is not Asn1Sequence softwareEnforced)
+        {
+            return false;
+        }
+
+        if (keyDescriptionElements[7] is not Asn1Sequence teeEnforced)
+        {
+            return false;
+        }
+
+        // 1) The AuthorizationList.allApplications field is not present
+        // on either authorization list (softwareEnforced nor teeEnforced), since PublicKeyCredential MUST be scoped to the RP ID.
+        if (IsAllApplicationsPresent(softwareEnforced))
+        {
+            return false;
+        }
+
+        if (IsAllApplicationsPresent(teeEnforced))
+        {
+            return false;
+        }
+
+        // 2) For the following, use only the teeEnforced authorization list
+        // if the RP wants to accept only keys from a trusted execution environment,
+        // otherwise use the union of teeEnforced and softwareEnforced.
+        //  - The value in the AuthorizationList.origin field is equal to KM_ORIGIN_GENERATED.
+        //  - The value in the AuthorizationList.purpose field is equal to KM_PURPOSE_SIGN.
+        var shouldAcceptKeysOnlyFromTrustedExecutionEnvironment = _options.CurrentValue.RegistrationCeremony.AndroidKeyAttestation.AcceptKeysOnlyFromTrustedExecutionEnvironment;
+        if (shouldAcceptKeysOnlyFromTrustedExecutionEnvironment)
+        {
+            if (!IsOriginAndPurposeCorrect(teeEnforced))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (!IsOriginAndPurposeCorrect(teeEnforced) && !IsOriginAndPurposeCorrect(softwareEnforced))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsOriginAndPurposeCorrect(Asn1Sequence authorizationList)
+    {
+        // https://android.googlesource.com/platform/hardware/libhardware/+/refs/heads/main/include_all/hardware/keymaster_defs.h
+        // AuthorizationList.purpose == KM_PURPOSE_SIGN (Usable with RSA, EC and HMAC keys.)
+        var kmPurposeSign = new BigInteger(2);
+        // AuthorizationList.origin == KM_ORIGIN_GENERATED (Generated in keymaster. Should not exist outside the TEE.)
+        var kmOriginGenerated = new BigInteger(0);
+
+        if (!TryGetPurposeFromAuthorizationList(authorizationList, out var purpose))
+        {
+            return false;
+        }
+
+        if (!TryGetOriginFromAuthorizationList(authorizationList, out var origin))
+        {
+            return false;
+        }
+
+        return purpose.Value == kmPurposeSign && origin.Value == kmOriginGenerated;
+    }
+
+    private static bool TryGetPurposeFromAuthorizationList(Asn1Sequence authorizationList, [NotNullWhen(true)] out BigInteger? value)
+    {
+        // purpose  [1] EXPLICIT SET OF INTEGER OPTIONAL
+        const int purposeTagId = 1;
+        foreach (var element in authorizationList.Value)
+        {
+            if (element.Tag is { TagClass: TagClass.ContextSpecific, TagValue: purposeTagId })
+            {
+                if (element is not Asn1RawElement rawElement)
+                {
+                    value = null;
+                    return false;
+                }
+
+                var rawValue = rawElement.RawValue;
+                var reader = new AsnReader(rawValue, AsnEncodingRules.DER);
+                if (reader.PeekTag() is not { TagClass: TagClass.ContextSpecific, TagValue: purposeTagId })
+                {
+                    value = null;
+                    return false;
+                }
+
+                var contextSpecificReader = reader.ReadSetOf(reader.PeekTag());
+                if (contextSpecificReader.PeekTag() is not { TagClass: TagClass.Universal, TagValue: (int) UniversalTagNumber.Set })
+                {
+                    value = null;
+                    return false;
+                }
+
+                var setReader = contextSpecificReader.ReadSetOf();
+                var firstElementTag = setReader.PeekTag();
+                if (firstElementTag is not { TagClass: TagClass.Universal, TagValue: (int) UniversalTagNumber.Integer })
+                {
+                    value = null;
+                    return false;
+                }
+
+                value = setReader.ReadInteger(firstElementTag);
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static bool TryGetOriginFromAuthorizationList(Asn1Sequence authorizationList, [NotNullWhen(true)] out BigInteger? value)
+    {
+        // origin  [702] EXPLICIT INTEGER OPTIONAL
+        const int originTagId = 702;
+        foreach (var element in authorizationList.Value)
+        {
+            if (element.Tag is { TagClass: TagClass.ContextSpecific, TagValue: originTagId })
+            {
+                if (element is not Asn1RawElement rawElement)
+                {
+                    value = null;
+                    return false;
+                }
+
+                var rawValue = rawElement.RawValue;
+                var reader = new AsnReader(rawValue, AsnEncodingRules.DER);
+                if (reader.PeekTag() is not { TagClass: TagClass.ContextSpecific, TagValue: originTagId })
+                {
+                    value = null;
+                    return false;
+                }
+
+                var contextSpecificReader = reader.ReadSetOf(reader.PeekTag());
+                var firstElementTag = contextSpecificReader.PeekTag();
+                if (firstElementTag is not { TagClass: TagClass.Universal, TagValue: (int) UniversalTagNumber.Integer })
+                {
+                    value = null;
+                    return false;
+                }
+
+                value = contextSpecificReader.ReadInteger(firstElementTag);
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static bool IsAllApplicationsPresent(Asn1Sequence authorizationList)
+    {
+        const int allApplicationsTagId = 600;
+
+        foreach (var element in authorizationList.Value)
+        {
+            if (element.Tag is { TagClass: TagClass.ContextSpecific, TagValue: allApplicationsTagId })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsAttestationChallengeContainsClientDataHash(Asn1Sequence keyDescription, byte[] clientDataHash)
+    {
+        if (!TryGetAttestationChallenge(keyDescription, out var attestationChallenge))
         {
             return false;
         }
@@ -94,132 +296,42 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
         return attestationChallenge.AsSpan().SequenceEqual(clientDataHash.AsSpan());
     }
 
-    private static bool TryGetAttestationChallenge(byte[] extensionData, [NotNullWhen(true)] out byte[]? attestationChallenge)
+    private static bool TryGetAttestationChallenge(Asn1Sequence keyDescription, [NotNullWhen(true)] out byte[]? attestationChallenge)
     {
+        var keyDescriptionElements = keyDescription.Value;
+        if (keyDescriptionElements.Length < 5)
+        {
+            attestationChallenge = null;
+            return false;
+        }
+
+        if (keyDescriptionElements[4] is not Asn1OctetString attestationChallengeAsn1)
+        {
+            attestationChallenge = null;
+            return false;
+        }
+
+        attestationChallenge = attestationChallengeAsn1.Value;
+        return true;
+    }
+
+    private bool TryGetKeyDescriptionAsn1(byte[] extensionData, [NotNullWhen(true)] out Asn1Sequence? keyDescription)
+    {
+        var decodeResult = _asn1Decoder.TryDecode(extensionData, AsnEncodingRules.DER);
+        if (decodeResult.HasError || !decodeResult.Ok.AsnRoot.HasValue)
+        {
+            keyDescription = null;
+            return false;
+        }
+
         // https://developer.android.com/training/articles/security-key-attestation#key_attestation_ext_schema
-        // Key attestation extension data schema
-        // -------------
-        // Version 1
-        // KeyDescription ::= SEQUENCE {
-        //     attestationVersion  1,
-        //     attestationSecurityLevel  SecurityLevel,
-        //     keymasterVersion  INTEGER,
-        //     keymasterSecurityLevel  SecurityLevel,
-        //     attestationChallenge  OCTET_STRING,
-        //     ...
-        // }
-        // -------------
-        // Version 2
-        // KeyDescription ::= SEQUENCE {
-        //     attestationVersion  2,
-        //     attestationSecurityLevel  SecurityLevel,
-        //     keymasterVersion  INTEGER,
-        //     keymasterSecurityLevel  SecurityLevel,
-        //     attestationChallenge  OCTET_STRING,
-        //     ...
-        // }
-        // -------------
-        // Version 3
-        // KeyDescription ::= SEQUENCE {
-        //     attestationVersion  3,
-        //     attestationSecurityLevel  SecurityLevel,
-        //     keymasterVersion  INTEGER,
-        //     keymasterSecurityLevel  SecurityLevel,
-        //     attestationChallenge  OCTET_STRING,
-        //     ...
-        // }
-        // -------------
-        // Version 4
-        // KeyDescription ::= SEQUENCE {
-        //     attestationVersion  4,
-        //     attestationSecurityLevel  SecurityLevel,
-        //     keymasterVersion  INTEGER,
-        //     keymasterSecurityLevel  SecurityLevel,
-        //     attestationChallenge  OCTET_STRING,
-        //     ...
-        // }
-        // -------------
-        // Version 100
-        // KeyDescription ::= SEQUENCE {
-        //     attestationVersion  100,
-        //     attestationSecurityLevel  SecurityLevel,
-        //     keyMintVersion  INTEGER,
-        //     keyMintSecurityLevel  SecurityLevel,
-        //     attestationChallenge  OCTET_STRING,
-        //     ...
-        // }
-        // -------------
-        // Version 200
-        // KeyDescription ::= SEQUENCE {
-        //     attestationVersion  200,
-        //     attestationSecurityLevel  SecurityLevel,
-        //     keyMintVersion  INTEGER,
-        //     keyMintSecurityLevel  SecurityLevel,
-        //     attestationChallenge  OCTET_STRING,
-        //     ...
-        // }
-        var reader = new AsnReader(extensionData, AsnEncodingRules.DER);
-        if (reader.PeekTag() != new Asn1Tag(TagClass.Universal, (int) UniversalTagNumber.SequenceOf, true))
+        if (decodeResult.Ok.AsnRoot.Value is not Asn1Sequence keyDescriptionAsn1)
         {
-            attestationChallenge = null;
+            keyDescription = null;
             return false;
         }
 
-        if (!reader.HasData)
-        {
-            attestationChallenge = null;
-            return false;
-        }
-
-        var sequenceReader = reader.ReadSequence();
-        if (!sequenceReader.HasData)
-        {
-            attestationChallenge = null;
-            return false;
-        }
-
-        // attestationVersion
-        sequenceReader.ReadEncodedValue();
-        if (!sequenceReader.HasData)
-        {
-            attestationChallenge = null;
-            return false;
-        }
-
-        // attestationSecurityLevel
-        sequenceReader.ReadEncodedValue();
-        if (!sequenceReader.HasData)
-        {
-            attestationChallenge = null;
-            return false;
-        }
-
-        // keymasterVersion | keyMintVersion
-        sequenceReader.ReadEncodedValue();
-        if (!sequenceReader.HasData)
-        {
-            attestationChallenge = null;
-            return false;
-        }
-
-        // keymasterSecurityLevel | keyMintSecurityLevel
-        sequenceReader.ReadEncodedValue();
-        if (!sequenceReader.HasData)
-        {
-            attestationChallenge = null;
-            return false;
-        }
-
-        // attestationChallenge
-        var attestationChallengeTag = sequenceReader.PeekTag();
-        if (attestationChallengeTag != new Asn1Tag(UniversalTagNumber.OctetString, true)
-            && attestationChallengeTag != new Asn1Tag(UniversalTagNumber.OctetString))
-        {
-            attestationChallenge = null;
-            return false;
-        }
-
-        attestationChallenge = sequenceReader.ReadOctetString();
+        keyDescription = keyDescriptionAsn1;
         return true;
     }
 

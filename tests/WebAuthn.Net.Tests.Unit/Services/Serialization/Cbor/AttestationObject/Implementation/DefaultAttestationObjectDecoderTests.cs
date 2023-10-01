@@ -1,25 +1,30 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.AndroidKey;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.AndroidSafetyNet;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Apple;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.FidoU2F;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.None;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Packed;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation.AttestationStatements;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Implementation.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.AndroidKey;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.AndroidSafetyNet;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Apple;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.FidoU2F;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.None;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Packed;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm;
+using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
+using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 using WebAuthn.Net.Services.TimeProvider.Implementation;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
@@ -93,6 +98,37 @@ public class DefaultAttestationObjectDecoderTests
             NullLogger<DefaultAuthenticatorDataDecoder>.Instance),
         NullLogger<DefaultAttestationObjectDecoder>.Instance);
 
+    private static DefaultAttestationStatementVerifier<TestWebAuthnContext> GetVerifier()
+    {
+#pragma warning disable CA2000
+
+        var verifier = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
+            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
+            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
+            new DefaultAndroidKeyAttestationStatementVerifier(
+                new OptionsMonitor<WebAuthnOptions>(
+                    new OptionsFactory<WebAuthnOptions>(new List<IConfigureOptions<WebAuthnOptions>>
+                    {
+                        new ConfigureOptions<WebAuthnOptions>(options =>
+                        {
+                            options.RegistrationCeremony.AndroidKeyAttestation.AcceptKeysOnlyFromTrustedExecutionEnvironment = false;
+                        })
+                    }, new List<IPostConfigureOptions<WebAuthnOptions>>()),
+                    new List<IOptionsChangeTokenSource<WebAuthnOptions>>(),
+                    new OptionsCache<WebAuthnOptions>()),
+                new DefaultTimeProvider(),
+                new DefaultDigitalSignatureVerifier(),
+                new DefaultAsn1Decoder()),
+            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
+            new DefaultFidoU2FAttestationStatementVerifier(),
+            new DefaultNoneAttestationStatementVerifier(),
+            new DefaultAppleAnonymousAttestationStatementVerifier(),
+            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
+        );
+        return verifier;
+#pragma warning restore CA2000
+    }
+
     [Test]
     public async Task CanDecode_Packed_WithClientData()
     {
@@ -102,17 +138,7 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
-            new DefaultAndroidKeyAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
-            new DefaultFidoU2FAttestationStatementVerifier(),
-            new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
-            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
-        );
+        var ver = GetVerifier();
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.Packed,
@@ -164,17 +190,7 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
-            new DefaultAndroidKeyAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
-            new DefaultFidoU2FAttestationStatementVerifier(),
-            new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
-            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
-        );
+        var ver = GetVerifier();
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.Tpm,
@@ -203,17 +219,7 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
-            new DefaultAndroidKeyAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
-            new DefaultFidoU2FAttestationStatementVerifier(),
-            new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
-            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
-        );
+        var ver = GetVerifier();
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.Tpm,
@@ -242,17 +248,7 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
-            new DefaultAndroidKeyAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
-            new DefaultFidoU2FAttestationStatementVerifier(),
-            new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
-            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
-        );
+        var ver = GetVerifier();
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.Tpm,
@@ -281,17 +277,7 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
-            new DefaultAndroidKeyAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
-            new DefaultFidoU2FAttestationStatementVerifier(),
-            new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
-            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
-        );
+        var ver = GetVerifier();
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.Tpm,
@@ -328,17 +314,7 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
-            new DefaultAndroidKeyAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
-            new DefaultFidoU2FAttestationStatementVerifier(),
-            new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
-            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
-        );
+        var ver = GetVerifier();
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.Tpm,
@@ -383,17 +359,7 @@ public class DefaultAttestationObjectDecoderTests
             throw new InvalidOperationException();
         }
 
-        //var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(new DefaultTimeProvider(), NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance);
-        var ver = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
-            new DefaultAndroidKeyAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultAndroidSafetyNetAttestationStatementVerifier(),
-            new DefaultFidoU2FAttestationStatementVerifier(),
-            new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
-            NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
-        );
+        var ver = GetVerifier();
         await using var ctx = new TestWebAuthnContext(null);
         await ver.VerifyAttestationStatementAsync(ctx, new(
                 AttestationStatementFormat.AndroidKey,

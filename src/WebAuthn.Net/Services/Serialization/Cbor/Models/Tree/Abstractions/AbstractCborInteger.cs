@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
+namespace WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
 public abstract class AbstractCborInteger : AbstractCborObject, IRawValueProvider<ulong>
 {

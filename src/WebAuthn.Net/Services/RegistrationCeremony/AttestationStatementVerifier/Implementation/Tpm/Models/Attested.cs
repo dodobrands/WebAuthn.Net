@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models;
+﻿namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models;
 
 /// <summary>
 ///     10.12.11 TPMU_ATTEST

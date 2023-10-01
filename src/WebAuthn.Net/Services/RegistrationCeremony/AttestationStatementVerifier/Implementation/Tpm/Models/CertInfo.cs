@@ -2,7 +2,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models;
 
 /// <summary>
 ///     The TPMS_ATTEST structure over which the above signature was computed, as specified in [TPMv2-Part2] section 10.12.8.

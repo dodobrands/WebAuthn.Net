@@ -1,10 +1,10 @@
 using System;
 using System.ComponentModel;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AuthenticatorData;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models;
 
 public class DecodedAttestationObject
 {

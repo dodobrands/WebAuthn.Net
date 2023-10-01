@@ -1,9 +1,9 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Security.Cryptography.X509Certificates;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
 
 public class AttestationStatementVerificationResult
 {

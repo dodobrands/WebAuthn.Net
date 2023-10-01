@@ -1,7 +1,7 @@
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Abstractions;
 
 public interface IAttestationObjectDecoder
 {

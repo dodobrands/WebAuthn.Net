@@ -8,16 +8,16 @@ using WebAuthn.Net.Services.Cryptography.Cose.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 using WebAuthn.Net.Services.Cryptography.Sign;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Enums.Extensions;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.AttestationStatementVerifier;
-using WebAuthn.Net.Services.RegistrationCeremony.Verification.Tpm;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions.Tpm;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums.Extensions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
 using WebAuthn.Net.Services.TimeProvider;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm;
 
 public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVerifier
 {

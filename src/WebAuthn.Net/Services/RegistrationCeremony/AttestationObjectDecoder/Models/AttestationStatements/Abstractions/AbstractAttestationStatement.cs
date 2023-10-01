@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AttestationStatements.Abstractions;
+﻿namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
 
 public abstract class AbstractAttestationStatement
 {

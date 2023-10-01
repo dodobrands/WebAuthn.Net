@@ -6,10 +6,11 @@ using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Cose;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.AuthenticatorData;
-using WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AuthenticatorData;
+using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Implementation;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Implementation;
 
 /// <summary>
 ///     Default implementation of the service for working with the <a href="https://www.w3.org/TR/webauthn-3/#authenticator-data">authenticator data</a> structure.

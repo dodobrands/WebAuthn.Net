@@ -1,9 +1,9 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Enums;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
+namespace WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 
 public class CborUnsignedInteger : AbstractCborInteger, IEquatable<CborUnsignedInteger>, IEquatable<AbstractCborObject>
 {

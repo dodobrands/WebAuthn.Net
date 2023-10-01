@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.Verification.Tpm.Models.Enums;
+namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums;
 
 /// <summary>
 ///     TPMA_OBJECT (UINT32) - Object Attributes

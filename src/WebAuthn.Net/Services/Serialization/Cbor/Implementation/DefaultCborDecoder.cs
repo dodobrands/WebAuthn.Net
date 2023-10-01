@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Formats.Cbor;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree;
-using WebAuthn.Net.Services.Serialization.Cbor.Format.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor.Models;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
-namespace WebAuthn.Net.Services.Serialization.Cbor.Format.Implementation;
+namespace WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 
 public class DefaultCborDecoder : ICborDecoder
 {

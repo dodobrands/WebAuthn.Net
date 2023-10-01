@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Services.Serialization.Cbor.AttestationObject.Models.Enums;
+﻿namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
 /// <summary>
 ///     Attestation Types
