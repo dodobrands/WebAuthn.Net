@@ -31,7 +31,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
 
     public Result<CoseKeyDecodeResult> Decode(byte[] encodedCoseKey)
     {
-        var cborResult = _cborDecoder.TryDecode(encodedCoseKey);
+        var cborResult = _cborDecoder.Decode(encodedCoseKey);
         if (cborResult.HasError)
         {
             _logger.DecodeFailure();

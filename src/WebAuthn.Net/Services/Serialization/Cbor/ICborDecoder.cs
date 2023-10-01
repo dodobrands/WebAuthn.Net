@@ -5,5 +5,5 @@ namespace WebAuthn.Net.Services.Serialization.Cbor;
 
 public interface ICborDecoder
 {
-    Result<CborRoot> TryDecode(byte[] input);
+    Result<CborRoot> Decode(byte[] input);
 }

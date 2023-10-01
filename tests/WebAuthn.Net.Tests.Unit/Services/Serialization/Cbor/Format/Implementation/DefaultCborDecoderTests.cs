@@ -17,7 +17,7 @@ public class DefaultCborDecoderTests
     {
         ArgumentNullException.ThrowIfNull(testVector);
         var decoder = new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance);
-        var decodeResult = decoder.TryDecode(testVector.Cbor);
+        var decodeResult = decoder.Decode(testVector.Cbor);
         Assert.That(decodeResult.HasError, Is.False);
     }
 
@@ -26,7 +26,7 @@ public class DefaultCborDecoderTests
     {
         ArgumentNullException.ThrowIfNull(testVector);
         var decoder = new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance);
-        var decodeResult = decoder.TryDecode(testVector.Cbor);
+        var decodeResult = decoder.Decode(testVector.Cbor);
         Assert.That(decodeResult.HasError, Is.True);
     }
 
@@ -36,7 +36,7 @@ public class DefaultCborDecoderTests
         var decoder = new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance);
         Assert.Throws<CborContentException>(() =>
         {
-            _ = decoder.TryDecode(new byte[] { 0xf8, 0x18 });
+            _ = decoder.Decode(new byte[] { 0xf8, 0x18 });
         });
     }
 

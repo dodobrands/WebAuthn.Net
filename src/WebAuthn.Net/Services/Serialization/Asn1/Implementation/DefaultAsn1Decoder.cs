@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Formats.Asn1;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Serialization.Asn1.Models;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
 
@@ -9,22 +8,22 @@ namespace WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 
 public class DefaultAsn1Decoder : IAsn1Decoder
 {
-    public Result<Asn1Root> TryDecode(byte[] input, AsnEncodingRules encodingRules)
+    public Result<Optional<AbstractAsn1Element>> Decode(byte[] input, AsnEncodingRules encodingRules)
     {
         var reader = new AsnReader(input, encodingRules);
         if (!reader.HasData)
         {
-            return Result<Asn1Root>.Success(new(Optional<AbstractAsn1Element>.Empty()));
+            return Result<Optional<AbstractAsn1Element>>.Success(Optional<AbstractAsn1Element>.Empty());
         }
 
         var rootResult = Read(reader);
         if (rootResult.HasError)
         {
-            return Result<Asn1Root>.Fail();
+            return Result<Optional<AbstractAsn1Element>>.Fail();
         }
 
-        var root = new Asn1Root(Optional<AbstractAsn1Element>.Payload(rootResult.Ok));
-        return Result<Asn1Root>.Success(root);
+        var root = Optional<AbstractAsn1Element>.Payload(rootResult.Ok);
+        return Result<Optional<AbstractAsn1Element>>.Success(root);
     }
 
     private static Result<AbstractAsn1Element> Read(AsnReader reader)
@@ -193,7 +192,7 @@ public class DefaultAsn1Decoder : IAsn1Decoder
         return Result<Asn1Sequence>.Success(new(tag, sequenceItems.ToArray()));
     }
 
-    private static Result<Asn1Sequence> ReadSet(
+    private static Result<Asn1Set> ReadSet(
         AsnReader reader,
         Asn1Tag tag)
     {
@@ -206,14 +205,14 @@ public class DefaultAsn1Decoder : IAsn1Decoder
                 var innerObject = Read(setReader);
                 if (innerObject.HasError)
                 {
-                    return Result<Asn1Sequence>.Fail();
+                    return Result<Asn1Set>.Fail();
                 }
 
                 setItems.Add(innerObject.Ok);
             }
         }
 
-        return Result<Asn1Sequence>.Success(new(tag, setItems.ToArray()));
+        return Result<Asn1Set>.Success(new(tag, setItems.ToArray()));
     }
 
     private static Result<Asn1NumericString> ReadNumericString(

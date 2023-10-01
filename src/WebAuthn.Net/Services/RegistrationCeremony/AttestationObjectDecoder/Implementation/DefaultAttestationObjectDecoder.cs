@@ -70,7 +70,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 
     private Result<CborMap> TryRead(byte[] attestationObject)
     {
-        var attestationObjectCborDecode = _cborDecoder.TryDecode(attestationObject);
+        var attestationObjectCborDecode = _cborDecoder.Decode(attestationObject);
         if (attestationObjectCborDecode.HasError)
         {
             _logger.AttObjDecodeFailure();

@@ -19,7 +19,7 @@ public class DefaultCborDecoder : ICborDecoder
         _logger = logger;
     }
 
-    public Result<CborRoot> TryDecode(byte[] input)
+    public Result<CborRoot> Decode(byte[] input)
     {
         ArgumentNullException.ThrowIfNull(input);
         var reader = new CborReader(input, CborConformanceMode.Ctap2Canonical);

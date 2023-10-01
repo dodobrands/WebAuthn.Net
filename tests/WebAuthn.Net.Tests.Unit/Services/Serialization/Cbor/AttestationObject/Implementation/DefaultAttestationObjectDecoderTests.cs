@@ -103,8 +103,12 @@ public class DefaultAttestationObjectDecoderTests
 #pragma warning disable CA2000
 
         var verifier = new DefaultAttestationStatementVerifier<TestWebAuthnContext>(
-            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier()),
-            new DefaultTpmAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultTpmManufacturerVerifier()),
+            new DefaultPackedAttestationStatementVerifier(new DefaultTimeProvider(), new DefaultDigitalSignatureVerifier(), new DefaultAsn1Decoder()),
+            new DefaultTpmAttestationStatementVerifier(
+                new DefaultTimeProvider(),
+                new DefaultDigitalSignatureVerifier(),
+                new DefaultTpmManufacturerVerifier(),
+                new DefaultAsn1Decoder()),
             new DefaultAndroidKeyAttestationStatementVerifier(
                 new OptionsMonitor<WebAuthnOptions>(
                     new OptionsFactory<WebAuthnOptions>(new List<IConfigureOptions<WebAuthnOptions>>

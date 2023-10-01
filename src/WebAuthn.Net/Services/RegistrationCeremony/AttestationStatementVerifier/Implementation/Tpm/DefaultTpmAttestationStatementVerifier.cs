@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.Linq;
@@ -15,12 +16,16 @@ using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Im
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm.Models.Enums.Extensions;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.Serialization.Asn1;
+using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
+using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.TimeProvider;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Implementation.Tpm;
 
 public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVerifier
 {
+    private readonly IAsn1Decoder _asn1Decoder;
     private readonly IDigitalSignatureVerifier _signatureVerifier;
     private readonly ITimeProvider _timeProvider;
     private readonly ITpmManufacturerVerifier _tpmManufacturerVerifier;
@@ -28,14 +33,17 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
-        ITpmManufacturerVerifier tpmManufacturerVerifier)
+        ITpmManufacturerVerifier tpmManufacturerVerifier,
+        IAsn1Decoder asn1Decoder)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
+        ArgumentNullException.ThrowIfNull(asn1Decoder);
         _timeProvider = timeProvider;
         _signatureVerifier = signatureVerifier;
         _tpmManufacturerVerifier = tpmManufacturerVerifier;
+        _asn1Decoder = asn1Decoder;
     }
 
     public Result<AttestationStatementVerificationResult> Verify(
@@ -290,7 +298,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
 
         // 3) The Subject Alternative Name extension MUST be set as defined in [TPMv2-EK-Profile] section 3.2.9.
         // https://trustedcomputinggroup.org/wp-content/uploads/TCG-EK-Credential-Profile-V-2.5-R2_published.pdf
-        if (!AikCertSubjectAlternativeName.TryGetAikCertSubjectAlternativeName(aikCert, out var san))
+        if (!TryGetAikCertSubjectAlternativeName(aikCert, out var san))
         {
             return false;
         }
@@ -315,6 +323,252 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         // 6) An Authority Information Access (AIA) extension with entry id-ad-ocsp and a CRL Distribution Point extension [RFC5280]
         // are both OPTIONAL as the status of many attestation certificates is available through metadata services.
         // See, for example, the FIDO Metadata Service [FIDOMetadataService].
+        return true;
+    }
+
+    private bool TryGetAikCertSubjectAlternativeName(
+        X509Certificate2 aikCert,
+        [NotNullWhen(true)] out AikCertSubjectAlternativeName? san)
+    {
+        const string subjectAlternativeNameOid = "2.5.29.17";
+        const string tpmManufacturer = "2.23.133.2.1";
+        const string tpmModel = "2.23.133.2.2";
+        const string tpmVersion = "2.23.133.2.3";
+        var sanExtension = aikCert.Extensions.FirstOrDefault(x => x.Oid?.Value == subjectAlternativeNameOid);
+        if (sanExtension is null)
+        {
+            san = null;
+            return false;
+        }
+
+        if (!TryParseSanExtensionValues(sanExtension.RawData, out var values))
+        {
+            san = null;
+            return false;
+        }
+
+        if (!values.TryGetValue(tpmManufacturer, out var manufacturer))
+        {
+            san = null;
+            return false;
+        }
+
+        if (!values.TryGetValue(tpmModel, out var model))
+        {
+            san = null;
+            return false;
+        }
+
+        if (!values.TryGetValue(tpmVersion, out var version))
+        {
+            san = null;
+            return false;
+        }
+
+        san = new(manufacturer, model, version);
+        return true;
+    }
+
+    private bool TryParseSanExtensionValues(byte[] extension, [NotNullWhen(true)] out Dictionary<string, string>? values)
+    {
+        // https://trustedcomputinggroup.org/resource/http-trustedcomputinggroup-org-wp-content-uploads-tcg-ek-credential-profile-v-2-5-r2_published-pdf/
+        // 3 X.509 ASN.1 Definitions
+        // This section contains the format for the EK Credential instantiated as an X.509 certificate. All fields are defined in ASN.1 and encoded using DER [19].
+        // A. Certificate Examples
+        // A.1 Example 1 (user device TPM, e.g. PC-Client)
+        // Subject alternative name:
+        // TPMManufacturer = id:54534700 (TCG)
+        // TPMModel = ABCDEF123456 (part number)
+        // TPMVersion = id:00010023 (firmware version)
+        // // SEQUENCE
+        // 30 49
+        //      // SET
+        //      31 16
+        //          // SEQUENCE
+        //          30 14
+        //              // OBJECT IDENTIFER tcg-at-tpmManufacturer (2.23.133.2.1)
+        //              06 05 67 81 05 02 01
+        //              // UTF8 STRING id:54434700 (TCG)
+        //              0C 0B 69 64 3A 35 34 34 33 34 37 30 30
+        //     // SET
+        //     31 17
+        //         // SEQUENCE
+        //         30 15
+        //             // OBJECT IDENTIFER tcg-at-tpmModel (2.23.133.2.2)
+        //             06 05 67 81 05 02 02
+        //             // UTF8 STRING ABCDEF123456
+        //             0C 0C 41 42 43 44 45 46 31 32 33 34 35 36
+        //     // SET
+        //     31 16
+        //         // SEQUENCE
+        //         30 14
+        //             // OBJECT IDENTIFER tcg-at-tpmVersion (2.23.133.2.3)
+        //             06 05 67 81 05 02 03
+        //             // UTF8 STRING id:00010023
+        //             0C 0B 69 64 3A 30 30 30 31 30 30 32 33
+        // ---------------------------------------------
+        // A real TPM module may return such a structure:
+        // Certificate SEQUENCE (1 elem)
+        //   tbsCertificate TBSCertificate [?] [4] (1 elem)
+        //     serialNumber CertificateSerialNumber [?] SEQUENCE (3 elem)
+        //       SET (1 elem)
+        //         SEQUENCE (2 elem)
+        //           OBJECT IDENTIFIER 2.23.133.2.1 tcgTpmManufacturer (TCPA/TCG Attribute)
+        //           UTF8String id:414D4400
+        //       SET (1 elem)
+        //         SEQUENCE (2 elem)
+        //           OBJECT IDENTIFIER 2.23.133.2.2 tcgTpmModel (TCPA/TCG Attribute)
+        //           UTF8String AMD
+        //       SET (1 elem)
+        //         SEQUENCE (2 elem)
+        //           OBJECT IDENTIFIER 2.23.133.2.3 tcgTpmVersion (TCPA/TCG Attribute)
+        //           UTF8String id:00030001
+        // ---------------------------------------------
+        // sometimes something like this
+        // Certificate SEQUENCE (1 elem)
+        //   tbsCertificate TBSCertificate [?] [4] (1 elem)
+        //     serialNumber CertificateSerialNumber [?] SEQUENCE (1 elem)
+        //       SET (3 elem)
+        //         SEQUENCE (2 elem)
+        //           OBJECT IDENTIFIER 2.23.133.2.3 tcgTpmVersion (TCPA/TCG Attribute)
+        //           UTF8String id:13
+        //         SEQUENCE (2 elem)
+        //           OBJECT IDENTIFIER 2.23.133.2.2 tcgTpmModel (TCPA/TCG Attribute)
+        //           UTF8String NPCT6xx
+        //         SEQUENCE (2 elem)
+        //           OBJECT IDENTIFIER 2.23.133.2.1 tcgTpmManufacturer (TCPA/TCG Attribute)
+        //           UTF8String id:FFFFF1D0
+        var rootDecodeResult = _asn1Decoder.Decode(extension, AsnEncodingRules.DER);
+        if (rootDecodeResult.HasError)
+        {
+            values = null;
+            return false;
+        }
+
+        if (!rootDecodeResult.Ok.HasValue)
+        {
+            values = null;
+            return false;
+        }
+
+        var asnRoot = rootDecodeResult.Ok.Value;
+        byte[] tpmSpecSanRawSequence;
+        // Certificate or serialNumber?
+        if (asnRoot is AbstractAsn1Enumerable rootEnumerable)
+        {
+            // tbsCertificate present
+            if (rootEnumerable.Items.Length == 1 && rootEnumerable.Items[0] is Asn1RawElement { Tag.TagClass: TagClass.ContextSpecific } nestedRoot)
+            {
+                var contextSpecificReader = new AsnReader(nestedRoot.RawValue, AsnEncodingRules.DER);
+                var tpmSequenceReader = contextSpecificReader.ReadSetOf(contextSpecificReader.PeekTag());
+                if (tpmSequenceReader.PeekTag() is { TagClass: TagClass.Universal, TagValue: (int) UniversalTagNumber.Sequence or (int) UniversalTagNumber.Set })
+                {
+                    // serialNumber extract
+                    tpmSpecSanRawSequence = tpmSequenceReader.ReadEncodedValue().ToArray();
+                    if (tpmSequenceReader.HasData)
+                    {
+                        values = null;
+                        return false;
+                    }
+                }
+                else
+                {
+                    values = null;
+                    return false;
+                }
+            }
+            // serialNumber extract
+            else if (rootEnumerable.Tag is { TagClass: TagClass.Universal, TagValue: (int) UniversalTagNumber.Sequence or (int) UniversalTagNumber.Set })
+            {
+                tpmSpecSanRawSequence = extension;
+            }
+            else
+            {
+                values = null;
+                return false;
+            }
+        }
+        // tbsCertificate present
+        else if (asnRoot is Asn1RawElement { Tag.TagClass: TagClass.ContextSpecific } nestedRoot)
+        {
+            var contextSpecificReader = new AsnReader(nestedRoot.RawValue, AsnEncodingRules.DER);
+            var tpmSequenceReader = contextSpecificReader.ReadSetOf(contextSpecificReader.PeekTag());
+            if (tpmSequenceReader.PeekTag() is { TagClass: TagClass.Universal, TagValue: (int) UniversalTagNumber.Sequence or (int) UniversalTagNumber.Set })
+            {
+                // serialNumber extract
+                tpmSpecSanRawSequence = tpmSequenceReader.ReadEncodedValue().ToArray();
+                if (tpmSequenceReader.HasData)
+                {
+                    values = null;
+                    return false;
+                }
+            }
+            else
+            {
+                values = null;
+                return false;
+            }
+        }
+        else
+        {
+            values = null;
+            return false;
+        }
+
+        var sanDecodeResult = _asn1Decoder.Decode(tpmSpecSanRawSequence, AsnEncodingRules.DER);
+        if (sanDecodeResult.HasError)
+        {
+            values = null;
+            return false;
+        }
+
+        if (!sanDecodeResult.Ok.HasValue)
+        {
+            values = null;
+            return false;
+        }
+
+        if (sanDecodeResult.Ok.Value is not AbstractAsn1Enumerable tpmSpecSanSequence)
+        {
+            values = null;
+            return false;
+        }
+
+        // go through all enumerable elements with 1 length
+        while (tpmSpecSanSequence is { Items.Length: 1 } enumerable && enumerable.Items[0] is AbstractAsn1Enumerable innerEnumerable)
+        {
+            tpmSpecSanSequence = innerEnumerable;
+        }
+
+        var accumulator = new Dictionary<string, string>();
+        foreach (var sanElement in tpmSpecSanSequence.Items)
+        {
+            if (sanElement is not AbstractAsn1Enumerable sanElementEnumerable)
+            {
+                continue;
+            }
+
+            // go through all enumerable elements with 1 length
+            var currentElement = sanElementEnumerable;
+            while (currentElement is { Items.Length: 1 } enumerable && enumerable.Items[0] is AbstractAsn1Enumerable innerEnumerable)
+            {
+                currentElement = innerEnumerable;
+            }
+
+            if (currentElement is { Items.Length: 2 } sanSetSeq)
+            {
+                if (sanSetSeq.Items[0] is Asn1ObjectIdentifier normalId && sanSetSeq.Items[1] is Asn1Utf8String normalValue)
+                {
+                    accumulator[normalId.Value] = normalValue.Value;
+                }
+                else if (sanSetSeq.Items[1] is Asn1ObjectIdentifier reverseOrderId && sanSetSeq.Items[0] is Asn1Utf8String reverseOrderValue)
+                {
+                    accumulator[reverseOrderId.Value] = reverseOrderValue.Value;
+                }
+            }
+        }
+
+        values = accumulator;
         return true;
     }
 
@@ -353,7 +607,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         return false;
     }
 
-    private static bool TryGetAaguid(X509ExtensionCollection extensions, [NotNullWhen(true)] out Optional<byte[]>? aaguid)
+    private bool TryGetAaguid(X509ExtensionCollection extensions, [NotNullWhen(true)] out Optional<byte[]>? aaguid)
     {
         ArgumentNullException.ThrowIfNull(extensions);
         // If aikCert contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
@@ -367,34 +621,26 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
                 return false;
             }
 
-            var reader = new AsnReader(extension.RawData, AsnEncodingRules.BER);
-            if (!reader.HasData)
+            var decodeResult = _asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
+            if (decodeResult.HasError)
             {
                 aaguid = null;
                 return false;
             }
 
-            var tag = reader.PeekTag();
-            if (tag != Asn1Tag.PrimitiveOctetString)
+            if (!decodeResult.Ok.HasValue)
             {
                 aaguid = null;
                 return false;
             }
 
-            if (!reader.TryReadPrimitiveOctetString(out var octetString, Asn1Tag.PrimitiveOctetString))
+            if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
             {
                 aaguid = null;
                 return false;
             }
 
-            var aaguidValue = octetString.ToArray();
-            if (aaguidValue.Length != 16)
-            {
-                aaguid = null;
-                return false;
-            }
-
-            aaguid = Optional<byte[]>.Payload(octetString.ToArray());
+            aaguid = aaguid = Optional<byte[]>.Payload(aaguidOctetString.Value);
             return true;
         }
 

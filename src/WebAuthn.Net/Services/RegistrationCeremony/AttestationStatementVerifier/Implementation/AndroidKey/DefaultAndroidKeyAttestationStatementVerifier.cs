@@ -113,7 +113,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
 
     private bool IsAuthorizationListDataValid(Asn1Sequence keyDescription)
     {
-        var keyDescriptionElements = keyDescription.Value;
+        var keyDescriptionElements = keyDescription.Items;
         if (keyDescriptionElements.Length < 8)
         {
             return false;
@@ -190,7 +190,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
     {
         // purpose  [1] EXPLICIT SET OF INTEGER OPTIONAL
         const int purposeTagId = 1;
-        foreach (var element in authorizationList.Value)
+        foreach (var element in authorizationList.Items)
         {
             if (element.Tag is { TagClass: TagClass.ContextSpecific, TagValue: purposeTagId })
             {
@@ -236,7 +236,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
     {
         // origin  [702] EXPLICIT INTEGER OPTIONAL
         const int originTagId = 702;
-        foreach (var element in authorizationList.Value)
+        foreach (var element in authorizationList.Items)
         {
             if (element.Tag is { TagClass: TagClass.ContextSpecific, TagValue: originTagId })
             {
@@ -275,7 +275,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
     {
         const int allApplicationsTagId = 600;
 
-        foreach (var element in authorizationList.Value)
+        foreach (var element in authorizationList.Items)
         {
             if (element.Tag is { TagClass: TagClass.ContextSpecific, TagValue: allApplicationsTagId })
             {
@@ -298,7 +298,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
 
     private static bool TryGetAttestationChallenge(Asn1Sequence keyDescription, [NotNullWhen(true)] out byte[]? attestationChallenge)
     {
-        var keyDescriptionElements = keyDescription.Value;
+        var keyDescriptionElements = keyDescription.Items;
         if (keyDescriptionElements.Length < 5)
         {
             attestationChallenge = null;
@@ -317,15 +317,21 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
 
     private bool TryGetKeyDescriptionAsn1(byte[] extensionData, [NotNullWhen(true)] out Asn1Sequence? keyDescription)
     {
-        var decodeResult = _asn1Decoder.TryDecode(extensionData, AsnEncodingRules.DER);
-        if (decodeResult.HasError || !decodeResult.Ok.AsnRoot.HasValue)
+        var decodeResult = _asn1Decoder.Decode(extensionData, AsnEncodingRules.DER);
+        if (decodeResult.HasError)
+        {
+            keyDescription = null;
+            return false;
+        }
+
+        if (!decodeResult.Ok.HasValue)
         {
             keyDescription = null;
             return false;
         }
 
         // https://developer.android.com/training/articles/security-key-attestation#key_attestation_ext_schema
-        if (decodeResult.Ok.AsnRoot.Value is not Asn1Sequence keyDescriptionAsn1)
+        if (decodeResult.Ok.Value is not Asn1Sequence keyDescriptionAsn1)
         {
             keyDescription = null;
             return false;
@@ -353,7 +359,6 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
         asn1ExtensionData = null;
         return false;
     }
-
 
     private static byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {

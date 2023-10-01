@@ -3,9 +3,9 @@ using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 
-public class Asn1Sequence : AbstractAsn1Enumerable
+public class Asn1Set : AbstractAsn1Enumerable
 {
-    public Asn1Sequence(Asn1Tag tag, AbstractAsn1Element[] value) : base(tag, value)
+    public Asn1Set(Asn1Tag tag, AbstractAsn1Element[] inner) : base(tag, inner)
     {
     }
 }
