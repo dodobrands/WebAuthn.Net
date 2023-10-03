@@ -87,7 +87,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         await using var context = await _contextFactory.CreateAsync(httpContext, cancellationToken);
         var challenge = _challengeGenerator.GenerateChallenge(request.ChallengeSize);
         var credentialsToExclude = await GetCredentialsToExcludeAsync(context, request.Rp, request.User, request.ExcludeCredentials, cancellationToken);
-        var createdAt = _timeProvider.GetUtcDateTime();
+        var createdAt = _timeProvider.GetRoundUtcDateTime();
         var expiresAt = createdAt.ComputeExpiresAtUtc(request.Timeout);
         var options = ConvertToOptions(request, challenge, credentialsToExclude);
         var registrationCeremonyOptions = new RegistrationCeremonyOptions(options, createdAt, expiresAt);

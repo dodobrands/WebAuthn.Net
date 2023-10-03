@@ -4,5 +4,6 @@ namespace WebAuthn.Net.Services.TimeProvider;
 
 public interface ITimeProvider
 {
-    DateTimeOffset GetUtcDateTime();
+    DateTimeOffset GetRoundUtcDateTime();
+    DateTimeOffset GetPreciseUtcDateTime();
 }

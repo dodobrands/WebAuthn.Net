@@ -234,7 +234,7 @@ public class DefaultTpmAttestationStatementVerifier : ITpmAttestationStatementVe
         for (var i = 0; i < x5C.Length; i++)
         {
             var x5CCert = new X509Certificate2(attStmt.X5C[i]);
-            var currentDate = _timeProvider.GetUtcDateTime();
+            var currentDate = _timeProvider.GetPreciseUtcDateTime();
             if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
             {
                 trustPath = null;

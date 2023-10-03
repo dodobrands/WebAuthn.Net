@@ -51,7 +51,7 @@ public class DefaultPackedAttestationStatementVerifier : IPackedAttestationState
             for (var i = 0; i < trustPath.Length; i++)
             {
                 var x5CCert = new X509Certificate2(attStmt.X5C[i]);
-                var currentDate = _timeProvider.GetUtcDateTime();
+                var currentDate = _timeProvider.GetPreciseUtcDateTime();
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
                     return Result<AttestationStatementVerificationResult>.Fail();
