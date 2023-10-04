@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models;
-using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationStatementVerifier.Abstractions.FidoU2F;

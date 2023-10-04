@@ -2,11 +2,9 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Abstractions.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
-using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Implementation.AttestationStatements;
 
@@ -23,11 +21,6 @@ public class DefaultAppleAnonymousAttestationStatementDecoder : IAppleAnonymousA
     public Result<AppleAnonymousAttestationStatement> Decode(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
-        if (!TryDecodeAlg(attStmt, out var alg))
-        {
-            _logger.AppleAnonymousDecodeFailureAlg();
-            return Result<AppleAnonymousAttestationStatement>.Fail();
-        }
 
         if (!TryDecodeX5C(attStmt, out var x5C))
         {
@@ -35,46 +28,8 @@ public class DefaultAppleAnonymousAttestationStatementDecoder : IAppleAnonymousA
             return Result<AppleAnonymousAttestationStatement>.Fail();
         }
 
-        var result = new AppleAnonymousAttestationStatement(alg.Value, x5C);
+        var result = new AppleAnonymousAttestationStatement(x5C);
         return Result<AppleAnonymousAttestationStatement>.Success(result);
-    }
-
-    private bool TryDecodeAlg(
-        CborMap attStmt,
-        [NotNullWhen(true)] out CoseAlgorithm? value)
-    {
-        var dict = attStmt.RawValue;
-        if (!dict.TryGetValue(new CborTextString("alg"), out var algCbor))
-        {
-            _logger.AppleAnonymousAlgKeyNotFound();
-            value = null;
-            return false;
-        }
-
-        if (algCbor is not AbstractCborInteger intCborValue)
-        {
-            _logger.AppleAnonymousAlgValueInvalidDataType();
-            value = null;
-            return false;
-        }
-
-        if (!intCborValue.TryReadAsInt32(out var intAlg))
-        {
-            _logger.AppleAnonymousAlgValueOutOfRange();
-            value = null;
-            return false;
-        }
-
-        var alg = (CoseAlgorithm) intAlg.Value;
-        if (!Enum.IsDefined(alg))
-        {
-            _logger.AppleAnonymousAlgValueUnknown(intAlg.Value);
-            value = null;
-            return false;
-        }
-
-        value = alg;
-        return true;
     }
 
     private bool TryDecodeX5C(

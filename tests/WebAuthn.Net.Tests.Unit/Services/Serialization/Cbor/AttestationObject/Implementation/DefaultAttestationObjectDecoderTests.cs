@@ -128,7 +128,7 @@ public class DefaultAttestationObjectDecoderTests
             new DefaultAndroidSafetyNetAttestationStatementVerifier(new FakeTimeProvider(DateTimeOffset.Parse("2018-11-04T13:05:30Z", CultureInfo.InvariantCulture))),
             new DefaultFidoU2FAttestationStatementVerifier(new DefaultTimeProvider()),
             new DefaultNoneAttestationStatementVerifier(),
-            new DefaultAppleAnonymousAttestationStatementVerifier(),
+            new DefaultAppleAnonymousAttestationStatementVerifier(new FakeTimeProvider(DateTimeOffset.Parse("2021-01-27T04:38:32Z", CultureInfo.InvariantCulture)), new DefaultAsn1Decoder()),
             NullLogger<DefaultAttestationStatementVerifier<TestWebAuthnContext>>.Instance
         );
         return verifier;
@@ -474,6 +474,35 @@ public class DefaultAttestationObjectDecoderTests
     public void CanDecode_Apple()
     {
         var result = _decoder.Decode(AppleAttestationObject);
+        Assert.That(result.HasError, Is.False);
+        Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.AppleAnonymous));
+    }
+
+    [Test]
+    public async Task CanDecode_Apple_WithClientData()
+    {
+        var result = _decoder.Decode(WebEncoders.Base64UrlDecode(
+            "o2NmbXRlYXBwbGVnYXR0U3RtdKFjeDVjglkCRzCCAkMwggHJoAMCAQICBgF3QiLLHjAKBggqhkjOPQQDAjBIMRwwGgYDVQQDDBNBcHBsZSBXZWJBdXRobiBDQSAxMRMwEQYDVQQKDApBcHBsZSBJbmMuMRMwEQYDVQQIDApDYWxpZm9ybmlhMB4XDTIxMDEyNjA0MzgzMloXDTIxMDEyOTA0MzgzMlowgZExSTBHBgNVBAMMQGRhYjc2MDA5M2NlYjI3NDNiMDliMGVkNDc2YjlmODdkM2Y2ZTlmNTQ5NGI0NjBjMjlmYjE4ZGU1NGI5NjdhY2IxGjAYBgNVBAsMEUFBQSBDZXJ0aWZpY2F0aW9uMRMwEQYDVQQKDApBcHBsZSBJbmMuMRMwEQYDVQQIDApDYWxpZm9ybmlhMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvrprvQ3K7S8AatqPytUf_Wfk1i0zah0wwZEc3RwYYakuvEhCg57j-rxBkD8f593dTbvx-Ndg7oP6fWUPGc6g76NVMFMwDAYDVR0TAQH_BAIwADAOBgNVHQ8BAf8EBAMCBPAwMwYJKoZIhvdjZAgCBCYwJKEiBCAqLECAoXBfdAio_njSEf9ohxruc-9Z747jxN85FaMEhDAKBggqhkjOPQQDAgNoADBlAjEAzN6ElXrxSMcxapKgQG0EIfKhD5I6Vy4LuPr3ibLy_6P7FIv8b93jUIh70xUOXRqvAjBr9XexzJD6DrSfQY-pnNgN0RVJbdVkq1u_xDL2D4FBy3KVwP_Q9pp1GVP3unYXo0dZAjgwggI0MIIBuqADAgECAhBWJVOVx6f7QOviKNgmCFO2MAoGCCqGSM49BAMDMEsxHzAdBgNVBAMMFkFwcGxlIFdlYkF1dGhuIFJvb3QgQ0ExEzARBgNVBAoMCkFwcGxlIEluYy4xEzARBgNVBAgMCkNhbGlmb3JuaWEwHhcNMjAwMzE4MTgzODAxWhcNMzAwMzEzMDAwMDAwWjBIMRwwGgYDVQQDDBNBcHBsZSBXZWJBdXRobiBDQSAxMRMwEQYDVQQKDApBcHBsZSBJbmMuMRMwEQYDVQQIDApDYWxpZm9ybmlhMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEgy6HLyYUkYECJbn1_Na7Y3i19V8_ywRbxzWZNHX9VJBE35v-GSEXZcaaHdoFCzjUUINAGkNPsk0RLVbD4c-_y5iR_sBpYIG--Wy8d8iN3a9Gpa7h3VFbWvqrk76cCyaRo2YwZDASBgNVHRMBAf8ECDAGAQH_AgEAMB8GA1UdIwQYMBaAFCbXZNnFeMJaZ9Gn3msS0Btj8cbXMB0GA1UdDgQWBBTrroLE_6GsW1HUzyRhBQC-Y713iDAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0EAwMDaAAwZQIxAN2LGjSBpfrZ27TnZXuEHhRMJ7dbh2pBhsKxR1dQM3In7-VURX72SJUMYy5cSD5wwQIwLIpgRNwgH8_lm8NNKTDBSHhR2WDtanXx60rKvjjNJbiX0MgFvvDH94sHpXHG6A4HaGF1dGhEYXRhWJjLe8aETFeW6p6Hd5_XxdIpa81x_Ohgft-_vYqawIDx6EUAAAAAAAAAAAAAAAAAAAAAAAAAAAAUqKzNiztBzAoyjqjyA3lQbOV7A5SlAQIDJiABIVggvrprvQ3K7S8AatqPytUf_Wfk1i0zah0wwZEc3RwYYakiWCAuvEhCg57j-rxBkD8f593dTbvx-Ndg7oP6fWUPGc6g7w"));
+        if (result.HasError)
+        {
+            throw new InvalidOperationException();
+        }
+
+        var ver = GetVerifier();
+        await using var ctx = new TestWebAuthnContext(null);
+        await ver.VerifyAttestationStatementAsync(ctx, new(
+                AttestationStatementFormat.AppleAnonymous,
+                result.Ok.AttStmt,
+                new(
+                    result.Ok.AuthData.RpIdHash,
+                    result.Ok.AuthData.Flags,
+                    result.Ok.AuthData.SignCount,
+                    result.Ok.AuthData.AttestedCredentialData!,
+                    result.Ok.RawAuthData),
+                SHA256.HashData(WebEncoders.Base64UrlDecode(
+                    "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUjBQLUNuVU9TYTl4ZG54S3dJeE1IbkVWeXk2VE9LMTBaMFRuNEVGWTFKbnI2NW1sc1QxOC1pUy00Ynd1SVFibWtqQlM0aWN1dkpDclJNM3pTQS14NkEiLCJvcmlnaW4iOiJodHRwczovL25ldG9tLmlwdGltZS5vcmcifQ"))),
+            default);
+
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.AppleAnonymous));
     }
