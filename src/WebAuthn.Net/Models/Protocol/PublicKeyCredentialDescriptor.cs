@@ -8,12 +8,13 @@ using WebAuthn.Net.Serialization.Json;
 namespace WebAuthn.Net.Models.Protocol;
 
 /// <summary>
-///     This object contains the attributes that are specified by a caller when referring to a <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a>
-///     as an input parameter to the <a href="https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-create">create()</a> or <a href="https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get">get()</a> methods.
-///     It mirrors the fields of the PublicKeyCredential object returned by the latter methods.
+///     This dictionary identifies a specific <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a>. It is used in <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">create()</a> to
+///     prevent creating duplicate credentials on the same <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a>, and in <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-get">get()</a> to determine if and
+///     how the credential can currently be reached by the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a>. It mirrors some fields of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a> object
+///     returned by <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">create()</a> and <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-get">get()</a>.
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#dictdef-publickeycredentialdescriptor">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.8.3. Credential Descriptor</a>
+///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-credential-descriptor">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.8.3. Credential Descriptor</a>
 /// </remarks>
 public class PublicKeyCredentialDescriptor
 {
@@ -21,24 +22,36 @@ public class PublicKeyCredentialDescriptor
     ///     Constructs <see cref="PublicKeyCredentialDescriptor" />.
     /// </summary>
     /// <param name="type">
-    ///     This member contains the type of the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a> the caller is referring to.
-    ///     The value should be a member of <see cref="PublicKeyCredentialType" /> but client platforms must ignore any <see cref="PublicKeyCredentialDescriptor" /> with an unknown type.
+    ///     <para>
+    ///         This member contains the type of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is referring to. The value SHOULD be a member of
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialtype">PublicKeyCredentialType</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore any
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialdescriptor">PublicKeyCredentialDescriptor</a> with an unknown <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-type">type</a>.
+    ///     </para>
+    ///     <para>This mirrors the <a href="https://www.w3.org/TR/credential-management-1/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
     /// </param>
     /// <param name="id">
-    ///     This member contains the <a href="https://www.w3.org/TR/webauthn-3/#credential-id">credential ID</a>
-    ///     of the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a> the caller is referring to.
+    ///     <para>This member contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is referring to.</para>
+    ///     <para>This mirrors the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-rawid">rawId</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
     /// </param>
     /// <param name="transports">
-    ///     This optional member contains a hint as to how the <a href="https://www.w3.org/TR/webauthn-3/#client">client</a>
-    ///     might communicate with the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential-source-managing-authenticator">managing authenticator</a>
-    ///     of the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a> the caller is referring to.
-    ///     The values should be members of <see cref="AuthenticatorTransport" /> but client platforms must ignore unknown values.
+    ///     <para>
+    ///         This OPTIONAL member contains a hint as to how the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> might communicate with the
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source-managing-authenticator">managing authenticator</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is
+    ///         referring to. The values SHOULD be members of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-authenticatortransport">AuthenticatorTransport</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST
+    ///         ignore unknown values.
+    ///     </para>
+    ///     <para>
+    ///         This mirrors the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-response">response</a>.<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> method of a
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a> structure created by a <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">create()</a> operation. When
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-registering-a-new-credential">registering a new credential</a>, the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD store the value returned from
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a>. When creating a
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialdescriptor">PublicKeyCredentialDescriptor</a> for that credential, the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD retrieve that
+    ///         stored value and set it as the value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-transports">transports</a> member.
+    ///     </para>
     /// </param>
-    /// <exception cref="InvalidEnumArgumentException">
-    ///     If the <paramref name="type" /> parameter contains a value that is not defined in the <see cref="PublicKeyCredentialType" /> enum
-    ///     or if any of the elements in the <paramref name="transports" /> array contains a value that is not defined in the <see cref="AuthenticatorTransport" /> enum.
-    /// </exception>
-    /// <exception cref="ArgumentNullException">If the parameter <paramref name="id" /> is equal to <see langword="null" />.</exception>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="type" /> contains a value that is not defined in <see cref="PublicKeyCredentialType" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="id" /> is <see langword="null" /></exception>
+    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="transports" /> array contains a value not defined in <see cref="AuthenticatorTransport" /></exception>
     [JsonConstructor]
     public PublicKeyCredentialDescriptor(
         PublicKeyCredentialType type,
@@ -70,8 +83,12 @@ public class PublicKeyCredentialDescriptor
     }
 
     /// <summary>
-    ///     This member contains the type of the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a> the caller is referring to.
-    ///     The value should be a member of <see cref="PublicKeyCredentialType" /> but client platforms must ignore any <see cref="PublicKeyCredentialDescriptor" /> with an unknown type.
+    ///     <para>
+    ///         This member contains the type of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is referring to. The value SHOULD be a member of
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialtype">PublicKeyCredentialType</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore any
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialdescriptor">PublicKeyCredentialDescriptor</a> with an unknown <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-type">type</a>.
+    ///     </para>
+    ///     <para>This mirrors the <a href="https://www.w3.org/TR/credential-management-1/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
     /// </summary>
     [JsonPropertyName("type")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
@@ -79,8 +96,8 @@ public class PublicKeyCredentialDescriptor
     public PublicKeyCredentialType Type { get; }
 
     /// <summary>
-    ///     This member contains the <a href="https://www.w3.org/TR/webauthn-3/#credential-id">credential ID</a>
-    ///     of the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a> the caller is referring to.
+    ///     <para>This member contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is referring to.</para>
+    ///     <para>This mirrors the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-rawid">rawId</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
     /// </summary>
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
@@ -89,18 +106,21 @@ public class PublicKeyCredentialDescriptor
     public byte[] Id { get; }
 
     /// <summary>
-    ///     This optional member contains a hint as to how the <a href="https://www.w3.org/TR/webauthn-3/#client">client</a>
-    ///     might communicate with the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential-source-managing-authenticator">managing authenticator</a>
-    ///     of the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential">public key credential</a> the caller is referring to.
-    ///     The values should be members of <see cref="AuthenticatorTransport" /> but client platforms must ignore unknown values.
+    ///     <para>
+    ///         This OPTIONAL member contains a hint as to how the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> might communicate with the
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source-managing-authenticator">managing authenticator</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is
+    ///         referring to. The values SHOULD be members of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-authenticatortransport">AuthenticatorTransport</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST
+    ///         ignore unknown values.
+    ///     </para>
+    ///     <para>
+    ///         This mirrors the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-response">response</a>.<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> method of a
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a> structure created by a <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">create()</a> operation. When
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-registering-a-new-credential">registering a new credential</a>, the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD store the value returned from
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a>. When creating a
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialdescriptor">PublicKeyCredentialDescriptor</a> for that credential, the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD retrieve that
+    ///         stored value and set it as the value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-transports">transports</a> member.
+    ///     </para>
     /// </summary>
-    /// <remarks>
-    ///     The <a href="https://www.w3.org/TR/webauthn-3/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> operation can provide suitable values for this member.
-    ///     When <a href="https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential">registering a new credential</a>, the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a>
-    ///     should store the value returned from <a href="https://www.w3.org/TR/webauthn-3/#dom-authenticatorattestationresponse-gettransports">getTransports()</a>.
-    ///     When creating a <see cref="PublicKeyCredentialDescriptor" /> for that credential, the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a> \
-    ///     should retrieve that stored value and set it as the value of the transports member.
-    /// </remarks>
     [JsonPropertyName("transports")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AuthenticatorTransport[]? Transports { get; }

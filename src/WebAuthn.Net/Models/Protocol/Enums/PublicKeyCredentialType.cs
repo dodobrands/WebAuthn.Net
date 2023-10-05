@@ -5,10 +5,10 @@ using WebAuthn.Net.Serialization.Json;
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
 /// <summary>
-///     This enumeration defines the valid credential types.
+///     Credential Type Enumeration
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#enumdef-publickeycredentialtype">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.8.2. Credential Type Enumeration</a>
+///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enum-credentialType">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.8.2. Credential Type Enumeration</a>
 /// </remarks>
 [JsonConverter(typeof(EnumAsStringConverter<PublicKeyCredentialType>))]
 public enum PublicKeyCredentialType

@@ -1,8 +1,8 @@
 using System;
 using System.ComponentModel;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.AuthenticatorData;
-using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models.Enums;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Models;
 
