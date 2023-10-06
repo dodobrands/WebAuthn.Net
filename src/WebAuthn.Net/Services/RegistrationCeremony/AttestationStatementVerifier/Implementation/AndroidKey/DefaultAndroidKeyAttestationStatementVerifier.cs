@@ -344,7 +344,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier : IAndroidKeyAttestat
     private static bool TryGetExtensionData(X509Certificate2 credCert, [NotNullWhen(true)] out byte[]? asn1ExtensionData)
     {
         // https://www.w3.org/TR/webauthn-3/#sctn-key-attstn-cert-requirements
-        // § 8.4.1. Android Key Attestation Statement Certificate Requirements
+        // §8.4.1. Android Key Attestation Statement Certificate Requirements
         // Android Key Attestation attestation certificate's android key attestation certificate extension data
         // is identified by the OID 1.3.6.1.4.1.11129.2.1.17, and its schema is defined in the Android developer documentation.
         foreach (var extension in credCert.Extensions)

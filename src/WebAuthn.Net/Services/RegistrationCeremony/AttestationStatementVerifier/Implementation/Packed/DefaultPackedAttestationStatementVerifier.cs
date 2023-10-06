@@ -84,7 +84,7 @@ public class DefaultPackedAttestationStatementVerifier : IPackedAttestationState
             return Result<AttestationStatementVerificationResult>.Fail();
         }
 
-        // 2) Verify that attestnCert meets the requirements in § 8.2.1 Packed Attestation Statement Certificate Requirements.
+        // 2) Verify that attestnCert meets the requirements in §8.2.1 Packed Attestation Statement Certificate Requirements.
         // https://www.w3.org/TR/webauthn-3/#sctn-packed-attestation-cert-requirements
         if (!IsAttestnCertValid(attestnCert, out var aaguid))
         {

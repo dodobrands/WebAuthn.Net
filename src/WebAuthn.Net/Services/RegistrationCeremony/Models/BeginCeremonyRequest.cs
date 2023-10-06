@@ -10,7 +10,7 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Models;
 ///     Options for credential creation.
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#dictionary-makecredentialoptions">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.4. Options for Credential Creation</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#dictionary-makecredentialoptions">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.4. Options for Credential Creation</a>
 /// </remarks>
 public class BeginCeremonyRequest
 {

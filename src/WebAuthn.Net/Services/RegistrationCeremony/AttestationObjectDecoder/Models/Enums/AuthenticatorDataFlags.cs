@@ -6,7 +6,7 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Mo
 ///     Flags that encode contextual bindings made by the authenticator.
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 6.1. Authenticator Data</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">Web Authentication: An API for accessing Public Key Credentials Level 3 - §6.1. Authenticator Data</a>
 /// </remarks>
 [Flags]
 public enum AuthenticatorDataFlags : byte

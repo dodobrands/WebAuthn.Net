@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <a href="https://www.w3.org/TR/webauthn-3/#sctn-alg-identifier">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.8.5. Cryptographic Algorithm Identifier</a>
+///         <a href="https://www.w3.org/TR/webauthn-3/#sctn-alg-identifier">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.8.5. Cryptographic Algorithm Identifier</a>
 ///     </para>
 ///     <para>
 ///         <a href="https://www.iana.org/assignments/cose/cose.xhtml#algorithms">COSE Algorithms</a>

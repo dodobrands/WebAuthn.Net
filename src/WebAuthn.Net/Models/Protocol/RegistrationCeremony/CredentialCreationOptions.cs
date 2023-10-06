@@ -8,9 +8,12 @@ namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony;
 ///     Credential request options.
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/credential-management-1/#credentialcreationoptions-dictionary">Credential Management Level 1 - § 2.4. The CredentialCreationOptions Dictionary</a>
-///     <br />
-///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-credentialcreationoptions-extension">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.1.1. CredentialCreationOptions Dictionary Extension</a>
+///     <para>
+///         <a href="https://w3c.github.io/webappsec-credential-management/#credentialcreationoptions-dictionary">Credential Management Level 1 - §2.4. The CredentialCreationOptions Dictionary</a>
+///     </para>
+///     <para>
+///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credentialrequestoptions-extension">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.1.2. CredentialRequestOptions Dictionary Extension</a>
+///     </para>
 /// </remarks>
 public class CredentialCreationOptions
 {
@@ -18,7 +21,7 @@ public class CredentialCreationOptions
     ///     Constructs <see cref="CredentialCreationOptions" />.
     /// </summary>
     /// <param name="publicKey">Options for credential creation.</param>
-    /// <exception cref="ArgumentNullException">If the parameter <paramref name="publicKey" /> is equal to <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="publicKey" /> is <see langword="null" /></exception>
     [JsonConstructor]
     public CredentialCreationOptions(PublicKeyCredentialCreationOptions publicKey)
     {

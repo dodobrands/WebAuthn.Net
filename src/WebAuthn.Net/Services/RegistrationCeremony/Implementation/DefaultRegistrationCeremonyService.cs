@@ -122,7 +122,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             // or otherwise guide the user experience as might be determinable from the context available in the rejected promise.
             // For example if the promise is rejected with an error code equivalent to "InvalidStateError",
             // the user might be instructed to use a different authenticator.
-            // For information on different error contexts and the circumstances leading to them, see § .3.2 The authenticatorMakeCredential Operation.
+            // For information on different error contexts and the circumstances leading to them, see §.3.2 The authenticatorMakeCredential Operation.
             // 3. Let response be credential.response. If response is not an instance of AuthenticatorAttestationResponse,
             // abort the ceremony with a user-visible error.
             // 4. Let clientExtensionResults be the result of calling credential.getClientExtensionResults().
@@ -167,7 +167,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             // over which the assertion was obtained. If Token Binding was used on that TLS connection, also verify that
             // C.tokenBinding.id matches the base64url encoding of the Token Binding ID for the connection.
             // https://w3c.github.io/webauthn/#collectedclientdata-tokenbinding
-            // Web Authentication: An API for accessing Public Key Credentials Level 3. Editor’s Draft, 12 September 2023 - § 5.8.1. Client Data Used in WebAuthn Signatures
+            // Web Authentication: An API for accessing Public Key Credentials Level 3. Editor’s Draft, 12 September 2023 - §5.8.1. Client Data Used in WebAuthn Signatures
             // NOTE: While Token Binding was present in Level 1 and Level 2 of WebAuthn, its use is not expected in Level 3.
             // The tokenBinding field is reserved so that it will not be reused for a different purpose.
             // -----
@@ -189,7 +189,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             var attStmt = attestationObjectResult.Ok.AttStmt;
 
             // 13. Verify that the rpIdHash in authData is the SHA-256 hash of the RP ID expected by the Relying Party.
-            if (!authData.RpIdHash.AsSpan().SequenceEqual(SHA256.HashData(Encoding.UTF8.GetBytes(options.Rp.Id)).AsSpan()))
+            if (!authData.RpIdHash.AsSpan().SequenceEqual(SHA256.HashData(Encoding.UTF8.GetBytes(options.Rp.Id ?? string.Empty)).AsSpan()))
             {
                 _logger.RpIdHashMismatch();
                 return Result<CompleteCeremonyResult>.Fail();
@@ -246,7 +246,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             // 19. Verify that attStmt is a correct attestation statement, conveying a valid attestation signature,
             // by using the attestation statement format fmt’s verification procedure given attStmt, authData and hash.
             // Note: Each attestation statement format specifies its own verification procedure.
-            // See § 8 Defined Attestation Statement Formats for the initially-defined formats, and [IANA-WebAuthn-Registries] for the up-to-date list.
+            // See §8 Defined Attestation Statement Formats for the initially-defined formats, and [IANA-WebAuthn-Registries] for the up-to-date list.
 
             // var attStmtIsValid = await _attestationStatementVerifier.VerifyAttestationStatementAsync(
             //     context,
@@ -318,16 +318,17 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         byte[] challenge,
         PublicKeyCredentialDescriptor[]? excludeCredentials)
     {
-        return new(new(
-            request.Rp,
-            request.User,
-            challenge,
-            request.PubKeyCredParams,
-            request.Timeout,
-            excludeCredentials,
-            request.AuthenticatorSelection,
-            request.Attestation,
-            null));
+        // return new(new(
+        //     request.Rp,
+        //     request.User,
+        //     challenge,
+        //     request.PubKeyCredParams,
+        //     request.Timeout,
+        //     excludeCredentials,
+        //     request.AuthenticatorSelection,
+        //     request.Attestation,
+        //     null));
+        throw new NotImplementedException();
     }
 }
 

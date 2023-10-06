@@ -9,9 +9,9 @@ namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony;
 ///     Information About Public Key Credential
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#iface-authenticatorresponse">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.2. Authenticator Responses (interface AuthenticatorResponse)</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#iface-authenticatorresponse">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.2. Authenticator Responses (interface AuthenticatorResponse)</a>
 ///     <br />
-///     <a href="https://www.w3.org/TR/webauthn-3/#authenticatorattestationresponse">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.2.1. Information About Public Key Credential (interface AuthenticatorAttestationResponse)</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#authenticatorattestationresponse">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.2.1. Information About Public Key Credential (interface AuthenticatorAttestationResponse)</a>
 /// </remarks>
 public class AuthenticatorAttestationResponse
 {

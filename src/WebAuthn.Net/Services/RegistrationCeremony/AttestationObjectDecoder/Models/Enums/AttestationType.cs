@@ -4,7 +4,7 @@
 ///     Attestation Types
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-types">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 6.5.3. Attestation Types</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-types">Web Authentication: An API for accessing Public Key Credentials Level 3 - §6.5.3. Attestation Types</a>
 /// </remarks>
 public enum AttestationType
 {
@@ -12,7 +12,7 @@ public enum AttestationType
     ///     In the case of basic attestation <a href="https://www.w3.org/TR/webauthn-3/#biblio-uafprotocol">[UAFProtocol]</a>,
     ///     the authenticator’s <a href="https://www.w3.org/TR/webauthn-3/#attestation-key-pair">attestation key pair</a> is specific to an authenticator "model",
     ///     i.e., a "batch" of authenticators. Thus, authenticators of the same, or similar, model often share the same <a href="https://www.w3.org/TR/webauthn-3/#attestation-key-pair">attestation key pair</a>.
-    ///     See <a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-privacy">§ 14.4.1 Attestation Privacy</a> for further information.
+    ///     See <a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-privacy">§14.4.1 Attestation Privacy</a> for further information.
     /// </summary>
     Basic = 0,
 
@@ -58,7 +58,7 @@ public enum AttestationType
     AnonCa = 3,
 
     /// <summary>
-    ///     In this case, no attestation information is available. See also <a href="https://www.w3.org/TR/webauthn-3/#sctn-none-attestation">§ 8.7 None Attestation Statement Format</a>
+    ///     In this case, no attestation information is available. See also <a href="https://www.w3.org/TR/webauthn-3/#sctn-none-attestation">§8.7 None Attestation Statement Format</a>
     /// </summary>
     None = 4
 }

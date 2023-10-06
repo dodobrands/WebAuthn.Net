@@ -11,7 +11,7 @@ namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony;
 ///     Parameters for Credential Generation
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#dictionary-credential-params">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 5.3. Parameters for Credential Generation</a>
+///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-credential-params">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.3. Parameters for Credential Generation</a>
 /// </remarks>
 public class PublicKeyCredentialParameters
 {
@@ -19,19 +19,13 @@ public class PublicKeyCredentialParameters
     ///     Constructs <see cref="PublicKeyCredentialParameters" />.
     /// </summary>
     /// <param name="type">
-    ///     This member specifies the type of credential to be created.
-    ///     The value should be a member of <see cref="PublicKeyCredentialType" /> but client platforms must ignore unknown values,
-    ///     ignoring any <see cref="PublicKeyCredentialParameters" /> with an unknown type.
+    ///     This member specifies the type of credential to be created. The value SHOULD be a member of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialtype">PublicKeyCredentialType</a> but
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore unknown values, ignoring any <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialparameters">PublicKeyCredentialParameters</a>
+    ///     with an unknown <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialparameters-type">type</a>.
     /// </param>
-    /// <param name="alg">
-    ///     This member specifies the cryptographic signature algorithm with which the newly generated credential will be used,
-    ///     and thus also the type of asymmetric key pair to be generated, e.g., RSA or Elliptic Curve.
-    /// </param>
-    /// <exception cref="InvalidEnumArgumentException">
-    ///     If the <paramref name="type" /> or <paramref name="alg" /> parameters
-    ///     contain a value that is not defined in the <see cref="PublicKeyCredentialType" /> and <see cref="CoseAlgorithm" /> enums, respectively.
-    /// </exception>
-    [JsonConstructor]
+    /// <param name="alg">This member specifies the cryptographic signature algorithm with which the newly generated credential will be used, and thus also the type of asymmetric key pair to be generated, e.g., RSA or Elliptic Curve.</param>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="type" /> contains a value that is not defined in <see cref="PublicKeyCredentialType" /></exception>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="alg" /> contains a value that is not defined in <see cref="CoseAlgorithm" /></exception>
     public PublicKeyCredentialParameters(PublicKeyCredentialType type, CoseAlgorithm alg)
     {
         if (!Enum.IsDefined(typeof(PublicKeyCredentialType), type))
@@ -49,9 +43,9 @@ public class PublicKeyCredentialParameters
     }
 
     /// <summary>
-    ///     This member specifies the type of credential to be created.
-    ///     The value should be a member of <see cref="PublicKeyCredentialType" /> but client platforms must ignore unknown values,
-    ///     ignoring any <see cref="PublicKeyCredentialParameters" /> with an unknown type.
+    ///     This member specifies the type of credential to be created. The value SHOULD be a member of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialtype">PublicKeyCredentialType</a> but
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore unknown values, ignoring any <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialparameters">PublicKeyCredentialParameters</a>
+    ///     with an unknown <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialparameters-type">type</a>.
     /// </summary>
     [Required]
     [JsonPropertyName("type")]
@@ -59,9 +53,11 @@ public class PublicKeyCredentialParameters
     public PublicKeyCredentialType Type { get; }
 
     /// <summary>
-    ///     This member specifies the cryptographic signature algorithm with which the newly generated credential will be used,
-    ///     and thus also the type of asymmetric key pair to be generated, e.g., RSA or Elliptic Curve.
+    ///     This member specifies the cryptographic signature algorithm with which the newly generated credential will be used, and thus also the type of asymmetric key pair to be generated, e.g., RSA or Elliptic Curve.
     /// </summary>
+    /// <remarks>
+    ///     We use "alg" as the latter member name, rather than spelling-out "algorithm", because it will be serialized into a message to the authenticator, which may be sent over a low-bandwidth link.
+    /// </remarks>
     [Required]
     [JsonPropertyName("alg")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]

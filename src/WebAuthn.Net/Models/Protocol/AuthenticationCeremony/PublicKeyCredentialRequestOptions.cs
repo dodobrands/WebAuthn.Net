@@ -178,7 +178,7 @@ public class PublicKeyCredentialRequestOptions
         {
             if (!Enum.IsDefined(attestation.Value))
             {
-                throw new InvalidEnumArgumentException(nameof(userVerification), (int) attestation.Value, typeof(AttestationConveyancePreference));
+                throw new InvalidEnumArgumentException(nameof(attestation), (int) attestation.Value, typeof(AttestationConveyancePreference));
             }
 
             Attestation = attestation.Value;
@@ -314,15 +314,13 @@ public class PublicKeyCredentialRequestOptions
     public UserVerificationRequirement? UserVerification { get; }
 
     /// <summary>
-    ///     This OPTIONAL member contains zero or more elements from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialhints">PublicKeyCredentialHints</a> to guide the user agent in interacting with the user. Note that the elements have type
-    ///     DOMString despite being taken from that enumeration. See <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sct-domstring-backwards-compatibility">§2.1.1 Enumerations as DOMString types</a>.
+    ///     This OPTIONAL member contains zero or more elements from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialhints">PublicKeyCredentialHints</a> to guide the user agent in interacting with the user.
     /// </summary>
     /// <remarks>
     ///     defaulting to []
     /// </remarks>
     [JsonPropertyName("hints")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PublicKeyCredentialHints[]? Hints { get; }
 
     /// <summary>
@@ -334,8 +332,7 @@ public class PublicKeyCredentialRequestOptions
     ///     defaulting to "none"
     /// </remarks>
     [JsonPropertyName("attestation")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AttestationConveyancePreference? Attestation { get; }
 
     /// <summary>
@@ -347,8 +344,7 @@ public class PublicKeyCredentialRequestOptions
     ///     defaulting to []
     /// </remarks>
     [JsonPropertyName("attestationFormats")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AttestationStatementFormat[]? AttestationFormats { get; }
 
     /// <summary>

@@ -58,6 +58,7 @@ public class PublicKeyCredentialDescriptor
         byte[] id,
         AuthenticatorTransport[]? transports)
     {
+        // type
         if (!Enum.IsDefined(type))
         {
             throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
@@ -65,9 +66,11 @@ public class PublicKeyCredentialDescriptor
 
         Type = type;
 
+        // id
         ArgumentNullException.ThrowIfNull(id);
         Id = id;
 
+        // transports
         if (transports?.Length > 0)
         {
             foreach (var transport in transports)

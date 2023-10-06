@@ -8,7 +8,7 @@
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <a href="https://www.rfc-editor.org/rfc/rfc9052.html#section-7.1">RFC 9052 CBOR Object Signing and Encryption (COSE): Structures and Process - § 7.1. COSE Key Common Parameters</a>
+///         <a href="https://www.rfc-editor.org/rfc/rfc9052.html#section-7.1">RFC 9052 CBOR Object Signing and Encryption (COSE): Structures and Process - §7.1. COSE Key Common Parameters</a>
 ///     </para>
 /// </remarks>
 public enum CoseKeyOptions

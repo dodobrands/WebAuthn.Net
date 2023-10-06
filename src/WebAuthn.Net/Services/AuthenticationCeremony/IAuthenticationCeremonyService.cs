@@ -12,7 +12,7 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony;
 ///     to perform the <a href="https://www.w3.org/TR/webauthn-3/#authentication-ceremony">authentication ceremony</a>.
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion">Web Authentication: An API for accessing Public Key Credentials Level 3 - § 7.2. Verifying an Authentication Assertion</a>
+///     <a href="https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion">Web Authentication: An API for accessing Public Key Credentials Level 3 - §7.2. Verifying an Authentication Assertion</a>
 /// </remarks>
 public interface IAuthenticationCeremonyService
 {
