@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using WebAuthn.Net.Models.Protocol;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Models;
@@ -37,12 +36,6 @@ public class ExcludeCredentialsOptions
     public static ExcludeCredentialsOptions SpecificKeys(PublicKeyCredentialDescriptor[] keysToExclude)
     {
         ArgumentNullException.ThrowIfNull(keysToExclude);
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (keysToExclude.Any(static x => x is null))
-        {
-            throw new ArgumentException($"One or more objects contained in the {nameof(keysToExclude)} array are equal to null.", nameof(keysToExclude));
-        }
-
         return new(true, false, keysToExclude);
     }
 }

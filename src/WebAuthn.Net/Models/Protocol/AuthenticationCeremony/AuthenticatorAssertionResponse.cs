@@ -24,8 +24,8 @@ public class AuthenticatorAssertionResponse
     /// <param name="clientDataJson">
     ///     This attribute, inherited from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticatorresponse">AuthenticatorResponse</a>, contains the
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#collectedclientdata-json-compatible-serialization-of-client-data">JSON-compatible serialization of client data</a> (see
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation">§6.5 Attestation</a>) passed to the authenticator by the client in order to generate this credential. The exact JSON serialization MUST be preserved, as the
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#collectedclientdata-hash-of-the-serialized-client-data">hash of the serialized client data</a> has been computed over it.
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">§5.8.1 Client Data Used in WebAuthn Signatures (dictionary CollectedClientData)</a>) passed to the authenticator by the client in order to generate this assertion. The exact JSON
+    ///     serialization MUST be preserved, as the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#collectedclientdata-hash-of-the-serialized-client-data">hash of the serialized client data</a> has been computed over it.
     /// </param>
     /// <param name="authenticatorData">
     ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> returned by the authenticator. See
@@ -53,7 +53,12 @@ public class AuthenticatorAssertionResponse
     /// <exception cref="ArgumentNullException"><paramref name="authenticatorData" /> is <see langword="null" /></exception>
     /// <exception cref="ArgumentNullException"><paramref name="signature" /> is <see langword="null" /></exception>
     [JsonConstructor]
-    public AuthenticatorAssertionResponse(byte[] clientDataJson, byte[] authenticatorData, byte[] signature, byte[]? userHandle, byte[]? attestationObject)
+    public AuthenticatorAssertionResponse(
+        byte[] clientDataJson,
+        byte[] authenticatorData,
+        byte[] signature,
+        byte[]? userHandle,
+        byte[]? attestationObject)
     {
         ArgumentNullException.ThrowIfNull(clientDataJson);
         ArgumentNullException.ThrowIfNull(authenticatorData);
@@ -68,8 +73,8 @@ public class AuthenticatorAssertionResponse
     /// <summary>
     ///     This attribute, inherited from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticatorresponse">AuthenticatorResponse</a>, contains the
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#collectedclientdata-json-compatible-serialization-of-client-data">JSON-compatible serialization of client data</a> (see
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation">§6.5 Attestation</a>) passed to the authenticator by the client in order to generate this credential. The exact JSON serialization MUST be preserved, as the
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#collectedclientdata-hash-of-the-serialized-client-data">hash of the serialized client data</a> has been computed over it.
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">§5.8.1 Client Data Used in WebAuthn Signatures (dictionary CollectedClientData)</a>) passed to the authenticator by the client in order to generate this assertion. The exact JSON
+    ///     serialization MUST be preserved, as the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#collectedclientdata-hash-of-the-serialized-client-data">hash of the serialized client data</a> has been computed over it.
     /// </summary>
     [Required]
     [JsonPropertyName("clientDataJSON")]

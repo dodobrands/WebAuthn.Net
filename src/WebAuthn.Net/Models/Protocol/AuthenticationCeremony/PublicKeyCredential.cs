@@ -48,8 +48,8 @@ public class PublicKeyCredential
     /// </param>
     /// <param name="rawId">This attribute returns the <a href="https://webidl.spec.whatwg.org/#idl-ArrayBuffer">ArrayBuffer</a> contained in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-identifier-slot">[[identifier]]</a> internal slot.</param>
     /// <param name="response">
-    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to either create a
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key</a> credential, or generate an <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertion</a>.
+    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to generate an
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertion</a>.
     /// </param>
     /// <param name="authenticatorAttachment">
     ///     This attribute reports the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-attachment-modality">authenticator attachment modality</a> in effect at the time the
@@ -59,6 +59,10 @@ public class PublicKeyCredential
     /// <exception cref="ArgumentNullException"><paramref name="id" /> is <see langword="null" /></exception>
     /// <exception cref="ArgumentException"><paramref name="id" /> contains surrogate pairs (it is not a valid instance of <a href="https://webidl.spec.whatwg.org/#idl-USVString">USVString</a>)</exception>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="type" /> contains a value that is not defined in <see cref="PublicKeyCredentialType" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="rawId" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentException"><paramref name="rawId" /> is empty</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="response" /> is <see langword="null" /></exception>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="authenticatorAttachment" /> contains a value that is not defined in <see cref="AuthenticatorAttachment" /></exception>
     [JsonConstructor]
     public PublicKeyCredential(
         string id,
@@ -67,29 +71,45 @@ public class PublicKeyCredential
         AuthenticatorAssertionResponse response,
         AuthenticatorAttachment? authenticatorAttachment)
     {
+        // id
         ArgumentNullException.ThrowIfNull(id, nameof(id));
         if (!UsvStringValidator.IsValid(id))
         {
             throw new ArgumentException($"{nameof(id)} must be a string that doesn't contain surrogate pairs.", nameof(id));
         }
 
+        Id = id;
+
+        // type
         if (!Enum.IsDefined(type))
         {
             throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
         }
 
-        ArgumentNullException.ThrowIfNull(rawId, nameof(rawId));
-        ArgumentNullException.ThrowIfNull(response, nameof(response));
-
-        Id = id;
         Type = type;
+
+        // rawId
+        ArgumentNullException.ThrowIfNull(rawId, nameof(rawId));
+        if (rawId.Length < 1)
+        {
+            throw new ArgumentException($"The {nameof(rawId)} contain at least 1 element.", nameof(rawId));
+        }
+
         RawId = rawId;
+
+        // response
+        ArgumentNullException.ThrowIfNull(response, nameof(response));
         Response = response;
+
+        // authenticatorAttachment
         if (authenticatorAttachment.HasValue)
         {
-            AuthenticatorAttachment = Enum.IsDefined(authenticatorAttachment.Value)
-                ? authenticatorAttachment.Value
-                : null;
+            if (!Enum.IsDefined(authenticatorAttachment.Value))
+            {
+                throw new InvalidEnumArgumentException(nameof(authenticatorAttachment), (int) authenticatorAttachment.Value, typeof(AuthenticatorAttachment));
+            }
+
+            AuthenticatorAttachment = authenticatorAttachment.Value;
         }
     }
 
@@ -140,8 +160,8 @@ public class PublicKeyCredential
     public byte[] RawId { get; }
 
     /// <summary>
-    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to either create a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key</a>
-    ///     credential, or generate an <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertion</a>.
+    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to generate an
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertion</a>.
     /// </summary>
     [JsonPropertyName("response")]
     [Required]
@@ -150,7 +170,7 @@ public class PublicKeyCredential
 
     /// <summary>
     ///     This attribute reports the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-attachment-modality">authenticator attachment modality</a> in effect at the time the
-    ///     <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-get">navigator.credentials.get()</a> method successfully complete. The attribute’s value SHOULD be a member of
+    ///     <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-get">navigator.credentials.get()</a> method successfully completes. The attribute’s value SHOULD be a member of
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-authenticatorattachment">AuthenticatorAttachment</a>. <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Parties</a> SHOULD treat unknown values as if the value were null.
     /// </summary>
     /// <remarks>

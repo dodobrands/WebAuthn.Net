@@ -162,6 +162,7 @@ public class PublicKeyCredentialCreationOptions
             AttestationFormats = attestationFormats;
         }
 
+        // extensions
         Extensions = extensions;
     }
 
