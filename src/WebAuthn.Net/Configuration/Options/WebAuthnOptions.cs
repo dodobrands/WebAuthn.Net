@@ -2,5 +2,6 @@
 
 public class WebAuthnOptions
 {
-    public RegistrationOptions RegistrationCeremony { get; set; } = new();
+    public AttestationStatementOptions AttestationStatements { get; set; } = new();
+    public AttestationTypeOptions AttestationTypes { get; set; } = new();
 }

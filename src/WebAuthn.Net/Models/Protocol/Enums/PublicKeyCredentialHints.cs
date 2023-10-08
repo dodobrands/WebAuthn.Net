@@ -1,6 +1,4 @@
 ﻿using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
@@ -24,7 +22,6 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 ///         leaving hints as the only avenue for expressing some aspects of such a request.)
 ///     </para>
 /// </remarks>
-[JsonConverter(typeof(EnumAsStringConverter<PublicKeyCredentialHints>))]
 public enum PublicKeyCredentialHints
 {
     /// <summary>

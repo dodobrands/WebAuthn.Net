@@ -1,5 +1,8 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
@@ -31,7 +34,85 @@ public class CoseEc2Key : AbstractCoseKey
 
     public override CoseKeyType Kty => CoseKeyType.EC2;
     public override CoseAlgorithm Alg { get; }
+
     public CoseEllipticCurve Crv { get; }
     public byte[] X { get; }
     public byte[] Y { get; }
+
+    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
+    public override bool Matches(PublicKey certificatePublicKey)
+    {
+        if (certificatePublicKey is null)
+        {
+            return false;
+        }
+
+        var certEcdsa = certificatePublicKey.GetECDsaPublicKey();
+        if (certEcdsa is null)
+        {
+            return false;
+        }
+
+        var certParams = certEcdsa.ExportParameters(false);
+        if (!TryToCoseCurve(certParams.Curve, out var certCurve))
+        {
+            return false;
+        }
+
+        var certX = certParams.Q.X;
+        var certY = certParams.Q.Y;
+        return certCurve.Value == Crv
+               && certX.AsSpan().SequenceEqual(X.AsSpan())
+               && certY.AsSpan().SequenceEqual(Y.AsSpan());
+    }
+
+    public override bool Matches(AsymmetricAlgorithm asymmetricAlgorithm)
+    {
+        if (asymmetricAlgorithm is not ECDsa alg)
+        {
+            return false;
+        }
+
+        var algParams = alg.ExportParameters(false);
+        if (!TryToCoseCurve(algParams.Curve, out var algCurve))
+        {
+            return false;
+        }
+
+        var algX = algParams.Q.X;
+        var algY = algParams.Q.Y;
+        return algCurve.Value == Crv
+               && algX.AsSpan().SequenceEqual(X.AsSpan())
+               && algY.AsSpan().SequenceEqual(Y.AsSpan());
+    }
+
+    private static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEllipticCurve? coseCurve)
+    {
+        if (string.IsNullOrEmpty(ecCurve.Oid.Value))
+        {
+            coseCurve = null;
+            return false;
+        }
+
+        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP256.Oid.Value, StringComparison.Ordinal))
+        {
+            coseCurve = CoseEllipticCurve.P256;
+            return true;
+        }
+
+        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value, StringComparison.Ordinal))
+        {
+            coseCurve = CoseEllipticCurve.P384;
+            return true;
+        }
+
+        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP521.Oid.Value, StringComparison.Ordinal))
+        {
+            coseCurve = CoseEllipticCurve.P521;
+            return true;
+        }
+
+        coseCurve = null;
+        return false;
+    }
 }

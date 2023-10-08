@@ -173,7 +173,7 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
                     using var rsa = RSA.Create(new RSAParameters
                     {
                         Modulus = coseRsaKey.ModulusN,
-                        Exponent = coseRsaKey.CoseExponentE
+                        Exponent = coseRsaKey.ExponentE
                     });
                     return rsa.VerifyData(dataToVerify, signature, hashAlgorithmName.Value, padding);
                 }

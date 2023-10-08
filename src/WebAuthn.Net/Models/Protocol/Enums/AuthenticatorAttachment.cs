@@ -1,6 +1,4 @@
 ﻿using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
@@ -29,7 +27,6 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 ///         the time.
 ///     </para>
 /// </remarks>
-[JsonConverter(typeof(EnumAsStringConverter<AuthenticatorAttachment>))]
 public enum AuthenticatorAttachment
 {
     /// <summary>

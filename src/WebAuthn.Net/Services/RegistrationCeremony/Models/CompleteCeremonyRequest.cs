@@ -1,19 +1,19 @@
 ﻿using System;
-using WebAuthn.Net.Models.Protocol.RegistrationCeremony;
+using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential.Input;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Models;
 
 public class CompleteCeremonyRequest
 {
-    public CompleteCeremonyRequest(string registrationCeremonyId, PublicKeyCredential credential)
+    public CompleteCeremonyRequest(string registrationCeremonyId, RegistrationResponseJSON response)
     {
         ArgumentNullException.ThrowIfNull(registrationCeremonyId);
-        ArgumentNullException.ThrowIfNull(credential);
+        ArgumentNullException.ThrowIfNull(response);
         RegistrationCeremonyId = registrationCeremonyId;
-        Credential = credential;
+        Response = response;
     }
 
     public string RegistrationCeremonyId { get; }
 
-    public PublicKeyCredential Credential { get; }
+    public RegistrationResponseJSON Response { get; }
 }

@@ -1,6 +1,4 @@
 ﻿using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
@@ -21,7 +19,6 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 ///         create either a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-side-discoverable-credential">client-side discoverable credential</a> or a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#server-side-credential">server-side credential</a>.
 ///     </para>
 /// </remarks>
-[JsonConverter(typeof(EnumAsStringConverter<ResidentKeyRequirement>))]
 public enum ResidentKeyRequirement
 {
     /// <summary>

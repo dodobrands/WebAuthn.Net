@@ -1,6 +1,4 @@
 using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-using WebAuthn.Net.Serialization.Json;
 
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
@@ -10,7 +8,6 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 /// <remarks>
 ///     <a href="https://www.iana.org/assignments/webauthn/webauthn.xhtml#webauthn-attestation-statement-format-ids">IANA "WebAuthn Attestation Statement Format Identifiers" registry</a>
 /// </remarks>
-[JsonConverter(typeof(EnumAsStringConverter<AttestationStatementFormat>))]
 public enum AttestationStatementFormat
 {
     /// <summary>

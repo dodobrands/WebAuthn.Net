@@ -181,12 +181,11 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         [NotNullWhen(true)] out CoseAlgorithm? alg,
         [NotNullWhen(true)] out AbstractCborObject? algKey)
     {
-        // https://www.w3.org/TR/webauthn-3/#sctn-attested-credential-data
-        // The COSE_Key-encoded credential public key MUST contain the "alg" parameter
-        // and MUST NOT contain any other OPTIONAL parameters.
+        // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attested-credential-data
+        // The COSE_Key-encoded credential public key MUST contain the "alg" parameter and MUST NOT contain any other OPTIONAL parameters.
         // The "alg" parameter MUST contain a COSEAlgorithmIdentifier value.
         // The encoded credential public key MUST also contain any additional REQUIRED parameters stipulated by the relevant key type specification,
-        // i.e., REQUIRED for the key type "kty" and algorithm "alg" (see Section 8 of [RFC8152]).
+        // i.e., REQUIRED for the key type "kty" and algorithm "alg" (see Section 2 of [RFC9053]).
         // https://www.rfc-editor.org/rfc/rfc9052#section-1.5
         // label = int / tstr
         // https://www.rfc-editor.org/rfc/rfc9052#section-7

@@ -3,14 +3,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Abstractions;
-using WebAuthn.Net.Services.AuthenticationCeremony;
-using WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
+using WebAuthn.Net.Services.Providers;
+using WebAuthn.Net.Services.Providers.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony;
-using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.AttestationObjectDecoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
-using WebAuthn.Net.Services.TimeProvider;
-using WebAuthn.Net.Services.TimeProvider.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.ChallengeGenerator;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.ChallengeGenerator.Implementation;
 
 namespace WebAuthn.Net.Configuration.Builder;
 
@@ -33,7 +33,6 @@ public class WebAuthnBuilder<TContext> : IWebAuthnBuilder<TContext>
             Services.Configure(configure);
         }
 
-        Services.TryAddSingleton<IAuthenticationCeremonyService, DefaultAuthenticationCeremonyService<TContext>>();
         Services.TryAddSingleton<IAuthenticatorDataDecoder, DefaultAuthenticatorDataDecoder>();
         Services.TryAddSingleton<IChallengeGenerator, DefaultChallengeGenerator>();
         Services.TryAddSingleton<IRegistrationCeremonyService, DefaultRegistrationCeremonyService<TContext>>();

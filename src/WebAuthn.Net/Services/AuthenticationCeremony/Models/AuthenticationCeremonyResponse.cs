@@ -1,5 +1,8 @@
-﻿namespace WebAuthn.Net.Services.AuthenticationCeremony.Models;
+﻿// namespace WebAuthn.Net.Services.AuthenticationCeremony.Models;
+//
+// public class AuthenticationCeremonyResponse
+// {
+// }
 
-public class AuthenticationCeremonyResponse
-{
-}
+
+

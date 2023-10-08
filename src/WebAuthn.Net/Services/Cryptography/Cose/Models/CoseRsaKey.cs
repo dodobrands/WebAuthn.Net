@@ -1,6 +1,7 @@
 ﻿using System;
-using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
@@ -9,7 +10,7 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Models;
 
 public class CoseRsaKey : AbstractCoseKey
 {
-    public CoseRsaKey(CoseAlgorithm alg, byte[] modulusN, byte[] coseExponentE)
+    public CoseRsaKey(CoseAlgorithm alg, byte[] modulusN, byte[] exponentE)
     {
         if (!CoseKeyType.RSA.GetSupportedAlgorithms().Contains(alg))
         {
@@ -17,47 +18,60 @@ public class CoseRsaKey : AbstractCoseKey
         }
 
         ArgumentNullException.ThrowIfNull(modulusN);
-        ArgumentNullException.ThrowIfNull(coseExponentE);
+        ArgumentNullException.ThrowIfNull(exponentE);
         Alg = alg;
         ModulusN = modulusN;
-        CoseExponentE = coseExponentE;
-        if (!TryGetExponent(coseExponentE, out var exponent))
-        {
-            throw new ArgumentException($"Invalid value of {nameof(coseExponentE)}", nameof(coseExponentE));
-        }
-
-        ExponentE = exponent.Value;
+        ExponentE = exponentE;
     }
 
     public override CoseKeyType Kty => CoseKeyType.RSA;
     public override CoseAlgorithm Alg { get; }
-    public byte[] ModulusN { get; }
-    public byte[] CoseExponentE { get; }
-    public uint ExponentE { get; }
 
-    private static bool TryGetExponent(byte[] coseExponent, [NotNullWhen(true)] out uint? exponent)
+    public byte[] ModulusN { get; }
+    public byte[] ExponentE { get; }
+
+    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
+    public override bool Matches(PublicKey certificatePublicKey)
     {
-        if (coseExponent.Length > 4)
+        if (certificatePublicKey is null)
         {
-            exponent = null;
             return false;
         }
 
-        var bytesToAppend = 4 - coseExponent.Length;
-        if (bytesToAppend == 0)
+        var certRsa = certificatePublicKey.GetRSAPublicKey();
+        if (certRsa is null)
         {
-            exponent = BinaryPrimitives.ReadUInt32BigEndian(coseExponent);
-            return true;
+            return false;
         }
 
-        Span<byte> coseBigEndianBuffer = stackalloc byte[4];
-        for (var i = 0; i < 4; i++)
+        var certParams = certRsa.ExportParameters(false);
+        var certModulus = certParams.Modulus;
+        var certExponent = certParams.Exponent;
+        if (certModulus is null || certExponent is null)
         {
-            coseBigEndianBuffer[i] = 0;
+            return false;
         }
 
-        coseExponent.AsSpan().CopyTo(coseBigEndianBuffer[bytesToAppend..]);
-        exponent = BinaryPrimitives.ReadUInt32BigEndian(coseBigEndianBuffer);
-        return true;
+        return certModulus.AsSpan().SequenceEqual(ModulusN.AsSpan())
+               && certExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
+    }
+
+    public override bool Matches(AsymmetricAlgorithm asymmetricAlgorithm)
+    {
+        if (asymmetricAlgorithm is not RSA alg)
+        {
+            return false;
+        }
+
+        var algParams = alg.ExportParameters(false);
+        var algModulus = algParams.Modulus;
+        var algExponent = algParams.Exponent;
+        if (algModulus is null || algExponent is null)
+        {
+            return false;
+        }
+
+        return algModulus.AsSpan().SequenceEqual(ModulusN.AsSpan())
+               && algExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
     }
 }
