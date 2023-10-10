@@ -2,20 +2,20 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony;
 
 public interface IRegistrationCeremonyService
 {
-    Task<BeginCeremonyResult> BeginCeremonyAsync(
+    Task<BeginRegistrationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
-        BeginCeremonyRequest request,
+        BeginRegistrationCeremonyRequest request,
         CancellationToken cancellationToken);
 
-    Task<Result<CompleteCeremonyResult>> CompleteCeremonyAsync(
+    Task<Result<CompleteRegistrationCeremonyResult>> CompleteCeremonyAsync(
         HttpContext httpContext,
-        CompleteCeremonyRequest request,
+        CompleteRegistrationCeremonyRequest request,
         CancellationToken cancellationToken);
 }

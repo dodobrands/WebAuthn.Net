@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential.Input;
+namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 
 /// <summary>
 ///     Information About Public Key Credential
@@ -12,10 +12,7 @@ namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredentia
 ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-authenticatorattestationresponse">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.2.1. Information About Public Key Credential (interface AuthenticatorAttestationResponse)</a>
 ///     </para>
 ///     <para>
-///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-public-key-easy">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.2.1.1 Easily accessing credential data</a>
-///     </para>
-///     <para>
-///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.1. PublicKeyCredential Interface</a>
+///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-authenticatorresponse">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.2. Authenticator Responses (interface AuthenticatorResponse)</a>
 ///     </para>
 /// </remarks>
 // ReSharper disable once InconsistentNaming
@@ -55,7 +52,7 @@ public class AuthenticatorAttestationResponseJSON
         long? publicKeyAlgorithm,
         string attestationObject)
     {
-        ClientDataJSON = clientDataJson;
+        ClientDataJson = clientDataJson;
         AuthenticatorData = authenticatorData;
         Transports = transports;
         PublicKey = publicKey;
@@ -76,7 +73,7 @@ public class AuthenticatorAttestationResponseJSON
     [Required]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public string ClientDataJSON { get; }
+    public string ClientDataJson { get; }
 
     /// <summary>
     ///     MUST be set to the output of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-getauthenticatordata">getAuthenticatorData()</a>.

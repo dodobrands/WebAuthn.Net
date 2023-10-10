@@ -2,20 +2,20 @@
 using System.ComponentModel;
 using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
+namespace WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions.Protocol;
 
 /// <summary>
-///     Credential Descriptor (dictionary PublicKeyCredentialDescriptor)
+///     Credential Descriptor (dictionary PublicKeyCredentialDescriptor) used in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-extension">authentication</a>.
 /// </summary>
 /// <remarks>
 ///     <para>
 ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-credential-descriptor">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.8.3. Credential Descriptor (dictionary PublicKeyCredentialDescriptor)</a>
 ///     </para>
 /// </remarks>
-public class PublicKeyCredentialDescriptor
+public class AuthenticationPublicKeyCredentialDescriptor
 {
     /// <summary>
-    ///     Constructs <see cref="PublicKeyCredentialDescriptor" />.
+    ///     Constructs <see cref="AuthenticationPublicKeyCredentialDescriptor" />.
     /// </summary>
     /// <param name="type">
     ///     <para>
@@ -23,7 +23,7 @@ public class PublicKeyCredentialDescriptor
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialtype">PublicKeyCredentialType</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore any
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialdescriptor">PublicKeyCredentialDescriptor</a> with an unknown <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-type">type</a>.
     ///     </para>
-    ///     <para>This mirrors the <a href="https://www.w3.org/TR/credential-management-1/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
+    ///     <para>This mirrors the <a href="https://w3c.github.io/webappsec-credential-management/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
     /// </param>
     /// <param name="id">
     ///     <para>This member contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is referring to.</para>
@@ -47,8 +47,10 @@ public class PublicKeyCredentialDescriptor
     /// </param>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="type" /> contains a value that is not defined in <see cref="PublicKeyCredentialType" /></exception>
     /// <exception cref="ArgumentNullException"><paramref name="id" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentException">The length of <paramref name="id" /> is less than 16</exception>
+    /// <exception cref="ArgumentException">The length of <paramref name="id" /> is greater than 1023</exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="transports" /> array contains a value not defined in <see cref="AuthenticatorTransport" /></exception>
-    public PublicKeyCredentialDescriptor(
+    public AuthenticationPublicKeyCredentialDescriptor(
         PublicKeyCredentialType type,
         byte[] id,
         AuthenticatorTransport[]? transports)
@@ -63,6 +65,20 @@ public class PublicKeyCredentialDescriptor
 
         // id
         ArgumentNullException.ThrowIfNull(id);
+        if (id.Length < 16)
+        {
+            // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id
+            // At least 16 bytes that include at least 100 bits of entropy
+            throw new ArgumentException($"The minimum length of the {nameof(id)} is 16.", nameof(id));
+        }
+
+        if (id.Length > 1023)
+        {
+            // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id
+            // At least 16 bytes that include at least 100 bits of entropy
+            throw new ArgumentException($"The max length of the {nameof(id)} is 1023.", nameof(id));
+        }
+
         Id = id;
 
         // transports
@@ -86,7 +102,7 @@ public class PublicKeyCredentialDescriptor
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialtype">PublicKeyCredentialType</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore any
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialdescriptor">PublicKeyCredentialDescriptor</a> with an unknown <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-type">type</a>.
     ///     </para>
-    ///     <para>This mirrors the <a href="https://www.w3.org/TR/credential-management-1/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
+    ///     <para>This mirrors the <a href="https://w3c.github.io/webappsec-credential-management/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
     /// </summary>
     public PublicKeyCredentialType Type { get; }
 

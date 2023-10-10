@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential.Input;
+using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Json;
@@ -76,7 +76,7 @@ public class DefaultRegistrationResponseDecoder<TContext> : IRegistrationRespons
     {
         ArgumentNullException.ThrowIfNull(attestationResponseJson);
         cancellationToken.ThrowIfCancellationRequested();
-        var clientDataJson = WebEncoders.Base64UrlDecode(attestationResponseJson.ClientDataJSON);
+        var clientDataJson = WebEncoders.Base64UrlDecode(attestationResponseJson.ClientDataJson);
         byte[]? authenticatorData = null;
         if (attestationResponseJson.AuthenticatorData is not null)
         {

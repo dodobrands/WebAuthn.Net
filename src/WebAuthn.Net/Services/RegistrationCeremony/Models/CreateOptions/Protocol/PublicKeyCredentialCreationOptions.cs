@@ -12,7 +12,6 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protoc
 ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-makecredentialoptions">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.4. Options for Credential Creation (dictionary PublicKeyCredentialCreationOptions)</a>
 ///     </para>
 /// </remarks>
-// ReSharper disable once InconsistentNaming
 public class PublicKeyCredentialCreationOptions
 {
     /// <summary>
@@ -35,8 +34,8 @@ public class PublicKeyCredentialCreationOptions
     ///     the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a>.
     /// </param>
     /// <param name="excludeCredentials">
-    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD use this OPTIONAL member to list any existing <a href="https://www.w3.org/TR/credential-management-1/#concept-credential">credentials</a>
-    ///     mapped to this <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> (as identified by <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialcreationoptions-user">user</a>.
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD use this OPTIONAL member to list any existing <a href="https://w3c.github.io/webappsec-credential-management/#concept-credential">credentials</a> mapped to this
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> (as identified by <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialcreationoptions-user">user</a>.
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-id">id</a>). This ensures that the new credential is not <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#created-on">created on</a> an
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> that already <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#contains">contains</a> a credential mapped to this
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a>. If it would be, the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> is requested to instead guide the user to use a different
@@ -79,12 +78,12 @@ public class PublicKeyCredentialCreationOptions
         byte[] challenge,
         PublicKeyCredentialParameters[] pubKeyCredParams,
         uint? timeout,
-        PublicKeyCredentialDescriptor[]? excludeCredentials,
+        RegistrationPublicKeyCredentialDescriptor[]? excludeCredentials,
         AuthenticatorSelectionCriteria? authenticatorSelection,
         PublicKeyCredentialHints[]? hints,
         AttestationConveyancePreference? attestation,
         AttestationStatementFormat[]? attestationFormats,
-        AuthenticationExtensionsClientInputs? extensions)
+        RegistrationExtensionsClientInputs? extensions)
     {
         // rp
         ArgumentNullException.ThrowIfNull(rp);
@@ -181,7 +180,7 @@ public class PublicKeyCredentialCreationOptions
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-id">id</a> on the same <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a>.
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialentity-name">name</a> and <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-displayname">displayName</a> MAY be used by the
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> and <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> in future
-    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremonies</a> to help the user select a <a href="https://www.w3.org/TR/credential-management-1/#concept-credential">credential</a>, but are not returned to the
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremonies</a> to help the user select a <a href="https://w3c.github.io/webappsec-credential-management/#concept-credential">credential</a>, but are not returned to the
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> as a result of future <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremonies</a>
     ///     </para>
     /// </summary>
@@ -237,7 +236,7 @@ public class PublicKeyCredentialCreationOptions
     public uint? Timeout { get; }
 
     /// <summary>
-    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD use this OPTIONAL member to list any existing <a href="https://www.w3.org/TR/credential-management-1/#concept-credential">credentials</a> mapped to this
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD use this OPTIONAL member to list any existing <a href="https://w3c.github.io/webappsec-credential-management/#concept-credential">credentials</a> mapped to this
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> (as identified by <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialcreationoptions-user">user</a>.
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-id">id</a>). This ensures that the new credential is not <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#created-on">created on</a> an
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> that already <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#contains">contains</a> a credential mapped to this
@@ -247,7 +246,7 @@ public class PublicKeyCredentialCreationOptions
     /// <remarks>
     ///     defaulting to []
     /// </remarks>
-    public PublicKeyCredentialDescriptor[]? ExcludeCredentials { get; }
+    public RegistrationPublicKeyCredentialDescriptor[]? ExcludeCredentials { get; }
 
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify capabilities and settings that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> MUST or
@@ -296,5 +295,5 @@ public class PublicKeyCredentialCreationOptions
     ///         <a href="https://www.rfc-editor.org/rfc/rfc8809.html">RFC 8809</a> for an up-to-date list of registered <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-extensions">WebAuthn Extensions</a>.
     ///     </para>
     /// </summary>
-    public AuthenticationExtensionsClientInputs? Extensions { get; }
+    public RegistrationExtensionsClientInputs? Extensions { get; }
 }

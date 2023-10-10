@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions.Output;
+namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 
 /// <summary>
 ///     Authenticator Selection Criteria (dictionary AuthenticatorSelectionCriteria)

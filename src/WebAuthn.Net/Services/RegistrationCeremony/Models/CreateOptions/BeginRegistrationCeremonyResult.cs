@@ -1,10 +1,10 @@
-﻿using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions.Output;
+﻿using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-public class BeginCeremonyResult
+public class BeginRegistrationCeremonyResult
 {
-    public BeginCeremonyResult(PublicKeyCredentialCreationOptionsJSON options, string registrationCeremonyId)
+    public BeginRegistrationCeremonyResult(PublicKeyCredentialCreationOptionsJSON options, string registrationCeremonyId)
     {
         Options = options;
         RegistrationCeremonyId = registrationCeremonyId;

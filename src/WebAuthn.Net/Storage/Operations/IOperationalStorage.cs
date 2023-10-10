@@ -9,7 +9,7 @@ namespace WebAuthn.Net.Storage.Operations;
 public interface IOperationalStorage<TContext>
     where TContext : class, IWebAuthnContext
 {
-    Task<PublicKeyCredentialDescriptor[]?> GetExistingCredentialsAsync(
+    Task<RegistrationPublicKeyCredentialDescriptor[]?> GetExistingCredentialsAsync(
         TContext context,
         string rpId,
         byte[] userHandle,

@@ -4,12 +4,12 @@ using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-public class ExcludeCredentialsOptions
+public class ExcludeRegistrationCredentialsOptions
 {
-    public ExcludeCredentialsOptions(
+    public ExcludeRegistrationCredentialsOptions(
         bool excludeAllExistingKeys,
         bool excludeManuallySpecified,
-        PublicKeyCredentialDescriptor[]? manuallySpecifiedKeysToExclude)
+        RegistrationPublicKeyCredentialDescriptor[]? manuallySpecifiedKeysToExclude)
     {
         ExcludeAllExistingKeys = excludeAllExistingKeys;
         ExcludeManuallySpecified = excludeManuallySpecified;
@@ -21,19 +21,19 @@ public class ExcludeCredentialsOptions
     [MemberNotNullWhen(true, nameof(ManuallySpecifiedKeysToExclude))]
     public bool ExcludeManuallySpecified { get; }
 
-    public PublicKeyCredentialDescriptor[]? ManuallySpecifiedKeysToExclude { get; }
+    public RegistrationPublicKeyCredentialDescriptor[]? ManuallySpecifiedKeysToExclude { get; }
 
-    public static ExcludeCredentialsOptions None()
+    public static ExcludeRegistrationCredentialsOptions None()
     {
         return new(false, false, null);
     }
 
-    public static ExcludeCredentialsOptions AllExisting()
+    public static ExcludeRegistrationCredentialsOptions AllExisting()
     {
         return new(true, false, null);
     }
 
-    public static ExcludeCredentialsOptions ManuallySpecified(PublicKeyCredentialDescriptor[] keysToExclude)
+    public static ExcludeRegistrationCredentialsOptions ManuallySpecified(RegistrationPublicKeyCredentialDescriptor[] keysToExclude)
     {
         ArgumentNullException.ThrowIfNull(keysToExclude);
         return new(true, false, keysToExclude);

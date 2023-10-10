@@ -1,7 +1,7 @@
-﻿namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential.Input;
+﻿namespace WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
 
 /// <summary>
-///     Authentication Extensions Client Outputs
+///     Authentication Extensions Client Outputs for extensions used in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-extension">authentication</a>.
 /// </summary>
 /// <remarks>
 ///     <para>

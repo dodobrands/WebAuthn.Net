@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions.Output;
+namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 
 /// <summary>
 ///     Relying Party Parameters for Credential Generation (dictionary PublicKeyCredentialRpEntity)

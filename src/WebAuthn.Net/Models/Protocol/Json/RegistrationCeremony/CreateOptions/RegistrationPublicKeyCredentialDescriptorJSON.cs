@@ -1,30 +1,19 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions.Output;
+namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 
 /// <summary>
-///     Credential Descriptor (dictionary PublicKeyCredentialDescriptor)
+///     Credential Descriptor (dictionary PublicKeyCredentialDescriptor) used in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration-extension">registration</a>.
 /// </summary>
 /// <remarks>
-///     <para>
-///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-credential-descriptor">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.8.3. Credential Descriptor (dictionary PublicKeyCredentialDescriptor)</a>
-///     </para>
-///     <para>
-///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-parseCreationOptionsFromJSON">
-///             Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.1.9. Deserialize Registration ceremony options - PublicKeyCredential’s
-///             parseCreationOptionsFromJSON() Method
-///         </a>
-///     </para>
-///     <para>
-///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialcreationoptions">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.4. Options for Credential Creation (dictionary PublicKeyCredentialCreationOptions)</a>
-///     </para>
+///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-credential-descriptor">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.8.3. Credential Descriptor (dictionary PublicKeyCredentialDescriptor)</a>
 /// </remarks>
 // ReSharper disable once InconsistentNaming
-public class PublicKeyCredentialDescriptorJSON
+public class RegistrationPublicKeyCredentialDescriptorJSON
 {
     /// <summary>
-    ///     Constructs <see cref="PublicKeyCredentialDescriptorJSON" />.
+    ///     Constructs <see cref="RegistrationPublicKeyCredentialDescriptorJSON" />.
     /// </summary>
     /// <param name="id">This member contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a> the caller is referring to.</param>
     /// <param name="type">
@@ -39,7 +28,7 @@ public class PublicKeyCredentialDescriptorJSON
     ///     ignore unknown values.
     /// </param>
     [JsonConstructor]
-    public PublicKeyCredentialDescriptorJSON(string id, string type, string[]? transports)
+    public RegistrationPublicKeyCredentialDescriptorJSON(string id, string type, string[]? transports)
     {
         Id = id;
         Type = type;
@@ -64,7 +53,7 @@ public class PublicKeyCredentialDescriptorJSON
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialtype">PublicKeyCredentialType</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore any
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialdescriptor">PublicKeyCredentialDescriptor</a> with an unknown <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-type">type</a>.
     ///     </para>
-    ///     <para>This mirrors the <a href="https://www.w3.org/TR/credential-management-1/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
+    ///     <para>This mirrors the <a href="https://w3c.github.io/webappsec-credential-management/#dom-credential-type">type</a> field of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#publickeycredential">PublicKeyCredential</a>.</para>
     /// </summary>
     /// <remarks>
     ///     <para>DOMString</para>

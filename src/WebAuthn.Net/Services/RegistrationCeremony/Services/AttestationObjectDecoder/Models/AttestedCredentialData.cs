@@ -49,11 +49,15 @@ public class AttestedCredentialData
 
         if (credentialId.Length < 16)
         {
+            // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id
+            // At least 16 bytes that include at least 100 bits of entropy
             throw new ArgumentException($"The minimum length of the {nameof(credentialId)} is 16.", nameof(credentialId));
         }
 
         if (credentialId.Length > 1023)
         {
+            // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id
+            // At least 16 bytes that include at least 100 bits of entropy
             throw new ArgumentException($"The max length of the {nameof(credentialId)} is 1023.", nameof(credentialId));
         }
 

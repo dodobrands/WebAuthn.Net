@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions.Output;
+using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
 using WebAuthn.Net.Services.Serialization.Json;
 
@@ -94,14 +94,14 @@ public class DefaultOptionsEncoder<TContext>
         return new(type, alg);
     }
 
-    protected virtual PublicKeyCredentialDescriptorJSON[]? EncodeExcludeCredentials(PublicKeyCredentialDescriptor[]? excludeCredentials)
+    protected virtual RegistrationPublicKeyCredentialDescriptorJSON[]? EncodeExcludeCredentials(RegistrationPublicKeyCredentialDescriptor[]? excludeCredentials)
     {
         if (excludeCredentials is null)
         {
             return null;
         }
 
-        var result = new PublicKeyCredentialDescriptorJSON[excludeCredentials.Length];
+        var result = new RegistrationPublicKeyCredentialDescriptorJSON[excludeCredentials.Length];
         for (var i = 0; i < excludeCredentials.Length; i++)
         {
             result[i] = EncodeExcludeCredential(excludeCredentials[i]);
@@ -110,7 +110,7 @@ public class DefaultOptionsEncoder<TContext>
         return result;
     }
 
-    protected virtual PublicKeyCredentialDescriptorJSON EncodeExcludeCredential(PublicKeyCredentialDescriptor excludeCredential)
+    protected virtual RegistrationPublicKeyCredentialDescriptorJSON EncodeExcludeCredential(RegistrationPublicKeyCredentialDescriptor excludeCredential)
     {
         ArgumentNullException.ThrowIfNull(excludeCredential);
         var id = WebEncoders.Base64UrlEncode(excludeCredential.Id);
@@ -238,7 +238,7 @@ public class DefaultOptionsEncoder<TContext>
         return result;
     }
 
-    protected virtual AuthenticationExtensionsClientInputsJSON? EncodeExtensions(AuthenticationExtensionsClientInputs? extensions)
+    protected virtual RegistrationExtensionsClientInputsJSON? EncodeExtensions(RegistrationExtensionsClientInputs? extensions)
     {
         if (extensions is null)
         {

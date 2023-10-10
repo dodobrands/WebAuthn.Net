@@ -1,7 +1,7 @@
-﻿namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
+﻿namespace WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions.Protocol;
 
 /// <summary>
-///     Authentication Extensions Client Inputs (dictionary AuthenticationExtensionsClientInputs)
+///     Authentication Extensions Client Inputs (dictionary AuthenticationExtensionsClientInputs) for extensions used in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-extension">authentication</a>.
 /// </summary>
 /// <remarks>
 ///     <para>

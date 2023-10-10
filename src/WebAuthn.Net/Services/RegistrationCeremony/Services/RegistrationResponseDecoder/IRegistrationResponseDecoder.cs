@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
-using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential.Input;
+using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Models;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder;

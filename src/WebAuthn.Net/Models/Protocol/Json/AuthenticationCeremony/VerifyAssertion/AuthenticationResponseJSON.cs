@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential.Input;
+namespace WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
 
 /// <summary>
 ///     PublicKeyCredential
@@ -15,10 +15,10 @@ namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredentia
 ///     </para>
 /// </remarks>
 // ReSharper disable once InconsistentNaming
-public class RegistrationResponseJSON
+public class AuthenticationResponseJSON
 {
     /// <summary>
-    ///     Constructs <see cref="RegistrationResponseJSON" />.
+    ///     Constructs <see cref="AuthenticationResponseJSON" />.
     /// </summary>
     /// <param name="id">
     ///     <list type="bullet">
@@ -43,32 +43,29 @@ public class RegistrationResponseJSON
     ///         </item>
     ///     </list>
     /// </param>
-    /// <param name="rawId">
-    ///     This attribute returns the <a href="https://webidl.spec.whatwg.org/#idl-ArrayBuffer">ArrayBuffer</a> contained in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-identifier-slot">[[identifier]]</a> internal slot.
-    /// </param>
+    /// <param name="rawId">This attribute returns the <a href="https://webidl.spec.whatwg.org/#idl-ArrayBuffer">ArrayBuffer</a> contained in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-identifier-slot">[[identifier]]</a> internal slot.</param>
     /// <param name="response">
-    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to create a
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a>.
+    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to generate an
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertion</a>.
     /// </param>
     /// <param name="authenticatorAttachment">
     ///     This attribute reports the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-attachment-modality">authenticator attachment modality</a> in effect at the time the
-    ///     <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">navigator.credentials.create()</a> method successfully completes. The attribute’s value SHOULD be a member of
+    ///     <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-get">navigator.credentials.get()</a> method successfully completes. The attribute’s value SHOULD be a member of
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-authenticatorattachment">AuthenticatorAttachment</a>. <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Parties</a> SHOULD treat unknown values as if the value were null.
     /// </param>
     /// <param name="clientExtensionResults">
-    ///     The value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-clientextensionsresults-slot">[[clientExtensionsResults]]</a>, which is a <a href="https://infra.spec.whatwg.org/#ordered-map">map</a> that holds entries for
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#extension-identifier">extension identifier</a> → <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-extension-output">client extension output</a> produced by the extension’s
+    ///     The value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-clientextensionsresults-slot">[[clientExtensionsResults]]</a>, which is a <a href="https://infra.spec.whatwg.org/#ordered-map">map</a> that holds
+    ///     entries for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#extension-identifier">extension identifier</a> → <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-extension-output">client extension output</a> produced by the extension’s
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-extension-processing">client extension processing</a>.
     /// </param>
     /// <param name="type">
-    ///     This attribute’s getter returns the value of the object’s <a href="https://webidl.spec.whatwg.org/#dfn-interface-object">interface object's</a> <a href="https://w3c.github.io/webappsec-credential-management/#dom-credential-type-slot">[[type]]</a> slot, which specifies the
-    ///     <a href="https://w3c.github.io/webappsec-credential-management/#credential-credential-type">credential type</a> represented by this object.
+    ///     This attribute’s getter returns the value of the object’s <a href="https://webidl.spec.whatwg.org/#dfn-interface-object">interface object's</a> <a href="https://w3c.github.io/webappsec-credential-management/#dom-credential-type-slot">[[type]]</a> slot, which
+    ///     specifies the <a href="https://w3c.github.io/webappsec-credential-management/#credential-credential-type">credential type</a> represented by this object.
     /// </param>
-    [JsonConstructor]
-    public RegistrationResponseJSON(
+    public AuthenticationResponseJSON(
         string id,
         string rawId,
-        AuthenticatorAttestationResponseJSON response,
+        AuthenticatorAssertionResponseJSON response,
         string? authenticatorAttachment,
         AuthenticationExtensionsClientOutputsJSON? clientExtensionResults,
         string type)
@@ -124,23 +121,23 @@ public class RegistrationResponseJSON
     public string RawId { get; }
 
     /// <summary>
-    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to create a
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">public key credential</a>.
+    ///     This attribute contains the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator's</a> response to the client’s request to generate an
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertion</a>.
     /// </summary>
     [JsonPropertyName("response")]
     [Required]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public AuthenticatorAttestationResponseJSON Response { get; }
+    public AuthenticatorAssertionResponseJSON Response { get; }
 
     /// <summary>
     ///     This attribute reports the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-attachment-modality">authenticator attachment modality</a> in effect at the time the
-    ///     <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">navigator.credentials.create()</a> method successfully completes. The attribute’s value SHOULD be a member of
+    ///     <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-get">navigator.credentials.get()</a> method successfully completes. The attribute’s value SHOULD be a member of
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-authenticatorattachment">AuthenticatorAttachment</a>. <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Parties</a> SHOULD treat unknown values as if the value were null.
     /// </summary>
     /// <remarks>
-    ///     <para> DOMString</para>
+    ///     <para>DOMString</para>
     ///     <para>
-    ///         If, as the result of an <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration-ceremony">registration ceremony</a>,
+    ///         If, as the result of an <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremony</a>,
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-authenticatorattachment">authenticatorAttachment's</a> value is "cross-platform" and concurrently
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredential-isuserverifyingplatformauthenticatoravailable">isUserVerifyingPlatformAuthenticatorAvailable</a> returns true, then the user employed a
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#roaming-authenticators">roaming authenticator</a> for this <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#ceremony">ceremony</a> while there is an available

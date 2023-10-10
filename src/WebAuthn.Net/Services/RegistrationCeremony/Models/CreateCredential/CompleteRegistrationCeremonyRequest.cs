@@ -1,11 +1,11 @@
 ﻿using System;
-using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential.Input;
+using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Models;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 
-public class CompleteCeremonyRequest
+public class CompleteRegistrationCeremonyRequest
 {
-    public CompleteCeremonyRequest(string registrationCeremonyId, RegistrationResponseJSON response)
+    public CompleteRegistrationCeremonyRequest(string registrationCeremonyId, RegistrationResponseJSON response)
     {
         ArgumentNullException.ThrowIfNull(registrationCeremonyId);
         ArgumentNullException.ThrowIfNull(response);

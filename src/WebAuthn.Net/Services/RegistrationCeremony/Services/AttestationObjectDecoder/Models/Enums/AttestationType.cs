@@ -48,7 +48,7 @@ public enum AttestationType
 
     /// <summary>
     ///     In this case, the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> uses an <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#anonymization-ca">Anonymization CA</a> which dynamically generates
-    ///     <a href="https://www.w3.org/TR/credential-management-1/#concept-credential">per-credential attestation certificates</a> such that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statements</a> presented to
+    ///     <a href="https://w3c.github.io/webappsec-credential-management/#concept-credential">per-credential attestation certificates</a> such that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statements</a> presented to
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Parties</a> do not provide uniquely identifiable information, e.g., that might be used for tracking purposes.
     /// </summary>
     /// <remarks>
