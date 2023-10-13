@@ -1,24 +1,42 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Security.Cryptography.X509Certificates;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
 
 public class AttestationStatementVerificationResult
 {
-    public AttestationStatementVerificationResult(AttestationType attestationType)
+    public AttestationStatementVerificationResult(
+        AttestationStatementFormat fmt,
+        AttestationType attestationType)
     {
+        if (!Enum.IsDefined(typeof(AttestationStatementFormat), fmt))
+        {
+            throw new InvalidEnumArgumentException(nameof(fmt), (int) fmt, typeof(AttestationStatementFormat));
+        }
+
         if (!Enum.IsDefined(typeof(AttestationType), attestationType))
         {
             throw new InvalidEnumArgumentException(nameof(attestationType), (int) attestationType, typeof(AttestationType));
         }
 
+        Fmt = fmt;
         AttestationType = attestationType;
     }
 
-    public AttestationStatementVerificationResult(AttestationType attestationType, X509Certificate2[] trustPath)
+    public AttestationStatementVerificationResult(
+        AttestationStatementFormat fmt,
+        AttestationType attestationType,
+        X509Certificate2[] trustPath,
+        X509Certificate2[]? rootCertificates)
     {
+        if (!Enum.IsDefined(typeof(AttestationStatementFormat), fmt))
+        {
+            throw new InvalidEnumArgumentException(nameof(fmt), (int) fmt, typeof(AttestationStatementFormat));
+        }
+
         if (!Enum.IsDefined(typeof(AttestationType), attestationType))
         {
             throw new InvalidEnumArgumentException(nameof(attestationType), (int) attestationType, typeof(AttestationType));
@@ -30,14 +48,16 @@ public class AttestationStatementVerificationResult
             throw new ArgumentException("Value cannot be an empty collection.", nameof(trustPath));
         }
 
+        Fmt = fmt;
         AttestationType = attestationType;
-        HasTrustPath = true;
         TrustPath = trustPath;
+        RootCertificates = rootCertificates;
     }
+
+    public AttestationStatementFormat Fmt { get; }
 
     public AttestationType AttestationType { get; }
 
-    public bool HasTrustPath { get; }
-
     public X509Certificate2[]? TrustPath { get; }
+    public X509Certificate2[]? RootCertificates { get; }
 }

@@ -15,17 +15,24 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Context;
+using WebAuthn.Net.Services.Cryptography.Cose.Models;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.ChallengeGenerator;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.ClientDataDecoder;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.OptionsEncoder;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Models;
 using WebAuthn.Net.Storage.Operations;
 using WebAuthn.Net.Storage.Operations.Models;
 
@@ -47,7 +54,9 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         IClientDataDecoder<TContext> clientDataDecoder,
         IAttestationObjectDecoder<TContext> attestationObjectDecoder,
         IAttestationStatementVerifier<TContext> attestationStatementVerifier,
-        ILogger<DefaultRegistrationCeremonyService<TContext>> logger)
+        ILogger<DefaultRegistrationCeremonyService<TContext>> logger,
+        IAuthenticatorDataDecoder authenticatorDataDecoder,
+        IAttestationStatementDecoder attestationStatementDecoder)
     {
         Options = options;
         ContextFactory = contextFactory;
@@ -62,6 +71,8 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         AttestationObjectDecoder = attestationObjectDecoder;
         AttestationStatementVerifier = attestationStatementVerifier;
         Logger = logger;
+        AuthenticatorDataDecoder = authenticatorDataDecoder;
+        AttestationStatementDecoder = attestationStatementDecoder;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
@@ -75,6 +86,8 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
     protected IRegistrationResponseDecoder<TContext> RegistrationResponseDecoder { get; }
     protected IClientDataDecoder<TContext> ClientDataDecoder { get; }
     protected IAttestationObjectDecoder<TContext> AttestationObjectDecoder { get; }
+    protected IAuthenticatorDataDecoder AuthenticatorDataDecoder { get; }
+    protected IAttestationStatementDecoder AttestationStatementDecoder { get; }
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
     protected ILogger<DefaultRegistrationCeremonyService<TContext>> Logger { get; }
 
@@ -100,7 +113,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         var rpOrigin = await RpOriginProvider.GetAsync(context, cancellationToken);
         var createdAt = TimeProvider.GetRoundUtcDateTime();
         var expiresAt = createdAt.ComputeExpiresAtUtc(request.Timeout);
-        var options = ConvertToOptions(request, rpId, challenge, credentialsToExclude);
+        var options = ToPublicKeyCredentialCreationOptions(request, rpId, challenge, credentialsToExclude);
         var outputOptions = await OptionsEncoder.EncodeAsync(context, options, cancellationToken);
         var registrationCeremonyOptions = new RegistrationCeremonyOptions(options, rpOrigin, new[] { rpOrigin }, createdAt, expiresAt);
         var ceremonyId = await Storage.SaveRegistrationCeremonyOptionsAsync(context, registrationCeremonyOptions, cancellationToken);
@@ -224,8 +237,37 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             }
 
             var fmt = attestationObjectResult.Ok.Fmt;
-            var authData = attestationObjectResult.Ok.AuthData;
-            var attStmt = attestationObjectResult.Ok.AttStmt;
+            // Attestation objects provided in an AuthenticatorAttestationResponse structure (i.e. as the result of a create() operation)
+            // contain at least the three keys shown in the previous figure: fmt, attStmt, and authData.
+            if (attestationObjectResult.Ok.AuthData is null)
+            {
+                Logger.NullAuthDataForRegistration();
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
+
+            var authDataResult = AuthenticatorDataDecoder.Decode(attestationObjectResult.Ok.AuthData);
+            if (authDataResult.HasError)
+            {
+                Logger.FailedToDecodeAuthData();
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
+
+            // §6.5.2. Attested Credential Data
+            // Attested credential data is always present in any authenticator data that results from a create() operation.
+            if (authDataResult.Ok is not AttestedAuthenticatorData authData)
+            {
+                Logger.AttestedCredentialDataIsNull();
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
+
+            var attStmtResult = AttestationStatementDecoder.Decode(attestationObjectResult.Ok.AttStmt, fmt);
+            if (attStmtResult.HasError)
+            {
+                Logger.FailedToDecodeAttStmt();
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
+
+            var attStmt = attStmtResult.Ok;
 
             // 13. Verify that the 'rpIdHash' in 'authData' is the SHA-256 hash of the 'RP ID' expected by the Relying Party.
             var authDataRpIdHash = authData.RpIdHash;
@@ -281,13 +323,6 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
 
             // 19. Verify that the 'alg' parameter in the credential public key in 'authData' matches the 'alg' attribute of one of the items in 'options.pubKeyCredParams'.
             // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attested-credential-data
-            // §6.5.2. Attested Credential Data
-            // Attested credential data is always present in any authenticator data that results from a create() operation.
-            if (authData.AttestedCredentialData is null)
-            {
-                Logger.AttestedCredentialDataIsNull();
-                return Result<CompleteRegistrationCeremonyResult>.Fail();
-            }
 
             var expectedAlgorithms = options.PubKeyCredParams.Select(x => x.Alg).ToHashSet();
             if (!expectedAlgorithms.Contains(authData.AttestedCredentialData.CredentialPublicKey.Alg))
@@ -350,6 +385,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             // to verify that the attestation public key either correctly chains up to an acceptable root certificate,
             // or is itself an acceptable certificate (i.e., it and the root certificate obtained in Step 22 may be the same).
 
+
             // 25. Verify that the credentialId is ≤ 1023 bytes. Credential IDs larger than this many bytes SHOULD cause the RP to fail this registration ceremony.
 
             // 26. Verify that the credentialId is not yet registered for any user. If the credentialId is already known then the Relying Party SHOULD fail this registration ceremony.
@@ -368,30 +404,28 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             // The new credential record MAY also include the following OPTIONAL contents:
             // attestationObject - response.attestationObject
             // attestationClientDataJSON - response.clientDataJSON
-            var credentialRecord = new CredentialRecord(
-                credential.Type,
-                credential.RawId,
-                authData.AttestedCredentialData,
-                authData.SignCount,
-                Array.Empty<AuthenticatorTransport>(),
+            var credentialRecord = ToCredentialRecord(
+                credential,
+                authData,
                 uvInitialized,
                 backupEligible,
                 backupState,
-                response.AttestationObject,
-                response.ClientDataJson);
+                response);
 
             // 28. If the attestation statement attStmt successfully verified but is not trustworthy per step 23 above, the Relying Party SHOULD fail the registration ceremony.
+
             throw new NotImplementedException();
         }
     }
 
-    private async Task<RegistrationPublicKeyCredentialDescriptor[]?> GetCredentialsToExcludeAsync(
+    protected virtual async Task<RegistrationPublicKeyCredentialDescriptor[]?> GetCredentialsToExcludeAsync(
         TContext context,
         string rpId,
         byte[] userHandle,
         ExcludeRegistrationCredentialsOptions options,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(options);
         cancellationToken.ThrowIfCancellationRequested();
         if (options.ExcludeAllExistingKeys)
         {
@@ -433,12 +467,13 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         return null;
     }
 
-    private static PublicKeyCredentialCreationOptions ConvertToOptions(
+    protected virtual PublicKeyCredentialCreationOptions ToPublicKeyCredentialCreationOptions(
         BeginRegistrationCeremonyRequest request,
         string rpId,
         byte[] challenge,
         RegistrationPublicKeyCredentialDescriptor[]? excludeCredentials)
     {
+        ArgumentNullException.ThrowIfNull(request);
         var rp = new PublicKeyCredentialRpEntity(
             request.RpDisplayName,
             rpId);
@@ -458,6 +493,61 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             request.AttestationFormats,
             request.Extensions);
         return publicKeyOptions;
+    }
+
+    protected virtual CredentialRecord ToCredentialRecord(
+        RegistrationResponse credential,
+        AttestedAuthenticatorData authData,
+        bool uvInitialized,
+        bool backupEligible,
+        bool backupState,
+        AuthenticatorAttestationResponse response)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+        ArgumentNullException.ThrowIfNull(authData);
+        ArgumentNullException.ThrowIfNull(response);
+        CredentialPublicKeyRecord publicKey;
+        switch (authData.AttestedCredentialData.CredentialPublicKey.Kty)
+        {
+            case CoseKeyType.EC2:
+                {
+                    if (authData.AttestedCredentialData.CredentialPublicKey is not CoseEc2Key ec2Key)
+                    {
+                        throw new InvalidOperationException($"authData.attestedCredentialData.credentialPublicKey must contain a '{nameof(CoseEc2Key)}'");
+                    }
+
+                    var ec2Parameters = new CredentialPublicKeyEc2ParametersRecord(ec2Key.Crv, ec2Key.X, ec2Key.Y);
+                    publicKey = new(ec2Key.Kty, ec2Key.Alg, null, ec2Parameters);
+                    break;
+                }
+            case CoseKeyType.RSA:
+                {
+                    if (authData.AttestedCredentialData.CredentialPublicKey is not CoseRsaKey rsaKey)
+                    {
+                        throw new InvalidOperationException($"authData.attestedCredentialData.credentialPublicKey must contain a '{nameof(CoseRsaKey)}'");
+                    }
+
+                    var rsaParameters = new CredentialPublicKeyRsaParametersRecord(rsaKey.ModulusN, rsaKey.ExponentE);
+                    publicKey = new(rsaKey.Kty, rsaKey.Alg, rsaParameters, null);
+                    break;
+                }
+            default:
+                throw new InvalidOperationException("Unknown kty in authData.attestedCredentialData.credentialPublicKey");
+        }
+
+
+        var credentialRecord = new CredentialRecord(
+            credential.Type,
+            credential.RawId,
+            publicKey,
+            authData.SignCount,
+            Array.Empty<AuthenticatorTransport>(),
+            uvInitialized,
+            backupEligible,
+            backupState,
+            response.AttestationObject,
+            response.ClientDataJson);
+        return credentialRecord;
     }
 }
 
@@ -520,6 +610,24 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
         Level = LogLevel.Warning,
         Message = "Failed to perform CBOR decoding of the AttestationObject")]
     public static partial void AttestationObjectDecodeFailed(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "'authData' must be present in the attestationObject for the registration ceremony, but it is null")]
+    public static partial void NullAuthDataForRegistration(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode 'authData' from 'attestationObject'")]
+    public static partial void FailedToDecodeAuthData(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode 'attStmt' from 'attestationObject'")]
+    public static partial void FailedToDecodeAttStmt(this ILogger logger);
 
     [LoggerMessage(
         EventId = default,

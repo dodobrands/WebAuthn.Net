@@ -14,27 +14,43 @@ public class CoseEc2Key : AbstractCoseKey
 {
     public CoseEc2Key(CoseAlgorithm alg, CoseEllipticCurve crv, byte[] x, byte[] y)
     {
+        // alg
         if (!CoseKeyType.EC2.GetSupportedAlgorithms().Contains(alg))
         {
-            throw new ArgumentOutOfRangeException(nameof(alg), "The specified 'alg' is not included in the list of permitted values for kty = EC2.");
+            throw new ArgumentOutOfRangeException(nameof(alg), $"The specified '{nameof(alg)}' is not included in the list of permitted values for kty = EC2");
         }
 
+        if (!alg.TryGetSupportedEllipticCurves(out var supportedCurves))
+        {
+            throw new ArgumentOutOfRangeException(nameof(alg), $"For the specified '{nameof(alg)}', there are no valid '{nameof(crv)}' values");
+        }
+
+        Alg = alg;
+
+        // crv
         if (!Enum.IsDefined(typeof(CoseEllipticCurve), crv))
         {
             throw new InvalidEnumArgumentException(nameof(crv), (int) crv, typeof(CoseEllipticCurve));
         }
 
-        ArgumentNullException.ThrowIfNull(x);
-        ArgumentNullException.ThrowIfNull(y);
-        Alg = alg;
+        if (!supportedCurves.Contains(crv))
+        {
+            throw new ArgumentOutOfRangeException(nameof(crv), $"The specified '{nameof(crv)}' is not included in the list of valid values for '{nameof(alg)}'");
+        }
+
         Crv = crv;
+
+        // x
+        ArgumentNullException.ThrowIfNull(x);
         X = x;
+
+        // y
+        ArgumentNullException.ThrowIfNull(y);
         Y = y;
     }
 
     public override CoseKeyType Kty => CoseKeyType.EC2;
     public override CoseAlgorithm Alg { get; }
-
     public CoseEllipticCurve Crv { get; }
     public byte[] X { get; }
     public byte[] Y { get; }

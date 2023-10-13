@@ -7,8 +7,8 @@ using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Providers.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Implementation;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.ChallengeGenerator;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.ChallengeGenerator.Implementation;
 

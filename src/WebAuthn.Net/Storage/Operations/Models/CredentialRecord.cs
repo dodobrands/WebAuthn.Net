@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
 
 namespace WebAuthn.Net.Storage.Operations.Models;
 
@@ -25,7 +24,7 @@ public class CredentialRecord
     public CredentialRecord(
         PublicKeyCredentialType type,
         byte[] id,
-        AttestedCredentialData publicKey,
+        CredentialPublicKeyRecord publicKey,
         uint signCount,
         AuthenticatorTransport[] transports,
         bool uvInitialized,
@@ -64,7 +63,7 @@ public class CredentialRecord
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">credential public key</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
     /// </summary>
-    public AttestedCredentialData PublicKey { get; }
+    public CredentialPublicKeyRecord PublicKey { get; }
 
     /// <summary>
     ///     The latest value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-signcount">signature counter</a> in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from any

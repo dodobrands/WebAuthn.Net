@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
 
@@ -16,7 +16,7 @@ public interface IAttestationStatementVerifier<TContext>
         TContext context,
         AttestationStatementFormat fmt,
         AbstractAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         CancellationToken cancellationToken);
 }

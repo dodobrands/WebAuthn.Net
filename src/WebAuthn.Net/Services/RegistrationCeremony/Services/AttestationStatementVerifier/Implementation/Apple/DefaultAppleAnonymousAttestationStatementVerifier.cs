@@ -8,12 +8,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Providers;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Apple;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 
@@ -37,7 +38,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         AppleAnonymousAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         CancellationToken cancellationToken)
     {
@@ -47,10 +48,6 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         ArgumentNullException.ThrowIfNull(attStmt);
         ArgumentNullException.ThrowIfNull(authenticatorData);
         cancellationToken.ThrowIfCancellationRequested();
-        if (authenticatorData.AttestedCredentialData is null)
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
 
         // 1) Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
         if (!TryGetCertificatesTrustPath(attStmt, out var trustPath))
@@ -81,7 +78,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         }
 
         // 6) If successful, return implementation-specific values representing attestation type Anonymization CA and attestation trust path x5c.
-        var result = new AttestationStatementVerificationResult(AttestationType.AnonCa, trustPath);
+        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AppleAnonymous, AttestationType.AnonCa, trustPath, null);
         return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
     }
 

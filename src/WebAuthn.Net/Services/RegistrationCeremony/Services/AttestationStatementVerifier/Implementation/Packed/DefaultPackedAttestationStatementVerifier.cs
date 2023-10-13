@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Providers;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Packed;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 
@@ -43,7 +44,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         PackedAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         CancellationToken cancellationToken)
     {
@@ -83,7 +84,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual Result<AttestationStatementVerificationResult> VerifyPackedWithX5C(
         PackedAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         X509Certificate2[] trustPath)
     {
@@ -92,10 +93,6 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             return Result<AttestationStatementVerificationResult>.Fail();
         }
 
-        if (authenticatorData.AttestedCredentialData is null)
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
         // If x5c is present
         // 1) Verify that 'sig' is a valid signature over the concatenation of 'authenticatorData' and 'clientDataHash'
         // using the attestation public key in 'attestnCert' with the algorithm specified in 'alg'.
@@ -126,14 +123,14 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
 
         // 4) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether attStmt conveys a Basic or AttCA attestation.
         // 5) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
-        var result = new AttestationStatementVerificationResult(AttestationType.Basic, trustPath);
+        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.Packed, AttestationType.Basic, trustPath, null);
         return Result<AttestationStatementVerificationResult>.Success(result);
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual Result<AttestationStatementVerificationResult> VerifyPackedWithoutX5C(
         PackedAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash)
     {
         if (attStmt is null || authenticatorData is null)
@@ -143,11 +140,6 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
 
         // If x5c is not present, self attestation is in use.
         // 1) Validate that 'alg' matches the algorithm of the 'credentialPublicKey' in 'authenticatorData'.
-        if (authenticatorData.AttestedCredentialData is null)
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
-
         if (attStmt.Alg != authenticatorData.AttestedCredentialData.CredentialPublicKey.Alg)
         {
             return Result<AttestationStatementVerificationResult>.Fail();
@@ -162,7 +154,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         }
 
         // 3) If successful, return implementation-specific values representing attestation type Self and an empty attestation trust path.
-        var result = new AttestationStatementVerificationResult(AttestationType.Self);
+        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.Packed, AttestationType.Self);
         return Result<AttestationStatementVerificationResult>.Success(result);
     }
 

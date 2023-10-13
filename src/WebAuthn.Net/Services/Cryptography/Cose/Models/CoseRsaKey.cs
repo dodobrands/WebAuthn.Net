@@ -26,7 +26,6 @@ public class CoseRsaKey : AbstractCoseKey
 
     public override CoseKeyType Kty => CoseKeyType.RSA;
     public override CoseAlgorithm Alg { get; }
-
     public byte[] ModulusN { get; }
     public byte[] ExponentE { get; }
 

@@ -26,4 +26,9 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="**\*.der" />
+    <EmbeddedResource Include="**\*.der" />
+  </ItemGroup>
+
 </Project>

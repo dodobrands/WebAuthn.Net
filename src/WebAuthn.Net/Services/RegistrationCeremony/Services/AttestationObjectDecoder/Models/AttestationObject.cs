@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
 
@@ -9,8 +9,8 @@ public class AttestationObject
 {
     public AttestationObject(
         AttestationStatementFormat fmt,
-        AbstractAttestationStatement attStmt,
-        AuthenticatorData authData)
+        CborMap attStmt,
+        byte[]? authData)
     {
         if (!Enum.IsDefined(typeof(AttestationStatementFormat), fmt))
         {
@@ -18,7 +18,6 @@ public class AttestationObject
         }
 
         ArgumentNullException.ThrowIfNull(attStmt);
-        ArgumentNullException.ThrowIfNull(authData);
         Fmt = fmt;
         AttStmt = attStmt;
         AuthData = authData;
@@ -26,7 +25,7 @@ public class AttestationObject
 
     public AttestationStatementFormat Fmt { get; }
 
-    public AbstractAttestationStatement AttStmt { get; }
+    public CborMap AttStmt { get; }
 
-    public AuthenticatorData AuthData { get; }
+    public byte[]? AuthData { get; }
 }

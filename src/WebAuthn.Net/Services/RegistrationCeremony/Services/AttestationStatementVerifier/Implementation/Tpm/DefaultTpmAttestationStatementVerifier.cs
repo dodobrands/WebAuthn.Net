@@ -8,17 +8,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Providers;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Tpm;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Enums.Extensions;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums.Extensions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
@@ -52,7 +53,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         TpmAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         CancellationToken cancellationToken)
     {
@@ -65,11 +66,6 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // 1 - Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
         // 2 - Verify that the public key specified by the 'parameters' and 'unique' fields of 'pubArea'
         // is identical to the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
-        if (authenticatorData.AttestedCredentialData is null)
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
         if (!PubArea.TryParse(attStmt.PubArea, out var pubArea))
         {
             return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
@@ -84,12 +80,12 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         var attToBeSigned = Concat(authenticatorData.Raw, clientDataHash);
 
         // 4 - Validate that 'certInfo' is valid:
-        if (!IsCertInfoValid(attStmt, authenticatorData, attToBeSigned, out var trustPath))
+        if (!IsCertInfoValid(attStmt, authenticatorData, attToBeSigned, out var trustPath, out var rootCertificates))
         {
             return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
         }
 
-        var result = new AttestationStatementVerificationResult(AttestationType.AttCa, trustPath);
+        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.Tpm, AttestationType.AttCa, trustPath, rootCertificates);
         return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
     }
 
@@ -115,13 +111,15 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsCertInfoValid(
         TpmAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] attToBeSigned,
-        [NotNullWhen(true)] out X509Certificate2[]? trustPath)
+        [NotNullWhen(true)] out X509Certificate2[]? trustPath,
+        out X509Certificate2[]? rootCertificates)
     {
         if (attStmt is null || authenticatorData is null)
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
@@ -135,6 +133,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         if (!CertInfo.TryParse(attStmt.CertInfo, out var certInfo))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
@@ -142,12 +141,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         if (!attStmt.Alg.TryComputeHash(attToBeSigned, out var attToBeSignedHash))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
         if (!certInfo.ExtraData.AsSpan().SequenceEqual(attToBeSignedHash.AsSpan()))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
@@ -157,18 +158,21 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         if (certInfo.Attested.Certify.Name.Digest is null)
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
         if (!certInfo.Attested.Certify.Name.Digest.HashAlg.TryComputeHash(attStmt.PubArea, out var pubAreaHash))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
         if (!pubAreaHash.AsSpan().SequenceEqual(certInfo.Attested.Certify.Name.Digest.Digest.AsSpan()))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
@@ -176,6 +180,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         if (attStmt.X5C.Length < 1)
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
@@ -187,6 +192,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
             {
                 trustPath = null;
+                rootCertificates = null;
                 return false;
             }
 
@@ -206,13 +212,15 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         if (!SignatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
         // 8) Verify that aikCert meets the requirements in §8.3.1 TPM Attestation Statement Certificate Requirements.
-        if (!IsTpmAttestationStatementCertificateRequirementsSatisfied(aikCert))
+        if (!IsTpmAttestationStatementCertificateRequirementsSatisfied(aikCert, out rootCertificates))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
@@ -221,20 +229,16 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         if (!TryGetAaguid(aikCert.Extensions, out var aaguid))
         {
             trustPath = null;
+            rootCertificates = null;
             return false;
         }
 
         if (aaguid.HasValue)
         {
-            if (authenticatorData.AttestedCredentialData is null)
-            {
-                trustPath = null;
-                return false;
-            }
-
             if (!aaguid.Value.AsSpan().SequenceEqual(authenticatorData.AttestedCredentialData.Aaguid.AsSpan()))
             {
                 trustPath = null;
+                rootCertificates = null;
                 return false;
             }
         }
@@ -245,10 +249,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool IsTpmAttestationStatementCertificateRequirementsSatisfied(X509Certificate2 aikCert)
+    protected virtual bool IsTpmAttestationStatementCertificateRequirementsSatisfied(
+        X509Certificate2 aikCert,
+        out X509Certificate2[]? rootCertificates)
     {
         if (aikCert is null)
         {
+            rootCertificates = null;
             return false;
         }
 
@@ -258,12 +265,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // 1) Version MUST be set to 3.
         if (aikCert.Version != 3)
         {
+            rootCertificates = null;
             return false;
         }
 
         // 2) Subject field MUST be set to empty.
         if (aikCert.SubjectName.Name.Length > 0)
         {
+            rootCertificates = null;
             return false;
         }
 
@@ -271,11 +280,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // https://trustedcomputinggroup.org/wp-content/uploads/TCG-EK-Credential-Profile-V-2.5-R2_published.pdf
         if (!TryGetAikCertSubjectAlternativeName(aikCert, out var san))
         {
+            rootCertificates = null;
             return false;
         }
 
-        if (!TpmManufacturerVerifier.IsValid(san.TpmManufacturer))
+        var manufacturerVerification = TpmManufacturerVerifier.IsValid(san.TpmManufacturer);
+        if (!manufacturerVerification.IsValid)
         {
+            rootCertificates = null;
             return false;
         }
 
@@ -283,18 +295,21 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // ("joint-iso-itu-t(2) internationalorganizations(23) 133 tcg-kp(8) tcg-kp-AIKCertificate(3)").
         if (!AikCertExtendedKeyUsageExists(aikCert.Extensions))
         {
+            rootCertificates = null;
             return false;
         }
 
         // 5) The Basic Constraints extension MUST have the CA component set to false.
         if (!IsBasicExtensionsCaComponentFalse(aikCert.Extensions))
         {
+            rootCertificates = null;
             return false;
         }
 
         // 6) An Authority Information Access (AIA) extension with entry id-ad-ocsp and a CRL Distribution Point extension [RFC5280]
         // are both OPTIONAL as the status of many attestation certificates is available through metadata services.
         // See, for example, the FIDO Metadata Service [FIDOMetadataService].
+        rootCertificates = manufacturerVerification.RootCerts;
         return true;
     }
 

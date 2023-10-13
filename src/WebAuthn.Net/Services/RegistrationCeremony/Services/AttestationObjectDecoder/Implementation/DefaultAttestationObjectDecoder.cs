@@ -8,35 +8,31 @@ using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cbor;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
+using WebAuthn.Net.Services.Serialization.Json;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Implementation;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecoder<TContext>
     where TContext : class, IWebAuthnContext
 {
-    private readonly IAttestationStatementDecoder _attStmtDecoder;
-    private readonly IAuthenticatorDataDecoder _authDataDecoder;
-    private readonly ICborDecoder _cborDecoder;
-    private readonly ILogger<DefaultAttestationObjectDecoder<TContext>> _logger;
+    // ReSharper disable once StaticMemberInGenericType
+    protected static readonly EnumMemberAttributeMapper<AttestationStatementFormat> AttestationStatementFormatMapper = new();
 
     public DefaultAttestationObjectDecoder(
         ICborDecoder cborDecoder,
-        IAttestationStatementDecoder attStmtDecoder,
-        IAuthenticatorDataDecoder authDataDecoder,
         ILogger<DefaultAttestationObjectDecoder<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(cborDecoder);
-        ArgumentNullException.ThrowIfNull(attStmtDecoder);
-        ArgumentNullException.ThrowIfNull(authDataDecoder);
         ArgumentNullException.ThrowIfNull(logger);
-        _cborDecoder = cborDecoder;
-        _attStmtDecoder = attStmtDecoder;
-        _authDataDecoder = authDataDecoder;
-        _logger = logger;
+        CborDecoder = cborDecoder;
+        Logger = logger;
     }
+
+    protected ICborDecoder CborDecoder { get; }
+    protected ILogger<DefaultAttestationObjectDecoder<TContext>> Logger { get; }
 
     public virtual Task<Result<AttestationObject>> DecodeAsync(
         TContext context,
@@ -47,7 +43,7 @@ public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecod
         var mapResult = TryRead(attestationObject);
         if (mapResult.HasError)
         {
-            _logger.AttObjReadFailure();
+            Logger.AttObjReadFailure();
             return Task.FromResult(Result<AttestationObject>.Fail());
         }
 
@@ -55,19 +51,19 @@ public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecod
 
         if (!TryDecodeAttestationStatementFormat(attestationObjectCbor, out var fmt))
         {
-            _logger.AttObjDecodeFailureFmt();
+            Logger.AttObjDecodeFailureFmt();
             return Task.FromResult(Result<AttestationObject>.Fail());
         }
 
-        if (!TryDecodeAttestationStatement(attestationObjectCbor, fmt.Value, out var attStmt))
+        if (!TryDecodeAttestationStatement(attestationObjectCbor, out var attStmt))
         {
-            _logger.AttObjDecodeFailureAttStmt();
+            Logger.AttObjDecodeFailureAttStmt();
             return Task.FromResult(Result<AttestationObject>.Fail());
         }
 
         if (!TryDecodeAuthData(attestationObjectCbor, out var authData))
         {
-            _logger.AttObjDecodeFailureAuthData();
+            Logger.AttObjDecodeFailureAuthData();
             return Task.FromResult(Result<AttestationObject>.Fail());
         }
 
@@ -77,17 +73,17 @@ public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecod
 
     protected virtual Result<CborMap> TryRead(byte[] attestationObject)
     {
-        var attestationObjectCborDecode = _cborDecoder.Decode(attestationObject);
+        var attestationObjectCborDecode = CborDecoder.Decode(attestationObject);
         if (attestationObjectCborDecode.HasError)
         {
-            _logger.AttObjDecodeFailure();
+            Logger.AttObjDecodeFailure();
             return Result<CborMap>.Fail();
         }
 
         var attestationObjectCborRoot = attestationObjectCborDecode.Ok.Root;
         if (attestationObjectCborRoot is not CborMap attestationObjectCborMap)
         {
-            _logger.AttObjMustBeCborMap();
+            Logger.AttObjMustBeCborMap();
             return Result<CborMap>.Fail();
         }
 
@@ -102,108 +98,74 @@ public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecod
         var dict = attestationObjectCborMap.RawValue;
         if (!dict.TryGetValue(new CborTextString("fmt"), out var fmtCbor))
         {
-            _logger.AttObjFmtKeyNotFound();
+            Logger.AttObjFmtKeyNotFound();
             value = null;
             return false;
         }
 
         if (fmtCbor is not CborTextString fmtCborText)
         {
-            _logger.AttObjFmtValueInvalidDataType();
+            Logger.AttObjFmtValueInvalidDataType();
             value = null;
             return false;
         }
 
-        switch (fmtCborText.RawValue)
+        if (!AttestationStatementFormatMapper.TryGetEnumFromString(fmtCborText.RawValue, out var mappedValue))
         {
-            case "none":
-                value = AttestationStatementFormat.None;
-                return true;
-            case "packed":
-                value = AttestationStatementFormat.Packed;
-                return true;
-            case "tpm":
-                value = AttestationStatementFormat.Tpm;
-                return true;
-            case "android-key":
-                value = AttestationStatementFormat.AndroidKey;
-                return true;
-            case "android-safetynet":
-                value = AttestationStatementFormat.AndroidSafetynet;
-                return true;
-            case "fido-u2f":
-                value = AttestationStatementFormat.FidoU2F;
-                return true;
-            case "apple":
-                value = AttestationStatementFormat.AppleAnonymous;
-                return true;
-            default:
-                value = null;
-                _logger.AttObjFmtValueUnknown(fmtCborText.RawValue);
-                return false;
+            Logger.AttObjFmtValueUnknown(fmtCborText.RawValue);
+            value = null;
+            return false;
         }
+
+        value = mappedValue.Value;
+        return true;
     }
 
     protected virtual bool TryDecodeAttestationStatement(
         CborMap attestationObjectCborMap,
-        AttestationStatementFormat format,
-        [NotNullWhen(true)] out AbstractAttestationStatement? value)
+        [NotNullWhen(true)] out CborMap? value)
     {
         ArgumentNullException.ThrowIfNull(attestationObjectCborMap);
         var dict = attestationObjectCborMap.RawValue;
         if (!dict.TryGetValue(new CborTextString("attStmt"), out var attStmtCbor))
         {
-            _logger.AttObjAttStmtKeyNotFound();
+            Logger.AttObjAttStmtKeyNotFound();
             value = null;
             return false;
         }
 
         if (attStmtCbor is not CborMap attStmtCborMap)
         {
-            _logger.AttObjAttStmtValueInvalidDataType();
+            Logger.AttObjAttStmtValueInvalidDataType();
             value = null;
             return false;
         }
 
-        var decodeResult = _attStmtDecoder.Decode(attStmtCborMap, format);
-        if (decodeResult.HasError)
-        {
-            value = null;
-            return false;
-        }
-
-        value = decodeResult.Ok;
+        value = attStmtCborMap;
         return true;
     }
 
     protected virtual bool TryDecodeAuthData(
         CborMap attStmt,
-        [NotNullWhen(true)] out AuthenticatorData? decodedValue)
+        [NotNullWhen(true)] out byte[]? decodedValue)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("authData"), out var sigCbor))
         {
-            _logger.AttObjAuthDataKeyNotFound();
+            Logger.AttObjAuthDataKeyNotFound();
             decodedValue = null;
             return false;
         }
 
         if (sigCbor is not CborByteString sigCborByteString)
         {
-            _logger.AttObjAuthDataValueInvalidDataType();
+            Logger.AttObjAuthDataValueInvalidDataType();
             decodedValue = null;
             return false;
         }
 
-        var decodeResult = _authDataDecoder.Decode(sigCborByteString.RawValue);
-        if (decodeResult.HasError)
-        {
-            decodedValue = null;
-            return false;
-        }
-
-        decodedValue = decodeResult.Ok;
+        decodedValue = sigCborByteString.RawValue;
         return true;
     }
 }

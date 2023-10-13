@@ -2,14 +2,14 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Tpm;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Manufacturer;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Manufacturer.Constants;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm;
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
 {
-    // https://trustedcomputinggroup.org/resource/vendor-id-registry/
-    // https://trustedcomputinggroup.org/wp-content/uploads/TCG-TPM-Vendor-ID-Registry-Version-1.06-Revision-0.94_pub.pdf
     protected static readonly HashSet<string> ValidManufacturers = new(StringComparer.Ordinal)
     {
         "id:414D4400", // AMD
@@ -40,8 +40,38 @@ public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
         "id:57454300" // Winbond
     };
 
-    public virtual bool IsValid(string tpmManufacturer)
+
+    public virtual TpmManufacturerVerificationResult IsValid(string tpmManufacturer)
     {
-        return ValidManufacturers.Contains(tpmManufacturer);
+        return tpmManufacturer switch
+        {
+            TpmManufacturers.AMD => new(true, TpmRoots.AMD),
+            TpmManufacturers.Atmel => new(true, TpmRoots.Atmel),
+            TpmManufacturers.Infineon => new(true, TpmRoots.Infineon),
+            TpmManufacturers.Intel => new(true, TpmRoots.Intel),
+            TpmManufacturers.Microsoft => new(true, TpmRoots.Microsoft),
+            TpmManufacturers.Nationz => new(true, TpmRoots.Nationz),
+            TpmManufacturers.NuvotonTechnology => new(true, TpmRoots.NuvotonTechnology),
+            TpmManufacturers.STMicroelectronics => new(true, TpmRoots.STMicroelectronics),
+            TpmManufacturers.AntGroup
+                or TpmManufacturers.Broadcom
+                or TpmManufacturers.Cisco
+                or TpmManufacturers.FlysliceTechnologies
+                or TpmManufacturers.FuzhouRockchip
+                or TpmManufacturers.Google
+                or TpmManufacturers.HPI
+                or TpmManufacturers.HPE
+                or TpmManufacturers.Huawei
+                or TpmManufacturers.IBM
+                or TpmManufacturers.Lenovo
+                or TpmManufacturers.NationalSemiconductor
+                or TpmManufacturers.Qualcomm
+                or TpmManufacturers.Samsung
+                or TpmManufacturers.Sinosun
+                or TpmManufacturers.SMSC
+                or TpmManufacturers.TexasInstruments
+                or TpmManufacturers.Winbond => new(true, null),
+            _ => new(false, null)
+        };
     }
 }

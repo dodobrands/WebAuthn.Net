@@ -10,13 +10,14 @@ using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Providers;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.AndroidKey;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 
@@ -50,7 +51,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         AndroidKeyAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         CancellationToken cancellationToken)
     {
@@ -60,11 +61,6 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(attStmt);
         ArgumentNullException.ThrowIfNull(authenticatorData);
-        if (authenticatorData.AttestedCredentialData is null)
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
         // 1) Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
         // 2) Verify that 'sig' is a valid signature over the concatenation of 'authenticatorData' and 'clientDataHash'
         // using the public key in the first certificate in x5c with the algorithm specified in alg.
@@ -118,7 +114,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         }
 
         // 6) If successful, return implementation-specific values representing attestation type Basic and attestation trust path 'x5c'.
-        var result = new AttestationStatementVerificationResult(AttestationType.Basic, trustPath);
+        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AndroidKey, AttestationType.Basic, trustPath, null);
         return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
     }
 

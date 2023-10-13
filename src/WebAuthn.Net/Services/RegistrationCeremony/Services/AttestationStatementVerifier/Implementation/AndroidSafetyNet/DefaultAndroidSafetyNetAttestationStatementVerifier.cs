@@ -13,12 +13,13 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Providers;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.AndroidSafetyNet;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.AndroidSafetyNet;
 
@@ -38,7 +39,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         AndroidSafetyNetAttestationStatement attStmt,
-        AuthenticatorData authenticatorData,
+        AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         CancellationToken cancellationToken)
     {
@@ -126,7 +127,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         }
 
         // 5) If successful, return implementation-specific values representing attestation type Basic and attestation trust path x5c.
-        var result = new AttestationStatementVerificationResult(AttestationType.Basic, certificates);
+        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AndroidSafetynet, AttestationType.Basic, certificates, null);
         return Result<AttestationStatementVerificationResult>.Success(result);
     }
 
