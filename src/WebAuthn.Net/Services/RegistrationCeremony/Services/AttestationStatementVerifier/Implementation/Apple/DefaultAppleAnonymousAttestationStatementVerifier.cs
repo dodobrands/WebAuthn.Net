@@ -12,6 +12,7 @@ using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Apple;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Apple.Constants;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
@@ -78,7 +79,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         }
 
         // 6) If successful, return implementation-specific values representing attestation type Anonymization CA and attestation trust path x5c.
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AppleAnonymous, AttestationType.AnonCa, trustPath, null);
+        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AppleAnonymous, AttestationType.AnonCa, trustPath, AppleRoots.Apple);
         return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
     }
 

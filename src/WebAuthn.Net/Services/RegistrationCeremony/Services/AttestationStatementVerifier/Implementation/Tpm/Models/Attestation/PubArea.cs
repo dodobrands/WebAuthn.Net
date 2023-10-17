@@ -91,7 +91,7 @@ public class PubArea
                         X = tpmEcPoint.X,
                         Y = tpmEcPoint.Y
                     };
-                    using var ecdsa = ECDsa.Create(new ECParameters
+                    var ecdsa = ECDsa.Create(new ECParameters
                     {
                         Q = point,
                         Curve = ecCurve.Value

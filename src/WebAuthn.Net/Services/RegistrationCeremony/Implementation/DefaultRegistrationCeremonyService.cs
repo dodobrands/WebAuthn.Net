@@ -48,15 +48,15 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         IRelyingPartyOriginProvider<TContext> rpOriginProvider,
         IChallengeGenerator challengeGenerator,
         ITimeProvider timeProvider,
-        IOptionsEncoder<TContext> optionsEncoder,
+        IPublicKeyCredentialCreationOptionsEncoder<TContext> publicKeyCredentialCreationOptionsEncoder,
         IOperationalStorage<TContext> storage,
         IRegistrationResponseDecoder<TContext> registrationResponseDecoder,
         IClientDataDecoder<TContext> clientDataDecoder,
         IAttestationObjectDecoder<TContext> attestationObjectDecoder,
         IAttestationStatementVerifier<TContext> attestationStatementVerifier,
-        ILogger<DefaultRegistrationCeremonyService<TContext>> logger,
         IAuthenticatorDataDecoder authenticatorDataDecoder,
-        IAttestationStatementDecoder attestationStatementDecoder)
+        IAttestationStatementDecoder attestationStatementDecoder,
+        ILogger<DefaultRegistrationCeremonyService<TContext>> logger)
     {
         Options = options;
         ContextFactory = contextFactory;
@@ -64,15 +64,15 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         RpOriginProvider = rpOriginProvider;
         ChallengeGenerator = challengeGenerator;
         TimeProvider = timeProvider;
-        OptionsEncoder = optionsEncoder;
+        PublicKeyCredentialCreationOptionsEncoder = publicKeyCredentialCreationOptionsEncoder;
         Storage = storage;
         RegistrationResponseDecoder = registrationResponseDecoder;
         ClientDataDecoder = clientDataDecoder;
         AttestationObjectDecoder = attestationObjectDecoder;
         AttestationStatementVerifier = attestationStatementVerifier;
-        Logger = logger;
         AuthenticatorDataDecoder = authenticatorDataDecoder;
         AttestationStatementDecoder = attestationStatementDecoder;
+        Logger = logger;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
@@ -81,7 +81,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
     protected IRelyingPartyOriginProvider<TContext> RpOriginProvider { get; }
     protected IChallengeGenerator ChallengeGenerator { get; }
     protected ITimeProvider TimeProvider { get; }
-    protected IOptionsEncoder<TContext> OptionsEncoder { get; }
+    protected IPublicKeyCredentialCreationOptionsEncoder<TContext> PublicKeyCredentialCreationOptionsEncoder { get; }
     protected IOperationalStorage<TContext> Storage { get; }
     protected IRegistrationResponseDecoder<TContext> RegistrationResponseDecoder { get; }
     protected IClientDataDecoder<TContext> ClientDataDecoder { get; }
@@ -114,7 +114,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         var createdAt = TimeProvider.GetRoundUtcDateTime();
         var expiresAt = createdAt.ComputeExpiresAtUtc(request.Timeout);
         var options = ToPublicKeyCredentialCreationOptions(request, rpId, challenge, credentialsToExclude);
-        var outputOptions = await OptionsEncoder.EncodeAsync(context, options, cancellationToken);
+        var outputOptions = await PublicKeyCredentialCreationOptionsEncoder.EncodeAsync(context, options, cancellationToken);
         var registrationCeremonyOptions = new RegistrationCeremonyOptions(options, rpOrigin, new[] { rpOrigin }, createdAt, expiresAt);
         var ceremonyId = await Storage.SaveRegistrationCeremonyOptionsAsync(context, registrationCeremonyOptions, cancellationToken);
         await context.CommitAsync(cancellationToken);
@@ -285,7 +285,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
             }
 
             // 14. Verify that the UP bit of the 'flags' in 'authData' is set.
-            if ((authData.Flags & AuthenticatorDataFlags.UserPresent) is AuthenticatorDataFlags.UserPresent)
+            if ((authData.Flags & AuthenticatorDataFlags.UserPresent) is not AuthenticatorDataFlags.UserPresent)
             {
                 Logger.UserPresentBitNotSet();
                 return Result<CompleteRegistrationCeremonyResult>.Fail();

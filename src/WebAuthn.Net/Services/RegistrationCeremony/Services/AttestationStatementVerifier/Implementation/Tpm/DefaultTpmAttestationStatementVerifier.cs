@@ -97,6 +97,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
+        bool matches;
         if (!pubArea.TryToAsymmetricAlgorithm(out var algorithm))
         {
             return false;
@@ -104,8 +105,10 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
 
         using (algorithm)
         {
-            return authDataKey.Matches(algorithm);
+            matches = authDataKey.Matches(algorithm);
         }
+
+        return matches;
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]

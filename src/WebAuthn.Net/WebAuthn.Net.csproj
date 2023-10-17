@@ -27,8 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="**\*.der" />
-    <EmbeddedResource Include="**\*.der" />
+    <None Remove="Services\**\*.der" />
+    <EmbeddedResource Include="Services\**\*.der" />
   </ItemGroup>
 
 </Project>

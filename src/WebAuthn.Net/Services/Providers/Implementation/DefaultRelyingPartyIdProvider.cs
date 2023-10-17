@@ -12,6 +12,9 @@ public class DefaultRelyingPartyIdProvider<TContext> : IRelyingPartyIdProvider<T
     {
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(context.HttpContext.Request.Host.ToString());
+        var baseAddress = context.HttpContext.Request.Scheme + Uri.SchemeDelimiter + context.HttpContext.Request.Host + context.HttpContext.Request.PathBase;
+        var baseUri = new Uri(baseAddress, UriKind.Absolute);
+        var effectiveDomain = baseUri.Host;
+        return Task.FromResult(effectiveDomain);
     }
 }
