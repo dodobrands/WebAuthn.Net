@@ -1,0 +1,16 @@
+{
+    "id": "AQhGVh4AhYHIa06UqIE7BpSKEAhmdQCRZXkDohn9wtWcHTIV5_Q1o3pC498cM2Y922-3ikbisHI9l3UhX7tSwhc",
+    "rawId": "AQhGVh4AhYHIa06UqIE7BpSKEAhmdQCRZXkDohn9wtWcHTIV5_Q1o3pC498cM2Y922-3ikbisHI9l3UhX7tSwhc",
+    "response": {
+        "authenticatorData": "miPJOr64Yikjfv8MyyFBLBwA4260CubjCtHmm4ZttsUFAAAAAQ",
+        "signature": "MEUCIQChq7IL-ngSC3l3MV8PJU6_n3e36xeaqFS6f0_mhVc2zgIgTzIBqOJZ8EvGvOVFoLHFx1K7WHm72Qg_qYyUjnzBcJk",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiU2Rhc2ZRWVVSajZ1enkzYk1UVEtYZ1hCZVVmN2lrQWpfN2NhZDhiSFhfYyIsIm9yaWdpbiI6Imh0dHBzOlwvXC9nb29zZS13b25kcm91cy1vdmVybHkubmdyb2stZnJlZS5hcHAiLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20uYW5kcm9pZC5jaHJvbWUifQ",
+        "userHandle": "",
+        "attestationObject": null
+    },
+    "type": "public-key",
+    "extensions": {
+        "appid": false,
+        "authnSel": false
+    }
+}

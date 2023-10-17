@@ -1,0 +1,14 @@
+{
+    "challenge": "SdasfQYURj6uzy3bMTTKXgXBeUf7ikAj_7cad8bHX_c",
+    "timeout": 60000,
+    "rpId": "goose-wondrous-overly.ngrok-free.app",
+    "allowCredentials": [
+        {
+            "type": "public-key",
+            "id": "AQhGVh4AhYHIa06UqIE7BpSKEAhmdQCRZXkDohn9wtWcHTIV5_Q1o3pC498cM2Y922-3ikbisHI9l3UhX7tSwhc"
+        }
+    ],
+    "userVerification": "required",
+    "status": "ok",
+    "errorMessage": ""
+}
