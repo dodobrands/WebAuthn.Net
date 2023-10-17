@@ -1,0 +1,12 @@
+{
+    "challenge": "17DuDQWYOsy7yxrTmq3yHXZ3zYlO6FWmAtKtvZ9KHlI",
+    "timeout": 60000,
+    "rpId": "vanbukin-pc.local",
+    "allowCredentials": [
+        {
+            "type": "public-key",
+            "id": "Ox696mJ0yDpYMNjNAqSJIbkuvaPEk9CTyMMrvUxCwVWKJblMwcd1zzNyVf7ngMA3X5dewF6-2YDKjrgkghmAZg"
+        }
+    ],
+    "userVerification": "discouraged"
+}

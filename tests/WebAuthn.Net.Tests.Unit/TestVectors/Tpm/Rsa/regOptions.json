@@ -1,0 +1,33 @@
+{
+    "rp": {
+        "id": "vanbukin-pc.local",
+        "name": "Test Host"
+    },
+    "user": {
+        "name": "testuser",
+        "id": "AAAAAAAAAAAAAAAAAAAAAQ",
+        "displayName": "Test User"
+    },
+    "challenge": "r8bwKDi4O_mRtPDj6RxxQtdKKcfoCTj_f_Bd_07taoo",
+    "pubKeyCredParams": [
+        {
+            "type": "public-key",
+            "alg": -257
+        },
+        {
+            "type": "public-key",
+            "alg": -258
+        },
+        {
+            "type": "public-key",
+            "alg": -259
+        }
+    ],
+    "timeout": 60000,
+    "attestation": "direct",
+    "authenticatorSelection": {
+        "authenticatorAttachment": "platform",
+        "userVerification": "required"
+    },
+    "excludeCredentials": []
+}

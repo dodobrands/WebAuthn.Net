@@ -1,0 +1,57 @@
+{
+    "rp": {
+        "id": "goose-wondrous-overly.ngrok-free.app",
+        "name": "Test Host"
+    },
+    "user": {
+        "name": "testuser",
+        "id": "AAAAAAAAAAAAAAAAAAAAAQ",
+        "displayName": "Test User"
+    },
+    "challenge": "yup7N3Elt8TEfOl0hjWTyvBZ66Cfd9fCvNVZlpSzVI0",
+    "pubKeyCredParams": [
+        {
+            "type": "public-key",
+            "alg": -7
+        },
+        {
+            "type": "public-key",
+            "alg": -35
+        },
+        {
+            "type": "public-key",
+            "alg": -36
+        },
+        {
+            "type": "public-key",
+            "alg": -257
+        },
+        {
+            "type": "public-key",
+            "alg": -258
+        },
+        {
+            "type": "public-key",
+            "alg": -259
+        },
+        {
+            "type": "public-key",
+            "alg": -37
+        },
+        {
+            "type": "public-key",
+            "alg": -38
+        },
+        {
+            "type": "public-key",
+            "alg": -39
+        }
+    ],
+    "timeout": 60000,
+    "attestation": "direct",
+    "authenticatorSelection": {
+        "authenticatorAttachment": "platform",
+        "userVerification": "required"
+    },
+    "excludeCredentials": []
+}

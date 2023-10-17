@@ -1,0 +1,16 @@
+{
+    "id": "Ox696mJ0yDpYMNjNAqSJIbkuvaPEk9CTyMMrvUxCwVWKJblMwcd1zzNyVf7ngMA3X5dewF6-2YDKjrgkghmAZg",
+    "rawId": "Ox696mJ0yDpYMNjNAqSJIbkuvaPEk9CTyMMrvUxCwVWKJblMwcd1zzNyVf7ngMA3X5dewF6-2YDKjrgkghmAZg",
+    "response": {
+        "authenticatorData": "wbGR7JKb_3nCDS_Zb_TxyUe4a4rtFXaAsGAUBoQQGPUBAAAAAg",
+        "signature": "MEUCIERLajmdVg4kBCA6_qH9B0055J_78z-Wn09G7x6ZFisKAiEA_C6hPaBdyo2uDfBOJQ5EozReNJVlHUC9wiJzyxLeFt4",
+        "clientDataJSON": "eyJjaGFsbGVuZ2UiOiIxN0R1RFFXWU9zeTd5eHJUbXEzeUhYWjN6WWxPNkZXbUF0S3R2WjlLSGxJIiwiY2xpZW50RXh0ZW5zaW9ucyI6e30sImhhc2hBbGdvcml0aG0iOiJTSEEtMjU2Iiwib3JpZ2luIjoiaHR0cHM6Ly92YW5idWtpbi1wYy5sb2NhbCIsInR5cGUiOiJ3ZWJhdXRobi5nZXQifQ",
+        "userHandle": "",
+        "attestationObject": null
+    },
+    "type": "public-key",
+    "extensions": {
+        "appid": false,
+        "authnSel": false
+    }
+}
