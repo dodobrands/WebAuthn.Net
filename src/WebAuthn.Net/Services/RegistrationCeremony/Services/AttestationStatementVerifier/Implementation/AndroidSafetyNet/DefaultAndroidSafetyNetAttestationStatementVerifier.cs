@@ -20,6 +20,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVe
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.AndroidSafetyNet;
 
@@ -55,80 +56,136 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         // As of this writing, there is only one format of the SafetyNet response and ver is reserved for future use.
         var jwtString = Encoding.UTF8.GetString(attStmt.Response);
         var jwt = new JwtSecurityToken(jwtString);
-        if (!TryGetCertificates(jwt, out var certificates))
+        var certificates = new List<X509Certificate2>();
+        var securityKeys = new List<SecurityKey>();
+        try
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            // get x5c certificates for JWT validation
+            if (!TryGetRawCertificates(jwt, out var trustPath))
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        if (!TryGetSecurityKeys(certificates, out var securityKeys))
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            var currentDate = TimeProvider.GetPreciseUtcDateTime();
+            foreach (var certBytes in trustPath)
+            {
+                var cert = X509CertificateInMemoryLoader.Load(certBytes);
+                certificates.Add(cert);
+                if (currentDate < cert.NotBefore || currentDate > cert.NotAfter)
+                {
+                    return Result<AttestationStatementVerificationResult>.Fail();
+                }
+            }
 
-        var validationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKeys = securityKeys,
-            ValidateLifetime = false,
-            ValidateAudience = false,
-            ValidateIssuer = false
-        };
-        var tokenHandler = new JwtSecurityTokenHandler();
-        tokenHandler.InboundClaimFilter.Clear();
-        tokenHandler.InboundClaimTypeMap.Clear();
-        tokenHandler.OutboundAlgorithmMap.Clear();
-        tokenHandler.OutboundClaimTypeMap.Clear();
-        var validationResult = await tokenHandler.ValidateTokenAsync(jwtString, validationParameters);
-        if (!validationResult.IsValid)
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            // get security keys from certificates
+            foreach (var currentCertificate in certificates)
+            {
+                if (currentCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
+                {
+                    securityKeys.Add(new ECDsaSecurityKey(ecdsaPublicKey));
+                }
+                else if (currentCertificate.GetRSAPublicKey() is { } rsaPublicKey)
+                {
+                    securityKeys.Add(new RsaSecurityKey(rsaPublicKey));
+                }
+                else
+                {
+                    return Result<AttestationStatementVerificationResult>.Fail();
+                }
+            }
 
-        if (validationResult.SecurityToken is not JwtSecurityToken validatedJwt)
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKeys = securityKeys,
+                ValidateLifetime = false,
+                ValidateAudience = false,
+                ValidateIssuer = false
+            };
+            var tokenHandler = new JwtSecurityTokenHandler();
+            tokenHandler.InboundClaimFilter.Clear();
+            tokenHandler.InboundClaimTypeMap.Clear();
+            tokenHandler.OutboundAlgorithmMap.Clear();
+            tokenHandler.OutboundClaimTypeMap.Clear();
+            var validationResult = await tokenHandler.ValidateTokenAsync(jwtString, validationParameters);
+            if (!validationResult.IsValid)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        if (!TryGetRequiredClaims(validatedJwt, out var nonce, out var ctsProfileMatch, out var timestamp))
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            if (validationResult.SecurityToken is not JwtSecurityToken validatedJwt)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        // 3) Verify that the 'nonce' attribute in the payload of response
-        // is identical to the Base64 encoding of the SHA-256 hash of the concatenation of 'authenticatorData' and 'clientDataHash'.
-        var dataToVerify = SHA256.HashData(Concat(authenticatorData.Raw, clientDataHash));
-        var binaryNonce = Convert.FromBase64String(nonce);
-        if (!binaryNonce.AsSpan().SequenceEqual(dataToVerify.AsSpan()))
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            if (!TryGetRequiredClaims(validatedJwt, out var nonce, out var ctsProfileMatch, out var timestamp))
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        // 4) Verify that the SafetyNet response actually came from the SafetyNet service by following the steps in the SafetyNet online documentation.
-        if (ctsProfileMatch.Value != true)
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            // 3) Verify that the 'nonce' attribute in the payload of response
+            // is identical to the Base64 encoding of the SHA-256 hash of the concatenation of 'authenticatorData' and 'clientDataHash'.
+            var dataToVerify = SHA256.HashData(Concat(authenticatorData.Raw, clientDataHash));
+            var binaryNonce = Convert.FromBase64String(nonce);
+            if (!binaryNonce.AsSpan().SequenceEqual(dataToVerify.AsSpan()))
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        var attestationCert = certificates.First();
-        if (attestationCert.GetNameInfo(X509NameType.DnsName, false) is not "attest.android.com")
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            // 4) Verify that the SafetyNet response actually came from the SafetyNet service by following the steps in the SafetyNet online documentation.
+            if (ctsProfileMatch.Value != true)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        var currentDate = TimeProvider.GetPreciseUtcDateTime();
-        if (currentDate < timestamp.Value)
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            var attestationCert = certificates.First();
+            if (attestationCert.GetNameInfo(X509NameType.DnsName, false) is not "attest.android.com")
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        if (currentDate.Subtract(timestamp.Value) > TimeSpan.FromSeconds(60))
-        {
-            return Result<AttestationStatementVerificationResult>.Fail();
-        }
+            if (currentDate < timestamp.Value)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
 
-        // 5) If successful, return implementation-specific values representing attestation type Basic and attestation trust path x5c.
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AndroidSafetynet, AttestationType.Basic, certificates, null);
-        return Result<AttestationStatementVerificationResult>.Success(result);
+            if (currentDate.Subtract(timestamp.Value) > TimeSpan.FromSeconds(60))
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
+            // 5) If successful, return implementation-specific values representing attestation type Basic and attestation trust path x5c.
+            var result = new AttestationStatementVerificationResult(
+                AttestationStatementFormat.AndroidSafetynet,
+                AttestationType.Basic,
+                trustPath,
+                null);
+            return Result<AttestationStatementVerificationResult>.Success(result);
+        }
+        finally
+        {
+            foreach (var securityKey in securityKeys)
+            {
+                switch (securityKey)
+                {
+                    case ECDsaSecurityKey ecdsaKey:
+                        {
+                            ecdsaKey.ECDsa.Dispose();
+                            break;
+                        }
+                    case RsaSecurityKey rsaKey:
+                        {
+                            rsaKey.Rsa.Dispose();
+                            break;
+                        }
+                }
+            }
+
+            foreach (var certificate in certificates)
+            {
+                certificate.Dispose();
+            }
+        }
     }
 
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
@@ -140,95 +197,54 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool TryGetCertificates(JwtSecurityToken jwt, [NotNullWhen(true)] out X509Certificate2[]? certificates)
+    protected virtual bool TryGetRawCertificates(JwtSecurityToken jwt, [NotNullWhen(true)] out byte[][]? rawCertificates)
     {
         if (jwt is null)
         {
-            certificates = null;
+            rawCertificates = null;
             return false;
         }
 
         if (!jwt.Header.TryGetValue("x5c", out var certificatesObject) || certificatesObject is null)
         {
-            certificates = null;
+            rawCertificates = null;
             return false;
         }
 
         if (certificatesObject is string certificatesString)
         {
             var rawCert = WebEncoders.Base64UrlDecode(certificatesString);
-            var resultCert = new X509Certificate2(rawCert);
-            certificates = new[] { resultCert };
+            rawCertificates = new[] { rawCert };
             return true;
         }
 
         if (certificatesObject is IEnumerable certificatesEnumerable)
         {
-            var result = new List<X509Certificate2>();
+            var result = new List<byte[]>();
             foreach (var certificateObject in certificatesEnumerable)
             {
                 if (certificateObject is not string certificateString)
                 {
-                    certificates = null;
+                    rawCertificates = null;
                     return false;
                 }
 
                 var rawCert = WebEncoders.Base64UrlDecode(certificateString);
-                var resultCert = new X509Certificate2(rawCert);
-                var currentDate = TimeProvider.GetPreciseUtcDateTime();
-                if (currentDate < resultCert.NotBefore || currentDate > resultCert.NotAfter)
-                {
-                    certificates = null;
-                    return false;
-                }
-
-                result.Add(resultCert);
+                result.Add(rawCert);
             }
 
             if (result.Count == 0)
             {
-                certificates = null;
+                rawCertificates = null;
                 return false;
             }
 
-            certificates = result.ToArray();
+            rawCertificates = result.ToArray();
             return true;
         }
 
-        certificates = null;
+        rawCertificates = null;
         return false;
-    }
-
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool TryGetSecurityKeys(X509Certificate2[] certificates, [NotNullWhen(true)] out SecurityKey[]? securityKeys)
-    {
-        if (certificates is null)
-        {
-            securityKeys = null;
-            return false;
-        }
-
-        var result = new SecurityKey[certificates.Length];
-        for (var i = 0; i < certificates.Length; i++)
-        {
-            var currentCertificate = certificates[i];
-            if (currentCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
-            {
-                result[i] = new ECDsaSecurityKey(ecdsaPublicKey);
-            }
-            else if (currentCertificate.GetRSAPublicKey() is { } rsaPublicKey)
-            {
-                result[i] = new RsaSecurityKey(rsaPublicKey);
-            }
-            else
-            {
-                securityKeys = null;
-                return false;
-            }
-        }
-
-        securityKeys = result;
-        return true;
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]

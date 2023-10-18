@@ -1,16 +1,26 @@
-﻿using System.Security.Cryptography.X509Certificates;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Manufacturer;
 
 public class TpmManufacturerVerificationResult
 {
-    public TpmManufacturerVerificationResult(bool isValid, X509Certificate2[]? rootCerts)
+    public TpmManufacturerVerificationResult(bool isValid, byte[][]? rootCerts)
     {
         IsValid = isValid;
-        RootCerts = rootCerts;
+        if (isValid)
+        {
+            if (rootCerts is null)
+            {
+                ArgumentNullException.ThrowIfNull(rootCerts);
+            }
+
+            RootCerts = rootCerts;
+        }
     }
 
+    [MemberNotNullWhen(true, nameof(RootCerts))]
     public bool IsValid { get; }
 
-    public X509Certificate2[]? RootCerts { get; }
+    public byte[][]? RootCerts { get; }
 }

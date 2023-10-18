@@ -18,6 +18,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVe
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Packed;
 
@@ -57,28 +58,35 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 2) If x5c is present:
         if (attStmt.X5C is not null)
         {
-            var trustPath = new X509Certificate2[attStmt.X5C.Length];
-            for (var i = 0; i < trustPath.Length; i++)
+            var certificates = new List<X509Certificate2>();
+            try
             {
-                var x5CCert = new X509Certificate2(attStmt.X5C[i]);
                 var currentDate = TimeProvider.GetPreciseUtcDateTime();
-                if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+                foreach (var certBytes in attStmt.X5C)
                 {
-                    return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                    var cert = X509CertificateInMemoryLoader.Load(certBytes);
+                    certificates.Add(cert);
+                    if (currentDate < cert.NotBefore || currentDate > cert.NotAfter)
+                    {
+                        return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                    }
                 }
 
-                trustPath[i] = x5CCert;
+                var x5CResult = VerifyPackedWithX5C(attStmt, authenticatorData, clientDataHash, certificates, attStmt.X5C);
+                return Task.FromResult(x5CResult);
             }
+            finally
+            {
+                foreach (var certificate in certificates)
+                {
+                    certificate.Dispose();
+                }
+            }
+        }
 
-            var result = VerifyPackedWithX5C(attStmt, authenticatorData, clientDataHash, trustPath);
-            return Task.FromResult(result);
-        }
-        else
-        {
-            // 3) If x5c is not present, self attestation is in use.
-            var result = VerifyPackedWithoutX5C(attStmt, authenticatorData, clientDataHash);
-            return Task.FromResult(result);
-        }
+        // 3) If x5c is not present, self attestation is in use.
+        var noX5CResult = VerifyPackedWithoutX5C(attStmt, authenticatorData, clientDataHash);
+        return Task.FromResult(noX5CResult);
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
@@ -86,7 +94,8 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         PackedAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
-        X509Certificate2[] trustPath)
+        IReadOnlyCollection<X509Certificate2> certificates,
+        byte[][] trustPath)
     {
         if (attStmt is null || authenticatorData is null)
         {
@@ -98,7 +107,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // using the attestation public key in 'attestnCert' with the algorithm specified in 'alg'.
 
         // The attestation certificate 'attestnCert' MUST be the first element in the array.
-        var attestnCert = trustPath.First();
+        var attestnCert = certificates.First();
         var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
         if (!SignatureVerifier.IsValidCertificateSign(attestnCert, attStmt.Alg, dataToVerify, attStmt.Sig))
         {
@@ -123,7 +132,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
 
         // 4) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether attStmt conveys a Basic or AttCA attestation.
         // 5) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.Packed, AttestationType.Basic, trustPath, null);
+        var result = new AttestationStatementVerificationResult(
+            AttestationStatementFormat.Packed,
+            AttestationType.Basic,
+            trustPath,
+            null);
         return Result<AttestationStatementVerificationResult>.Success(result);
     }
 
@@ -154,7 +167,9 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         }
 
         // 3) If successful, return implementation-specific values representing attestation type Self and an empty attestation trust path.
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.Packed, AttestationType.Self);
+        var result = new AttestationStatementVerificationResult(
+            AttestationStatementFormat.Packed,
+            AttestationType.Self);
         return Result<AttestationStatementVerificationResult>.Success(result);
     }
 

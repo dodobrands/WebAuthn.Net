@@ -23,6 +23,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecod
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm;
 
@@ -116,8 +117,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         TpmAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
         byte[] attToBeSigned,
-        [NotNullWhen(true)] out X509Certificate2[]? trustPath,
-        out X509Certificate2[]? rootCertificates)
+        [NotNullWhen(true)] out byte[][]? trustPath,
+        out byte[][]? rootCertificates)
     {
         if (attStmt is null || authenticatorData is null)
         {
@@ -187,74 +188,83 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
-        var x5C = new X509Certificate2[attStmt.X5C.Length];
-        for (var i = 0; i < x5C.Length; i++)
+        var certificates = new List<X509Certificate2>(attStmt.X5C.Length);
+        try
         {
-            var x5CCert = new X509Certificate2(attStmt.X5C[i]);
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
-            if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+            foreach (var x5CBytes in attStmt.X5C)
+            {
+                var x5CCert = X509CertificateInMemoryLoader.Load(x5CBytes);
+                certificates.Add(x5CCert);
+                if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+                {
+                    trustPath = null;
+                    rootCertificates = null;
+                    return false;
+                }
+            }
+
+            var aikCert = certificates.First();
+
+            // 5) Note that the remaining fields in the "Standard Attestation Structure" [TPMv2-Part1] section 31.2,
+            // i.e., qualifiedSigner, clockInfo and firmwareVersion are ignored. These fields MAY be used as an input to risk engines.
+
+            // 6) Note that the remaining fields in the "Standard Attestation Structure" [TPMv2-Part1] section 31.2, i.e.,
+            // 'qualifiedSigner', 'clockInfo' and 'firmwareVersion' are ignored.
+            // These fields MAY be used as an input to risk engines.
+
+            // 7) Verify the 'sig' is a valid signature over 'certInfo' using the attestation public key in 'aikCert' with the algorithm specified in 'alg'.
+            if (!SignatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
             {
                 trustPath = null;
                 rootCertificates = null;
                 return false;
             }
 
-            x5C[i] = x5CCert;
-        }
-
-        var aikCert = x5C.First();
-
-        // 5) Note that the remaining fields in the "Standard Attestation Structure" [TPMv2-Part1] section 31.2,
-        // i.e., qualifiedSigner, clockInfo and firmwareVersion are ignored. These fields MAY be used as an input to risk engines.
-
-        // 6) Note that the remaining fields in the "Standard Attestation Structure" [TPMv2-Part1] section 31.2, i.e.,
-        // 'qualifiedSigner', 'clockInfo' and 'firmwareVersion' are ignored.
-        // These fields MAY be used as an input to risk engines.
-
-        // 7) Verify the 'sig' is a valid signature over 'certInfo' using the attestation public key in 'aikCert' with the algorithm specified in 'alg'.
-        if (!SignatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
-        {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
-        }
-
-        // 8) Verify that aikCert meets the requirements in §8.3.1 TPM Attestation Statement Certificate Requirements.
-        if (!IsTpmAttestationStatementCertificateRequirementsSatisfied(aikCert, out rootCertificates))
-        {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
-        }
-
-        // 9) If 'aikCert' contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
-        // verify that the value of this extension matches the 'aaguid' in 'authenticatorData'.
-        if (!TryGetAaguid(aikCert.Extensions, out var aaguid))
-        {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
-        }
-
-        if (aaguid.HasValue)
-        {
-            if (!aaguid.Value.AsSpan().SequenceEqual(authenticatorData.AttestedCredentialData.Aaguid.AsSpan()))
+            // 8) Verify that aikCert meets the requirements in §8.3.1 TPM Attestation Statement Certificate Requirements.
+            if (!IsTpmAttestationStatementCertificateRequirementsSatisfied(aikCert, out rootCertificates))
             {
                 trustPath = null;
                 rootCertificates = null;
                 return false;
             }
-        }
 
-        // 10) If successful, return implementation-specific values representing attestation type AttCA and attestation trust path 'x5c'.
-        trustPath = x5C;
-        return true;
+            // 9) If 'aikCert' contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
+            // verify that the value of this extension matches the 'aaguid' in 'authenticatorData'.
+            if (!TryGetAaguid(aikCert.Extensions, out var aaguid))
+            {
+                trustPath = null;
+                rootCertificates = null;
+                return false;
+            }
+
+            if (aaguid.HasValue)
+            {
+                if (!aaguid.Value.AsSpan().SequenceEqual(authenticatorData.AttestedCredentialData.Aaguid.AsSpan()))
+                {
+                    trustPath = null;
+                    rootCertificates = null;
+                    return false;
+                }
+            }
+
+            // 10) If successful, return implementation-specific values representing attestation type AttCA and attestation trust path 'x5c'.
+            trustPath = attStmt.X5C;
+            return true;
+        }
+        finally
+        {
+            foreach (var certificate in certificates)
+            {
+                certificate.Dispose();
+            }
+        }
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsTpmAttestationStatementCertificateRequirementsSatisfied(
         X509Certificate2 aikCert,
-        out X509Certificate2[]? rootCertificates)
+        out byte[][]? rootCertificates)
     {
         if (aikCert is null)
         {

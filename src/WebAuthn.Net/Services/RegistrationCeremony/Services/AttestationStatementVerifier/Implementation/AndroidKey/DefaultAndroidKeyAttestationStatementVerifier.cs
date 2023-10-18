@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.Linq;
@@ -20,6 +21,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVe
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.AndroidKey;
 
@@ -64,58 +66,71 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         // 1) Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
         // 2) Verify that 'sig' is a valid signature over the concatenation of 'authenticatorData' and 'clientDataHash'
         // using the public key in the first certificate in x5c with the algorithm specified in alg.
-        var trustPath = new X509Certificate2[attStmt.X5C.Length];
-        for (var i = 0; i < trustPath.Length; i++)
+        var certificates = new List<X509Certificate2>(attStmt.X5C.Length);
+        try
         {
-            var x5CCert = new X509Certificate2(attStmt.X5C[i]);
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
-            if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+            foreach (var x5CBytes in attStmt.X5C)
+            {
+                var x5CCert = X509CertificateInMemoryLoader.Load(x5CBytes);
+                certificates.Add(x5CCert);
+                if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+                {
+                    return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                }
+            }
+
+            // 'credCert' must be the first element in the array.
+            var credCert = certificates.First();
+            var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
+            if (!SignatureVerifier.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
             {
                 return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
             }
 
-            trustPath[i] = x5CCert;
-        }
+            // 3) Verify that the public key in the first certificate in 'x5c' matches the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
+            if (authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert.PublicKey))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
 
-        // 'credCert' must be the first element in the array.
-        var credCert = trustPath.First();
-        var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
-        if (!SignatureVerifier.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
+            // 4) Verify that the 'attestationChallenge' field in the attestation certificate extension data is identical to 'clientDataHash'.
+            if (!TryGetAttestationExtension(credCert, out var attestationExtension))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            if (!TryGetAttestationChallenge(attestationExtension, out var attestationChallenge))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            if (!attestationChallenge.AsSpan().SequenceEqual(clientDataHash.AsSpan()))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 5) Verify the following using the appropriate authorization list from the attestation certificate extension data:
+            if (!IsAuthorizationListDataValid(attestationExtension))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 6) If successful, return implementation-specific values representing attestation type Basic and attestation trust path 'x5c'.
+            var result = new AttestationStatementVerificationResult(
+                AttestationStatementFormat.AndroidKey,
+                AttestationType.Basic,
+                attStmt.X5C,
+                null);
+            return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+        }
+        finally
         {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            foreach (var certificate in certificates)
+            {
+                certificate.Dispose();
+            }
         }
-
-        // 3) Verify that the public key in the first certificate in 'x5c' matches the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
-        if (authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert.PublicKey))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 4) Verify that the 'attestationChallenge' field in the attestation certificate extension data is identical to 'clientDataHash'.
-        if (!TryGetAttestationExtension(credCert, out var attestationExtension))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        if (!TryGetAttestationChallenge(attestationExtension, out var attestationChallenge))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        if (!attestationChallenge.AsSpan().SequenceEqual(clientDataHash.AsSpan()))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 5) Verify the following using the appropriate authorization list from the attestation certificate extension data:
-        if (!IsAuthorizationListDataValid(attestationExtension))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 6) If successful, return implementation-specific values representing attestation type Basic and attestation trust path 'x5c'.
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AndroidKey, AttestationType.Basic, trustPath, null);
-        return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
     }
 
     protected virtual bool IsAuthorizationListDataValid(Asn1Sequence keyDescription)
@@ -179,42 +194,77 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         var shouldAcceptKeysOnlyFromTrustedExecutionEnvironment = Options.CurrentValue.AttestationStatements.AndroidKey.AcceptKeysOnlyFromTrustedExecutionEnvironment;
         if (shouldAcceptKeysOnlyFromTrustedExecutionEnvironment)
         {
-            if (!IsOriginAndPurposeCorrect(teeEnforced))
+            if (!TryGetPurposeFromAuthorizationList(teeEnforced, out var teeEnforcedPurpose))
             {
                 return false;
             }
+
+            if (!TryGetOriginFromAuthorizationList(teeEnforced, out var teeEnforcedOrigin))
+            {
+                return false;
+            }
+
+            return IsOriginAndPurposeCorrect(teeEnforcedPurpose.Value, teeEnforcedOrigin.Value);
         }
         else
         {
-            if (!IsOriginAndPurposeCorrect(teeEnforced) && !IsOriginAndPurposeCorrect(softwareEnforced))
+            // purpose
+            BigInteger purpose;
+            if (!TryGetPurposeFromAuthorizationList(teeEnforced, out var teeEnforcedPurpose))
             {
-                return false;
-            }
-        }
+                if (!TryGetPurposeFromAuthorizationList(softwareEnforced, out var softwareEnforcedPurpose))
+                {
+                    return false;
+                }
 
-        return true;
+                purpose = softwareEnforcedPurpose.Value;
+            }
+            else
+            {
+                // AuthorizationList.purpose should be contained either in softwareEnforced or in teeEnforced. It cannot be in both at the same time.
+                if (TryGetPurposeFromAuthorizationList(softwareEnforced, out _))
+                {
+                    return false;
+                }
+
+                purpose = teeEnforcedPurpose.Value;
+            }
+
+            // origin
+            BigInteger origin;
+            if (!TryGetOriginFromAuthorizationList(teeEnforced, out var teeEnforcedOrigin))
+            {
+                if (!TryGetOriginFromAuthorizationList(softwareEnforced, out var softwareEnforcedOrigin))
+                {
+                    return false;
+                }
+
+                origin = softwareEnforcedOrigin.Value;
+            }
+            else
+            {
+                // AuthorizationList.origin should be contained either in softwareEnforced or in teeEnforced. It cannot be in both at the same time.
+                if (TryGetOriginFromAuthorizationList(softwareEnforced, out _))
+                {
+                    return false;
+                }
+
+                origin = teeEnforcedOrigin.Value;
+            }
+
+            return IsOriginAndPurposeCorrect(purpose, origin);
+        }
     }
 
-    protected virtual bool IsOriginAndPurposeCorrect(Asn1Sequence authorizationList)
+    protected virtual bool IsOriginAndPurposeCorrect(BigInteger purpose, BigInteger origin)
     {
-        ArgumentNullException.ThrowIfNull(authorizationList);
         // https://android.googlesource.com/platform/hardware/libhardware/+/refs/heads/main/include_all/hardware/keymaster_defs.h
         // AuthorizationList.purpose == KM_PURPOSE_SIGN (Usable with RSA, EC and HMAC keys.)
         var kmPurposeSign = new BigInteger(2);
         // AuthorizationList.origin == KM_ORIGIN_GENERATED (Generated in keymaster. Should not exist outside the TEE.)
         var kmOriginGenerated = new BigInteger(0);
 
-        if (!TryGetPurposeFromAuthorizationList(authorizationList, out var purpose))
-        {
-            return false;
-        }
-
-        if (!TryGetOriginFromAuthorizationList(authorizationList, out var origin))
-        {
-            return false;
-        }
-
-        return purpose.Value == kmPurposeSign && origin.Value == kmOriginGenerated;
+        return purpose == kmPurposeSign && origin == kmOriginGenerated;
     }
 
     protected virtual bool TryGetPurposeFromAuthorizationList(Asn1Sequence authorizationList, [NotNullWhen(true)] out BigInteger? value)

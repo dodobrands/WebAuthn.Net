@@ -33,7 +33,7 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
                         return false;
                     }
 
-                    var ecDsaPubKey = certificate.GetECDsaPublicKey();
+                    using var ecDsaPubKey = certificate.GetECDsaPublicKey();
                     if (ecDsaPubKey is null)
                     {
                         return false;
@@ -83,7 +83,7 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
                         return false;
                     }
 
-                    var rsaPublicKey = certificate.GetRSAPublicKey();
+                    using var rsaPublicKey = certificate.GetRSAPublicKey();
                     if (rsaPublicKey is null)
                     {
                         return false;

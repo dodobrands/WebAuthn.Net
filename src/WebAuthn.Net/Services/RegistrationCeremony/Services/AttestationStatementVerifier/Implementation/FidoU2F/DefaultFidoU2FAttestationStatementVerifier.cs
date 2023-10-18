@@ -14,6 +14,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVe
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.FidoU2F;
 
@@ -47,84 +48,77 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         // 2) Check that 'x5c' has exactly one element and let 'attCert' be that element.
         // Let certificate public key be the public key conveyed by 'attCert'.
         // If certificate public key is not an Elliptic Curve (EC) public key over the P-256 curve, terminate this algorithm and return an appropriate error.
-        if (!TryGetExactlyOneCertificate(attStmt, out var attCert))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        if (!IsValidPublicKeyParameters(attCert, out var attCertEcParameters))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 3) Extract the claimed 'rpIdHash' from 'authenticatorData', and the claimed 'credentialId' and 'credentialPublicKey'
-        // from 'authenticatorData.attestedCredentialData'.
-        var rpIdHash = authenticatorData.RpIdHash;
-        var credentialId = authenticatorData.AttestedCredentialData.CredentialId;
-        if (authenticatorData.AttestedCredentialData.CredentialPublicKey is not CoseEc2Key credentialPublicKey)
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 4) Convert the COSE_KEY formatted 'credentialPublicKey' (see Section 7 of [RFC9052])
-        // to Raw ANSI X9.62 public key format (see ALG_KEY_ECC_X962_RAW in Section 3.6.2 Public Key Representation Formats of [FIDO-Registry]).
-        if (!TryConvertCoseKeyToPublicKeyU2F(credentialPublicKey, out var publicKeyU2F))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 5) Let 'verificationData' be the concatenation of
-        // (0x00 || 'rpIdHash' || 'clientDataHash' || 'credentialId' || 'publicKeyU2F') (see Section 4.3 of [FIDO-U2F-Message-Formats]).
-        var verificationData = Concat(stackalloc byte[1] { 0x00 }, rpIdHash, clientDataHash, credentialId, publicKeyU2F);
-
-        // 6) Verify the 'sig' using 'verificationData' and the certificate public key per section 4.1.4 of [SEC1]
-        // with SHA-256 as the hash function used in step two.
-        using var ecdsa = ECDsa.Create(new ECParameters
-        {
-            Curve = ECCurve.NamedCurves.nistP256,
-            Q = new()
-            {
-                X = attCertEcParameters.Value.Q.X,
-                Y = attCertEcParameters.Value.Q.Y
-            }
-        });
-        if (!ecdsa.VerifyData(verificationData, attStmt.Sig, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 7) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether 'attStmt' conveys a Basic or AttCA attestation.
-        // 8) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.FidoU2F, AttestationType.Basic, new[] { attCert }, null);
-        return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
-    }
-
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool TryGetExactlyOneCertificate(FidoU2FAttestationStatement attStmt, [NotNullWhen(true)] out X509Certificate2? attCert)
-    {
-        if (attStmt is null)
-        {
-            attCert = null;
-            return false;
-        }
 
         if (attStmt.X5C.Length != 1)
         {
-            attCert = null;
-            return false;
+            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
         }
 
-        var certBytes = attStmt.X5C[0];
-        var cert = new X509Certificate2(certBytes);
-        var currentDate = TimeProvider.GetPreciseUtcDateTime();
-        if (currentDate < cert.NotBefore || currentDate > cert.NotAfter)
+        X509Certificate2? attCert = null;
+        try
         {
-            attCert = null;
-            return false;
-        }
+            var rawAttCert = attStmt.X5C[0];
+            attCert = X509CertificateInMemoryLoader.Load(rawAttCert);
+            var currentDate = TimeProvider.GetPreciseUtcDateTime();
+            if (currentDate < attCert.NotBefore || currentDate > attCert.NotAfter)
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
 
-        attCert = cert;
-        return true;
+            if (!IsValidPublicKeyParameters(attCert, out var attCertEcParameters))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 3) Extract the claimed 'rpIdHash' from 'authenticatorData', and the claimed 'credentialId' and 'credentialPublicKey'
+            // from 'authenticatorData.attestedCredentialData'.
+            var rpIdHash = authenticatorData.RpIdHash;
+            var credentialId = authenticatorData.AttestedCredentialData.CredentialId;
+            if (authenticatorData.AttestedCredentialData.CredentialPublicKey is not CoseEc2Key credentialPublicKey)
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 4) Convert the COSE_KEY formatted 'credentialPublicKey' (see Section 7 of [RFC9052])
+            // to Raw ANSI X9.62 public key format (see ALG_KEY_ECC_X962_RAW in Section 3.6.2 Public Key Representation Formats of [FIDO-Registry]).
+            if (!TryConvertCoseKeyToPublicKeyU2F(credentialPublicKey, out var publicKeyU2F))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 5) Let 'verificationData' be the concatenation of
+            // (0x00 || 'rpIdHash' || 'clientDataHash' || 'credentialId' || 'publicKeyU2F') (see Section 4.3 of [FIDO-U2F-Message-Formats]).
+            var verificationData = Concat(stackalloc byte[1] { 0x00 }, rpIdHash, clientDataHash, credentialId, publicKeyU2F);
+
+            // 6) Verify the 'sig' using 'verificationData' and the certificate public key per section 4.1.4 of [SEC1]
+            // with SHA-256 as the hash function used in step two.
+            using var ecdsa = ECDsa.Create(new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                Q = new()
+                {
+                    X = attCertEcParameters.Value.Q.X,
+                    Y = attCertEcParameters.Value.Q.Y
+                }
+            });
+            if (!ecdsa.VerifyData(verificationData, attStmt.Sig, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 7) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether 'attStmt' conveys a Basic or AttCA attestation.
+            // 8) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
+            var result = new AttestationStatementVerificationResult(
+                AttestationStatementFormat.FidoU2F,
+                AttestationType.Basic,
+                new[] { rawAttCert },
+                null);
+            return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+        }
+        finally
+        {
+            attCert?.Dispose();
+        }
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]

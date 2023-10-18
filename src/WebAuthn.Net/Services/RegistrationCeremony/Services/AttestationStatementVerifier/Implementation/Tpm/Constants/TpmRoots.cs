@@ -3,28 +3,28 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Constants;
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public static class TpmRoots
 {
-    public static readonly X509Certificate2[] AMD = GetRoots("AMD");
-    public static readonly X509Certificate2[] Atmel = GetRoots("Atmel");
-    public static readonly X509Certificate2[] Infineon = GetRoots("Infineon");
-    public static readonly X509Certificate2[] Intel = GetRoots("Intel");
-    public static readonly X509Certificate2[] Microsoft = GetRoots("Microsoft");
-    public static readonly X509Certificate2[] Nationz = GetRoots("Nationz");
-    public static readonly X509Certificate2[] NuvotonTechnology = GetRoots("NuvotonTechnology");
-    public static readonly X509Certificate2[] STMicroelectronics = GetRoots("STMicroelectronics");
+    public static readonly byte[][] AMD = GetRoots("AMD");
+    public static readonly byte[][] Atmel = GetRoots("Atmel");
+    public static readonly byte[][] Infineon = GetRoots("Infineon");
+    public static readonly byte[][] Intel = GetRoots("Intel");
+    public static readonly byte[][] Microsoft = GetRoots("Microsoft");
+    public static readonly byte[][] Nationz = GetRoots("Nationz");
+    public static readonly byte[][] NuvotonTechnology = GetRoots("NuvotonTechnology");
+    public static readonly byte[][] STMicroelectronics = GetRoots("STMicroelectronics");
 
-    private static X509Certificate2[] GetRoots(string vendor)
+    private static byte[][] GetRoots(string vendor)
     {
         const string rootCertificatesDirectory = "RootCertificates";
 
         var tpmRootsNamespace = typeof(DefaultTpmManufacturerVerifier).Namespace ?? "";
-        var result = new List<X509Certificate2>();
+        var result = new List<byte[]>();
         var embeddedResources = typeof(TpmRoots).Assembly.GetManifestResourceNames();
         foreach (var embeddedResource in embeddedResources.Where(x =>
                      x.EndsWith(".der", StringComparison.Ordinal)
@@ -54,8 +54,8 @@ public static class TpmRoots
                 resourceStream.CopyTo(memoryStream);
                 memoryStream.Seek(0L, SeekOrigin.Begin);
                 var certBytes = memoryStream.ToArray();
-                var cert = new X509Certificate2(certBytes);
-                result.Add(cert);
+                using var cert = X509CertificateInMemoryLoader.Load(certBytes);
+                result.Add(certBytes);
             }
         }
 

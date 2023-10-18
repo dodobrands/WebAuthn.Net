@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +23,7 @@ public class DefaultRegistrationCeremonyServiceAppleAnonymousTests : AbstractReg
     [Test]
     public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForApple_WhenAllAlgorithms()
     {
+        TimeProvider.Change(DateTimeOffset.Parse("2023-10-16T08:43:33Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

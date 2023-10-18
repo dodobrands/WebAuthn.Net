@@ -3,21 +3,21 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Apple.Constants;
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public static class AppleRoots
 {
-    public static readonly X509Certificate2[] Apple = GetRoots();
+    public static readonly byte[][] Apple = GetRoots();
 
-    private static X509Certificate2[] GetRoots()
+    private static byte[][] GetRoots()
     {
         const string rootCertificatesDirectory = "RootCertificates";
 
         var tpmRootsNamespace = typeof(DefaultAppleAnonymousAttestationStatementVerifier<>).Namespace ?? "";
-        var result = new List<X509Certificate2>();
+        var result = new List<byte[]>();
         var embeddedResources = typeof(AppleRoots).Assembly.GetManifestResourceNames();
         foreach (var embeddedResource in embeddedResources.Where(x =>
                      x.EndsWith(".der", StringComparison.Ordinal)
@@ -44,8 +44,8 @@ public static class AppleRoots
             resourceStream.CopyTo(memoryStream);
             memoryStream.Seek(0L, SeekOrigin.Begin);
             var certBytes = memoryStream.ToArray();
-            var cert = new X509Certificate2(certBytes);
-            result.Add(cert);
+            using var cert = X509CertificateInMemoryLoader.Load(certBytes);
+            result.Add(certBytes);
         }
 
         if (result.Count < 1)

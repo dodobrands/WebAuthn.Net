@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.Linq;
@@ -18,6 +19,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVe
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Apple;
 
@@ -51,36 +53,62 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         cancellationToken.ThrowIfCancellationRequested();
 
         // 1) Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
-        if (!TryGetCertificatesTrustPath(attStmt, out var trustPath))
+        var certificates = new List<X509Certificate2>(attStmt.X5C.Length);
+        try
         {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
+            var currentDate = TimeProvider.GetPreciseUtcDateTime();
+            if (attStmt.X5C.Length < 2)
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
 
-        var credCert = trustPath.First();
-        // 2) Concatenate 'authenticatorData' and 'clientDataHash' to form 'nonceToHash'.
-        var nonceToHash = Concat(authenticatorData.Raw, clientDataHash);
-        // 3) Perform SHA-256 hash of nonceToHash to produce nonce.
-        var nonce = SHA256.HashData(nonceToHash);
-        // 4) Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
-        if (!TryGetNonce(credCert, out var certificateNonce))
+            foreach (var x5CBytes in attStmt.X5C)
+            {
+                var x5CCert = X509CertificateInMemoryLoader.Load(x5CBytes);
+                certificates.Add(x5CCert);
+                if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+                {
+                    return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                }
+            }
+
+            var credCert = certificates.First();
+            // 2) Concatenate 'authenticatorData' and 'clientDataHash' to form 'nonceToHash'.
+            var nonceToHash = Concat(authenticatorData.Raw, clientDataHash);
+            // 3) Perform SHA-256 hash of nonceToHash to produce nonce.
+            var nonce = SHA256.HashData(nonceToHash);
+            // 4) Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
+            if (!TryGetNonce(credCert, out var certificateNonce))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            if (!nonce.AsSpan().SequenceEqual(certificateNonce.AsSpan()))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 5) Verify that the credential public key equals the Subject Public Key of 'credCert'.
+            if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert.PublicKey))
+            {
+                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            }
+
+            // 6) If successful, return implementation-specific values representing attestation type Anonymization CA and attestation trust path x5c.
+            var result = new AttestationStatementVerificationResult(
+                AttestationStatementFormat.AppleAnonymous,
+                AttestationType.AnonCa,
+                attStmt.X5C,
+                AppleRoots.Apple);
+            return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+        }
+        finally
         {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            foreach (var certificate in certificates)
+            {
+                certificate.Dispose();
+            }
         }
-
-        if (!nonce.AsSpan().SequenceEqual(certificateNonce.AsSpan()))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 5) Verify that the credential public key equals the Subject Public Key of 'credCert'.
-        if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert.PublicKey))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        // 6) If successful, return implementation-specific values representing attestation type Anonymization CA and attestation trust path x5c.
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.AppleAnonymous, AttestationType.AnonCa, trustPath, AppleRoots.Apple);
-        return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
     }
 
     protected virtual bool TryGetNonce(X509Certificate2 credCert, [NotNullWhen(true)] out byte[]? certificateNonce)
@@ -156,39 +184,6 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         }
 
         certificateNonce = serialNumber.Value;
-        return true;
-    }
-
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool TryGetCertificatesTrustPath(AppleAnonymousAttestationStatement attStmt, [NotNullWhen(true)] out X509Certificate2[]? trustPath)
-    {
-        if (attStmt is null)
-        {
-            trustPath = null;
-            return false;
-        }
-
-        if (attStmt.X5C.Length < 2)
-        {
-            trustPath = null;
-            return false;
-        }
-
-        var result = new X509Certificate2[attStmt.X5C.Length];
-        for (var i = 0; i < result.Length; i++)
-        {
-            var x5CCert = new X509Certificate2(attStmt.X5C[i]);
-            var currentDate = TimeProvider.GetPreciseUtcDateTime();
-            if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
-            {
-                trustPath = null;
-                return false;
-            }
-
-            result[i] = x5CCert;
-        }
-
-        trustPath = result;
         return true;
     }
 

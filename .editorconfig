@@ -329,9 +329,12 @@ dotnet_diagnostic.CA1716.severity = suggestion
 # CA1819: Properties should not return arrays
 # A property returns an array.
 dotnet_diagnostic.CA1819.severity = suggestion
+# CA2000: Dispose objects before losing scope
+# A local object of an IDisposable type is created, but the object is not disposed before all references to the object are out of scope.
+dotnet_diagnostic.CA2000.severity = error
 # CA2007: Do not directly await a Task
 # An asynchronous method awaits a Task directly.
-dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA2007.severity = suggestion
 # SYSLIB1006: Multiple logging methods cannot use the same event ID
 # Multiple methods annotated with the LoggerMessageAttribute are using the same event ID value. 
 # Event ID values must be unique within the scope of each assembly.

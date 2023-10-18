@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Security.Cryptography.X509Certificates;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 
@@ -29,8 +28,8 @@ public class AttestationStatementVerificationResult
     public AttestationStatementVerificationResult(
         AttestationStatementFormat fmt,
         AttestationType attestationType,
-        X509Certificate2[] trustPath,
-        X509Certificate2[]? rootCertificates)
+        byte[][] trustPath,
+        byte[][]? rootCertificates)
     {
         if (!Enum.IsDefined(typeof(AttestationStatementFormat), fmt))
         {
@@ -58,6 +57,6 @@ public class AttestationStatementVerificationResult
 
     public AttestationType AttestationType { get; }
 
-    public X509Certificate2[]? TrustPath { get; }
-    public X509Certificate2[]? RootCertificates { get; }
+    public byte[][]? TrustPath { get; }
+    public byte[][]? RootCertificates { get; }
 }
