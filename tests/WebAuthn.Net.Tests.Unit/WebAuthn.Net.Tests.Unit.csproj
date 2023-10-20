@@ -30,4 +30,9 @@
     <EmbeddedResource Include="Services/**/*.json" />
   </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="DSL/Fakes/FakeResources/**/*.*" />
+      <EmbeddedResource Include="DSL/Fakes/FakeResources/**/*.*" />
+    </ItemGroup>
+
 </Project>

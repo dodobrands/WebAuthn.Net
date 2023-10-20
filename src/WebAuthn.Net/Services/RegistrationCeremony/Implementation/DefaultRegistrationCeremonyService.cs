@@ -176,7 +176,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
 
             // 6. Let 'C', the client data claimed as collected during the credential creation,
             // be the result of running an implementation-specific JSON parser on 'JSONtext'.
-            // Note: 'C' may be any implementation-specific data structure representation, as long as C’s components are referenceable,
+            // Note: 'C' may be any implementation-specific data structure representation, as long as C's components are referenceable,
             // as required by this algorithm.
             var clientDataResult = await ClientDataDecoder.DecodeAsync(context, JSONtext, cancellationToken);
             if (clientDataResult.HasError)
@@ -316,9 +316,9 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
 
-            // 17. If the Relying Party uses the credential’s backup eligibility to inform its user experience flows and/or policies,
+            // 17. If the Relying Party uses the credential's backup eligibility to inform its user experience flows and/or policies,
             // evaluate the BE bit of the flags in authData.
-            // 18. If the Relying Party uses the credential’s backup state to inform its user experience flows and/or policies,
+            // 18. If the Relying Party uses the credential's backup state to inform its user experience flows and/or policies,
             // evaluate the BS bit of the flags in authData.
 
             // 19. Verify that the 'alg' parameter in the credential public key in 'authData' matches the 'alg' attribute of one of the items in 'options.pubKeyCredParams'.

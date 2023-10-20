@@ -44,7 +44,7 @@ public class PublicKeyCredentialRpEntity
     ///             </item>
     ///         </list>
     ///     </para>
-    ///     <para>Authenticators MAY truncate a name member’s value so that it fits within 64 bytes, if the authenticator stores the value.</para>
+    ///     <para>Authenticators MAY truncate a name member's value so that it fits within 64 bytes, if the authenticator stores the value.</para>
     /// </remarks>
     public string Name { get; }
 
@@ -55,7 +55,7 @@ public class PublicKeyCredentialRpEntity
     ///     <para>DOMString</para>
     ///     <para>
     ///         Specifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#rp-id">RP ID</a> the credential should be <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#scope">scoped</a> to. If omitted, its value will be the
-    ///         <a href="https://w3c.github.io/webappsec-credential-management/#credentialscontainer">CredentialsContainer</a> object’s <a href="https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object">relevant settings object's</a>
+    ///         <a href="https://w3c.github.io/webappsec-credential-management/#credentialscontainer">CredentialsContainer</a> object's <a href="https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object">relevant settings object's</a>
     ///         <a href="https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin">origin's</a> <a href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-effective-domain">effective domain</a>.
     ///     </para>
     /// </remarks>

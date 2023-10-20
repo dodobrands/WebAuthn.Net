@@ -84,7 +84,7 @@ public class PublicKeyCredentialUserEntity
     ///         </list>
     ///     </para>
     ///     <para>The Relying Party MAY let the user choose this value.</para>
-    ///     <para>Authenticators MAY truncate a name member’s value so that it fits within 64 bytes, if the authenticator stores the value.</para>
+    ///     <para>Authenticators MAY truncate a name member's value so that it fits within 64 bytes, if the authenticator stores the value.</para>
     /// </remarks>
     public string Name { get; }
 
@@ -129,8 +129,8 @@ public class PublicKeyCredentialUserEntity
     ///             </item>
     ///         </list>
     ///     </para>
-    ///     <para>Authenticators MUST accept and store a 64-byte minimum length for a displayName member’s value.</para>
-    ///     <para>Authenticators MAY truncate a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-displayname">displayName</a> member’s value so that it fits within 64 bytes.</para>
+    ///     <para>Authenticators MUST accept and store a 64-byte minimum length for a displayName member's value.</para>
+    ///     <para>Authenticators MAY truncate a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-displayname">displayName</a> member's value so that it fits within 64 bytes.</para>
     /// </remarks>
     public string DisplayName { get; }
 }

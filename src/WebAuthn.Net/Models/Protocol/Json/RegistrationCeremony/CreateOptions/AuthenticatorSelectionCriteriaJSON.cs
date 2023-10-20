@@ -11,7 +11,7 @@ namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 ///     </para>
 ///     <para>
 ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-parseCreationOptionsFromJSON">
-///             Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.1.9. Deserialize Registration ceremony options - PublicKeyCredential’s
+///             Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.1.9. Deserialize Registration ceremony options - PublicKeyCredential's
 ///             parseCreationOptionsFromJSON() Method
 ///         </a>
 ///     </para>

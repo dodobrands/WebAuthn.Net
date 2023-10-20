@@ -117,9 +117,9 @@ public class AuthenticatorAttestationResponseJSON
     ///     </para>
     ///     <para>
     ///         The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-getpublickey">getPublicKey()</a> operation thus returns the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">credential public key</a>
-    ///         as a <a href="https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1.2.7">SubjectPublicKeyInfo</a>. This ArrayBuffer can, for example, be passed to Java’s
-    ///         <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/security/spec/X509EncodedKeySpec.html">java.security.spec.X509EncodedKeySpec</a>, .NET’s
-    ///         <a href="https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.ecdsa.importsubjectpublickeyinfo">System.Security.Cryptography.ECDsa.ImportSubjectPublicKeyInfo</a>, or Go’s
+    ///         as a <a href="https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1.2.7">SubjectPublicKeyInfo</a>. This ArrayBuffer can, for example, be passed to Java's
+    ///         <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/security/spec/X509EncodedKeySpec.html">java.security.spec.X509EncodedKeySpec</a>, .NET's
+    ///         <a href="https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.ecdsa.importsubjectpublickeyinfo">System.Security.Cryptography.ECDsa.ImportSubjectPublicKeyInfo</a>, or Go's
     ///         <a href="https://pkg.go.dev/crypto/x509#ParsePKIXPublicKey">crypto/x509.ParsePKIXPublicKey</a>.
     ///     </para>
     ///     <para>

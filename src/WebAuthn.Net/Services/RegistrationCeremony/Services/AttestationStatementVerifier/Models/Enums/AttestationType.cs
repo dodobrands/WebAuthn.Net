@@ -10,7 +10,7 @@ public enum AttestationType
 {
     /// <summary>
     ///     <para>
-    ///         In the case of basic attestation <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#biblio-uafprotocol">[UAFProtocol]</a>, the authenticator’s <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-key-pair">attestation key pair</a> is
+    ///         In the case of basic attestation <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#biblio-uafprotocol">[UAFProtocol]</a>, the authenticator's <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-key-pair">attestation key pair</a> is
     ///         specific to an authenticator "model", i.e., a "batch" of authenticators. Thus, authenticators of the same, or similar, model often share the same <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-key-pair">attestation key pair</a>. See
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation-privacy">§14.4.1 Attestation Privacy</a> for further information.
     ///     </para>

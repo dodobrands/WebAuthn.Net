@@ -122,7 +122,7 @@ public class CredentialRecord
     /// <summary>
     ///     OPTIONAL. The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-attestationobject">attestationObject</a> attribute when the
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential</a> source was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. Storing this enables the
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> to reference the credential’s <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> at a later time.
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> to reference the credential's <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> at a later time.
     /// </summary>
     public byte[]? AttestationObject { get; }
 

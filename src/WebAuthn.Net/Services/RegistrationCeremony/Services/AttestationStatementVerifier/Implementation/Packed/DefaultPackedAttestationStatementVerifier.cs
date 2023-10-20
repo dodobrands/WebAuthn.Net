@@ -196,7 +196,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // Subject-C - ISO 3166 code specifying the country where the Authenticator vendor is incorporated (PrintableString)
         // Subject-O - Legal name of the Authenticator vendor (UTF8String)
         // Subject-OU - Literal string "Authenticator Attestation" (UTF8String)
-        // Subject-CN - A UTF8String of the vendor’s choosing
+        // Subject-CN - A UTF8String of the vendor's choosing
         if (!IsValidSubject(attestnCert.SubjectName))
         {
             aaguid = null;
@@ -238,7 +238,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // Subject-C - ISO 3166 code specifying the country where the Authenticator vendor is incorporated (PrintableString)
         // Subject-O - Legal name of the Authenticator vendor (UTF8String)
         // Subject-OU - Literal string "Authenticator Attestation" (UTF8String)
-        // Subject-CN - A UTF8String of the vendor’s choosing
+        // Subject-CN - A UTF8String of the vendor's choosing
 
         // form the string for splitting using new lines to avoid issues with commas
         var subjectString = subjectName.Decode(X500DistinguishedNameFlags.UseNewLines);
@@ -290,7 +290,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             return false;
         }
 
-        // A UTF8String of the vendor’s choosing
+        // A UTF8String of the vendor's choosing
         if (!subjectMap.TryGetValue("CN", out var subjectCn))
         {
             return false;

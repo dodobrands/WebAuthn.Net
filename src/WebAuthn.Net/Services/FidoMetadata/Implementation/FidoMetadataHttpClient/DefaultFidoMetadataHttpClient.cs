@@ -1,0 +1,31 @@
+﻿using System;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+
+namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataHttpClient;
+
+public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
+{
+    public DefaultFidoMetadataHttpClient(
+        HttpClient httpClient,
+        IOptionsMonitor<DefaultFidoMetadataHttpClientOptions> options)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        ArgumentNullException.ThrowIfNull(options);
+        HttpClient = httpClient;
+        Options = options;
+    }
+
+    protected HttpClient HttpClient { get; }
+    protected IOptionsMonitor<DefaultFidoMetadataHttpClientOptions> Options { get; }
+
+    public async Task<string> DownloadMetadataAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var response = await HttpClient.GetAsync(Options.CurrentValue.Mds3BlobUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+}

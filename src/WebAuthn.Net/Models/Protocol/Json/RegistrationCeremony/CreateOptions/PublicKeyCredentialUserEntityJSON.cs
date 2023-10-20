@@ -12,7 +12,7 @@ namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 ///     </para>
 ///     <para>
 ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-parseCreationOptionsFromJSON">
-///             Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.1.9. Deserialize Registration ceremony options - PublicKeyCredential’s
+///             Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.1.9. Deserialize Registration ceremony options - PublicKeyCredential's
 ///             parseCreationOptionsFromJSON() Method
 ///         </a>
 ///     </para>
@@ -103,7 +103,7 @@ public class PublicKeyCredentialUserEntityJSON
     ///         </list>
     ///     </para>
     ///     <para>The Relying Party MAY let the user choose this value.</para>
-    ///     <para>Authenticators MAY truncate a name member’s value so that it fits within 64 bytes, if the authenticator stores the value.</para>
+    ///     <para>Authenticators MAY truncate a name member's value so that it fits within 64 bytes, if the authenticator stores the value.</para>
     /// </remarks>
     [JsonPropertyName("name")]
     [Required]
@@ -131,8 +131,8 @@ public class PublicKeyCredentialUserEntityJSON
     ///             </item>
     ///         </list>
     ///     </para>
-    ///     <para>Authenticators MUST accept and store a 64-byte minimum length for a displayName member’s value.</para>
-    ///     <para>Authenticators MAY truncate a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-displayname">displayName</a> member’s value so that it fits within 64 bytes.</para>
+    ///     <para>Authenticators MUST accept and store a 64-byte minimum length for a displayName member's value.</para>
+    ///     <para>Authenticators MAY truncate a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-displayname">displayName</a> member's value so that it fits within 64 bytes.</para>
     /// </remarks>
     [JsonPropertyName("displayName")]
     [Required]

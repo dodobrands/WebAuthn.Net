@@ -5,7 +5,7 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStateme
 /// <summary>
 ///     TPMA_OBJECT (UINT32) - Object Attributes
 ///     <para>
-///         This attribute structure indicates an object’s use, its authorization types, and its relationship to other objects.
+///         This attribute structure indicates an object's use, its authorization types, and its relationship to other objects.
 ///         The state of the attributes is determined when the object is created and they are never changed by the TPM.
 ///     </para>
 /// </summary>
