@@ -1,9 +1,8 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
+﻿using System;
+using System.Collections.Generic;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 
-namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
+namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 
 /// <summary>
 ///     Metadata Statement
@@ -13,11 +12,10 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protoco
 ///         <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#metadata-keys">FIDO Metadata Statement - §4. Metadata Keys</a>
 ///     </para>
 /// </remarks>
-// ReSharper disable once InconsistentNaming
-public class MetadataStatementJSON
+public class MetadataStatement
 {
     /// <summary>
-    ///     Constructs <see cref="MetadataStatementJSON" />.
+    ///     Constructs <see cref="MetadataStatement" />.
     /// </summary>
     /// <param name="legalHeader">The legalHeader, which must be in each Metadata Statement, is an indication of the acceptance of the relevant legal agreement for using the MDS.</param>
     /// <param name="aaid">
@@ -256,36 +254,35 @@ public class MetadataStatementJSON
     ///         The information is the same reported by an authenticator when invoking the 'authenticatorGetInfo' method, see <a href="https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html">[FIDOCTAP]</a>.
     ///     </para>
     /// </param>
-    [JsonConstructor]
-    public MetadataStatementJSON(
+    public MetadataStatement(
         string? legalHeader,
         string? aaid,
-        string? aaguid,
-        string[]? attestationCertificateKeyIdentifiers,
+        Guid? aaguid,
+        byte[][]? attestationCertificateKeyIdentifiers,
         string description,
         Dictionary<string, string>? alternativeDescriptions,
         ulong authenticatorVersion,
-        string protocolFamily,
+        ProtocolFamily protocolFamily,
         ushort schema,
-        VersionJSON[] upv,
-        string[] authenticationAlgorithms,
-        string[] publicKeyAlgAndEncodings,
-        string[] attestationTypes,
-        VerificationMethodDescriptorJSON[][] userVerificationDetails,
-        string[] keyProtection,
+        Version[] upv,
+        AuthenticationAlgorithm[] authenticationAlgorithms,
+        PublicKeyRepresentationFormat[] publicKeyAlgAndEncodings,
+        AuthenticatorAttestationType[] attestationTypes,
+        VerificationMethodDescriptor[][] userVerificationDetails,
+        KeyProtectionType[] keyProtection,
         bool? isKeyRestricted,
         bool? isFreshUserVerificationRequired,
-        string[] matcherProtection,
+        MatcherProtectionType[] matcherProtection,
         ushort? cryptoStrength,
-        string[]? attachmentHint,
-        string[] tcDisplay,
+        AuthenticatorAttachmentHint[]? attachmentHint,
+        TransactionConfirmationDisplayType[] tcDisplay,
         string? tcDisplayContentType,
-        DisplayPNGCharacteristicsDescriptorJSON[]? tcDisplayPngCharacteristics,
-        string[] attestationRootCertificates,
-        EcdaaTrustAnchorJSON[]? ecdaaTrustAnchors,
+        DisplayPngCharacteristicsDescriptor[]? tcDisplayPngCharacteristics,
+        byte[][] attestationRootCertificates,
+        EcdaaTrustAnchor[]? ecdaaTrustAnchors,
         string? icon,
-        ExtensionDescriptorJSON[]? supportedExtensions,
-        AuthenticatorGetInfoJSON? authenticatorGetInfo)
+        ExtensionDescriptor[]? supportedExtensions,
+        AuthenticatorGetInfo? authenticatorGetInfo)
     {
         LegalHeader = legalHeader;
         Aaid = aaid;
@@ -309,7 +306,7 @@ public class MetadataStatementJSON
         AttachmentHint = attachmentHint;
         TcDisplay = tcDisplay;
         TcDisplayContentType = tcDisplayContentType;
-        TcDisplayPNGCharacteristics = tcDisplayPngCharacteristics;
+        TcDisplayPngCharacteristics = tcDisplayPngCharacteristics;
         AttestationRootCertificates = attestationRootCertificates;
         EcdaaTrustAnchors = ecdaaTrustAnchors;
         Icon = icon;
@@ -324,8 +321,6 @@ public class MetadataStatementJSON
     ///     <para>The example of a Metadata Statement legal header is:</para>
     ///     <para>"legalHeader": "https://fidoalliance.org/metadata/metadata-statement-legal-header/".</para>
     /// </remarks>
-    [JsonPropertyName("legalHeader")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? LegalHeader { get; }
 
     /// <summary>
@@ -335,8 +330,6 @@ public class MetadataStatementJSON
     /// <remarks>
     ///     FIDO UAF Authenticators support AAID, but they don't support AAGUID. It is always expected that the UAF Authenticator (or at least the UAF ASM) knows and provides the correct AAID.
     /// </remarks>
-    [JsonPropertyName("aaid")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? Aaid { get; }
 
     /// <summary>
@@ -346,9 +339,7 @@ public class MetadataStatementJSON
     /// <remarks>
     ///     FIDO 2 Authenticators support AAGUID, but they don't support AAID.
     /// </remarks>
-    [JsonPropertyName("aaguid")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string? Aaguid { get; }
+    public Guid? Aaguid { get; }
 
     /// <summary>
     ///     <para>A list of the attestation certificate public key identifiers encoded as hex string.</para>
@@ -359,9 +350,7 @@ public class MetadataStatementJSON
     ///     <para>All attestationCertificateKeyIdentifier values should be unique within the scope of the Metadata Service.</para>
     /// </summary>
     /// <remarks>FIDO U2F Authenticators typically do not support AAID nor AAGUID, but they use attestation certificates dedicated to a single authenticator model.</remarks>
-    [JsonPropertyName("attestationCertificateKeyIdentifiers")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string[]? AttestationCertificateKeyIdentifiers { get; }
+    public byte[][]? AttestationCertificateKeyIdentifiers { get; }
 
     /// <summary>
     ///     <para>A human-readable, short description of the authenticator, in English.</para>
@@ -372,17 +361,11 @@ public class MetadataStatementJSON
     ///     This description should help an administrator configuring authenticator policies. This description might deviate from the description returned by the ASM for that authenticator. This description should contain the public authenticator trade name and the publicly known vendor
     ///     name.
     /// </remarks>
-    [JsonPropertyName("description")]
-    [Required]
-    [MaxLength(200)]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public string Description { get; }
 
     /// <summary>
     ///     A list of human-readable short descriptions of the authenticator in different languages.
     /// </summary>
-    [JsonPropertyName("alternativeDescriptions")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, string>? AlternativeDescriptions { get; }
 
     /// <summary>
@@ -399,9 +382,6 @@ public class MetadataStatementJSON
     ///         The specified version should equal the value of the 'firmwareVersion' member of the authenticatorGetInfo response. If present, see <a href="https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html">[FIDOCTAP]</a>.
     ///     </para>
     /// </summary>
-    [JsonPropertyName("authenticatorVersion")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public ulong AuthenticatorVersion { get; }
 
     /// <summary>
@@ -411,18 +391,12 @@ public class MetadataStatementJSON
     ///         protocolFamily to "fido2".
     ///     </para>
     /// </summary>
-    [JsonPropertyName("protocolFamily")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string ProtocolFamily { get; }
+    public ProtocolFamily ProtocolFamily { get; }
 
     /// <summary>
     ///     <para>The Metadata Schema version</para>
     ///     <para>Metadata schema version defines what schema of the metadata statement is currently present. The schema version of this version of the specification is 3.</para>
     /// </summary>
-    [JsonPropertyName("schema")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public ushort Schema { get; }
 
     /// <summary>
@@ -468,10 +442,7 @@ public class MetadataStatementJSON
     ///         </list>
     ///     </para>
     /// </summary>
-    [JsonPropertyName("upv")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public VersionJSON[] Upv { get; }
+    public Version[] Upv { get; }
 
     /// <summary>
     ///     <para>The list of authentication algorithms supported by the authenticator.</para>
@@ -503,10 +474,7 @@ public class MetadataStatementJSON
     ///         </item>
     ///     </list>
     /// </remarks>
-    [JsonPropertyName("authenticationAlgorithms")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string[] AuthenticationAlgorithms { get; }
+    public AuthenticationAlgorithm[] AuthenticationAlgorithms { get; }
 
     /// <summary>
     ///     <para>The list of public key formats supported by the authenticator during registration operations.</para>
@@ -540,19 +508,14 @@ public class MetadataStatementJSON
     ///         </item>
     ///     </list>
     /// </remarks>
-    [JsonPropertyName("publicKeyAlgAndEncodings")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string[] PublicKeyAlgAndEncodings { get; }
+    public PublicKeyRepresentationFormat[] PublicKeyAlgAndEncodings { get; }
 
     /// <summary>
     ///     Must be set to the complete list of the supported ATTESTATION_ constant case-sensitive string names. See section "Authenticator Attestation Types" of FIDO Registry <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>
     ///     for all available attestation formats, e.g. "basic_full".
     /// </summary>
-    [JsonPropertyName("attestationTypes")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string[] AttestationTypes { get; }
+
+    public AuthenticatorAttestationType[] AttestationTypes { get; }
 
     /// <summary>
     ///     <para>A list of alternative VerificationMethodANDCombinations.</para>
@@ -601,10 +564,7 @@ public class MetadataStatementJSON
     ///     </para>
     ///     <para>The FIDO Client will typically prevent "none" (silent authentication) and "passcode_external" (without "presence_internal") from being used in practice</para>
     /// </remarks>
-    [JsonPropertyName("userVerificationDetails")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public VerificationMethodDescriptorJSON[][] UserVerificationDetails { get; }
+    public VerificationMethodDescriptor[][] UserVerificationDetails { get; }
 
     /// <summary>
     ///     The list of key protection types supported by the authenticator. Must be set to the complete list of the supported KEY_PROTECTION_ constant case-sensitive string names defined in the FIDO Registry of Predefined Values
@@ -614,10 +574,7 @@ public class MetadataStatementJSON
     ///     The keyProtection specified here denotes the effective security of the attestation key and Uauth private key and the effective trustworthiness of the attested attributes in the “sign assertion”. Effective security means that key extraction or injecting malicious attested
     ///     attributes is only possible if the specified protection method is compromised. For example, if keyProtection=TEE is stated, it shall be impossible to extract the attestation key or the Uauth private key or to inject any malicious attested attributes without breaking the TEE.
     /// </remarks>
-    [JsonPropertyName("keyProtection")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string[] KeyProtection { get; }
+    public KeyProtectionType[] KeyProtection { get; }
 
     /// <summary>
     ///     This entry is set to true, if the Uauth private key is restricted by the authenticator to only sign valid FIDO signature assertions. This entry is set to false, if the authenticator doesn't restrict the Uauth key to only sign valid FIDO signature assertions. In this case,
@@ -626,8 +583,6 @@ public class MetadataStatementJSON
     /// <remarks>
     ///     Only in the case of isKeyRestricted=true, the FIDO server can trust a signature counter, transaction text, or any other extension in the signature assertion to have been correctly processed/controlled by the authenticator.
     /// </remarks>
-    [JsonPropertyName("isKeyRestricted")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool? IsKeyRestricted { get; }
 
     /// <summary>
@@ -641,8 +596,6 @@ public class MetadataStatementJSON
     /// <remarks>
     ///     Note that in the case of isFreshUserVerificationRequired=false, the calling App could trigger use of the key without user involvement. In this case it is the responsibility of the App to ask for user consent.
     /// </remarks>
-    [JsonPropertyName("isFreshUserVerificationRequired")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool? IsFreshUserVerificationRequired { get; }
 
     /// <summary>
@@ -657,10 +610,7 @@ public class MetadataStatementJSON
     ///         impossible to trigger use of the Uauth private key when bypassing the user verification without breaking the TEE.
     ///     </para>
     /// </remarks>
-    [JsonPropertyName("matcherProtection")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string[] MatcherProtection { get; }
+    public MatcherProtectionType[] MatcherProtection { get; }
 
     /// <summary>
     ///     The authenticator's overall claimed cryptographic strength in bits (sometimes also called security strength or security level). If this value is absent, the cryptographic strength is unknown. If the cryptographic strength of one of the involved cryptographic methods is
@@ -670,8 +620,6 @@ public class MetadataStatementJSON
     ///     See
     ///     <a href="https://fidoalliance.org/specs/fido-security-requirements/fido-authenticator-security-requirements-v1.4-fd-20201102.html#dfn-overall-claimed-cryptographic-strength">[FIDOAuthenticatorSecurityRequirements], requirement 2.1.4, "Overall Claimed Cryptographic Strength"</a>
     /// </remarks>
-    [JsonPropertyName("cryptoStrength")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public ushort? CryptoStrength { get; }
 
     /// <summary>
@@ -692,9 +640,7 @@ public class MetadataStatementJSON
     ///         <a href="https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html">[FIDOCTAP]</a>
     ///     </para>
     /// </remarks>
-    [JsonPropertyName("attachmentHint")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string[]? AttachmentHint { get; }
+    public AuthenticatorAttachmentHint[]? AttachmentHint { get; }
 
     /// <summary>
     ///     <para>
@@ -707,17 +653,13 @@ public class MetadataStatementJSON
     ///     The tcDisplay specified here denotes the effective security of the authenticator's transaction confirmation display. This means that only a breach of the stated method allows an attacker to inject transaction text to be included in the signature assertion which hasn't been
     ///     displayed and confirmed by the user.
     /// </remarks>
-    [JsonPropertyName("tcDisplay")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string[] TcDisplay { get; }
+
+    public TransactionConfirmationDisplayType[] TcDisplay { get; }
 
     /// <summary>
     ///     <para>Supported MIME content type <a href="https://www.rfc-editor.org/rfc/rfc2049.html">[RFC2049]</a> for the transaction confirmation display, such as text/plain or image/png.</para>
     ///     <para>This value MUST be present if transaction confirmation is supported, i.e. tcDisplay is non-zero.</para>
     /// </summary>
-    [JsonPropertyName("tcDisplayContentType")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? TcDisplayContentType { get; }
 
     /// <summary>
@@ -725,10 +667,7 @@ public class MetadataStatementJSON
     ///     <para>Each of these entries is one alternative of supported image characteristics for displaying a PNG image.</para>
     ///     <para>This list MUST be present if PNG-image based transaction confirmation is supported, i.e. tcDisplay is non-zero and tcDisplayContentType is image/png.</para>
     /// </summary>
-    [JsonPropertyName("tcDisplayPNGCharacteristics")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public DisplayPNGCharacteristicsDescriptorJSON[]? TcDisplayPNGCharacteristics { get; }
+    public DisplayPngCharacteristicsDescriptor[]? TcDisplayPngCharacteristics { get; }
 
     /// <summary>
     ///     <para>
@@ -763,25 +702,18 @@ public class MetadataStatementJSON
     ///         <a href="https://fidoalliance.org/specs/fido-uaf-v1.2-ps-20201020/fido-uaf-authnr-cmds-v1.2-ps-20201020.html">[UAFAuthnrCommands]</a>).
     ///     </para>
     /// </remarks>
-    [JsonPropertyName("attestationRootCertificates")]
-    [Required]
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public string[] AttestationRootCertificates { get; }
+    public byte[][] AttestationRootCertificates { get; }
 
     /// <summary>
     ///     A list of trust anchors used for ECDAA attestation. This entry MUST be present if and only if attestationType includes ATTESTATION_ECDAA. The entries in attestationRootCertificates have no relevance for ECDAA attestation. Each ecdaaTrustAnchor MUST be dedicated to a single
     ///     authenticator model (e.g as identified by its AAID/AAGUID).
     /// </summary>
     /// <remarks>This field only applies to UAF authenticators.</remarks>
-    [JsonPropertyName("ecdaaTrustAnchors")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public EcdaaTrustAnchorJSON[]? EcdaaTrustAnchors { get; }
+    public EcdaaTrustAnchor[]? EcdaaTrustAnchors { get; }
 
     /// <summary>
     ///     A data: url <a href="https://www.rfc-editor.org/rfc/rfc2397.html">[RFC2397]</a> encoded <a href="https://www.w3.org/TR/png/">[PNG]</a> icon for the Authenticator.
     /// </summary>
-    [JsonPropertyName("icon")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? Icon { get; }
 
     /// <summary>
@@ -791,9 +723,7 @@ public class MetadataStatementJSON
     ///     <para>This field only applies to UAF authenticators.</para>
     ///     <para>For FIDO2 authenticators see authenticatorGetInfo.</para>
     /// </remarks>
-    [JsonPropertyName("supportedExtensions")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public ExtensionDescriptorJSON[]? SupportedExtensions { get; }
+    public ExtensionDescriptor[]? SupportedExtensions { get; }
 
     /// <summary>
     ///     <para>Describes supported versions, extensions, AAGUID of the device and its capabilities.</para>
@@ -805,7 +735,5 @@ public class MetadataStatementJSON
     ///     <para>This field MUST be present for FIDO 2 authenticators.</para>
     ///     <para>FIDO UAF and FIDO U2F authenticators do not support authenticatorGetInfo.</para>
     /// </remarks>
-    [JsonPropertyName("authenticatorGetInfo")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public AuthenticatorGetInfoJSON? AuthenticatorGetInfo { get; }
+    public AuthenticatorGetInfo? AuthenticatorGetInfo { get; }
 }

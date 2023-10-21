@@ -178,6 +178,11 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                             rsaKey.Rsa.Dispose();
                             break;
                         }
+                    case X509SecurityKey x509Key:
+                        {
+                            x509Key.Certificate.Dispose();
+                            break;
+                        }
                 }
             }
 

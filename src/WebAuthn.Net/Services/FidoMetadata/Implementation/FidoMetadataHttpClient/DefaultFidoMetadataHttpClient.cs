@@ -26,6 +26,8 @@ public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
         cancellationToken.ThrowIfCancellationRequested();
         using var response = await HttpClient.GetAsync(Options.CurrentValue.Mds3BlobUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsStringAsync(cancellationToken);
+        var stringResponse = await response.Content.ReadAsStringAsync(cancellationToken);
+        // Not calling Trim can potentially break JWT validation.
+        return stringResponse.Trim();
     }
 }
