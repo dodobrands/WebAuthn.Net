@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
@@ -40,7 +41,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 
         var jwtCertificates = new List<X509Certificate2>();
         var rootCertificates = new List<X509Certificate2>();
-        var securityKeys = new List<SecurityKey>();
+        var keysToDispose = new List<AsymmetricAlgorithm>();
         try
         {
             var rawMetadata = await MetadataHttpClient.DownloadMetadataAsync(cancellationToken);
@@ -73,15 +74,18 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 }
             }
 
+            var securityKeys = new List<SecurityKey>();
             foreach (var jwtCertificate in jwtCertificates)
             {
                 if (jwtCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
                 {
+                    keysToDispose.Add(ecdsaPublicKey);
                     securityKeys.Add(new ECDsaSecurityKey(ecdsaPublicKey));
                 }
                 else if (jwtCertificate.GetRSAPublicKey() is { } rsaPublicKey)
                 {
-                    securityKeys.Add(new RsaSecurityKey(rsaPublicKey));
+                    var parameters = rsaPublicKey.ExportParameters(false);
+                    securityKeys.Add(new RsaSecurityKey(parameters));
                 }
                 else
                 {
@@ -111,7 +115,9 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 IssuerSigningKeys = securityKeys,
                 ValidateLifetime = false,
                 ValidateAudience = false,
-                ValidateIssuer = false
+                ValidateIssuer = false,
+                ValidateSignatureLast = false,
+                TryAllIssuerSigningKeys = true
             };
             var tokenHandler = new JwtSecurityTokenHandler
             {
@@ -138,26 +144,9 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         }
         finally
         {
-            foreach (var securityKey in securityKeys)
+            foreach (var key in keysToDispose)
             {
-                switch (securityKey)
-                {
-                    case ECDsaSecurityKey ecdsaKey:
-                        {
-                            ecdsaKey.ECDsa.Dispose();
-                            break;
-                        }
-                    case RsaSecurityKey rsaKey:
-                        {
-                            rsaKey.Rsa.Dispose();
-                            break;
-                        }
-                    case X509SecurityKey x509Key:
-                        {
-                            x509Key.Certificate.Dispose();
-                            break;
-                        }
-                }
+                key.Dispose();
             }
 
             foreach (var certificate in jwtCertificates)

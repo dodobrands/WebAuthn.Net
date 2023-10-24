@@ -57,7 +57,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         var jwtString = Encoding.UTF8.GetString(attStmt.Response);
         var jwt = new JwtSecurityToken(jwtString);
         var certificates = new List<X509Certificate2>();
-        var securityKeys = new List<SecurityKey>();
+        var keysToDispose = new List<AsymmetricAlgorithm>();
         try
         {
             // get x5c certificates for JWT validation
@@ -77,16 +77,20 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 }
             }
 
+            var securityKeys = new List<SecurityKey>();
             // get security keys from certificates
             foreach (var currentCertificate in certificates)
             {
                 if (currentCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
                 {
-                    securityKeys.Add(new ECDsaSecurityKey(ecdsaPublicKey));
+                    keysToDispose.Add(ecdsaPublicKey);
+                    var key = new ECDsaSecurityKey(ecdsaPublicKey);
+                    securityKeys.Add(key);
                 }
                 else if (currentCertificate.GetRSAPublicKey() is { } rsaPublicKey)
                 {
-                    securityKeys.Add(new RsaSecurityKey(rsaPublicKey));
+                    var parameters = rsaPublicKey.ExportParameters(false);
+                    securityKeys.Add(new RsaSecurityKey(parameters));
                 }
                 else
                 {
@@ -100,7 +104,9 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 IssuerSigningKeys = securityKeys,
                 ValidateLifetime = false,
                 ValidateAudience = false,
-                ValidateIssuer = false
+                ValidateIssuer = false,
+                ValidateSignatureLast = false,
+                TryAllIssuerSigningKeys = true
             };
             var tokenHandler = new JwtSecurityTokenHandler();
             tokenHandler.InboundClaimFilter.Clear();
@@ -164,26 +170,9 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         }
         finally
         {
-            foreach (var securityKey in securityKeys)
+            foreach (var key in keysToDispose)
             {
-                switch (securityKey)
-                {
-                    case ECDsaSecurityKey ecdsaKey:
-                        {
-                            ecdsaKey.ECDsa.Dispose();
-                            break;
-                        }
-                    case RsaSecurityKey rsaKey:
-                        {
-                            rsaKey.Rsa.Dispose();
-                            break;
-                        }
-                    case X509SecurityKey x509Key:
-                        {
-                            x509Key.Certificate.Dispose();
-                            break;
-                        }
-                }
+                key.Dispose();
             }
 
             foreach (var certificate in certificates)
