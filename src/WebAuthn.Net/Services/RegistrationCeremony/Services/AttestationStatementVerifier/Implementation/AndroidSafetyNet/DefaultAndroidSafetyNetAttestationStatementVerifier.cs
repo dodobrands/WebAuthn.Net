@@ -108,7 +108,10 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 ValidateSignatureLast = false,
                 TryAllIssuerSigningKeys = true
             };
-            var tokenHandler = new JwtSecurityTokenHandler();
+            var tokenHandler = new JwtSecurityTokenHandler
+            {
+                MaximumTokenSizeInBytes = jwtString.Length * 2
+            };
             tokenHandler.InboundClaimFilter.Clear();
             tokenHandler.InboundClaimTypeMap.Clear();
             tokenHandler.OutboundAlgorithmMap.Clear();
