@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -42,6 +43,10 @@ public class DefaultFidoMetadataDecoderTests
     public void DefaultFidoMetadataDecoder_Decode_WhenCorrectDataProvided()
     {
         var result = Decoder.Decode(PayloadToDecode);
+        var res = result.Ok!.Entries
+            .Where(x => x.MetadataStatement is not null)
+            .Where(x => x.MetadataStatement!.AttestationTypes.Length > 1)
+            .ToArray();
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok, Is.Not.Null);
     }

@@ -58,13 +58,7 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
             return null;
         }
 
-
         if (entry.MetadataStatement.Aaguid != aaguid)
-        {
-            return null;
-        }
-
-        if (entry.MetadataStatement.ProtocolFamily != ProtocolFamily.fido2 && entry.MetadataStatement.ProtocolFamily != ProtocolFamily.u2f)
         {
             return null;
         }
@@ -79,7 +73,6 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
         foreach (var attestationRootCertificate in entry.MetadataStatement.AttestationRootCertificates)
         {
             using var certificate = X509CertificateInMemoryLoader.Load(attestationRootCertificate);
-
             if (certificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
             {
                 ecdsaPublicKey.Dispose();
@@ -97,7 +90,7 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
             return null;
         }
 
-        return new(allowedRootCertificates.ToArray());
+        return new(allowedRootCertificates.ToArray(), entry.MetadataStatement.AttestationTypes);
     }
 
     protected virtual bool CanTrustMetadata(MetadataBlobPayloadEntry blobEntry)
