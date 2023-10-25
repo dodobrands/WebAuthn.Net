@@ -56,14 +56,14 @@ public class CoseEc2Key : AbstractCoseKey
     public byte[] Y { get; }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    public override bool Matches(PublicKey certificatePublicKey)
+    public override bool Matches(X509Certificate2 certificate)
     {
-        if (certificatePublicKey is null)
+        if (certificate is null)
         {
             return false;
         }
 
-        var certEcdsa = certificatePublicKey.GetECDsaPublicKey();
+        using var certEcdsa = certificate.GetECDsaPublicKey();
         if (certEcdsa is null)
         {
             return false;

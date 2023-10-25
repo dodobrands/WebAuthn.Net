@@ -30,14 +30,14 @@ public class CoseRsaKey : AbstractCoseKey
     public byte[] ExponentE { get; }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    public override bool Matches(PublicKey certificatePublicKey)
+    public override bool Matches(X509Certificate2 certificate)
     {
-        if (certificatePublicKey is null)
+        if (certificate is null)
         {
             return false;
         }
 
-        var certRsa = certificatePublicKey.GetRSAPublicKey();
+        using var certRsa = certificate.GetRSAPublicKey();
         if (certRsa is null)
         {
             return false;

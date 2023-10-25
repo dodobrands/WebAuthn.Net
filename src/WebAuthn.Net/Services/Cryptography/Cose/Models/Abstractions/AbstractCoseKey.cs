@@ -8,6 +8,6 @@ public abstract class AbstractCoseKey
 {
     public abstract CoseKeyType Kty { get; }
     public abstract CoseAlgorithm Alg { get; }
-    public abstract bool Matches(PublicKey certificatePublicKey);
+    public abstract bool Matches(X509Certificate2 certificate);
     public abstract bool Matches(AsymmetricAlgorithm asymmetricAlgorithm);
 }

@@ -84,6 +84,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 }
                 else if (jwtCertificate.GetRSAPublicKey() is { } rsaPublicKey)
                 {
+                    keysToDispose.Add(rsaPublicKey);
                     var parameters = rsaPublicKey.ExportParameters(false);
                     securityKeys.Add(new RsaSecurityKey(parameters));
                 }

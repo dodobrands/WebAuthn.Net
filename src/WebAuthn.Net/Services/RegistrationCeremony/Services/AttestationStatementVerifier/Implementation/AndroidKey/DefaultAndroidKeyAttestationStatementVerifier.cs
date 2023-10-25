@@ -89,7 +89,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             }
 
             // 3) Verify that the public key in the first certificate in 'x5c' matches the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
-            if (authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert.PublicKey))
+            if (authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert))
             {
                 return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
             }

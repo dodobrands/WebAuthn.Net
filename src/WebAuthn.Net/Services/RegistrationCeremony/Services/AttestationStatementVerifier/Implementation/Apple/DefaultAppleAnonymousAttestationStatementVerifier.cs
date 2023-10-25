@@ -89,7 +89,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             }
 
             // 5) Verify that the credential public key equals the Subject Public Key of 'credCert'.
-            if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert.PublicKey))
+            if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert))
             {
                 return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
             }

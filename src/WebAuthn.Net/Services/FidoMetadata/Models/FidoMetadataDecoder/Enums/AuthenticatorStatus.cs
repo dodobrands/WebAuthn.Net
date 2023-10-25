@@ -135,7 +135,7 @@ public enum AuthenticatorStatus : uint
     ///     <para>
     ///         <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.0-ps-20210518.html#security-notification-statuses">Security Notification Status</a>
     ///     </para>
-    ///     <para></para>
+    ///     <para>A software or firmware update is available for the device. The Authenticator manufacturer should set the url to the URL where users can obtain an update and the date the update was published.</para>
     /// </summary>
     UPDATE_AVAILABLE = 15
 }
