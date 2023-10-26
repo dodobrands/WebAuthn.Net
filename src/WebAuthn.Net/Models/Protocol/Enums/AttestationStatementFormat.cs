@@ -32,7 +32,7 @@ public enum AttestationStatementFormat
     ///     Android-based platform authenticators MAY produce an attestation statement based on the Android SafetyNet API.
     /// </summary>
     [EnumMember(Value = "android-safetynet")]
-    AndroidSafetynet = 3,
+    AndroidSafetyNet = 3,
 
     /// <summary>
     ///     Used with FIDO U2F authenticators

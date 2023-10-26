@@ -14,7 +14,7 @@ using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Apple;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Apple.Constants;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
@@ -38,7 +38,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     protected ITimeProvider TimeProvider { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
 
-    public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         AppleAnonymousAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -53,26 +53,33 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         cancellationToken.ThrowIfCancellationRequested();
 
         // 1) Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
-        var certificates = new List<X509Certificate2>(attStmt.X5C.Length);
+        var certificatesToDispose = new List<X509Certificate2?>(attStmt.X5C.Length);
         try
         {
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             if (attStmt.X5C.Length < 2)
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
+            var x5CCertificates = new List<X509Certificate2>(attStmt.X5C.Length);
             foreach (var x5CBytes in attStmt.X5C)
             {
-                var x5CCert = X509CertificateInMemoryLoader.Load(x5CBytes);
-                certificates.Add(x5CCert);
+                if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
+                {
+                    x5CCert?.Dispose();
+                    return Result<AttestationStatementVerificationResult>.Fail();
+                }
+
+                certificatesToDispose.Add(x5CCert);
+                x5CCertificates.Add(x5CCert);
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
-                    return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                    return Result<AttestationStatementVerificationResult>.Fail();
                 }
             }
 
-            var credCert = certificates.First();
+            var credCert = x5CCertificates.First();
             // 2) Concatenate 'authenticatorData' and 'clientDataHash' to form 'nonceToHash'.
             var nonceToHash = Concat(authenticatorData.Raw, clientDataHash);
             // 3) Perform SHA-256 hash of nonceToHash to produce nonce.
@@ -80,35 +87,52 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             // 4) Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
             if (!TryGetNonce(credCert, out var certificateNonce))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             if (!nonce.AsSpan().SequenceEqual(certificateNonce.AsSpan()))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 5) Verify that the credential public key equals the Subject Public Key of 'credCert'.
             if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 6) If successful, return implementation-specific values representing attestation type Anonymization CA and attestation trust path x5c.
+            var acceptableTrustAnchors = await GetAcceptableTrustAnchorsAsync(context, authenticatorData, cancellationToken);
             var result = new AttestationStatementVerificationResult(
                 AttestationStatementFormat.AppleAnonymous,
                 AttestationType.AnonCa,
                 attStmt.X5C,
-                AppleRoots.Apple);
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+                acceptableTrustAnchors);
+            return Result<AttestationStatementVerificationResult>.Success(result);
         }
         finally
         {
-            foreach (var certificate in certificates)
+            foreach (var certificateToDispose in certificatesToDispose)
             {
-                certificate.Dispose();
+                certificateToDispose?.Dispose();
             }
         }
+    }
+
+    protected virtual Task<AcceptableTrustAnchors> GetAcceptableTrustAnchorsAsync(
+        TContext context,
+        AttestedAuthenticatorData authenticatorData,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var rootCertificates = GetEmbeddedRootCertificates();
+        var result = new AcceptableTrustAnchors(rootCertificates, null);
+        return Task.FromResult(result);
+    }
+
+    protected virtual byte[][] GetEmbeddedRootCertificates()
+    {
+        return AppleRoots.Certificates;
     }
 
     protected virtual bool TryGetNonce(X509Certificate2 credCert, [NotNullWhen(true)] out byte[]? certificateNonce)

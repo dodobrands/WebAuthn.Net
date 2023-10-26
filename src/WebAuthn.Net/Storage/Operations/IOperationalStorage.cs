@@ -24,4 +24,16 @@ public interface IOperationalStorage<TContext>
         TContext context,
         string registrationCeremonyOptionsId,
         CancellationToken cancellationToken);
+
+    Task<bool> SaveCredentialIfNotRegisteredForOtherUserAsync(
+        TContext context,
+        string rpId,
+        byte[] userHandle,
+        CredentialRecord credential,
+        CancellationToken cancellationToken);
+
+    Task RemoveRegistrationCeremonyAsync(
+        TContext context,
+        string registrationCeremonyOptionsId,
+        CancellationToken cancellationToken);
 }

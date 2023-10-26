@@ -15,8 +15,10 @@ using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.AndroidKey;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.AndroidKey.Constants;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
@@ -29,28 +31,37 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStateme
 public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     : IAndroidKeyAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
+    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
+    {
+        AttestationType.Basic
+    };
+
     public DefaultAndroidKeyAttestationStatementVerifier(
         IOptionsMonitor<WebAuthnOptions> options,
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
-        IAsn1Decoder asn1Decoder)
+        IAsn1Decoder asn1Decoder,
+        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
+        Options = options;
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         Asn1Decoder = asn1Decoder;
-        Options = options;
+        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
+    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
 
-    public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         AndroidKeyAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -66,71 +77,139 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         // 1) Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
         // 2) Verify that 'sig' is a valid signature over the concatenation of 'authenticatorData' and 'clientDataHash'
         // using the public key in the first certificate in x5c with the algorithm specified in alg.
-        var certificates = new List<X509Certificate2>(attStmt.X5C.Length);
+        var certificatesToDispose = new List<X509Certificate2>(attStmt.X5C.Length);
         try
         {
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
+            var x5CCertificates = new List<X509Certificate2>(attStmt.X5C.Length);
             foreach (var x5CBytes in attStmt.X5C)
             {
-                var x5CCert = X509CertificateInMemoryLoader.Load(x5CBytes);
-                certificates.Add(x5CCert);
+                if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
+                {
+                    x5CCert?.Dispose();
+                    return Result<AttestationStatementVerificationResult>.Fail();
+                }
+
+                certificatesToDispose.Add(x5CCert);
+                x5CCertificates.Add(x5CCert);
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
-                    return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                    return Result<AttestationStatementVerificationResult>.Fail();
                 }
             }
 
             // 'credCert' must be the first element in the array.
-            var credCert = certificates.First();
+            var credCert = x5CCertificates.First();
             var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
             if (!SignatureVerifier.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 3) Verify that the public key in the first certificate in 'x5c' matches the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
             if (authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 4) Verify that the 'attestationChallenge' field in the attestation certificate extension data is identical to 'clientDataHash'.
             if (!TryGetAttestationExtension(credCert, out var attestationExtension))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             if (!TryGetAttestationChallenge(attestationExtension, out var attestationChallenge))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             if (!attestationChallenge.AsSpan().SequenceEqual(clientDataHash.AsSpan()))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 5) Verify the following using the appropriate authorization list from the attestation certificate extension data:
             if (!IsAuthorizationListDataValid(attestationExtension))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 6) If successful, return implementation-specific values representing attestation type Basic and attestation trust path 'x5c'.
+            var acceptableTrustAnchorsResult = await GetAcceptableTrustAnchorsAsync(
+                context,
+                credCert,
+                authenticatorData,
+                cancellationToken);
+            if (acceptableTrustAnchorsResult.HasError)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
             var result = new AttestationStatementVerificationResult(
                 AttestationStatementFormat.AndroidKey,
                 AttestationType.Basic,
                 attStmt.X5C,
-                null);
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+                acceptableTrustAnchorsResult.Ok);
+            return Result<AttestationStatementVerificationResult>.Success(result);
         }
         finally
         {
-            foreach (var certificate in certificates)
+            foreach (var certificateToDispose in certificatesToDispose)
             {
-                certificate.Dispose();
+                certificateToDispose.Dispose();
             }
         }
+    }
+
+    protected virtual async Task<Result<AcceptableTrustAnchors>> GetAcceptableTrustAnchorsAsync(
+        TContext context,
+        X509Certificate2 credCert,
+        AttestedAuthenticatorData authenticatorData,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(authenticatorData);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var rootCertificates = new List<byte[]>();
+        var embeddedCertificates = GetEmbeddedRootCertificates();
+        rootCertificates.AddRange(embeddedCertificates);
+        var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+            context,
+            credCert,
+            authenticatorData,
+            GetSupportedAttestationTypes(),
+            cancellationToken);
+        if (inspectResult.HasError)
+        {
+            return Result<AcceptableTrustAnchors>.Fail();
+        }
+
+        if (inspectResult.Ok.HasValue)
+        {
+            var inspectionResult = inspectResult.Ok.Value;
+            if (inspectionResult.AcceptableTrustAnchors is not null)
+            {
+                rootCertificates.AddRange(inspectionResult.AcceptableTrustAnchors.AttestationRootCertificates);
+            }
+        }
+
+        var embeddedRsaKeys = GetEmbeddedRsaKeys();
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates.ToArray(), embeddedRsaKeys));
+    }
+
+    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    {
+        return _supportedAttestationTypes;
+    }
+
+    protected virtual byte[][] GetEmbeddedRootCertificates()
+    {
+        return AndroidKeyRoots.Certificates;
+    }
+
+    protected virtual byte[][] GetEmbeddedRsaKeys()
+    {
+        return AndroidKeyRoots.RootRsaKeys;
     }
 
     protected virtual bool IsAuthorizationListDataValid(Asn1Sequence keyDescription)

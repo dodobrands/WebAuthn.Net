@@ -16,8 +16,10 @@ using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.AndroidSafetyNet;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.AndroidSafetyNet.Constants;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Static;
@@ -28,13 +30,23 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStateme
 public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     : IAndroidSafetyNetAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    public DefaultAndroidSafetyNetAttestationStatementVerifier(ITimeProvider timeProvider)
+    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
+    {
+        AttestationType.Basic
+    };
+
+    public DefaultAndroidSafetyNetAttestationStatementVerifier(
+        ITimeProvider timeProvider,
+        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
         TimeProvider = timeProvider;
+        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
     }
 
     protected ITimeProvider TimeProvider { get; }
+    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
 
     [SuppressMessage("Security", "CA5404:Do not disable token validation checks")]
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
@@ -56,7 +68,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         // As of this writing, there is only one format of the SafetyNet response and ver is reserved for future use.
         var jwtString = Encoding.UTF8.GetString(attStmt.Response);
         var jwt = new JwtSecurityToken(jwtString);
-        var certificates = new List<X509Certificate2>();
+        var certificatesToDispose = new List<X509Certificate2>();
         var keysToDispose = new List<AsymmetricAlgorithm>();
         try
         {
@@ -67,28 +79,31 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
+            var securityKeys = new List<SecurityKey>();
             foreach (var certBytes in trustPath)
             {
-                var cert = X509CertificateInMemoryLoader.Load(certBytes);
-                certificates.Add(cert);
-                if (currentDate < cert.NotBefore || currentDate > cert.NotAfter)
+                if (!X509CertificateInMemoryLoader.TryLoad(certBytes, out var certificate))
+                {
+                    certificate?.Dispose();
+                    return Result<AttestationStatementVerificationResult>.Fail();
+                }
+
+                certificatesToDispose.Add(certificate);
+                if (currentDate < certificate.NotBefore || currentDate > certificate.NotAfter)
                 {
                     return Result<AttestationStatementVerificationResult>.Fail();
                 }
-            }
 
-            var securityKeys = new List<SecurityKey>();
-            // get security keys from certificates
-            foreach (var currentCertificate in certificates)
-            {
-                if (currentCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
+                // get signing keys
+                if (certificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
                 {
                     keysToDispose.Add(ecdsaPublicKey);
                     var key = new ECDsaSecurityKey(ecdsaPublicKey);
                     securityKeys.Add(key);
                 }
-                else if (currentCertificate.GetRSAPublicKey() is { } rsaPublicKey)
+                else if (certificate.GetRSAPublicKey() is { } rsaPublicKey)
                 {
+                    keysToDispose.Add(rsaPublicKey);
                     var parameters = rsaPublicKey.ExportParameters(false);
                     securityKeys.Add(new RsaSecurityKey(parameters));
                 }
@@ -98,31 +113,13 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 }
             }
 
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKeys = securityKeys,
-                ValidateLifetime = false,
-                ValidateAudience = false,
-                ValidateIssuer = false,
-                ValidateSignatureLast = false,
-                TryAllIssuerSigningKeys = true
-            };
-            var tokenHandler = new JwtSecurityTokenHandler
-            {
-                MaximumTokenSizeInBytes = jwtString.Length * 2
-            };
-            tokenHandler.InboundClaimFilter.Clear();
-            tokenHandler.InboundClaimTypeMap.Clear();
-            tokenHandler.OutboundAlgorithmMap.Clear();
-            tokenHandler.OutboundClaimTypeMap.Clear();
-            var validationResult = await tokenHandler.ValidateTokenAsync(jwtString, validationParameters);
-            if (!validationResult.IsValid)
+            var jwtValidationResult = await JwtValidator.ValidateAsync(jwtString, securityKeys, cancellationToken);
+            if (!jwtValidationResult.IsValid)
             {
                 return Result<AttestationStatementVerificationResult>.Fail();
             }
 
-            if (validationResult.SecurityToken is not JwtSecurityToken validatedJwt)
+            if (jwtValidationResult.SecurityToken is not JwtSecurityToken validatedJwt)
             {
                 return Result<AttestationStatementVerificationResult>.Fail();
             }
@@ -147,7 +144,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 return Result<AttestationStatementVerificationResult>.Fail();
             }
 
-            var attestationCert = certificates.First();
+            var attestationCert = certificatesToDispose.First();
             if (attestationCert.GetNameInfo(X509NameType.DnsName, false) is not "attest.android.com")
             {
                 return Result<AttestationStatementVerificationResult>.Fail();
@@ -164,11 +161,21 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             }
 
             // 5) If successful, return implementation-specific values representing attestation type Basic and attestation trust path x5c.
+            var acceptableTrustAnchorsResult = await GetAcceptableTrustAnchorsAsync(
+                context,
+                attestationCert,
+                authenticatorData,
+                cancellationToken);
+            if (acceptableTrustAnchorsResult.HasError)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
             var result = new AttestationStatementVerificationResult(
-                AttestationStatementFormat.AndroidSafetynet,
+                AttestationStatementFormat.AndroidSafetyNet,
                 AttestationType.Basic,
                 trustPath,
-                null);
+                acceptableTrustAnchorsResult.Ok);
             return Result<AttestationStatementVerificationResult>.Success(result);
         }
         finally
@@ -178,11 +185,54 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 key.Dispose();
             }
 
-            foreach (var certificate in certificates)
+            foreach (var certificateToDispose in certificatesToDispose)
             {
-                certificate.Dispose();
+                certificateToDispose.Dispose();
             }
         }
+    }
+
+    protected virtual async Task<Result<AcceptableTrustAnchors>> GetAcceptableTrustAnchorsAsync(
+        TContext context,
+        X509Certificate2 attestationCert,
+        AttestedAuthenticatorData authenticatorData,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var rootCertificates = new List<byte[]>();
+        var embeddedCertificates = GetEmbeddedRootCertificates();
+        rootCertificates.AddRange(embeddedCertificates);
+        var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+            context,
+            attestationCert,
+            authenticatorData,
+            GetSupportedAttestationTypes(),
+            cancellationToken);
+        if (inspectResult.HasError)
+        {
+            return Result<AcceptableTrustAnchors>.Fail();
+        }
+
+        if (inspectResult.Ok.HasValue)
+        {
+            var inspectionResult = inspectResult.Ok.Value;
+            if (inspectionResult.AcceptableTrustAnchors is not null)
+            {
+                rootCertificates.AddRange(inspectionResult.AcceptableTrustAnchors.AttestationRootCertificates);
+            }
+        }
+
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates.ToArray(), null));
+    }
+
+    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    {
+        return _supportedAttestationTypes;
+    }
+
+    protected virtual byte[][] GetEmbeddedRootCertificates()
+    {
+        return AndroidSafetyNetRoots.Certificates;
     }
 
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)

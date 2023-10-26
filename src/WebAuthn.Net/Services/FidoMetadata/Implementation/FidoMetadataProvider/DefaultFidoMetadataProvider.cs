@@ -38,9 +38,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     public virtual async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        var jwtCertificates = new List<X509Certificate2>();
-        var rootCertificates = new List<X509Certificate2>();
+        var certificatesToDispose = new List<X509Certificate2>();
         var keysToDispose = new List<AsymmetricAlgorithm>();
         try
         {
@@ -52,25 +50,37 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
+            var jwtCertificates = new List<X509Certificate2>();
             foreach (var certBytes in headerCertificates)
             {
-                var cert = X509CertificateInMemoryLoader.Load(certBytes);
-                jwtCertificates.Add(cert);
-                if (currentDate < cert.NotBefore || currentDate > cert.NotAfter)
+                if (!X509CertificateInMemoryLoader.TryLoad(certBytes, out var jwtCertificate))
+                {
+                    jwtCertificate?.Dispose();
+                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                }
+
+                certificatesToDispose.Add(jwtCertificate);
+                jwtCertificates.Add(jwtCertificate);
+                if (currentDate < jwtCertificate.NotBefore || currentDate > jwtCertificate.NotAfter)
                 {
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
             }
 
             // build root certificates chain that avoid expired certificates
-            var rootCertificatesToValidate = new List<X509Certificate2>();
+            var rootCertificates = new List<X509Certificate2>();
             foreach (var fidoRootCertBytes in FidoMetadataRoots.GlobalSign)
             {
-                var cert = X509CertificateInMemoryLoader.Load(fidoRootCertBytes);
-                rootCertificates.Add(cert);
-                if (currentDate >= cert.NotBefore && currentDate <= cert.NotAfter)
+                if (!X509CertificateInMemoryLoader.TryLoad(fidoRootCertBytes, out var fidoRootCertificate))
                 {
-                    rootCertificatesToValidate.Add(cert);
+                    fidoRootCertificate?.Dispose();
+                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                }
+
+                certificatesToDispose.Add(fidoRootCertificate);
+                if (currentDate >= fidoRootCertificate.NotBefore && currentDate <= fidoRootCertificate.NotAfter)
+                {
+                    rootCertificates.Add(fidoRootCertificate);
                 }
             }
 
@@ -93,43 +103,15 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
 
-                using var chain = new X509Chain();
-                chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-                chain.ChainPolicy.UrlRetrievalTimeout = TimeSpan.FromSeconds(10);
-                chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                foreach (var rootCertificateToValidate in rootCertificatesToValidate)
-                {
-                    chain.ChainPolicy.CustomTrustStore.Add(rootCertificateToValidate);
-                }
-
-                var isValid = chain.Build(jwtCertificate);
-                if (!isValid)
+                var isJwtCertificateValid = X509TrustChainValidator.IsValidCertificateChain(rootCertificates.ToArray(), jwtCertificate);
+                if (!isJwtCertificateValid)
                 {
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
             }
 
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKeys = securityKeys,
-                ValidateLifetime = false,
-                ValidateAudience = false,
-                ValidateIssuer = false,
-                ValidateSignatureLast = false,
-                TryAllIssuerSigningKeys = true
-            };
-            var tokenHandler = new JwtSecurityTokenHandler
-            {
-                MaximumTokenSizeInBytes = rawMetadata.Length * 2
-            };
-            tokenHandler.InboundClaimFilter.Clear();
-            tokenHandler.InboundClaimTypeMap.Clear();
-            tokenHandler.OutboundAlgorithmMap.Clear();
-            tokenHandler.OutboundClaimTypeMap.Clear();
-            var validationResult = await tokenHandler.ValidateTokenAsync(rawMetadata, validationParameters);
-            if (!validationResult.IsValid)
+            var jwtValidationResult = await JwtValidator.ValidateAsync(rawMetadata, securityKeys, cancellationToken);
+            if (!jwtValidationResult.IsValid)
             {
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
@@ -150,14 +132,9 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 key.Dispose();
             }
 
-            foreach (var certificate in jwtCertificates)
+            foreach (var certificateToDispose in certificatesToDispose)
             {
-                certificate.Dispose();
-            }
-
-            foreach (var rootCertificate in rootCertificates)
-            {
-                rootCertificate.Dispose();
+                certificateToDispose.Dispose();
             }
         }
     }

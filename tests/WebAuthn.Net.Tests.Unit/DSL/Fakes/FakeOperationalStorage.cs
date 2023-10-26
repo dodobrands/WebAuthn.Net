@@ -83,6 +83,54 @@ public class FakeOperationalStorage : IOperationalStorage<FakeWebAuthnContext>
         return Task.FromResult(result);
     }
 
+    public Task<bool> SaveCredentialIfNotRegisteredForOtherUserAsync(
+        FakeWebAuthnContext context,
+        string rpId,
+        byte[] userHandle,
+        CredentialRecord credential,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var userCredentialsDescriptor = new UserCredentialDescriptor(rpId, userHandle);
+        lock (_locker)
+        {
+            var credentialIdExists = false;
+            foreach (var userCredential in _usersCredentials.Values)
+            {
+                if (userCredential.UserCredentialDescriptor.Equals(userCredentialsDescriptor))
+                {
+                    credentialIdExists = true;
+                    break;
+                }
+            }
+
+            if (credentialIdExists)
+            {
+                return Task.FromResult(false);
+            }
+
+            var credentialRecordIdentifier = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+            _usersCredentials.Add(credentialRecordIdentifier, new(userCredentialsDescriptor, credential));
+        }
+
+        return Task.FromResult(true);
+    }
+
+    public Task RemoveRegistrationCeremonyAsync(
+        FakeWebAuthnContext context,
+        string registrationCeremonyOptionsId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_locker)
+        {
+            _registrationOptions.Remove(registrationCeremonyOptionsId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+
     public void ReplaceChallengeForRegistrationCeremonyOptions(string registrationCeremonyOptionsId, byte[] newChallenge)
     {
         lock (_locker)

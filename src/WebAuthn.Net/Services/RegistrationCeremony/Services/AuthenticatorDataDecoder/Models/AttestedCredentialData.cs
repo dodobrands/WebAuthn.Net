@@ -28,23 +28,13 @@ public class AttestedCredentialData
     /// <exception cref="ArgumentException">The length of <paramref name="credentialId" /> is greater than 1023</exception>
     public AttestedCredentialData(
         [SuppressMessage("ReSharper", "IdentifierTypo")]
-        byte[] aaguid,
+        Guid aaguid,
         byte[] credentialId,
         AbstractCoseKey credentialPublicKey)
     {
-        if (aaguid == null)
-        {
-            throw new ArgumentNullException(nameof(aaguid));
-        }
-
         if (credentialId == null)
         {
             throw new ArgumentNullException(nameof(credentialId));
-        }
-
-        if (aaguid.Length != 16)
-        {
-            throw new ArgumentException($"The value must contain exactly 16 bytes, in fact it contains: {aaguid.Length}.", nameof(aaguid));
         }
 
         if (credentialId.Length < 16)
@@ -69,7 +59,7 @@ public class AttestedCredentialData
     /// <summary>
     ///     The AAGUID of the authenticator.
     /// </summary>
-    public byte[] Aaguid { get; }
+    public Guid Aaguid { get; }
 
     /// <summary>
     ///     A probabilistically-unique <a href="https://infra.spec.whatwg.org/#byte-sequence">byte sequence</a> identifying a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source"></a>public key credential source and its

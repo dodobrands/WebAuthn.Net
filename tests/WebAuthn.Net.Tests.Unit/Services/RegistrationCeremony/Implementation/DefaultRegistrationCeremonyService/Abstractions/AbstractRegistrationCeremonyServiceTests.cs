@@ -1,13 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
+using WebAuthn.Net.Services.AttestationTrustPathValidator.Implementation;
 using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataService;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Implementation.AttestationStatements;
@@ -26,6 +33,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.OptionsEncoder.Impleme
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
+using WebAuthn.Net.Storage.Operations.Implementation;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
 
@@ -33,7 +41,7 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegis
 public abstract class AbstractRegistrationCeremonyServiceTests
 {
     [SetUp]
-    public virtual void SetupServices()
+    public virtual async Task SetupServices()
     {
         ConfigurationManager = new();
         ConfigurationManager.AddInMemoryCollection(GetConfiguration());
@@ -68,23 +76,51 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder<FakeWebAuthnContext>(
             cborDecoder,
             NullLogger<DefaultAttestationObjectDecoder<FakeWebAuthnContext>>.Instance);
+        using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
+        {
+            var metadataProvider = new DefaultFidoMetadataProvider(
+                fakeFidoHttpClientProvider.Client,
+                new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
+            var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);
+            if (downloadMetadataResult.HasError)
+            {
+                throw new InvalidOperationException("Can't get metadata to decode");
+            }
+
+            var decoder = new DefaultFidoMetadataDecoder();
+            var decodeMetadataResult = decoder.Decode(downloadMetadataResult.Ok);
+            if (decodeMetadataResult.HasError)
+            {
+                throw new InvalidOperationException("Can't decode metadata");
+            }
+
+            var storage = new DefaultInMemoryFidoMetadataStorage();
+            await storage.StoreAsync(decodeMetadataResult.Ok, CancellationToken.None);
+            var metadataService = new DefaultFidoMetadataService<FakeWebAuthnContext>(storage);
+            AttestationCertificateInspector = new(
+                metadataService,
+                asn1Decoder);
+        }
 
         var packedVerifier = new DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             digitalSignatureVerifier,
-            asn1Decoder);
+            asn1Decoder,
+            AttestationCertificateInspector);
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             digitalSignatureVerifier,
             tpmManufacturerVerifier,
-            asn1Decoder);
+            asn1Decoder,
+            AttestationCertificateInspector);
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
             digitalSignatureVerifier,
-            asn1Decoder);
-        var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(TimeProvider);
-        var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(TimeProvider);
+            asn1Decoder,
+            AttestationCertificateInspector);
+        var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(TimeProvider, AttestationCertificateInspector);
+        var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(TimeProvider, asn1Decoder, AttestationCertificateInspector);
         var noneVerifier = new DefaultNoneAttestationStatementVerifier<FakeWebAuthnContext>();
         var appleAnonymousVerifier = new DefaultAppleAnonymousAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
@@ -117,6 +153,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             fidoU2FDecoder,
             noneDecoder,
             appleAnonymousDecoder);
+        var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
 
         RegistrationCeremonyService = new(
             Options,
@@ -130,9 +167,11 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             registrationResponseDecoder,
             clientDataDecoder,
             attestationObjectDecoder,
-            attestationStatementVerifier,
             authenticatorDataDecoder,
-            attestationStatementDecoder, NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance
+            attestationStatementDecoder,
+            attestationStatementVerifier,
+            attestationTrustPathValidator,
+            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance
         );
     }
 
@@ -154,4 +193,5 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected ConfigurationManager ConfigurationManager { get; set; } = null!;
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
     protected FakeOperationalStorage Storage { get; set; } = null!;
+    private DefaultFidoAttestationCertificateInspector<FakeWebAuthnContext> AttestationCertificateInspector { get; set; } = null!;
 }

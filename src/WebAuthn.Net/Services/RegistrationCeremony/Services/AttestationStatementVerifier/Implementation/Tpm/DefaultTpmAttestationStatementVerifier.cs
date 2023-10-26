@@ -14,10 +14,11 @@ using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums.Extensions;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
@@ -30,28 +31,37 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStateme
 public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
+    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
+    {
+        AttestationType.AttCa
+    };
+
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
-        IAsn1Decoder asn1Decoder)
+        IAsn1Decoder asn1Decoder,
+        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         TpmManufacturerVerifier = tpmManufacturerVerifier;
         Asn1Decoder = asn1Decoder;
+        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
     }
 
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ITpmManufacturerVerifier TpmManufacturerVerifier { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
+    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
 
-    public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         TpmAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -69,26 +79,21 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // is identical to the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
         if (!PubArea.TryParse(attStmt.PubArea, out var pubArea))
         {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         if (!PubAreaKeySameAsAttestedCredentialData(pubArea, authenticatorData.AttestedCredentialData.CredentialPublicKey))
         {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         // 3 - Concatenate 'authenticatorData' and 'clientDataHash' to form 'attToBeSigned'.
         var attToBeSigned = Concat(authenticatorData.Raw, clientDataHash);
 
         // 4 - Validate that 'certInfo' is valid:
-        if (!IsCertInfoValid(attStmt, authenticatorData, attToBeSigned, out var trustPath, out var rootCertificates))
-        {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
-        }
-
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.Tpm, AttestationType.AttCa, trustPath, rootCertificates);
-        return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+        return await ValidateCertInfoAsync(context, attStmt, authenticatorData, attToBeSigned, cancellationToken);
     }
+
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool PubAreaKeySameAsAttestedCredentialData(PubArea pubArea, AbstractCoseKey authDataKey)
@@ -113,18 +118,17 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool IsCertInfoValid(
+    protected virtual async Task<Result<AttestationStatementVerificationResult>> ValidateCertInfoAsync(
+        TContext context,
         TpmAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
         byte[] attToBeSigned,
-        [NotNullWhen(true)] out byte[][]? trustPath,
-        out byte[][]? rootCertificates)
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (attStmt is null || authenticatorData is null)
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation
@@ -136,24 +140,18 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // Handled in CertInfo.TryParse
         if (!CertInfo.TryParse(attStmt.CertInfo, out var certInfo))
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         // 3) Verify that 'extraData' is set to the hash of 'attToBeSigned' using the hash algorithm employed in 'alg'.
         if (!attStmt.Alg.TryComputeHash(attToBeSigned, out var attToBeSignedHash))
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         if (!certInfo.ExtraData.AsSpan().SequenceEqual(attToBeSignedHash.AsSpan()))
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         // 4) Verify that 'attested' contains a TPMS_CERTIFY_INFO structure as specified in [TPMv2-Part2] section 10.12.3,
@@ -161,50 +159,47 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // using the procedure specified in [TPMv2-Part1] section 16.
         if (certInfo.Attested.Certify.Name.Digest is null)
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         if (!certInfo.Attested.Certify.Name.Digest.HashAlg.TryComputeHash(attStmt.PubArea, out var pubAreaHash))
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         if (!pubAreaHash.AsSpan().SequenceEqual(certInfo.Attested.Certify.Name.Digest.Digest.AsSpan()))
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         // 5) Verify that x5c is present.
         if (attStmt.X5C.Length < 1)
         {
-            trustPath = null;
-            rootCertificates = null;
-            return false;
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
-        var certificates = new List<X509Certificate2>(attStmt.X5C.Length);
+        var certificatesToDispose = new List<X509Certificate2>(attStmt.X5C.Length);
         try
         {
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
+            var x5CCertificates = new List<X509Certificate2>(attStmt.X5C.Length);
             foreach (var x5CBytes in attStmt.X5C)
             {
-                var x5CCert = X509CertificateInMemoryLoader.Load(x5CBytes);
-                certificates.Add(x5CCert);
+                if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
+                {
+                    x5CCert?.Dispose();
+                    return Result<AttestationStatementVerificationResult>.Fail();
+                }
+
+                certificatesToDispose.Add(x5CCert);
+                x5CCertificates.Add(x5CCert);
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
-                    trustPath = null;
-                    rootCertificates = null;
-                    return false;
+                    return Result<AttestationStatementVerificationResult>.Fail();
                 }
             }
 
-            var aikCert = certificates.First();
+            var aikCert = x5CCertificates.First();
 
             // 5) Note that the remaining fields in the "Standard Attestation Structure" [TPMv2-Part1] section 31.2,
             // i.e., qualifiedSigner, clockInfo and firmwareVersion are ignored. These fields MAY be used as an input to risk engines.
@@ -216,59 +211,106 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             // 7) Verify the 'sig' is a valid signature over 'certInfo' using the attestation public key in 'aikCert' with the algorithm specified in 'alg'.
             if (!SignatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
             {
-                trustPath = null;
-                rootCertificates = null;
-                return false;
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 8) Verify that aikCert meets the requirements in §8.3.1 TPM Attestation Statement Certificate Requirements.
-            if (!IsTpmAttestationStatementCertificateRequirementsSatisfied(aikCert, out rootCertificates))
+            if (!IsTpmAttestationStatementCertificateRequirementsSatisfied(aikCert, out var manufacturerRootCertificates))
             {
-                trustPath = null;
-                rootCertificates = null;
-                return false;
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 9) If 'aikCert' contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
             // verify that the value of this extension matches the 'aaguid' in 'authenticatorData'.
-            if (!TryGetAaguid(aikCert.Extensions, out var aaguid))
+            var aaguidResult = TryGetAaguid(aikCert.Extensions);
+            if (aaguidResult.HasError)
             {
-                trustPath = null;
-                rootCertificates = null;
-                return false;
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
-            if (aaguid.HasValue)
+            if (aaguidResult.Ok.HasValue && aaguidResult.Ok.Value != authenticatorData.AttestedCredentialData.Aaguid)
             {
-                if (!aaguid.Value.AsSpan().SequenceEqual(authenticatorData.AttestedCredentialData.Aaguid.AsSpan()))
-                {
-                    trustPath = null;
-                    rootCertificates = null;
-                    return false;
-                }
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 10) If successful, return implementation-specific values representing attestation type AttCA and attestation trust path 'x5c'.
-            trustPath = attStmt.X5C;
-            return true;
+            var acceptableTrustAnchorsResult = await GetAcceptableTrustAnchorsAsync(
+                context,
+                aikCert,
+                manufacturerRootCertificates,
+                authenticatorData,
+                cancellationToken);
+            if (acceptableTrustAnchorsResult.HasError)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
+            var result = new AttestationStatementVerificationResult(
+                AttestationStatementFormat.Tpm,
+                AttestationType.AttCa,
+                attStmt.X5C,
+                acceptableTrustAnchorsResult.Ok);
+            return Result<AttestationStatementVerificationResult>.Success(result);
         }
         finally
         {
-            foreach (var certificate in certificates)
+            foreach (var certificateToDispose in certificatesToDispose)
             {
-                certificate.Dispose();
+                certificateToDispose.Dispose();
             }
         }
+    }
+
+    protected virtual async Task<Result<AcceptableTrustAnchors>> GetAcceptableTrustAnchorsAsync(
+        TContext context,
+        X509Certificate2 aikCert,
+        byte[][]? manufacturerRootCertificates,
+        AttestedAuthenticatorData authenticatorData,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var rootCertificates = new List<byte[]>();
+        if (manufacturerRootCertificates is not null)
+        {
+            rootCertificates.AddRange(manufacturerRootCertificates);
+        }
+
+        var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+            context,
+            aikCert,
+            authenticatorData,
+            GetSupportedAttestationTypes(),
+            cancellationToken);
+        if (inspectResult.HasError)
+        {
+            return Result<AcceptableTrustAnchors>.Fail();
+        }
+
+        if (inspectResult.Ok.HasValue)
+        {
+            var inspectionResult = inspectResult.Ok.Value;
+            if (inspectionResult.AcceptableTrustAnchors is not null)
+            {
+                rootCertificates.AddRange(inspectionResult.AcceptableTrustAnchors.AttestationRootCertificates);
+            }
+        }
+
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates.ToArray(), null));
+    }
+
+    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    {
+        return _supportedAttestationTypes;
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsTpmAttestationStatementCertificateRequirementsSatisfied(
         X509Certificate2 aikCert,
-        out byte[][]? rootCertificates)
+        out byte[][]? manufacturerRootCertificates)
     {
         if (aikCert is null)
         {
-            rootCertificates = null;
+            manufacturerRootCertificates = null;
             return false;
         }
 
@@ -278,14 +320,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // 1) Version MUST be set to 3.
         if (aikCert.Version != 3)
         {
-            rootCertificates = null;
+            manufacturerRootCertificates = null;
             return false;
         }
 
         // 2) Subject field MUST be set to empty.
         if (aikCert.SubjectName.Name.Length > 0)
         {
-            rootCertificates = null;
+            manufacturerRootCertificates = null;
             return false;
         }
 
@@ -293,14 +335,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // https://trustedcomputinggroup.org/wp-content/uploads/TCG-EK-Credential-Profile-V-2.5-R2_published.pdf
         if (!TryGetAikCertSubjectAlternativeName(aikCert, out var san))
         {
-            rootCertificates = null;
+            manufacturerRootCertificates = null;
             return false;
         }
 
         var manufacturerVerification = TpmManufacturerVerifier.IsValid(san.TpmManufacturer);
         if (!manufacturerVerification.IsValid)
         {
-            rootCertificates = null;
+            manufacturerRootCertificates = null;
             return false;
         }
 
@@ -308,21 +350,21 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // ("joint-iso-itu-t(2) internationalorganizations(23) 133 tcg-kp(8) tcg-kp-AIKCertificate(3)").
         if (!AikCertExtendedKeyUsageExists(aikCert.Extensions))
         {
-            rootCertificates = null;
+            manufacturerRootCertificates = null;
             return false;
         }
 
         // 5) The Basic Constraints extension MUST have the CA component set to false.
         if (!IsBasicExtensionsCaComponentFalse(aikCert.Extensions))
         {
-            rootCertificates = null;
+            manufacturerRootCertificates = null;
             return false;
         }
 
         // 6) An Authority Information Access (AIA) extension with entry id-ad-ocsp and a CRL Distribution Point extension [RFC5280]
         // are both OPTIONAL as the status of many attestation certificates is available through metadata services.
         // See, for example, the FIDO Metadata Service [FIDOMetadataService].
-        rootCertificates = manufacturerVerification.RootCerts;
+        manufacturerRootCertificates = manufacturerVerification.RootCerts;
         return true;
     }
 
@@ -620,9 +662,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return false;
     }
 
-    protected virtual bool TryGetAaguid(X509ExtensionCollection extensions, [NotNullWhen(true)] out Optional<byte[]>? aaguid)
+    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
+    protected virtual Result<Optional<Guid>> TryGetAaguid(X509ExtensionCollection extensions)
     {
-        ArgumentNullException.ThrowIfNull(extensions);
+        if (extensions is null)
+        {
+            return Result<Optional<Guid>>.Fail();
+        }
+
         // If aikCert contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
         // verify that the value of this extension matches the aaguid in authenticatorData.
         var extension = extensions.FirstOrDefault(static x => x.Oid?.Value is "1.3.6.1.4.1.45724.1.1.4"); // id-fido-gen-ce-aaguid
@@ -630,35 +677,36 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         {
             if (extension.Critical)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
             var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
             if (decodeResult.HasError)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
             if (!decodeResult.Ok.HasValue)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
             if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
-            aaguid = aaguid = Optional<byte[]>.Payload(aaguidOctetString.Value);
-            return true;
+            if (aaguidOctetString.Value.Length != 16)
+            {
+                return Result<Optional<Guid>>.Fail();
+            }
+
+            var hexAaguid = Convert.ToHexString(aaguidOctetString.Value);
+            var typedAaguid = new Guid(hexAaguid);
+            return Result<Optional<Guid>>.Success(Optional<Guid>.Payload(typedAaguid));
         }
 
-        aaguid = Optional<byte[]>.Empty();
-        return true;
+        return Result<Optional<Guid>>.Success(Optional<Guid>.Empty());
     }
 
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)

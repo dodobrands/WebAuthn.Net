@@ -14,6 +14,7 @@ using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.AttestationTrustPathValidator;
 using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Services.Cryptography.Cose.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
@@ -53,9 +54,10 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         IRegistrationResponseDecoder<TContext> registrationResponseDecoder,
         IClientDataDecoder<TContext> clientDataDecoder,
         IAttestationObjectDecoder<TContext> attestationObjectDecoder,
-        IAttestationStatementVerifier<TContext> attestationStatementVerifier,
         IAuthenticatorDataDecoder authenticatorDataDecoder,
         IAttestationStatementDecoder attestationStatementDecoder,
+        IAttestationStatementVerifier<TContext> attestationStatementVerifier,
+        IAttestationTrustPathValidator attestationTrustPathValidator,
         ILogger<DefaultRegistrationCeremonyService<TContext>> logger)
     {
         Options = options;
@@ -69,9 +71,10 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         RegistrationResponseDecoder = registrationResponseDecoder;
         ClientDataDecoder = clientDataDecoder;
         AttestationObjectDecoder = attestationObjectDecoder;
-        AttestationStatementVerifier = attestationStatementVerifier;
         AuthenticatorDataDecoder = authenticatorDataDecoder;
         AttestationStatementDecoder = attestationStatementDecoder;
+        AttestationStatementVerifier = attestationStatementVerifier;
+        AttestationTrustPathValidator = attestationTrustPathValidator;
         Logger = logger;
     }
 
@@ -89,6 +92,7 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
     protected IAuthenticatorDataDecoder AuthenticatorDataDecoder { get; }
     protected IAttestationStatementDecoder AttestationStatementDecoder { get; }
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
+    protected IAttestationTrustPathValidator AttestationTrustPathValidator { get; }
     protected ILogger<DefaultRegistrationCeremonyService<TContext>> Logger { get; }
 
 
@@ -381,29 +385,23 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
                 Logger.SelfAttestationDisallowed();
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
+
             // 24.3 Otherwise, use the X.509 certificates returned as the attestation trust path from the verification procedure
             // to verify that the attestation public key either correctly chains up to an acceptable root certificate,
             // or is itself an acceptable certificate (i.e., it and the root certificate obtained in Step 22 may be the same).
-
+            if (!AttestationTrustPathValidator.IsValid(attStmtVerification))
+            {
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
 
             // 25. Verify that the credentialId is ≤ 1023 bytes. Credential IDs larger than this many bytes SHOULD cause the RP to fail this registration ceremony.
-
-            // 26. Verify that the credentialId is not yet registered for any user. If the credentialId is already known then the Relying Party SHOULD fail this registration ceremony.
+            if (authData.AttestedCredentialData.CredentialId.Length > 1023)
+            {
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
 
             // 27. If the attestation statement 'attStmt' verified successfully and is found to be trustworthy,
-            // then create and store a new credential record in the user account that was denoted in options.user, with the following contents:
-            //
-            // type - credential.type
-            // id - credential.id or credential.rawId, whichever format is preferred by the Relying Party.
-            // publicKey - The credential public key in authData.
-            // signCount - authData.signCount.
-            // uvInitialized - The value of the UV flag in authData.
-            // transports - The value returned from response.getTransports().
-            // backupEligible - The value of the BE flag in authData.
-            // backupState - The value of the BS flag in authData.
-            // The new credential record MAY also include the following OPTIONAL contents:
-            // attestationObject - response.attestationObject
-            // attestationClientDataJSON - response.clientDataJSON
+            // then create and store a new credential record in the user account that was denoted in options.user
             var credentialRecord = ToCredentialRecord(
                 credential,
                 authData,
@@ -411,10 +409,23 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
                 backupEligible,
                 backupState,
                 response);
+            // 26. Verify that the credentialId is not yet registered for any user. If the credentialId is already known then the Relying Party SHOULD fail this registration ceremony.
+            var credentialIdNotRegisteredForAnyUser = await Storage.SaveCredentialIfNotRegisteredForOtherUserAsync(
+                context,
+                options.Rp.Id,
+                options.User.Id,
+                credentialRecord,
+                cancellationToken);
+            if (!credentialIdNotRegisteredForAnyUser)
+            {
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
 
+            await Storage.RemoveRegistrationCeremonyAsync(context, request.RegistrationCeremonyId, cancellationToken);
             // 28. If the attestation statement attStmt successfully verified but is not trustworthy per step 23 above, the Relying Party SHOULD fail the registration ceremony.
-
-            throw new NotImplementedException();
+            await context.CommitAsync(cancellationToken);
+            var result = new CompleteRegistrationCeremonyResult();
+            return Result<CompleteRegistrationCeremonyResult>.Success(result);
         }
     }
 
@@ -503,6 +514,17 @@ public class DefaultRegistrationCeremonyService<TContext> : IRegistrationCeremon
         bool backupState,
         AuthenticatorAttestationResponse response)
     {
+        // type - credential.type
+        // id - credential.id or credential.rawId, whichever format is preferred by the Relying Party.
+        // publicKey - The credential public key in authData.
+        // signCount - authData.signCount.
+        // uvInitialized - The value of the UV flag in authData.
+        // transports - The value returned from response.getTransports().
+        // backupEligible - The value of the BE flag in authData.
+        // backupState - The value of the BS flag in authData.
+        // The new credential record MAY also include the following OPTIONAL contents:
+        // attestationObject - response.attestationObject
+        // attestationClientDataJSON - response.clientDataJSON
         ArgumentNullException.ThrowIfNull(credential);
         ArgumentNullException.ThrowIfNull(authData);
         ArgumentNullException.ThrowIfNull(response);

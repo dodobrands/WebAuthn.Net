@@ -5,7 +5,7 @@ using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.None;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 
@@ -23,8 +23,11 @@ public class DefaultNoneAttestationStatementVerifier<TContext> :
     {
         // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-none-attestation
         // §8.7. None Attestation Statement Format
-
-        var result = new AttestationStatementVerificationResult(AttestationStatementFormat.None, AttestationType.None);
+        var result = new AttestationStatementVerificationResult(
+            AttestationStatementFormat.None,
+            AttestationType.None,
+            null,
+            null);
         return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
     }
 }

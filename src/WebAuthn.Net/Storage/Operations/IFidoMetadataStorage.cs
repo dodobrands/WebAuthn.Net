@@ -9,5 +9,6 @@ public interface IFidoMetadataStorage
 {
     Task StoreAsync(MetadataBlobPayload blob, CancellationToken cancellationToken);
 
-    Task<MetadataBlobPayloadEntry?> FindAsync(Guid aaguid, CancellationToken cancellationToken);
+    Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(Guid aaguid, CancellationToken cancellationToken);
+    Task<MetadataBlobPayloadEntry?> FindBySubjectKeyIdentifierAsync(byte[] subjectKeyIdentifier, CancellationToken cancellationToken);
 }

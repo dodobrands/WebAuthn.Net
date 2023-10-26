@@ -38,11 +38,21 @@ public static class FidoMetadataRoots
                 throw new InvalidOperationException($"Can't read embedded resource: {embeddedResource}");
             }
 
-            using var memoryStream = new MemoryStream();
-            resourceStream.CopyTo(memoryStream);
-            memoryStream.Seek(0L, SeekOrigin.Begin);
-            var certBytes = memoryStream.ToArray();
-            using var cert = X509CertificateInMemoryLoader.Load(certBytes);
+            byte[] certBytes;
+            using (var memoryStream = new MemoryStream())
+            {
+                resourceStream.CopyTo(memoryStream);
+                memoryStream.Seek(0L, SeekOrigin.Begin);
+                certBytes = memoryStream.ToArray();
+            }
+
+            if (!X509CertificateInMemoryLoader.TryLoad(certBytes, out var certificate))
+            {
+                certificate?.Dispose();
+                throw new InvalidOperationException("Invalid certificate");
+            }
+
+            certificate.Dispose();
             result.Add(certBytes);
         }
 

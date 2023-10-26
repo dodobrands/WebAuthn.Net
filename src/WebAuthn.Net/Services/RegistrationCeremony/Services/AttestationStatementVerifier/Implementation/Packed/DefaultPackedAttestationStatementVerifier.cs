@@ -12,8 +12,9 @@ using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Packed;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Asn1;
@@ -25,24 +26,35 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStateme
 public class DefaultPackedAttestationStatementVerifier<TContext> :
     IPackedAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
+    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
+    {
+        AttestationType.Basic,
+        AttestationType.AttCa,
+        AttestationType.Self
+    };
+
     public DefaultPackedAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
-        IAsn1Decoder asn1Decoder)
+        IAsn1Decoder asn1Decoder,
+        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         Asn1Decoder = asn1Decoder;
+        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
     }
 
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
+    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
 
-    public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         PackedAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -58,45 +70,62 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 2) If x5c is present:
         if (attStmt.X5C is not null)
         {
-            var certificates = new List<X509Certificate2>();
+            var certificatesToDispose = new List<X509Certificate2>();
             try
             {
                 var currentDate = TimeProvider.GetPreciseUtcDateTime();
-                foreach (var certBytes in attStmt.X5C)
+                var x5CCertificates = new List<X509Certificate2>(attStmt.X5C.Length);
+                foreach (var x5CBytes in attStmt.X5C)
                 {
-                    var cert = X509CertificateInMemoryLoader.Load(certBytes);
-                    certificates.Add(cert);
-                    if (currentDate < cert.NotBefore || currentDate > cert.NotAfter)
+                    if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
                     {
-                        return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                        x5CCert?.Dispose();
+                        return Result<AttestationStatementVerificationResult>.Fail();
+                    }
+
+                    certificatesToDispose.Add(x5CCert);
+                    x5CCertificates.Add(x5CCert);
+                    if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
+                    {
+                        return Result<AttestationStatementVerificationResult>.Fail();
                     }
                 }
 
-                var x5CResult = VerifyPackedWithX5C(attStmt, authenticatorData, clientDataHash, certificates, attStmt.X5C);
-                return Task.FromResult(x5CResult);
+                var x5CResult = await VerifyPackedWithX5CAsync(
+                    context,
+                    attStmt,
+                    authenticatorData,
+                    clientDataHash,
+                    x5CCertificates,
+                    attStmt.X5C,
+                    cancellationToken);
+                return x5CResult;
             }
             finally
             {
-                foreach (var certificate in certificates)
+                foreach (var certificateToDispose in certificatesToDispose)
                 {
-                    certificate.Dispose();
+                    certificateToDispose.Dispose();
                 }
             }
         }
 
         // 3) If x5c is not present, self attestation is in use.
         var noX5CResult = VerifyPackedWithoutX5C(attStmt, authenticatorData, clientDataHash);
-        return Task.FromResult(noX5CResult);
+        return noX5CResult;
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual Result<AttestationStatementVerificationResult> VerifyPackedWithX5C(
+    protected virtual async Task<Result<AttestationStatementVerificationResult>> VerifyPackedWithX5CAsync(
+        TContext context,
         PackedAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash,
         IReadOnlyCollection<X509Certificate2> certificates,
-        byte[][] trustPath)
+        byte[][] trustPath,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (attStmt is null || authenticatorData is null)
         {
             return Result<AttestationStatementVerificationResult>.Fail();
@@ -122,22 +151,37 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
 
         // 3) If attestnCert contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
         // verify that the value of this extension matches the 'aaguid' in 'authenticatorData'.
-        if (aaguid.HasValue)
+        if (aaguid.HasValue && authenticatorData.AttestedCredentialData.Aaguid != aaguid.Value)
         {
-            if (!authenticatorData.AttestedCredentialData.Aaguid.AsSpan().SequenceEqual(aaguid.Value.AsSpan()))
-            {
-                return Result<AttestationStatementVerificationResult>.Fail();
-            }
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         // 4) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether attStmt conveys a Basic or AttCA attestation.
+        var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+            context,
+            attestnCert,
+            authenticatorData,
+            GetSupportedAttestationTypes(),
+            cancellationToken);
+        if (inspectResult.HasError || !inspectResult.Ok.HasValue)
+        {
+            return Result<AttestationStatementVerificationResult>.Fail();
+        }
+
+        var inspectionResult = inspectResult.Ok.Value;
+
         // 5) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
         var result = new AttestationStatementVerificationResult(
             AttestationStatementFormat.Packed,
-            AttestationType.Basic,
+            inspectionResult.AttestationType,
             trustPath,
-            null);
+            inspectionResult.AcceptableTrustAnchors);
         return Result<AttestationStatementVerificationResult>.Success(result);
+    }
+
+    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    {
+        return _supportedAttestationTypes;
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
@@ -169,12 +213,14 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 3) If successful, return implementation-specific values representing attestation type Self and an empty attestation trust path.
         var result = new AttestationStatementVerificationResult(
             AttestationStatementFormat.Packed,
-            AttestationType.Self);
+            AttestationType.Self,
+            null,
+            null);
         return Result<AttestationStatementVerificationResult>.Success(result);
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool IsAttestnCertValid(X509Certificate2 attestnCert, [NotNullWhen(true)] out Optional<byte[]>? aaguid)
+    protected virtual bool IsAttestnCertValid(X509Certificate2 attestnCert, [NotNullWhen(true)] out Optional<Guid>? aaguid)
     {
         // §8.2.1 Packed Attestation Statement Certificate Requirements.
         // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation-cert-requirements
@@ -208,7 +254,8 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // containing the AAGUID as a 16-byte OCTET STRING.
         // The extension MUST NOT be marked as critical.
         var extensions = attestnCert.Extensions;
-        if (!TryGetAaguid(extensions, out aaguid))
+        var aaguidResult = TryGetAaguid(extensions);
+        if (aaguidResult.HasError)
         {
             aaguid = null;
             return false;
@@ -224,6 +271,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 5 - An Authority Information Access (AIA) extension with entry id-ad-ocsp and a CRL Distribution Point extension [RFC5280]
         // are both OPTIONAL as the status of many attestation certificates is available through authenticator metadata services.
         // See, for example, the FIDO Metadata Service [FIDOMetadataService].
+        aaguid = aaguidResult.Ok;
         return true;
     }
 
@@ -305,12 +353,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool TryGetAaguid(X509ExtensionCollection extensions, [NotNullWhen(true)] out Optional<byte[]>? aaguid)
+    protected virtual Result<Optional<Guid>> TryGetAaguid(X509ExtensionCollection extensions)
     {
         if (extensions is null)
         {
-            aaguid = null;
-            return false;
+            return Result<Optional<Guid>>.Fail();
         }
 
         // If the related attestation root certificate is used for multiple authenticator models,
@@ -323,35 +370,36 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         {
             if (extension.Critical)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
             var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
             if (decodeResult.HasError)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
             if (!decodeResult.Ok.HasValue)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
             if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
             {
-                aaguid = null;
-                return false;
+                return Result<Optional<Guid>>.Fail();
             }
 
-            aaguid = aaguid = Optional<byte[]>.Payload(aaguidOctetString.Value);
-            return true;
+            if (aaguidOctetString.Value.Length != 16)
+            {
+                return Result<Optional<Guid>>.Fail();
+            }
+
+            var hexAaguid = Convert.ToHexString(aaguidOctetString.Value);
+            var typedAaguid = new Guid(hexAaguid);
+            return Result<Optional<Guid>>.Success(Optional<Guid>.Payload(typedAaguid));
         }
 
-        aaguid = Optional<byte[]>.Empty();
-        return true;
+        return Result<Optional<Guid>>.Success(Optional<Guid>.Empty());
     }
 
     protected virtual bool IsBasicExtensionsCaComponentFalse(X509ExtensionCollection extensions)

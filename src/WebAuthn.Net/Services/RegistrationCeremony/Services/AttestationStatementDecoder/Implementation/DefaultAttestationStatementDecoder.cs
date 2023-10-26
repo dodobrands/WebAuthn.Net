@@ -59,7 +59,7 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
             AttestationStatementFormat.Packed => Transform(_packedDecoder.Decode(attStmt)),
             AttestationStatementFormat.Tpm => Transform(_tpmDecoder.Decode(attStmt)),
             AttestationStatementFormat.AndroidKey => Transform(_androidKeyDecoder.Decode(attStmt)),
-            AttestationStatementFormat.AndroidSafetynet => Transform(_androidSafetyNetDecoder.Decode(attStmt)),
+            AttestationStatementFormat.AndroidSafetyNet => Transform(_androidSafetyNetDecoder.Decode(attStmt)),
             AttestationStatementFormat.FidoU2F => Transform(_fidoU2FDecoder.Decode(attStmt)),
             AttestationStatementFormat.None => Transform(_noneDecoder.Decode(attStmt)),
             AttestationStatementFormat.AppleAnonymous => Transform(_appleAnonymousDecoder.Decode(attStmt)),

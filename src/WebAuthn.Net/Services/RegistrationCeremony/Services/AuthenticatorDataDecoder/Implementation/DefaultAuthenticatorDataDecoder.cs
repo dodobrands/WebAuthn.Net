@@ -159,7 +159,9 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
             return Result<AttestedCredentialData>.Fail();
         }
 
-        var result = new AttestedCredentialData(aaguid, credentialId, credentialPublicKeyResult.Ok);
+        var hexAaguid = Convert.ToHexString(aaguid);
+        var typedAaguid = new Guid(hexAaguid);
+        var result = new AttestedCredentialData(typedAaguid, credentialId, credentialPublicKeyResult.Ok);
         return Result<AttestedCredentialData>.Success(result);
     }
 

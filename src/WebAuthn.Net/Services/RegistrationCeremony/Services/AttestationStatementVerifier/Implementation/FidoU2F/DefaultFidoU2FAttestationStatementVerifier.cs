@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -10,10 +11,12 @@ using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.FidoU2F;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
+using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation.FidoU2F;
@@ -22,15 +25,30 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStateme
 public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     : IFidoU2FAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    public DefaultFidoU2FAttestationStatementVerifier(ITimeProvider timeProvider)
+    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
+    {
+        AttestationType.Basic,
+        AttestationType.AttCa
+    };
+
+    public DefaultFidoU2FAttestationStatementVerifier(
+        ITimeProvider timeProvider,
+        IAsn1Decoder asn1Decoder,
+        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
         TimeProvider = timeProvider;
+        Asn1Decoder = asn1Decoder;
+        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
     }
 
     protected ITimeProvider TimeProvider { get; }
+    protected IAsn1Decoder Asn1Decoder { get; }
+    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
 
-    public virtual Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
         FidoU2FAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -51,23 +69,29 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
 
         if (attStmt.X5C.Length != 1)
         {
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+            return Result<AttestationStatementVerificationResult>.Fail();
         }
 
         X509Certificate2? attCert = null;
         try
         {
             var rawAttCert = attStmt.X5C[0];
-            attCert = X509CertificateInMemoryLoader.Load(rawAttCert);
+
+            if (!X509CertificateInMemoryLoader.TryLoad(rawAttCert, out attCert))
+            {
+                attCert?.Dispose();
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             if (currentDate < attCert.NotBefore || currentDate > attCert.NotAfter)
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             if (!IsValidPublicKeyParameters(attCert, out var attCertEcParameters))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 3) Extract the claimed 'rpIdHash' from 'authenticatorData', and the claimed 'credentialId' and 'credentialPublicKey'
@@ -76,14 +100,14 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             var credentialId = authenticatorData.AttestedCredentialData.CredentialId;
             if (authenticatorData.AttestedCredentialData.CredentialPublicKey is not CoseEc2Key credentialPublicKey)
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 4) Convert the COSE_KEY formatted 'credentialPublicKey' (see Section 7 of [RFC9052])
             // to Raw ANSI X9.62 public key format (see ALG_KEY_ECC_X962_RAW in Section 3.6.2 Public Key Representation Formats of [FIDO-Registry]).
             if (!TryConvertCoseKeyToPublicKeyU2F(credentialPublicKey, out var publicKeyU2F))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 5) Let 'verificationData' be the concatenation of
@@ -103,22 +127,40 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             });
             if (!ecdsa.VerifyData(verificationData, attStmt.Sig, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
             {
-                return Task.FromResult(Result<AttestationStatementVerificationResult>.Fail());
+                return Result<AttestationStatementVerificationResult>.Fail();
             }
 
             // 7) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether 'attStmt' conveys a Basic or AttCA attestation.
-            // 8) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
+            var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+                context,
+                attCert,
+                authenticatorData,
+                GetSupportedAttestationTypes(),
+                cancellationToken);
+            if (inspectResult.HasError || !inspectResult.Ok.HasValue)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
+            var inspectionResult = inspectResult.Ok.Value;
+
+            // 8) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path x5c.
             var result = new AttestationStatementVerificationResult(
                 AttestationStatementFormat.FidoU2F,
-                AttestationType.Basic,
+                inspectionResult.AttestationType,
                 new[] { rawAttCert },
-                null);
-            return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+                inspectionResult.AcceptableTrustAnchors);
+            return Result<AttestationStatementVerificationResult>.Success(result);
         }
         finally
         {
             attCert?.Dispose();
         }
+    }
+
+    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    {
+        return _supportedAttestationTypes;
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]

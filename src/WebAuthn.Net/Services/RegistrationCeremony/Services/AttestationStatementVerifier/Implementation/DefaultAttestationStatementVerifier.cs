@@ -16,7 +16,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVe
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.None;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Packed;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions.Tpm;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Implementation;
@@ -104,11 +104,11 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
 
                     return await AndroidKeyVerifier.VerifyAsync(context, androidKey, authenticatorData, clientDataHash, cancellationToken);
                 }
-            case AttestationStatementFormat.AndroidSafetynet:
+            case AttestationStatementFormat.AndroidSafetyNet:
                 {
                     if (attStmt is not AndroidSafetyNetAttestationStatement androidSafetyNet)
                     {
-                        Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.AndroidSafetynet);
+                        Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.AndroidSafetyNet);
                         return Result<AttestationStatementVerificationResult>.Fail();
                     }
 

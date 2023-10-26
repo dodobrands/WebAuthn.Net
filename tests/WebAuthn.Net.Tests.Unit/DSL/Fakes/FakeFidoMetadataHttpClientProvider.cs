@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataHttpClient;
 
 namespace WebAuthn.Net.DSL.Fakes;
@@ -14,16 +15,16 @@ public class FakeFidoMetadataHttpClientProvider : IDisposable
     {
         ConfigurationManager = new();
         ConfigurationManager.AddInMemoryCollection(configuration ?? Enumerable.Empty<KeyValuePair<string, string>>());
-        var rawOptions = ConfigurationManager.Get<DefaultFidoMetadataHttpClientOptions>() ?? new DefaultFidoMetadataHttpClientOptions();
-        var optionsCache = new OptionsCache<DefaultFidoMetadataHttpClientOptions>();
-        optionsCache.TryAdd(string.Empty, rawOptions);
+        var webAuthnOptions = ConfigurationManager.Get<WebAuthnOptions>() ?? new WebAuthnOptions();
+        var optionsCache = new OptionsCache<WebAuthnOptions>();
+        optionsCache.TryAdd(string.Empty, webAuthnOptions);
         Options = new(
-            new OptionsFactory<DefaultFidoMetadataHttpClientOptions>(
-                new List<IConfigureOptions<DefaultFidoMetadataHttpClientOptions>>(),
-                new List<IPostConfigureOptions<DefaultFidoMetadataHttpClientOptions>>()),
-            new List<IOptionsChangeTokenSource<DefaultFidoMetadataHttpClientOptions>>
+            new OptionsFactory<WebAuthnOptions>(
+                new List<IConfigureOptions<WebAuthnOptions>>(),
+                new List<IPostConfigureOptions<WebAuthnOptions>>()),
+            new List<IOptionsChangeTokenSource<WebAuthnOptions>>
             {
-                new ConfigurationChangeTokenSource<DefaultFidoMetadataHttpClientOptions>(ConfigurationManager)
+                new ConfigurationChangeTokenSource<WebAuthnOptions>(ConfigurationManager)
             },
             optionsCache);
         FakeMetadataHandler = new();
@@ -33,9 +34,8 @@ public class FakeFidoMetadataHttpClientProvider : IDisposable
 
     private HttpClient HttpClient { get; }
     private FakeFidoMetadataDelegatingHandler FakeMetadataHandler { get; }
-    private OptionsMonitor<DefaultFidoMetadataHttpClientOptions> Options { get; }
+    private OptionsMonitor<WebAuthnOptions> Options { get; }
     private ConfigurationManager ConfigurationManager { get; }
-
     public DefaultFidoMetadataHttpClient Client { get; }
 
     public void Dispose()
