@@ -68,6 +68,6 @@ public class DefaultRegistrationCeremonyServiceNoneTests : AbstractRegistrationC
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.HasError, Is.False);
+        Assert.That(competeResult.Successful, Is.True);
     }
 }

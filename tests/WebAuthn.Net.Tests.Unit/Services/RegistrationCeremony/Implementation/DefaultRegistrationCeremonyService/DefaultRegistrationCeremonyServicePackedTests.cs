@@ -60,7 +60,7 @@ public class DefaultRegistrationCeremonyServicePackedTests : AbstractRegistratio
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.HasError, Is.False);
+        Assert.That(competeResult.Successful, Is.True);
     }
 
     [Test]
@@ -104,6 +104,6 @@ public class DefaultRegistrationCeremonyServicePackedTests : AbstractRegistratio
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.HasError, Is.False);
+        Assert.That(competeResult.Successful, Is.True);
     }
 }

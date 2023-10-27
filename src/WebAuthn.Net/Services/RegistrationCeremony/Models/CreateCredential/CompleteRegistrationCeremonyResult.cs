@@ -2,4 +2,10 @@
 
 public class CompleteRegistrationCeremonyResult
 {
+    public CompleteRegistrationCeremonyResult(bool successful)
+    {
+        Successful = successful;
+    }
+
+    public bool Successful { get; }
 }

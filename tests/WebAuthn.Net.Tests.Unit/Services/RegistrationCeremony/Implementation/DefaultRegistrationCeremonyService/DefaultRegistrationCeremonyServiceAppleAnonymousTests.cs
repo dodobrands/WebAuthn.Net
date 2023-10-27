@@ -62,6 +62,6 @@ public class DefaultRegistrationCeremonyServiceAppleAnonymousTests : AbstractReg
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.HasError, Is.False);
+        Assert.That(competeResult.Successful, Is.True);
     }
 }
