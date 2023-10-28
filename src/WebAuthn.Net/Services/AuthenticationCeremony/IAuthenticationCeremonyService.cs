@@ -20,7 +20,7 @@ public interface IAuthenticationCeremonyService
         BeginAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken);
 
-    Task<CompleteAuthenticationCeremonyResult> HandleAsync(
+    Task<CompleteAuthenticationCeremonyResult> CompleteCeremonyAsync(
         HttpContext httpContext,
         CompleteAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken);

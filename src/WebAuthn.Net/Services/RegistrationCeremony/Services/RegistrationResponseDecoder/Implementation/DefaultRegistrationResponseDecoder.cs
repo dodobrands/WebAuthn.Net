@@ -7,8 +7,8 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
+using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Models;
 using WebAuthn.Net.Services.Serialization.Json;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
@@ -27,8 +27,12 @@ public class DefaultRegistrationResponseDecoder<TContext> : IRegistrationRespons
         RegistrationResponseJSON registrationResponse,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(registrationResponse);
         cancellationToken.ThrowIfCancellationRequested();
+        if (registrationResponse is null)
+        {
+            return Result<RegistrationResponse>.Fail();
+        }
+
         var id = WebEncoders.Base64UrlDecode(registrationResponse.Id);
         var rawId = WebEncoders.Base64UrlDecode(registrationResponse.RawId);
         var responseResult = await DecodeAttestationResponseAsync(context, registrationResponse.Response, cancellationToken);

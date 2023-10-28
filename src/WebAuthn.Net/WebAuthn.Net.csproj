@@ -30,7 +30,7 @@
     <None Remove="Services\**\*.der" />
     <EmbeddedResource Include="Services\**\*.der" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <None Remove="Services\**\*.pem" />
     <EmbeddedResource Include="Services\**\*.pem" />

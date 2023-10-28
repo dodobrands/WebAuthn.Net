@@ -116,7 +116,7 @@ public class PublicKeyCredentialRequestOptionsJSON
         string challenge,
         uint? timeout,
         string? rpId,
-        AuthenticationPublicKeyCredentialDescriptorJSON[]? allowCredentials,
+        PublicKeyCredentialDescriptorJSON[]? allowCredentials,
         string? userVerification,
         string[]? hints,
         string? attestation,
@@ -227,7 +227,7 @@ public class PublicKeyCredentialRequestOptionsJSON
     /// </remarks>
     [JsonPropertyName("allowCredentials")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public AuthenticationPublicKeyCredentialDescriptorJSON[]? AllowCredentials { get; }
+    public PublicKeyCredentialDescriptorJSON[]? AllowCredentials { get; }
 
     /// <summary>
     ///     <para>

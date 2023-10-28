@@ -28,12 +28,14 @@ public class DefaultRegistrationCeremonyServiceAppleAnonymousTests : AbstractReg
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
+                null,
+                null,
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
                 new[] { CoseAlgorithm.ES256, CoseAlgorithm.ES384, CoseAlgorithm.ES512, CoseAlgorithm.RS256, CoseAlgorithm.RS384, CoseAlgorithm.RS512, CoseAlgorithm.PS256, CoseAlgorithm.PS384, CoseAlgorithm.PS512 },
                 60000,
-                ExcludeRegistrationCredentialsOptions.AllExisting(),
+                RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),
                 null,
                 AttestationConveyancePreference.Direct,
@@ -41,7 +43,7 @@ public class DefaultRegistrationCeremonyServiceAppleAnonymousTests : AbstractReg
                 null),
             CancellationToken.None);
 
-        Storage.ReplaceChallengeForRegistrationCeremonyOptions(
+        RegistrationCeremonyStorage.ReplaceChallengeForRegistrationCeremonyOptions(
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("yup7N3Elt8TEfOl0hjWTyvBZ66Cfd9fCvNVZlpSzVI0"));
 

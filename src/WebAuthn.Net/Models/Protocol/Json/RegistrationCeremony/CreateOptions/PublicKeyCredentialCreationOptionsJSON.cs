@@ -75,7 +75,7 @@ public class PublicKeyCredentialCreationOptionsJSON
         string challenge,
         PublicKeyCredentialParametersJSON[] pubKeyCredParams,
         uint? timeout,
-        RegistrationPublicKeyCredentialDescriptorJSON[]? excludeCredentials,
+        PublicKeyCredentialDescriptorJSON[]? excludeCredentials,
         AuthenticatorSelectionCriteriaJSON? authenticatorSelection,
         string[]? hints,
         string? attestation,
@@ -197,7 +197,7 @@ public class PublicKeyCredentialCreationOptionsJSON
     /// </remarks>
     [JsonPropertyName("excludeCredentials")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public RegistrationPublicKeyCredentialDescriptorJSON[]? ExcludeCredentials { get; }
+    public PublicKeyCredentialDescriptorJSON[]? ExcludeCredentials { get; }
 
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify capabilities and settings that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> MUST or

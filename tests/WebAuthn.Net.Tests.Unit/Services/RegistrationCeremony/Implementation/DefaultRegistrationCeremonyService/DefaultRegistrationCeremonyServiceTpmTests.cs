@@ -26,12 +26,14 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
+                null,
+                null,
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
                 new[] { CoseAlgorithm.ES256, CoseAlgorithm.ES384, CoseAlgorithm.ES512 },
                 60000,
-                ExcludeRegistrationCredentialsOptions.AllExisting(),
+                RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),
                 null,
                 AttestationConveyancePreference.Direct,
@@ -39,7 +41,7 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
                 null),
             CancellationToken.None);
 
-        Storage.ReplaceChallengeForRegistrationCeremonyOptions(
+        RegistrationCeremonyStorage.ReplaceChallengeForRegistrationCeremonyOptions(
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("4x0-q1nnHnlgJsgwMfTURzR2wcTOPEFadn4TCXaKW6Y"));
 
@@ -70,12 +72,14 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
+                null,
+                null,
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
                 new[] { CoseAlgorithm.RS256, CoseAlgorithm.RS384, CoseAlgorithm.RS512 },
                 60000,
-                ExcludeRegistrationCredentialsOptions.AllExisting(),
+                RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),
                 null,
                 AttestationConveyancePreference.Direct,
@@ -83,7 +87,7 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
                 null),
             CancellationToken.None);
 
-        Storage.ReplaceChallengeForRegistrationCeremonyOptions(
+        RegistrationCeremonyStorage.ReplaceChallengeForRegistrationCeremonyOptions(
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("r8bwKDi4O_mRtPDj6RxxQtdKKcfoCTj_f_Bd_07taoo"));
 

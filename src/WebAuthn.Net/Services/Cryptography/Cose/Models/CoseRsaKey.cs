@@ -73,4 +73,17 @@ public class CoseRsaKey : AbstractCoseKey
         return algModulus.AsSpan().SequenceEqual(ModulusN.AsSpan())
                && algExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
     }
+
+    public override bool Matches(AbstractCoseKey coseKey)
+    {
+        if (coseKey is not CoseRsaKey other)
+        {
+            return false;
+        }
+
+        return other.Kty == Kty
+               && other.Alg == Alg
+               && other.ModulusN.AsSpan().SequenceEqual(ModulusN.AsSpan())
+               && other.ExponentE.AsSpan().SequenceEqual(ExponentE.AsSpan());
+    }
 }

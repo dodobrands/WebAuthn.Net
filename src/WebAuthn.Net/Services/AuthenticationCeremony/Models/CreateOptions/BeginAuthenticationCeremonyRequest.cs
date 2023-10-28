@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
+using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 
@@ -16,6 +16,8 @@ public class BeginAuthenticationCeremonyRequest
     /// <summary>
     ///     Constructs <see cref="BeginAuthenticationCeremonyRequest" />.
     /// </summary>
+    /// <param name="origins">Parameters defining acceptable origins for the registration ceremony.</param>
+    /// <param name="topOrigins">Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the registration ceremony.</param>
     /// <param name="userHandle">
     ///     <para>
     ///         A <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-handle">user handle</a> is an identifier for a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a>, specified by the
@@ -54,6 +56,56 @@ public class BeginAuthenticationCeremonyRequest
     ///     This OPTIONAL member specifies a time, in milliseconds, that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> is willing to wait for the call to complete. The value is treated as a hint, and MAY be overridden by the
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a>.
     /// </param>
+    /// <param name="allowCredentials">
+    ///     <summary>
+    ///         <para>Includes parameters of allowed credentials for the authentication ceremony.</para>
+    ///         <para>
+    ///             This OPTIONAL member is used by the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> to find <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticators</a> eligible for this
+    ///             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremony</a>. It can be used in two ways:
+    ///             <list type="bullet">
+    ///                 <item>
+    ///                     <description>
+    ///                         <para>
+    ///                             If the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> to authenticate is already identified (e.g., if the user has entered a username), then the
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD use this member to list
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-descriptor-for-a-credential-record">credential descriptors for credential records</a> in the
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a>. This SHOULD usually include all <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credential records</a> in the
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a>.
+    ///                         </para>
+    ///                         <para>
+    ///                             The <a href="https://infra.spec.whatwg.org/#list-item">items</a> SHOULD specify <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-transports">transports</a> whenever possible. This helps the
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> optimize the user experience for any given situation. Also note that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> does
+    ///                             not need to filter the list when requesting <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a> — the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> will automatically
+    ///                             ignore non-eligible credentials if <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialrequestoptions-userverification">userVerification</a> is set to
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-userverificationrequirement-required">required</a>.
+    ///                         </para>
+    ///                         <para>
+    ///                             See also the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-id-privacy-leak">§14.6.3 Privacy leak via credential IDs</a> privacy consideration.
+    ///                         </para>
+    ///                     </description>
+    ///                 </item>
+    ///                 <item>
+    ///                     <description>
+    ///                         <para>
+    ///                             If the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> to authenticate is not already identified, then the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY
+    ///                             leave this member <a href="https://infra.spec.whatwg.org/#list-empty">empty</a> or unspecified. In this case, only <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#discoverable-credential">discoverable credentials</a> will be utilized in
+    ///                             this <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremony</a>, and the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> MAY be identified by the
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorassertionresponse-userhandle">userHandle</a> of the resulting
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticatorassertionresponse">AuthenticatorAssertionResponse</a>. If the available <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticators</a>
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#contains">contain</a> more than one <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#discoverable-credential">discoverable credential</a>
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#scope">scoped</a> to the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a>, the credentials are displayed by the
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platform</a> or <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> for the user to select from (see
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticatorGetAssertion-prompt-select-credential">step 7</a> of
+    ///                             <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-op-get-assertion">§6.3.3 The authenticatorGetAssertion Operation</a>).
+    ///                         </para>
+    ///                     </description>
+    ///                 </item>
+    ///             </list>
+    ///         </para>
+    ///         <para>If not <a href="https://infra.spec.whatwg.org/#list-empty">empty</a>, the client MUST return an error if none of the listed credentials can be used.</para>
+    ///         <para>The list is ordered in descending order of preference: the first item in the list is the most preferred credential, and the last is the least preferred.</para>
+    ///     </summary>
+    /// </param>
     /// <param name="userVerification">
     ///     This OPTIONAL member specifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party's</a> requirements regarding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a> for the
     ///     <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-get">get()</a> operation. The value SHOULD be a member of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-userverificationrequirement">UserVerificationRequirement</a>
@@ -91,15 +143,24 @@ public class BeginAuthenticationCeremonyRequest
     /// <exception cref="InvalidEnumArgumentException"><paramref name="attestation" /> contains a value that is not defined in <see cref="AttestationConveyancePreference" /></exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="attestationFormats" /> array contains a value not defined in <see cref="AttestationStatementFormat" /></exception>
     public BeginAuthenticationCeremonyRequest(
+        AuthenticationCeremonyOriginParameters? origins,
+        AuthenticationCeremonyOriginParameters? topOrigins,
         byte[]? userHandle,
         int challengeSize,
         uint? timeout,
+        AuthenticationCeremonyIncludeCredentials? allowCredentials,
         UserVerificationRequirement? userVerification,
         PublicKeyCredentialHints[]? hints,
         AttestationConveyancePreference? attestation,
         AttestationStatementFormat[]? attestationFormats,
-        RegistrationExtensionsClientInputs? extensions)
+        AuthenticationExtensionsClientInputs? extensions)
     {
+        // origins
+        Origins = origins;
+
+        // topOrigins
+        TopOrigins = topOrigins;
+
         //userHandle
         UserHandle = userHandle;
 
@@ -113,6 +174,9 @@ public class BeginAuthenticationCeremonyRequest
 
         // timeout
         Timeout = timeout;
+
+        // allowCredentials
+        AllowCredentials = allowCredentials;
 
         // userVerification
         if (userVerification.HasValue)
@@ -169,6 +233,16 @@ public class BeginAuthenticationCeremonyRequest
     }
 
     /// <summary>
+    ///     Parameters defining acceptable origins for the registration ceremony.
+    /// </summary>
+    public AuthenticationCeremonyOriginParameters? Origins { get; }
+
+    /// <summary>
+    ///     Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the registration ceremony.
+    /// </summary>
+    public AuthenticationCeremonyOriginParameters? TopOrigins { get; }
+
+    /// <summary>
     ///     <para>
     ///         A <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-handle">user handle</a> is an identifier for a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a>, specified by the
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> as <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialcreationoptions-user">user</a>.
@@ -211,6 +285,55 @@ public class BeginAuthenticationCeremonyRequest
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a>.
     /// </summary>
     public uint? Timeout { get; }
+
+    /// <summary>
+    ///     <para>Includes parameters of allowed credentials for the authentication ceremony.</para>
+    ///     <para>
+    ///         This OPTIONAL member is used by the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> to find <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticators</a> eligible for this
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremony</a>. It can be used in two ways:
+    ///         <list type="bullet">
+    ///             <item>
+    ///                 <description>
+    ///                     <para>
+    ///                         If the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> to authenticate is already identified (e.g., if the user has entered a username), then the
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> SHOULD use this member to list
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-descriptor-for-a-credential-record">credential descriptors for credential records</a> in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a>.
+    ///                         This SHOULD usually include all <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credential records</a> in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a>.
+    ///                     </para>
+    ///                     <para>
+    ///                         The <a href="https://infra.spec.whatwg.org/#list-item">items</a> SHOULD specify <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialdescriptor-transports">transports</a> whenever possible. This helps the
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> optimize the user experience for any given situation. Also note that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> does not
+    ///                         need to filter the list when requesting <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a> — the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a> will automatically ignore
+    ///                         non-eligible credentials if <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialrequestoptions-userverification">userVerification</a> is set to
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-userverificationrequirement-required">required</a>.
+    ///                     </para>
+    ///                     <para>
+    ///                         See also the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-id-privacy-leak">§14.6.3 Privacy leak via credential IDs</a> privacy consideration.
+    ///                     </para>
+    ///                 </description>
+    ///             </item>
+    ///             <item>
+    ///                 <description>
+    ///                     <para>
+    ///                         If the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> to authenticate is not already identified, then the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY leave
+    ///                         this member <a href="https://infra.spec.whatwg.org/#list-empty">empty</a> or unspecified. In this case, only <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#discoverable-credential">discoverable credentials</a> will be utilized in this
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-ceremony">authentication ceremony</a>, and the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> MAY be identified by the
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorassertionresponse-userhandle">userHandle</a> of the resulting
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticatorassertionresponse">AuthenticatorAssertionResponse</a>. If the available <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticators</a>
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#contains">contain</a> more than one <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#discoverable-credential">discoverable credential</a>
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#scope">scoped</a> to the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a>, the credentials are displayed by the
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platform</a> or <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> for the user to select from (see
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticatorGetAssertion-prompt-select-credential">step 7</a> of
+    ///                         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-op-get-assertion">§6.3.3 The authenticatorGetAssertion Operation</a>).
+    ///                     </para>
+    ///                 </description>
+    ///             </item>
+    ///         </list>
+    ///     </para>
+    ///     <para>If not <a href="https://infra.spec.whatwg.org/#list-empty">empty</a>, the client MUST return an error if none of the listed credentials can be used.</para>
+    ///     <para>The list is ordered in descending order of preference: the first item in the list is the most preferred credential, and the last is the least preferred.</para>
+    /// </summary>
+    public AuthenticationCeremonyIncludeCredentials? AllowCredentials { get; }
 
     /// <summary>
     ///     <para>
@@ -267,5 +390,5 @@ public class BeginAuthenticationCeremonyRequest
     ///         <a href="https://www.rfc-editor.org/rfc/rfc8809.html">RFC 8809</a> for an up-to-date list of registered <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-extensions">WebAuthn Extensions</a>.
     ///     </para>
     /// </summary>
-    public RegistrationExtensionsClientInputs? Extensions { get; }
+    public AuthenticationExtensionsClientInputs? Extensions { get; }
 }

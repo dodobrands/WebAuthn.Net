@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,32 +13,37 @@ using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.AttestationTrustPathValidator;
+using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
+using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
+using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Abstractions;
+using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
+using WebAuthn.Net.Services.Common.AttestationTrustPathValidator;
+using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder;
+using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
+using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Enums;
+using WebAuthn.Net.Services.Common.ChallengeGenerator;
+using WebAuthn.Net.Services.Common.ClientDataDecoder;
 using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Services.Cryptography.Cose.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationObjectDecoder.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementDecoder.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Abstractions;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AttestationStatementVerifier.Models.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.AuthenticatorDataDecoder.Models.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.ChallengeGenerator;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.ClientDataDecoder;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.OptionsEncoder;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder;
-using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Models;
-using WebAuthn.Net.Storage.Operations;
-using WebAuthn.Net.Storage.Operations.Models;
+using WebAuthn.Net.Storage.Credential;
+using WebAuthn.Net.Storage.Credential.Models;
+using WebAuthn.Net.Storage.Models;
+using WebAuthn.Net.Storage.RegistrationCeremony;
+using WebAuthn.Net.Storage.RegistrationCeremony.Models;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultRegistrationCeremonyService<TContext>
     : IRegistrationCeremonyService
     where TContext : class, IWebAuthnContext
@@ -50,7 +56,8 @@ public class DefaultRegistrationCeremonyService<TContext>
         IChallengeGenerator challengeGenerator,
         ITimeProvider timeProvider,
         IPublicKeyCredentialCreationOptionsEncoder<TContext> publicKeyCredentialCreationOptionsEncoder,
-        IOperationalStorage<TContext> storage,
+        ICredentialStorage<TContext> credentialStorage,
+        IRegistrationCeremonyStorage<TContext> ceremonyStorage,
         IRegistrationResponseDecoder<TContext> registrationResponseDecoder,
         IClientDataDecoder<TContext> clientDataDecoder,
         IAttestationObjectDecoder<TContext> attestationObjectDecoder,
@@ -60,6 +67,23 @@ public class DefaultRegistrationCeremonyService<TContext>
         IAttestationTrustPathValidator attestationTrustPathValidator,
         ILogger<DefaultRegistrationCeremonyService<TContext>> logger)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(contextFactory);
+        ArgumentNullException.ThrowIfNull(rpIdProvider);
+        ArgumentNullException.ThrowIfNull(rpOriginProvider);
+        ArgumentNullException.ThrowIfNull(challengeGenerator);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(publicKeyCredentialCreationOptionsEncoder);
+        ArgumentNullException.ThrowIfNull(credentialStorage);
+        ArgumentNullException.ThrowIfNull(ceremonyStorage);
+        ArgumentNullException.ThrowIfNull(registrationResponseDecoder);
+        ArgumentNullException.ThrowIfNull(clientDataDecoder);
+        ArgumentNullException.ThrowIfNull(attestationObjectDecoder);
+        ArgumentNullException.ThrowIfNull(authenticatorDataDecoder);
+        ArgumentNullException.ThrowIfNull(attestationStatementDecoder);
+        ArgumentNullException.ThrowIfNull(attestationStatementVerifier);
+        ArgumentNullException.ThrowIfNull(attestationTrustPathValidator);
+        ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         ContextFactory = contextFactory;
         RpIdProvider = rpIdProvider;
@@ -67,7 +91,8 @@ public class DefaultRegistrationCeremonyService<TContext>
         ChallengeGenerator = challengeGenerator;
         TimeProvider = timeProvider;
         PublicKeyCredentialCreationOptionsEncoder = publicKeyCredentialCreationOptionsEncoder;
-        Storage = storage;
+        CredentialStorage = credentialStorage;
+        CeremonyStorage = ceremonyStorage;
         RegistrationResponseDecoder = registrationResponseDecoder;
         ClientDataDecoder = clientDataDecoder;
         AttestationObjectDecoder = attestationObjectDecoder;
@@ -85,7 +110,8 @@ public class DefaultRegistrationCeremonyService<TContext>
     protected IChallengeGenerator ChallengeGenerator { get; }
     protected ITimeProvider TimeProvider { get; }
     protected IPublicKeyCredentialCreationOptionsEncoder<TContext> PublicKeyCredentialCreationOptionsEncoder { get; }
-    protected IOperationalStorage<TContext> Storage { get; }
+    protected ICredentialStorage<TContext> CredentialStorage { get; }
+    protected IRegistrationCeremonyStorage<TContext> CeremonyStorage { get; }
     protected IRegistrationResponseDecoder<TContext> RegistrationResponseDecoder { get; }
     protected IClientDataDecoder<TContext> ClientDataDecoder { get; }
     protected IAttestationObjectDecoder<TContext> AttestationObjectDecoder { get; }
@@ -94,7 +120,6 @@ public class DefaultRegistrationCeremonyService<TContext>
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
     protected IAttestationTrustPathValidator AttestationTrustPathValidator { get; }
     protected ILogger<DefaultRegistrationCeremonyService<TContext>> Logger { get; }
-
 
     public virtual async Task<BeginRegistrationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
@@ -105,22 +130,40 @@ public class DefaultRegistrationCeremonyService<TContext>
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         await using var context = await ContextFactory.CreateAsync(httpContext, cancellationToken);
-
         var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
         var rpId = await RpIdProvider.GetAsync(context, cancellationToken);
         var credentialsToExclude = await GetCredentialsToExcludeAsync(
             context,
             rpId,
             request.User.Id,
-            request.ExcludeRegistrationCredentials,
+            request.ExcludeCredentials,
             cancellationToken);
-        var rpOrigin = await RpOriginProvider.GetAsync(context, cancellationToken);
+        var defaultOrigin = await RpOriginProvider.GetAsync(context, cancellationToken);
+        var origins = request.Origins is not null
+            ? request.Origins.AllowedOrigins
+            : new[] { defaultOrigin };
+        // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-validating-origin
+        // A web application that does not wish to be embedded in a cross-origin iframe might require topOrigin to exactly equal origin.
+        string[]? topOrigins = null;
+        var allowIframe = false;
+        if (request.TopOrigins is not null)
+        {
+            topOrigins = request.TopOrigins.AllowedOrigins;
+            allowIframe = true;
+        }
+
+        var expectedRpParameters = new ExpectedRpParameters(rpId, origins, allowIframe, topOrigins);
+        var timeout = GetTimeout(request);
         var createdAt = TimeProvider.GetRoundUtcDateTime();
-        var expiresAt = createdAt.ComputeExpiresAtUtc(request.Timeout);
-        var options = ToPublicKeyCredentialCreationOptions(request, rpId, challenge, credentialsToExclude);
+        var expiresAt = createdAt.ComputeExpiresAtUtc(timeout);
+        var options = ToPublicKeyCredentialCreationOptions(request, timeout, rpId, challenge, credentialsToExclude);
         var outputOptions = await PublicKeyCredentialCreationOptionsEncoder.EncodeAsync(context, options, cancellationToken);
-        var registrationCeremonyOptions = new RegistrationCeremonyOptions(options, rpOrigin, new[] { rpOrigin }, createdAt, expiresAt);
-        var ceremonyId = await Storage.SaveRegistrationCeremonyOptionsAsync(context, registrationCeremonyOptions, cancellationToken);
+        var registrationCeremony = new RegistrationCeremonyParameters(
+            options,
+            expectedRpParameters,
+            createdAt,
+            expiresAt);
+        var ceremonyId = await CeremonyStorage.SaveAsync(context, registrationCeremony, cancellationToken);
         await context.CommitAsync(cancellationToken);
         var result = new BeginRegistrationCeremonyResult(outputOptions, ceremonyId);
         return result;
@@ -137,14 +180,14 @@ public class DefaultRegistrationCeremonyService<TContext>
         using (Logger.BeginCompleteRegistrationCeremonyScope(request.RegistrationCeremonyId))
         await using (var context = await ContextFactory.CreateAsync(httpContext, cancellationToken))
         {
-            var registrationCeremonyOptions = await Storage.FindRegistrationCeremonyOptionsAsync(
+            var registrationCeremonyOptions = await CeremonyStorage.FindAsync(
                 context,
                 request.RegistrationCeremonyId,
                 cancellationToken);
             if (registrationCeremonyOptions is null)
             {
                 Logger.RegistrationCeremonyNotFound();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-registering-a-new-credential
@@ -161,7 +204,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (credentialResult.HasError)
             {
                 Logger.FailedToDecodeRegistrationResponseJson();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             var credential = credentialResult.Ok;
@@ -186,7 +229,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (clientDataResult.HasError)
             {
                 Logger.FailedToDecodeClientData();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // ReSharper disable once InconsistentNaming
@@ -196,22 +239,22 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (C.Type is not "webauthn.create")
             {
                 Logger.IncorrectClientDataType(C.Type);
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 8. Verify that the value of 'C.challenge' equals the base64url encoding of 'options.challenge'.
             if (!string.Equals(C.Challenge, WebEncoders.Base64UrlEncode(options.Challenge), StringComparison.Ordinal))
             {
                 Logger.ChallengeMismatch();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 9. Verify that the value of 'C.origin' is an origin expected by the Relying Party. See §13.4.9 Validating the origin of a credential for guidance.
-            var expectedOrigin = registrationCeremonyOptions.ExpectedOrigin;
-            if (!string.Equals(C.Origin, expectedOrigin, StringComparison.Ordinal))
+            var allowedOrigin = registrationCeremonyOptions.ExpectedRp.Origins.FirstOrDefault(x => string.Equals(x, C.Origin, StringComparison.Ordinal));
+            if (allowedOrigin is null)
             {
-                Logger.OriginMismatch(C.Origin, registrationCeremonyOptions.ExpectedOrigin);
-                return new(false);
+                Logger.InvalidOrigin(C.Origin);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 10. If 'C.topOrigin' is present:
@@ -219,11 +262,21 @@ public class DefaultRegistrationCeremonyService<TContext>
             {
                 //   1. Verify that the Relying Party expects that this credential would have been created within an iframe that is not same-origin with its ancestors.
                 //   2. Verify that the value of C.topOrigin matches the origin of a page that the Relying Party expects to be sub-framed within. See §13.4.9 Validating the origin of a credential for guidance.
-                var isTopOriginValid = registrationCeremonyOptions.ExpectedTopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal));
-                if (!isTopOriginValid)
+                if (!registrationCeremonyOptions.ExpectedRp.AllowIframe)
                 {
-                    Logger.InvalidTopOrigin(C.TopOrigin);
-                    return new(false);
+                    if (!string.Equals(allowedOrigin, C.TopOrigin, StringComparison.Ordinal))
+                    {
+                        Logger.InvalidTopOrigin(C.TopOrigin);
+                        return CompleteRegistrationCeremonyResult.Fail();
+                    }
+                }
+                else
+                {
+                    if (!registrationCeremonyOptions.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
+                    {
+                        Logger.InvalidTopOrigin(C.TopOrigin);
+                        return CompleteRegistrationCeremonyResult.Fail();
+                    }
                 }
             }
 
@@ -237,7 +290,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attestationObjectResult.HasError)
             {
                 Logger.AttestationObjectDecodeFailed();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             var fmt = attestationObjectResult.Ok.Fmt;
@@ -246,14 +299,14 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attestationObjectResult.Ok.AuthData is null)
             {
                 Logger.NullAuthDataForRegistration();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             var authDataResult = AuthenticatorDataDecoder.Decode(attestationObjectResult.Ok.AuthData);
             if (authDataResult.HasError)
             {
                 Logger.FailedToDecodeAuthData();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // §6.5.2. Attested Credential Data
@@ -261,38 +314,32 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (authDataResult.Ok is not AttestedAuthenticatorData authData)
             {
                 Logger.AttestedCredentialDataIsNull();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             var attStmtResult = AttestationStatementDecoder.Decode(attestationObjectResult.Ok.AttStmt, fmt);
             if (attStmtResult.HasError)
             {
                 Logger.FailedToDecodeAttStmt();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             var attStmt = attStmtResult.Ok;
 
             // 13. Verify that the 'rpIdHash' in 'authData' is the SHA-256 hash of the 'RP ID' expected by the Relying Party.
             var authDataRpIdHash = authData.RpIdHash;
-            if (options.Rp.Id is null)
-            {
-                Logger.MissingRpIdInRegistrationOptions();
-                return new(false);
-            }
-
-            var expectedRpIdHash = SHA256.HashData(Encoding.UTF8.GetBytes(options.Rp.Id));
+            var expectedRpIdHash = SHA256.HashData(Encoding.UTF8.GetBytes(registrationCeremonyOptions.ExpectedRp.RpId));
             if (!authDataRpIdHash.AsSpan().SequenceEqual(expectedRpIdHash.AsSpan()))
             {
                 Logger.RpIdHashMismatch();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 14. Verify that the UP bit of the 'flags' in 'authData' is set.
             if ((authData.Flags & AuthenticatorDataFlags.UserPresent) is not AuthenticatorDataFlags.UserPresent)
             {
                 Logger.UserPresentBitNotSet();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 15. If the Relying Party requires user verification for this registration, verify that the UV bit of the 'flags' in 'authData' is set.
@@ -301,13 +348,13 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (userVerificationRequired && !uvInitialized)
             {
                 Logger.UserVerificationBitNotSet();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 16. If the BE bit of the 'flags' in 'authData' is not set, verify that the BS bit is not set.
-            var backupEligible = (authData.Flags & AuthenticatorDataFlags.BackupEligibility) is AuthenticatorDataFlags.BackupEligibility;
-            var backupState = (authData.Flags & AuthenticatorDataFlags.BackupState) is AuthenticatorDataFlags.BackupState;
-            if (!backupEligible && backupState)
+            var currentBe = (authData.Flags & AuthenticatorDataFlags.BackupEligibility) is AuthenticatorDataFlags.BackupEligibility;
+            var currentBs = (authData.Flags & AuthenticatorDataFlags.BackupState) is AuthenticatorDataFlags.BackupState;
+            if (!currentBe && currentBs)
             {
                 // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-backup
                 // §6.1.3. Credential Backup State
@@ -317,7 +364,7 @@ public class DefaultRegistrationCeremonyService<TContext>
                 // |  1 |  0 | The credential is a multi-device credential and is not currently backed up.
                 // |  1 |  1 | The credential is a multi-device credential and is currently backed up.
                 Logger.InvalidBeBsFlagsCombination();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 17. If the Relying Party uses the credential's backup eligibility to inform its user experience flows and/or policies,
@@ -332,7 +379,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (!expectedAlgorithms.Contains(authData.AttestedCredentialData.CredentialPublicKey.Alg))
             {
                 Logger.AuthDataAlgDoesntMatchPubKeyCredParams();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
             // 20. Verify that the values of the client extension outputs in 'clientExtensionResults' and the authenticator extension outputs in the extensions
             // in 'authData' are as expected, considering the client extension input values that were given in 'options.extensions'
@@ -361,7 +408,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attStmtVerificationResult.HasError)
             {
                 Logger.InvalidAttStmt();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             var attStmtVerification = attStmtVerificationResult.Ok;
@@ -376,14 +423,14 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attStmtVerification.AttestationType == AttestationType.None && !Options.CurrentValue.AttestationTypes.None.IsAcceptable)
             {
                 Logger.NoneAttestationDisallowed();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 24.2 If self attestation was used, verify that self attestation is acceptable under Relying Party policy.
             if (attStmtVerification.AttestationType == AttestationType.Self && !Options.CurrentValue.AttestationTypes.Self.IsAcceptable)
             {
                 Logger.SelfAttestationDisallowed();
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 24.3 Otherwise, use the X.509 certificates returned as the attestation trust path from the verification procedure
@@ -391,13 +438,13 @@ public class DefaultRegistrationCeremonyService<TContext>
             // or is itself an acceptable certificate (i.e., it and the root certificate obtained in Step 22 may be the same).
             if (!AttestationTrustPathValidator.IsValid(attStmtVerification))
             {
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 25. Verify that the credentialId is ≤ 1023 bytes. Credential IDs larger than this many bytes SHOULD cause the RP to fail this registration ceremony.
             if (authData.AttestedCredentialData.CredentialId.Length > 1023)
             {
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
             // 27. If the attestation statement 'attStmt' verified successfully and is found to be trustworthy,
@@ -406,40 +453,53 @@ public class DefaultRegistrationCeremonyService<TContext>
                 credential,
                 authData,
                 uvInitialized,
-                backupEligible,
-                backupState,
+                currentBe,
+                currentBs,
                 response);
+            var userCredentialRecord = new UserCredentialRecord(options.User.Id, registrationCeremonyOptions.ExpectedRp.RpId, credentialRecord);
             // 26. Verify that the credentialId is not yet registered for any user. If the credentialId is already known then the Relying Party SHOULD fail this registration ceremony.
-            var credentialIdNotRegisteredForAnyUser = await Storage.SaveCredentialIfNotRegisteredForOtherUserAsync(
+            var credentialIdNotRegisteredForAnyUser = await CredentialStorage.SaveIfNotRegisteredForOtherUserAsync(
                 context,
-                options.Rp.Id,
-                options.User.Id,
-                credentialRecord,
+                userCredentialRecord,
                 cancellationToken);
             if (!credentialIdNotRegisteredForAnyUser)
             {
-                return new(false);
+                return CompleteRegistrationCeremonyResult.Fail();
             }
 
-            await Storage.RemoveRegistrationCeremonyAsync(context, request.RegistrationCeremonyId, cancellationToken);
+            await CeremonyStorage.RemoveAsync(context, request.RegistrationCeremonyId, cancellationToken);
             // 28. If the attestation statement attStmt successfully verified but is not trustworthy per step 23 above, the Relying Party SHOULD fail the registration ceremony.
             await context.CommitAsync(cancellationToken);
-            return new(true);
+            // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-backup
+            // When the BE flag is set to 0
+            var requiringAdditionalAuthenticators = !currentBe;
+            return CompleteRegistrationCeremonyResult.Success(requiringAdditionalAuthenticators);
         }
     }
 
-    protected virtual async Task<RegistrationPublicKeyCredentialDescriptor[]?> GetCredentialsToExcludeAsync(
+    protected virtual uint GetTimeout(BeginRegistrationCeremonyRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Timeout.HasValue)
+        {
+            return request.Timeout.Value;
+        }
+
+        return Options.CurrentValue.RegistrationCeremony.DefaultTimeout;
+    }
+
+    protected virtual async Task<PublicKeyCredentialDescriptor[]?> GetCredentialsToExcludeAsync(
         TContext context,
         string rpId,
         byte[] userHandle,
-        ExcludeRegistrationCredentialsOptions options,
+        RegistrationCeremonyExcludeCredentials options,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         cancellationToken.ThrowIfCancellationRequested();
         if (options.ExcludeAllExistingKeys)
         {
-            var existingKeys = await Storage.GetExistingCredentialsAsync(context, rpId, userHandle, cancellationToken);
+            var existingKeys = await CredentialStorage.FindDescriptorsAsync(context, rpId, userHandle, cancellationToken);
             if (existingKeys?.Length > 0)
             {
                 return existingKeys;
@@ -450,13 +510,13 @@ public class DefaultRegistrationCeremonyService<TContext>
 
         if (options.ExcludeManuallySpecified)
         {
-            var existingKeys = await Storage.GetExistingCredentialsAsync(context, rpId, userHandle, cancellationToken);
+            var existingKeys = await CredentialStorage.FindDescriptorsAsync(context, rpId, userHandle, cancellationToken);
             if ((existingKeys?.Length > 0) is not true)
             {
                 return null;
             }
 
-            var resultKeysToExclude = new List<RegistrationPublicKeyCredentialDescriptor>(options.ManuallySpecifiedKeysToExclude.Length);
+            var resultKeysToExclude = new List<PublicKeyCredentialDescriptor>(options.ManuallySpecifiedKeysToExclude.Length);
             foreach (var existingKey in existingKeys)
             {
                 var requestedKeyToExclude = options
@@ -479,9 +539,10 @@ public class DefaultRegistrationCeremonyService<TContext>
 
     protected virtual PublicKeyCredentialCreationOptions ToPublicKeyCredentialCreationOptions(
         BeginRegistrationCeremonyRequest request,
+        uint timeout,
         string rpId,
         byte[] challenge,
-        RegistrationPublicKeyCredentialDescriptor[]? excludeCredentials)
+        PublicKeyCredentialDescriptor[]? excludeCredentials)
     {
         ArgumentNullException.ThrowIfNull(request);
         var rp = new PublicKeyCredentialRpEntity(
@@ -495,7 +556,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             request.User,
             challenge,
             pubKeyCredParams,
-            request.Timeout,
+            timeout,
             excludeCredentials,
             request.AuthenticatorSelection,
             request.Hints,
@@ -574,14 +635,14 @@ public class DefaultRegistrationCeremonyService<TContext>
 
 public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
 {
-    private static readonly Func<ILogger, string, IDisposable?> CompleteRegistrationCeremony = LoggerMessage.DefineScope<string>(
+    private static readonly Func<ILogger, string, IDisposable?> BeginCompleteRegistrationCeremonyScopeDelegate = LoggerMessage.DefineScope<string>(
         "Completion of registration ceremony with Id: {RegistrationCeremonyId}");
 
     public static IDisposable? BeginCompleteRegistrationCeremonyScope(
         this ILogger logger,
         string registrationCeremonyId)
     {
-        return CompleteRegistrationCeremony(logger, registrationCeremonyId);
+        return BeginCompleteRegistrationCeremonyScopeDelegate(logger, registrationCeremonyId);
     }
 
     [LoggerMessage(
@@ -617,8 +678,8 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
-        Message = "The value of clientData.origin: '{ClientDataOrigin}' doesn't match the relying party's origin: '{RelyingPartyOrigin}'")]
-    public static partial void OriginMismatch(this ILogger logger, string clientDataOrigin, string relyingPartyOrigin);
+        Message = "Invalid value for topOrigin: '{ClientDataOrigin}'")]
+    public static partial void InvalidOrigin(this ILogger logger, string clientDataOrigin);
 
     [LoggerMessage(
         EventId = default,
@@ -649,12 +710,6 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
         Level = LogLevel.Warning,
         Message = "Failed to decode 'attStmt' from 'attestationObject'")]
     public static partial void FailedToDecodeAttStmt(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = default,
-        Level = LogLevel.Warning,
-        Message = "Expected rpId was not saved when creating registration options")]
-    public static partial void MissingRpIdInRegistrationOptions(this ILogger logger);
 
     [LoggerMessage(
         EventId = default,

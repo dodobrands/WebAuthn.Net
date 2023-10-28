@@ -1,8 +1,8 @@
 ﻿using System;
 using System.ComponentModel;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions.Protocol;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
@@ -17,6 +17,8 @@ public class BeginRegistrationCeremonyRequest
     /// <summary>
     ///     Constructs <see cref="BeginRegistrationCeremonyRequest" />.
     /// </summary>
+    /// <param name="origins">Parameters defining acceptable origins for the registration ceremony.</param>
+    /// <param name="topOrigins">Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the registration ceremony.</param>
     /// <param name="rpDisplayName">A <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#human-palatability">human-palatable</a> identifier for the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a>, intended only for display.</param>
     /// <param name="user">This member contains names and an identifier for the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> performing the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registration</a>.</param>
     /// <param name="challengeSize">
@@ -28,7 +30,7 @@ public class BeginRegistrationCeremonyRequest
     ///     This OPTIONAL member specifies a time, in milliseconds, that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> is willing to wait for the call to complete. This is treated as a hint, and MAY be overridden by
     ///     the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client">client</a>.
     /// </param>
-    /// <param name="excludeRegistrationCredentials">Contains the exclusion credentials parameters for the registration ceremony.</param>
+    /// <param name="excludeCredentials">Contains the exclusion credentials parameters for the registration ceremony.</param>
     /// <param name="authenticatorSelection">
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify capabilities and settings that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> MUST or
     ///     SHOULD satisfy to participate in the <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">create()</a> operation. See
@@ -57,23 +59,31 @@ public class BeginRegistrationCeremonyRequest
     /// <exception cref="ArgumentNullException"><paramref name="pubKeyCredParams" /> is <see langword="null" /></exception>
     /// <exception cref="ArgumentException"><paramref name="pubKeyCredParams" /> is empty</exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="pubKeyCredParams" /> array contains a value not defined in <see cref="CoseAlgorithm" /></exception>
-    /// <exception cref="ArgumentNullException"><paramref name="excludeRegistrationCredentials" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="excludeCredentials" /> is <see langword="null" /></exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHints" /></exception>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="attestation" /> contains a value that is not defined in <see cref="AttestationConveyancePreference" /></exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="attestationFormats" /> array contains a value not defined in <see cref="AttestationStatementFormat" /></exception>
     public BeginRegistrationCeremonyRequest(
+        RegistrationCeremonyOriginParameters? origins,
+        RegistrationCeremonyOriginParameters? topOrigins,
         string rpDisplayName,
         PublicKeyCredentialUserEntity user,
         int challengeSize,
         CoseAlgorithm[] pubKeyCredParams,
         uint? timeout,
-        ExcludeRegistrationCredentialsOptions excludeRegistrationCredentials,
+        RegistrationCeremonyExcludeCredentials excludeCredentials,
         AuthenticatorSelectionCriteria? authenticatorSelection,
         PublicKeyCredentialHints[]? hints,
         AttestationConveyancePreference? attestation,
         AttestationStatementFormat[]? attestationFormats,
         RegistrationExtensionsClientInputs? extensions)
     {
+        // origins
+        Origins = origins;
+
+        // topOrigins
+        TopOrigins = topOrigins;
+
         // rpDisplayName
         if (string.IsNullOrWhiteSpace(rpDisplayName))
         {
@@ -115,8 +125,8 @@ public class BeginRegistrationCeremonyRequest
         Timeout = timeout;
 
         // excludeCredentials
-        ArgumentNullException.ThrowIfNull(excludeRegistrationCredentials);
-        ExcludeRegistrationCredentials = excludeRegistrationCredentials;
+        ArgumentNullException.ThrowIfNull(excludeCredentials);
+        ExcludeCredentials = excludeCredentials;
 
         // authenticatorSelection
         AuthenticatorSelection = authenticatorSelection;
@@ -163,6 +173,16 @@ public class BeginRegistrationCeremonyRequest
         // extensions
         Extensions = extensions;
     }
+
+    /// <summary>
+    ///     Parameters defining acceptable origins for the registration ceremony.
+    /// </summary>
+    public RegistrationCeremonyOriginParameters? Origins { get; }
+
+    /// <summary>
+    ///     Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the registration ceremony.
+    /// </summary>
+    public RegistrationCeremonyOriginParameters? TopOrigins { get; }
 
     /// <summary>
     ///     A <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#human-palatability">human-palatable</a> identifier for the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a>, intended only for display.
@@ -227,7 +247,7 @@ public class BeginRegistrationCeremonyRequest
     /// <summary>
     ///     Contains the exclusion credentials parameters for the registration ceremony.
     /// </summary>
-    public ExcludeRegistrationCredentialsOptions ExcludeRegistrationCredentials { get; }
+    public RegistrationCeremonyExcludeCredentials ExcludeCredentials { get; }
 
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify capabilities and settings that the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> MUST or

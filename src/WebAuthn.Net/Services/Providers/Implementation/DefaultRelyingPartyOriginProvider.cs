@@ -14,14 +14,14 @@ public class DefaultRelyingPartyOriginProvider<TContext> : IRelyingPartyOriginPr
         cancellationToken.ThrowIfCancellationRequested();
         var baseAddress = context.HttpContext.Request.Scheme + Uri.SchemeDelimiter + context.HttpContext.Request.Host + context.HttpContext.Request.PathBase;
         var baseUri = new Uri(baseAddress, UriKind.Absolute);
-        var result = baseAddress;
-        if (baseUri.HostNameType != UriHostNameType.Unknown)
+        if (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps)
         {
-            result = baseUri.IsDefaultPort
-                ? $"{baseUri.Scheme}://{baseUri.Host}"
-                : $"{baseUri.Scheme}://{baseUri.Host}:{baseUri.Port}";
+            throw new InvalidOperationException($"Invalid request scheme. Only '{Uri.UriSchemeHttp}' and '{Uri.UriSchemeHttps}' are allowed.");
         }
 
+        var result = baseUri.IsDefaultPort
+            ? $"{baseUri.Scheme}://{baseUri.Host}"
+            : $"{baseUri.Scheme}://{baseUri.Host}:{baseUri.Port}";
         return Task.FromResult(result);
     }
 }

@@ -9,7 +9,7 @@ using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
 using WebAuthn.Net.Services.Static;
-using WebAuthn.Net.Storage.Operations;
+using WebAuthn.Net.Storage.FidoMetadata;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataService;
 

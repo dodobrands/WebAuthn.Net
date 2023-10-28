@@ -26,12 +26,14 @@ public class DefaultRegistrationCeremonyServicePackedTests : AbstractRegistratio
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
+                null,
+                null,
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
                 new[] { CoseAlgorithm.ES256, CoseAlgorithm.ES384, CoseAlgorithm.ES512 },
                 60000,
-                ExcludeRegistrationCredentialsOptions.AllExisting(),
+                RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.CrossPlatform, ResidentKeyRequirement.Preferred, null, UserVerificationRequirement.Required),
                 null,
                 AttestationConveyancePreference.Direct,
@@ -39,7 +41,7 @@ public class DefaultRegistrationCeremonyServicePackedTests : AbstractRegistratio
                 null),
             CancellationToken.None);
 
-        Storage.ReplaceChallengeForRegistrationCeremonyOptions(
+        RegistrationCeremonyStorage.ReplaceChallengeForRegistrationCeremonyOptions(
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("BovzZs80dwqI2a0BgC8tZDhK-fsOwuVZoLCIEd8L4To"));
 
@@ -70,12 +72,14 @@ public class DefaultRegistrationCeremonyServicePackedTests : AbstractRegistratio
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
+                null,
+                null,
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
                 new[] { CoseAlgorithm.RS256, CoseAlgorithm.RS384, CoseAlgorithm.RS512 },
                 60000,
-                ExcludeRegistrationCredentialsOptions.AllExisting(),
+                RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.CrossPlatform, ResidentKeyRequirement.Preferred, null, UserVerificationRequirement.Required),
                 null,
                 AttestationConveyancePreference.Direct,
@@ -83,7 +87,7 @@ public class DefaultRegistrationCeremonyServicePackedTests : AbstractRegistratio
                 null),
             CancellationToken.None);
 
-        Storage.ReplaceChallengeForRegistrationCeremonyOptions(
+        RegistrationCeremonyStorage.ReplaceChallengeForRegistrationCeremonyOptions(
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("sDkwMsjdpl071DJDnjcLZtZUD3ZobaU8By9vt5LNVVE"));
 

@@ -102,6 +102,20 @@ public class CoseEc2Key : AbstractCoseKey
                && algY.AsSpan().SequenceEqual(Y.AsSpan());
     }
 
+    public override bool Matches(AbstractCoseKey coseKey)
+    {
+        if (coseKey is not CoseEc2Key other)
+        {
+            return false;
+        }
+
+        return other.Kty == Kty
+               && other.Alg == Alg
+               && other.Crv == Crv
+               && other.X.AsSpan().SequenceEqual(X.AsSpan())
+               && other.Y.AsSpan().SequenceEqual(Y.AsSpan());
+    }
+
     private static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEllipticCurve? coseCurve)
     {
         if (string.IsNullOrEmpty(ecCurve.Oid.Value))

@@ -34,12 +34,14 @@ public class DefaultRegistrationCeremonyServiceNoneTests : AbstractRegistrationC
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
+                null,
+                null,
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
                 new[] { CoseAlgorithm.ES256, CoseAlgorithm.RS256 },
                 60000,
-                ExcludeRegistrationCredentialsOptions.AllExisting(),
+                RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),
                 null,
                 AttestationConveyancePreference.Direct,
@@ -47,7 +49,7 @@ public class DefaultRegistrationCeremonyServiceNoneTests : AbstractRegistrationC
                 null),
             CancellationToken.None);
 
-        Storage.ReplaceChallengeForRegistrationCeremonyOptions(
+        RegistrationCeremonyStorage.ReplaceChallengeForRegistrationCeremonyOptions(
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("EQahQOdHceOWoC3RvPolTLybjIjLwCrhR8b1ZMpijyQ"));
 

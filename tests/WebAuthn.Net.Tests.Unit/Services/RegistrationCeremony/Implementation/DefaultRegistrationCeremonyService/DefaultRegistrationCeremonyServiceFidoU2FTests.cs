@@ -26,12 +26,14 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
+                null,
+                null,
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
                 new[] { CoseAlgorithm.ES256 },
                 60000,
-                ExcludeRegistrationCredentialsOptions.AllExisting(),
+                RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.CrossPlatform, ResidentKeyRequirement.Discouraged, false, UserVerificationRequirement.Discouraged),
                 null,
                 AttestationConveyancePreference.Indirect,
@@ -39,7 +41,7 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
                 null),
             CancellationToken.None);
 
-        Storage.ReplaceChallengeForRegistrationCeremonyOptions(
+        RegistrationCeremonyStorage.ReplaceChallengeForRegistrationCeremonyOptions(
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("rVani_oJjMSJUzQQAvBh-Tjm04RfWN-eKTtP2sz_-Bs"));
 
