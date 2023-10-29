@@ -70,7 +70,7 @@ public class DefaultAuthenticationCeremonyServiceAndroidSafetynetTests : Abstrac
     }
 
     [Test]
-    public async Task DefaultAuthenticationCeremonyService_PerformsCeremonyWithoutErrorsForApple_WhenAllAlgorithms()
+    public async Task DefaultAuthenticationCeremonyService_PerformsCeremonyWithoutErrorsForAndroidSafetynet_WhenAllAlgorithms()
     {
         TimeProvider.Change(DateTimeOffset.Parse("2023-10-17T15:01:50Z", CultureInfo.InvariantCulture));
         var beginRequest = new BeginAuthenticationCeremonyRequest(

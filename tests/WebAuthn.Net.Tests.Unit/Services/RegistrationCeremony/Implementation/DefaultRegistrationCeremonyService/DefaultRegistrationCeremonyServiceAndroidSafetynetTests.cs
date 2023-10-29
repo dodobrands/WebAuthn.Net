@@ -21,7 +21,7 @@ public class DefaultRegistrationCeremonyServiceAndroidSafetynetTests : AbstractR
     }
 
     [Test]
-    public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForApple_WhenAllAlgorithms()
+    public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForAndroidSafetynet_WhenAllAlgorithms()
     {
         TimeProvider.Change(DateTimeOffset.Parse("2023-10-17T15:01:40Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
