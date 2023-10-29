@@ -27,7 +27,10 @@ public class FakeCredentialStorage : ICredentialStorage<FakeWebAuthnContext>
             {
                 if (existingCredential.RpId == rpId && existingCredential.UserHandle.AsSpan().SequenceEqual(userHandle.AsSpan()))
                 {
-                    var descriptor = new PublicKeyCredentialDescriptor(existingCredential.CredentialRecord.Type, existingCredential.UserHandle, existingCredential.CredentialRecord.Transports);
+                    var descriptor = new PublicKeyCredentialDescriptor(
+                        existingCredential.CredentialRecord.Type,
+                        existingCredential.CredentialRecord.Id,
+                        existingCredential.CredentialRecord.Transports);
                     foundDescriptors.Add(descriptor);
                 }
             }

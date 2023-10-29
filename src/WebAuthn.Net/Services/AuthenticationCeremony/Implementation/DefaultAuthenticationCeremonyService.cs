@@ -52,78 +52,78 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     public DefaultAuthenticationCeremonyService(
         IOptionsMonitor<WebAuthnOptions> options,
         IWebAuthnContextFactory<TContext> contextFactory,
-        IChallengeGenerator challengeGenerator,
         IRelyingPartyIdProvider<TContext> rpIdProvider,
-        ICredentialStorage<TContext> credentialStorage,
-        IAuthenticationCeremonyStorage<TContext> ceremonyStorage,
         IRelyingPartyOriginProvider<TContext> rpOriginProvider,
+        IChallengeGenerator challengeGenerator,
         ITimeProvider timeProvider,
         IPublicKeyCredentialRequestOptionsEncoder<TContext> publicKeyCredentialRequestOptionsEncoder,
+        ICredentialStorage<TContext> credentialStorage,
+        IAuthenticationCeremonyStorage<TContext> ceremonyStorage,
         IAuthenticationResponseDecoder<TContext> authenticationResponseDecoder,
         IClientDataDecoder<TContext> clientDataDecoder,
-        IAuthenticatorDataDecoder authenticatorDataDecoder,
-        IDigitalSignatureVerifier signatureVerifier,
         IAttestationObjectDecoder<TContext> attestationObjectDecoder,
+        IAuthenticatorDataDecoder authenticatorDataDecoder,
         IAttestationStatementDecoder attestationStatementDecoder,
         IAttestationStatementVerifier<TContext> attestationStatementVerifier,
         IAttestationTrustPathValidator attestationTrustPathValidator,
+        IDigitalSignatureVerifier signatureVerifier,
         ILogger<DefaultAuthenticationCeremonyService<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(contextFactory);
-        ArgumentNullException.ThrowIfNull(challengeGenerator);
         ArgumentNullException.ThrowIfNull(rpIdProvider);
-        ArgumentNullException.ThrowIfNull(credentialStorage);
-        ArgumentNullException.ThrowIfNull(ceremonyStorage);
         ArgumentNullException.ThrowIfNull(rpOriginProvider);
+        ArgumentNullException.ThrowIfNull(challengeGenerator);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(publicKeyCredentialRequestOptionsEncoder);
+        ArgumentNullException.ThrowIfNull(credentialStorage);
+        ArgumentNullException.ThrowIfNull(ceremonyStorage);
         ArgumentNullException.ThrowIfNull(authenticationResponseDecoder);
         ArgumentNullException.ThrowIfNull(clientDataDecoder);
-        ArgumentNullException.ThrowIfNull(authenticatorDataDecoder);
-        ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(attestationObjectDecoder);
+        ArgumentNullException.ThrowIfNull(authenticatorDataDecoder);
         ArgumentNullException.ThrowIfNull(attestationStatementDecoder);
         ArgumentNullException.ThrowIfNull(attestationStatementVerifier);
         ArgumentNullException.ThrowIfNull(attestationTrustPathValidator);
+        ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         ContextFactory = contextFactory;
-        ChallengeGenerator = challengeGenerator;
         RpIdProvider = rpIdProvider;
-        CredentialStorage = credentialStorage;
-        CeremonyStorage = ceremonyStorage;
         RpOriginProvider = rpOriginProvider;
+        ChallengeGenerator = challengeGenerator;
         TimeProvider = timeProvider;
         PublicKeyCredentialRequestOptionsEncoder = publicKeyCredentialRequestOptionsEncoder;
+        CredentialStorage = credentialStorage;
+        CeremonyStorage = ceremonyStorage;
         AuthenticationResponseDecoder = authenticationResponseDecoder;
         ClientDataDecoder = clientDataDecoder;
-        AuthenticatorDataDecoder = authenticatorDataDecoder;
-        SignatureVerifier = signatureVerifier;
         AttestationObjectDecoder = attestationObjectDecoder;
+        AuthenticatorDataDecoder = authenticatorDataDecoder;
         AttestationStatementDecoder = attestationStatementDecoder;
         AttestationStatementVerifier = attestationStatementVerifier;
         AttestationTrustPathValidator = attestationTrustPathValidator;
+        SignatureVerifier = signatureVerifier;
         Logger = logger;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
     protected IWebAuthnContextFactory<TContext> ContextFactory { get; }
-    protected IChallengeGenerator ChallengeGenerator { get; }
     protected IRelyingPartyIdProvider<TContext> RpIdProvider { get; }
-    protected ICredentialStorage<TContext> CredentialStorage { get; }
-    protected IAuthenticationCeremonyStorage<TContext> CeremonyStorage { get; }
     protected IRelyingPartyOriginProvider<TContext> RpOriginProvider { get; }
+    protected IChallengeGenerator ChallengeGenerator { get; }
     protected ITimeProvider TimeProvider { get; }
     protected IPublicKeyCredentialRequestOptionsEncoder<TContext> PublicKeyCredentialRequestOptionsEncoder { get; }
+    protected ICredentialStorage<TContext> CredentialStorage { get; }
+    protected IAuthenticationCeremonyStorage<TContext> CeremonyStorage { get; }
     protected IAuthenticationResponseDecoder<TContext> AuthenticationResponseDecoder { get; }
     protected IClientDataDecoder<TContext> ClientDataDecoder { get; }
-    protected IAuthenticatorDataDecoder AuthenticatorDataDecoder { get; }
-    protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected IAttestationObjectDecoder<TContext> AttestationObjectDecoder { get; }
+    protected IAuthenticatorDataDecoder AuthenticatorDataDecoder { get; }
     protected IAttestationStatementDecoder AttestationStatementDecoder { get; }
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
     protected IAttestationTrustPathValidator AttestationTrustPathValidator { get; }
+    protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ILogger<DefaultAuthenticationCeremonyService<TContext>> Logger { get; }
 
     public async Task<BeginAuthenticationCeremonyResult> CreateOptionsAsync(

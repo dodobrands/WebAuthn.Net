@@ -10,6 +10,8 @@ using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.DSL.Fakes.Storage;
+using WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder.Implementation;
+using WebAuthn.Net.Services.AuthenticationCeremony.Services.PublicKeyCredentialRequestOptionsEncoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
@@ -30,16 +32,17 @@ using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataService;
+using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata.Implementation;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
+namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService;
 
 [TestFixture]
-public abstract class AbstractRegistrationCeremonyServiceTests
+public abstract class AbstractAuthenticationCeremonyServiceTests
 {
     [SetUp]
     public virtual async Task SetupServices()
@@ -72,8 +75,9 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         TimeProvider = new(DateTimeOffset.UtcNow);
 
         var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder<FakeWebAuthnContext>();
-        FakeCredentialStorage credentialStorage = new();
+        CredentialStorage = new();
         RegistrationCeremonyStorage = new();
+        AuthenticationCeremonyStorage = new();
         var registrationResponseDecoder = new DefaultRegistrationResponseDecoder<FakeWebAuthnContext>();
         var clientDataDecoder = new DefaultClientDataDecoder<FakeWebAuthnContext>(NullLogger<DefaultClientDataDecoder<FakeWebAuthnContext>>.Instance);
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder<FakeWebAuthnContext>(
@@ -156,6 +160,10 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             noneDecoder,
             appleAnonymousDecoder);
         var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
+
+        var publicKeyCredentialRequestOptionsEncoder = new DefaultPublicKeyCredentialRequestOptionsEncoder<FakeWebAuthnContext>();
+        var authenticationResponseDecoder = new DefaultAuthenticationResponseDecoder<FakeWebAuthnContext>();
+
         RegistrationCeremonyService = new(
             Options,
             fakeContextFactory,
@@ -164,7 +172,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             challengeGenerator,
             TimeProvider,
             publicKeyCredentialCreationOptionsEncoder,
-            credentialStorage,
+            CredentialStorage,
             RegistrationCeremonyStorage,
             registrationResponseDecoder,
             clientDataDecoder,
@@ -174,6 +182,25 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             attestationStatementVerifier,
             attestationTrustPathValidator,
             NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
+        AuthenticationCeremonyService = new(
+            Options,
+            fakeContextFactory,
+            rpIdProvider,
+            rpOriginProvider,
+            challengeGenerator,
+            TimeProvider,
+            publicKeyCredentialRequestOptionsEncoder,
+            CredentialStorage,
+            AuthenticationCeremonyStorage,
+            authenticationResponseDecoder,
+            clientDataDecoder,
+            attestationObjectDecoder,
+            authenticatorDataDecoder,
+            attestationStatementDecoder,
+            attestationStatementVerifier,
+            attestationTrustPathValidator,
+            digitalSignatureVerifier,
+            NullLogger<DefaultAuthenticationCeremonyService<FakeWebAuthnContext>>.Instance);
     }
 
     [TearDown]
@@ -190,8 +217,11 @@ public abstract class AbstractRegistrationCeremonyServiceTests
 
     protected abstract Uri GetRelyingPartyAddress();
     protected DefaultRegistrationCeremonyService<FakeWebAuthnContext> RegistrationCeremonyService { get; set; } = null!;
+    protected DefaultAuthenticationCeremonyService<FakeWebAuthnContext> AuthenticationCeremonyService { get; set; } = null!;
     protected OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
     protected ConfigurationManager ConfigurationManager { get; set; } = null!;
     protected FakeRegistrationCeremonyStorage RegistrationCeremonyStorage { get; set; } = null!;
+    protected FakeAuthenticationCeremonyStorage AuthenticationCeremonyStorage { get; set; } = null!;
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
+    protected FakeCredentialStorage CredentialStorage { get; set; } = null!;
 }

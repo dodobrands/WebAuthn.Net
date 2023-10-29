@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Storage.AuthenticationCeremony;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
 
@@ -58,5 +59,35 @@ public class FakeAuthenticationCeremonyStorage : IAuthenticationCeremonyStorage<
         }
 
         return Task.FromResult(removed);
+    }
+
+    public void ReplaceChallengeForAuthenticationCeremonyOptions(
+        string authenticationCeremonyId,
+        byte[] challenge)
+    {
+        lock (_locker)
+        {
+            if (_authenticationCeremonies.TryGetValue(authenticationCeremonyId, out var existingCeremony))
+            {
+                var options = existingCeremony.Options;
+                var newOptions = new PublicKeyCredentialRequestOptions(
+                    challenge,
+                    options.Timeout,
+                    options.RpId,
+                    options.AllowCredentials,
+                    options.UserVerification,
+                    options.Hints,
+                    options.Attestation,
+                    options.AttestationFormats,
+                    options.Extensions);
+                var newCeremony = new AuthenticationCeremonyParameters(
+                    existingCeremony.UserHandle,
+                    newOptions,
+                    existingCeremony.ExpectedRp,
+                    existingCeremony.CreatedAt,
+                    existingCeremony.ExpiresAt);
+                _authenticationCeremonies[authenticationCeremonyId] = newCeremony;
+            }
+        }
     }
 }
