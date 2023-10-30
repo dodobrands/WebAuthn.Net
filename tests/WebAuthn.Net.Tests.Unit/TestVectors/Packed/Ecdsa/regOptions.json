@@ -1,14 +1,14 @@
 {
     "rp": {
         "id": "vanbukin-pc.local",
-        "name": "Test Host"
+        "name": "TestHost"
     },
     "user": {
         "name": "testuser",
         "id": "AAAAAAAAAAAAAAAAAAAAAQ",
-        "displayName": "Test User"
+        "displayName": "TestUser"
     },
-    "challenge": "BovzZs80dwqI2a0BgC8tZDhK-fsOwuVZoLCIEd8L4To",
+    "challenge": "3ZwhSB6AQF4jz08tgB6sijflji9bSoX5_h4m0W0jxVY",
     "pubKeyCredParams": [
         {
             "type": "public-key",
