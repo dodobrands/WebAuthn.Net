@@ -6,7 +6,7 @@ In-house implementation of [W3C WebAuthn](https://www.w3.org/TR/2023/WD-webauthn
 
 ## Building
 
-.NET 6.0.414+ SDK Required
+.NET 6.0.416+ SDK Required
 
 ## Releasing
 
