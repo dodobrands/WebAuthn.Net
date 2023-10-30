@@ -199,7 +199,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var rootCertificates = new List<byte[]>();
+        var rootCertificates = new UniqueByteArraysCollection();
         var embeddedCertificates = GetEmbeddedRootCertificates();
         rootCertificates.AddRange(embeddedCertificates);
         var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
@@ -222,7 +222,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             }
         }
 
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates.ToArray(), null));
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates, null));
     }
 
     protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()

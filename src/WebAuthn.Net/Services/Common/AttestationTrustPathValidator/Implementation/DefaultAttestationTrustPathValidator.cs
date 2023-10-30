@@ -42,7 +42,7 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
 
                     return IsValid(
                         verificationResult.AttestationTrustPath,
-                        verificationResult.AcceptableTrustAnchors.AttestationRootCertificates,
+                        verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.ToArray(),
                         verificationResult.AcceptableTrustAnchors.AttestationRootRsaPublicKeys,
                         Options.CurrentValue.X509ChainValidation.OnValidateCertificateChain);
                 }
@@ -62,7 +62,7 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
 
                     return IsValid(
                         verificationResult.AttestationTrustPath,
-                        verificationResult.AcceptableTrustAnchors.AttestationRootCertificates,
+                        verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.ToArray(),
                         verificationResult.AcceptableTrustAnchors.AttestationRootRsaPublicKeys,
                         Options.CurrentValue.X509ChainValidation.OnValidateCertificateChain);
                 }

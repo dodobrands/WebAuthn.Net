@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidSafetyNet.Constants;
@@ -17,7 +17,7 @@ public static class AndroidSafetyNetRoots
         const string rootCertificatesDirectory = "RootCertificates";
 
         var rootCertificatesNamespace = typeof(DefaultAndroidSafetyNetAttestationStatementVerifier<>).Namespace ?? "";
-        var result = new List<byte[]>();
+        var result = new UniqueByteArraysCollection();
         var embeddedResources = typeof(AndroidSafetyNetRoots).Assembly.GetManifestResourceNames();
         foreach (var embeddedResource in embeddedResources.Where(x =>
                      x.EndsWith(".der", StringComparison.Ordinal)

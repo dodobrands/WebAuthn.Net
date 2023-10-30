@@ -1,14 +1,15 @@
 ﻿using System;
+using WebAuthn.Net.Models;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 
 public class AcceptableTrustAnchors
 {
-    public AcceptableTrustAnchors(byte[][] attestationRootCertificates, byte[][]? attestationRootRsaPublicKeys)
+    public AcceptableTrustAnchors(UniqueByteArraysCollection attestationRootCertificates, byte[][]? attestationRootRsaPublicKeys)
     {
         // attestationRootCertificates
         ArgumentNullException.ThrowIfNull(attestationRootCertificates);
-        if (attestationRootCertificates.Length < 1)
+        if (attestationRootCertificates.Count < 1)
         {
             throw new ArgumentException($"The {nameof(attestationRootCertificates)} must contain at least one element", nameof(attestationRootCertificates));
         }
@@ -22,7 +23,7 @@ public class AcceptableTrustAnchors
         }
     }
 
-    public byte[][] AttestationRootCertificates { get; }
+    public UniqueByteArraysCollection AttestationRootCertificates { get; }
 
     public byte[][]? AttestationRootRsaPublicKeys { get; }
 }

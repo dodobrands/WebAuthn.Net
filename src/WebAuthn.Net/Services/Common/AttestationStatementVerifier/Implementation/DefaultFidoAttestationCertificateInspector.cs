@@ -190,7 +190,8 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
         if (acceptableAttestationTypes.Contains(AttestationType.AttCa)
             && metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
         {
-            acceptableTrustAnchors = new(metadata.RootCertificates, null);
+            var rootCertificates = new UniqueByteArraysCollection(metadata.RootCertificates);
+            acceptableTrustAnchors = new(rootCertificates, null);
             attestationType = AttestationType.AttCa;
             return true;
         }
@@ -198,7 +199,8 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
         if (acceptableAttestationTypes.Contains(AttestationType.AnonCa)
             && metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ANONCA))
         {
-            acceptableTrustAnchors = new(metadata.RootCertificates, null);
+            var rootCertificates = new UniqueByteArraysCollection(metadata.RootCertificates);
+            acceptableTrustAnchors = new(rootCertificates, null);
             attestationType = AttestationType.AnonCa;
             return true;
         }
@@ -206,7 +208,8 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
         if (acceptableAttestationTypes.Contains(AttestationType.Basic)
             && metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL))
         {
-            acceptableTrustAnchors = new(metadata.RootCertificates, null);
+            var rootCertificates = new UniqueByteArraysCollection(metadata.RootCertificates);
+            acceptableTrustAnchors = new(rootCertificates, null);
             attestationType = AttestationType.Basic;
             return true;
         }
@@ -214,7 +217,8 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
         if (acceptableAttestationTypes.Contains(AttestationType.Self)
             && metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_SURROGATE))
         {
-            acceptableTrustAnchors = new(metadata.RootCertificates, null);
+            var rootCertificates = new UniqueByteArraysCollection(metadata.RootCertificates);
+            acceptableTrustAnchors = new(rootCertificates, null);
             attestationType = AttestationType.Self;
             return true;
         }
@@ -222,7 +226,8 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
         if (acceptableAttestationTypes.Contains(AttestationType.None)
             && metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_NONE))
         {
-            acceptableTrustAnchors = new(metadata.RootCertificates, null);
+            var rootCertificates = new UniqueByteArraysCollection(metadata.RootCertificates);
+            acceptableTrustAnchors = new(rootCertificates, null);
             attestationType = AttestationType.None;
             return true;
         }

@@ -170,7 +170,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         ArgumentNullException.ThrowIfNull(authenticatorData);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var rootCertificates = new List<byte[]>();
+        var rootCertificates = new UniqueByteArraysCollection();
         var embeddedCertificates = GetEmbeddedRootCertificates();
         rootCertificates.AddRange(embeddedCertificates);
         var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
@@ -194,7 +194,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         }
 
         var embeddedRsaKeys = GetEmbeddedRsaKeys();
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates.ToArray(), embeddedRsaKeys));
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates, embeddedRsaKeys));
     }
 
     protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()

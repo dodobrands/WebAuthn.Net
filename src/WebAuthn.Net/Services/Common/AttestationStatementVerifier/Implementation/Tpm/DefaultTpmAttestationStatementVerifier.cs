@@ -269,7 +269,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var rootCertificates = new List<byte[]>();
+        var rootCertificates = new UniqueByteArraysCollection();
         if (manufacturerRootCertificates is not null)
         {
             rootCertificates.AddRange(manufacturerRootCertificates);
@@ -295,7 +295,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             }
         }
 
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates.ToArray(), null));
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates, null));
     }
 
     protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()

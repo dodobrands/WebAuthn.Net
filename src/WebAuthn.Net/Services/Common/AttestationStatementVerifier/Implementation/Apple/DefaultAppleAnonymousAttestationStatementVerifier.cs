@@ -125,7 +125,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var rootCertificates = GetEmbeddedRootCertificates();
+        var rootCertificates = new UniqueByteArraysCollection(GetEmbeddedRootCertificates());
         var result = new AcceptableTrustAnchors(rootCertificates, null);
         return Task.FromResult(result);
     }

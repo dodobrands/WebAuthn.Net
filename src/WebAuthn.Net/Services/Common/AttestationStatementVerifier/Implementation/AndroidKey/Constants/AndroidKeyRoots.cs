@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey.Constants;
@@ -18,7 +18,7 @@ public static class AndroidKeyRoots
         const string rootCertificatesDirectory = "RootCertificates";
 
         var rootCertificatesNamespace = typeof(DefaultAndroidKeyAttestationStatementVerifier<>).Namespace ?? "";
-        var result = new List<byte[]>();
+        var result = new UniqueByteArraysCollection();
         var embeddedResources = typeof(AndroidKeyRoots).Assembly.GetManifestResourceNames();
         foreach (var embeddedResource in embeddedResources.Where(x =>
                      x.EndsWith(".der", StringComparison.Ordinal)
@@ -73,7 +73,7 @@ public static class AndroidKeyRoots
         const string rsaKeysDirectory = "RSA";
 
         var rootRsaKeysNamespace = typeof(DefaultAndroidKeyAttestationStatementVerifier<>).Namespace ?? "";
-        var result = new List<byte[]>();
+        var result = new UniqueByteArraysCollection();
         var embeddedResources = typeof(AndroidKeyRoots).Assembly.GetManifestResourceNames();
         foreach (var embeddedResource in embeddedResources.Where(x =>
                      x.EndsWith(".pem", StringComparison.Ordinal)
