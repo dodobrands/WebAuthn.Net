@@ -351,12 +351,14 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // 12. Verify that the value of C.type is the string 'webauthn.get'.
             if (C.Type is not "webauthn.get")
             {
+                Logger.IncorrectClientDataType(C.Type);
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
             // 13. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
             if (!string.Equals(C.Challenge, WebEncoders.Base64UrlEncode(options.Challenge), StringComparison.Ordinal))
             {
+                Logger.ChallengeMismatch();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
@@ -364,6 +366,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var allowedOrigin = authenticationCeremonyOptions.ExpectedRp.Origins.FirstOrDefault(x => string.Equals(x, C.Origin, StringComparison.Ordinal));
             if (allowedOrigin is null)
             {
+                Logger.InvalidOrigin(C.Origin);
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
@@ -372,17 +375,19 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 //   1. Verify that the Relying Party expects this credential to be used within an iframe that is not same-origin with its ancestors.
                 //   2. Verify that the value of C.topOrigin matches the origin of a page that the Relying Party expects to be sub-framed within. See §13.4.9 Validating the origin of a credential for guidance.
-                if (!authenticationCeremonyOptions.ExpectedRp.AllowIframe)
+                if (authenticationCeremonyOptions.ExpectedRp.AllowIframe)
                 {
-                    if (!string.Equals(allowedOrigin, C.TopOrigin, StringComparison.Ordinal))
+                    if (!authenticationCeremonyOptions.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
                     {
+                        Logger.InvalidTopOrigin(C.TopOrigin);
                         return CompleteAuthenticationCeremonyResult.Fail();
                     }
                 }
                 else
                 {
-                    if (!authenticationCeremonyOptions.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
+                    if (!string.Equals(allowedOrigin, C.TopOrigin, StringComparison.Ordinal))
                     {
+                        Logger.InvalidTopOrigin(C.TopOrigin);
                         return CompleteAuthenticationCeremonyResult.Fail();
                     }
                 }
@@ -393,12 +398,14 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var expectedRpIdHash = SHA256.HashData(Encoding.UTF8.GetBytes(authenticationCeremonyOptions.ExpectedRp.RpId));
             if (!authDataRpIdHash.AsSpan().SequenceEqual(expectedRpIdHash.AsSpan()))
             {
+                Logger.RpIdHashMismatch();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
             // 17. Verify that the UP bit of the flags in authData is set.
             if ((authData.Flags & AuthenticatorDataFlags.UserPresent) is not AuthenticatorDataFlags.UserPresent)
             {
+                Logger.UserPresentBitNotSet();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
@@ -410,6 +417,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var uvInitialized = (authData.Flags & AuthenticatorDataFlags.UserVerified) is AuthenticatorDataFlags.UserVerified;
             if (userVerificationRequired && !uvInitialized)
             {
+                Logger.UserVerificationBitNotSet();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
@@ -427,6 +435,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 // |  0 |  1 | This combination is not allowed.
                 // |  1 |  0 | The credential is a multi-device credential and is not currently backed up.
                 // |  1 |  1 | The credential is a multi-device credential and is currently backed up.
+                Logger.InvalidBeBsFlagsCombination();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
@@ -437,6 +446,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 if (!currentBe)
                 {
+                    Logger.BackupEligibleBitNotSet();
                     return CompleteAuthenticationCeremonyResult.Fail();
                 }
             }
@@ -446,6 +456,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 if (currentBe)
                 {
+                    Logger.BackupEligibleBitSet();
                     return CompleteAuthenticationCeremonyResult.Fail();
                 }
             }
@@ -468,11 +479,13 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var dataToVerify = Concat(authData.Raw, hash);
             if (!credentialRecord.PublicKey.TryToCoseKey(out var credentialRecordPublicKey))
             {
+                Logger.FailedToTransformCredentialPublicKey();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
             if (!SignatureVerifier.IsValidCoseKeySign(credentialRecordPublicKey, dataToVerify, sig))
             {
+                Logger.InvalidSignature();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
@@ -491,6 +504,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     if (Options.CurrentValue.AuthenticationCeremony.AbortCeremonyWhenSignCountIsLessOrEqualStoredValue)
                     {
+                        Logger.AbortBySignCount();
                         return CompleteAuthenticationCeremonyResult.Fail();
                     }
                 }
@@ -503,6 +517,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 var attestationObjectResult = await AttestationObjectDecoder.DecodeAsync(context, response.AttestationObject, cancellationToken);
                 if (attestationObjectResult.HasError)
                 {
+                    Logger.AttestationObjectDecodeFailed();
                     return CompleteAuthenticationCeremonyResult.Fail();
                 }
 
@@ -516,6 +531,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                     cancellationToken);
                 if (!attestationObjectValid)
                 {
+                    Logger.AttestationObjectVerificationFailed();
                     return CompleteAuthenticationCeremonyResult.Fail();
                 }
             }
@@ -544,6 +560,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var updated = await CredentialStorage.UpdateCredentialAsync(context, updatedCredential, cancellationToken);
             if (!updated)
             {
+                Logger.CredentialStorageUpdateFailed();
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
@@ -860,4 +877,100 @@ public static partial class DefaultAuthenticationCeremonyServiceLoggingExtension
         Level = LogLevel.Warning,
         Message = "Failed to decode response.clientDataJSON")]
     public static partial void FailedToDecodeResponseClientDataJson(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'clientData.type' is incorrect, as it expected 'webauthn.get' but received '{ClientDataType}'")]
+    public static partial void IncorrectClientDataType(this ILogger logger, string clientDataType);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The challenge in the authentication completion request doesn't match the one generated for this authentication ceremony")]
+    public static partial void ChallengeMismatch(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Invalid value for origin: '{ClientDataOrigin}'")]
+    public static partial void InvalidOrigin(this ILogger logger, string clientDataOrigin);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Invalid value for topOrigin: '{ClientDataTopOrigin}'")]
+    public static partial void InvalidTopOrigin(this ILogger logger, string clientDataTopOrigin);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'rpIdHash' in 'authData' does not match the SHA-256 hash of the RP ID expected by the Relying Party")]
+    public static partial void RpIdHashMismatch(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "User Present bit in 'authData.flags' isn't set")]
+    public static partial void UserPresentBitNotSet(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "User Verification bit in 'authData.flags' is required, but not set")]
+    public static partial void UserVerificationBitNotSet(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "'authData.flags' contains an invalid combination of Backup Eligibility (BE) and Backup State (BS) flags")]
+    public static partial void InvalidBeBsFlagsCombination(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Backup Eligible bit in 'authData.flags' is required, but not set")]
+    public static partial void BackupEligibleBitNotSet(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Backup Eligible bit in 'authData.flags' is set, but it shouldn't be")]
+    public static partial void BackupEligibleBitSet(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to transform the public key of the found credentialRecord into a CoseKey")]
+    public static partial void FailedToTransformCredentialPublicKey(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Invalid signature")]
+    public static partial void InvalidSignature(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Aborted due SignCount is Less Or Equal than stored value")]
+    public static partial void AbortBySignCount(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "AttestationObject is not CBOR data object")]
+    public static partial void AttestationObjectDecodeFailed(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "AttestationObject is not valid")]
+    public static partial void AttestationObjectVerificationFailed(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to update UserCredential Record")]
+    public static partial void CredentialStorageUpdateFailed(this ILogger logger);
 }
