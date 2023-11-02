@@ -28,6 +28,7 @@ public class DefaultRegistrationResponseDecoder<TContext> : IRegistrationRespons
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (registrationResponse is null)
         {
             return Result<RegistrationResponse>.Fail();
