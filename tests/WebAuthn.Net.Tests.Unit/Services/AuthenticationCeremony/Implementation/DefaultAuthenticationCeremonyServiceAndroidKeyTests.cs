@@ -7,21 +7,22 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService;
+using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
-using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService;
+namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 
-public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistrationCeremonyServiceTests
+public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthenticationCeremonyServiceTests
 {
     protected override Uri GetRelyingPartyAddress()
     {
         return new("https://vanbukin-pc.local", UriKind.Absolute);
     }
 
-    [Test]
-    public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForAndroidKey_WhenAllAlgorithms()
+    [SetUp]
+    public async Task SetupRegistrationAsync()
     {
         TimeProvider.Change(DateTimeOffset.Parse("2023-11-02T13:29:06Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
@@ -63,6 +64,48 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
                 null,
                 null,
                 "public-key")),
+            CancellationToken.None);
+        Assert.That(competeResult.Successful, Is.True);
+    }
+
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_PerformsCeremonyWithoutErrorsForAndroidKey_WhenAllAlgorithms()
+    {
+        TimeProvider.Change(DateTimeOffset.Parse("2023-11-03T13:29:06Z", CultureInfo.InvariantCulture));
+        var beginRequest = new BeginAuthenticationCeremonyRequest(
+            null,
+            null,
+            WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ"),
+            32,
+            60000,
+            AuthenticationCeremonyIncludeCredentials.None(),
+            UserVerificationRequirement.Required,
+            null,
+            null,
+            null,
+            null);
+        var beginResult = await AuthenticationCeremonyService.CreateOptionsAsync(
+            new DefaultHttpContext(new FeatureCollection()),
+            beginRequest,
+            CancellationToken.None);
+
+        AuthenticationCeremonyStorage.ReplaceChallengeForAuthenticationCeremonyOptions(
+            beginResult.AuthenticationCeremonyId,
+            WebEncoders.Base64UrlDecode("mm8-K3sJH6aY0bxmLRQIVo65TKDhPiPD862sOvx23sk"));
+
+        var competeResult = await AuthenticationCeremonyService.CompleteCeremonyAsync(
+            new DefaultHttpContext(new FeatureCollection()),
+            new(beginResult.AuthenticationCeremonyId,
+                new("OThmNjc3YmUtMDEwNy00Mzg0LWEzMGMtODczMmI5ZDFiOGI0",
+                    "OThmNjc3YmUtMDEwNy00Mzg0LWEzMGMtODczMmI5ZDFiOGI0",
+                    new("eyJjaGFsbGVuZ2UiOiJtbTgtSzNzSkg2YVkwYnhtTFJRSVZvNjVUS0RoUGlQRDg2MnNPdngyM3NrIiwib3JpZ2luIjoiaHR0cHM6Ly92YW5idWtpbi1wYy5sb2NhbCIsInR5cGUiOiJ3ZWJhdXRobi5nZXQifQ",
+                        "wbGR7JKb_3nCDS_Zb_TxyUe4a4rtFXaAsGAUBoQQGPUFAAAAAA",
+                        "MEYCIQCsyX9N9Izqtgilz6VaXeG7J5x8wavs4TXrLFVqQpWqrwIhAK-C-O_faJT3UE3C2lqE_mprfZLeBtPlzOV_8YMsSG9A",
+                        "AAAAAAAAAAAAAAAAAAAAAQ",
+                        null),
+                    null,
+                    null,
+                    "public-key")),
             CancellationToken.None);
         Assert.That(competeResult.Successful, Is.True);
     }
