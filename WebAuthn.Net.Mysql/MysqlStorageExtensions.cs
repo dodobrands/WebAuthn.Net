@@ -1,7 +1,5 @@
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Mysql.Infrastructure;
 using WebAuthn.Net.Mysql.Models;
 using WebAuthn.Net.Mysql.Services.Context;
@@ -18,11 +16,8 @@ public static class MysqlStorageExtensions
     public static IServiceCollection AddDefaultWebAuthnMySqlStorage(
         this IServiceCollection service,
         string connectionString,
-        string migrationsConnectionString,
-        Assembly[]? migrationAssembliesOverride)
+        string migrationsConnectionString)
     {
-        var migrationAssemblies = migrationAssembliesOverride ?? new[] { typeof(MysqlStorageExtensions).Assembly };
-        service.AddMySqlMigrations(connectionString, migrationAssemblies);
         service.TryAddSingleton<IDbConnectionFactory>(new WebauthnMySqlConnectionFactory(connectionString, migrationsConnectionString));
         service.TryAddSingleton<IWebAuthnContextFactory<MySqlWebAuthnContext>, DefaultMySqlContextFactory>();
         service.AddCoreWebAuthnMySqlStorage<MySqlWebAuthnContext>();
