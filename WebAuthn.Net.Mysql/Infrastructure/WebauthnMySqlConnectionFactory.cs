@@ -4,8 +4,8 @@ namespace WebAuthn.Net.Mysql.Infrastructure;
 
 public interface IDbConnectionFactory
 {
-    Task<MySqlConnection> GetConnectionAsync(CancellationToken cancellationToken = default);
-    Task<MySqlConnection> GetMigrationConnectionAsync(CancellationToken cancellationToken = default);
+    Task<MySqlConnection> GetOpenConnectionAsync(CancellationToken cancellationToken = default);
+    Task<MySqlConnection> GetOpenMigrationConnectionAsync(CancellationToken cancellationToken = default);
 }
 
 public class WebauthnMySqlConnectionFactory : IDbConnectionFactory
@@ -29,7 +29,7 @@ public class WebauthnMySqlConnectionFactory : IDbConnectionFactory
         _migratorConnectionString = migratorConnectionString;
     }
 
-    public async Task<MySqlConnection> GetConnectionAsync(CancellationToken cancellationToken = default)
+    public async Task<MySqlConnection> GetOpenConnectionAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var connection = new MySqlConnection(_connectionString);
@@ -37,7 +37,7 @@ public class WebauthnMySqlConnectionFactory : IDbConnectionFactory
         return connection;
     }
 
-    public async Task<MySqlConnection> GetMigrationConnectionAsync(CancellationToken cancellationToken = default)
+    public async Task<MySqlConnection> GetOpenMigrationConnectionAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var connection = new MySqlConnection(_migratorConnectionString);
