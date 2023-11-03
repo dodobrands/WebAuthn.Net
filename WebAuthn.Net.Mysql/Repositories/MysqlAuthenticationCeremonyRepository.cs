@@ -1,7 +1,6 @@
 using System.Data;
 using System.Text.Json;
 using MySqlConnector;
-using WebAuthn.Net.Mysql.Infrastructure;
 using WebAuthn.Net.Mysql.Models;
 
 namespace WebAuthn.Net.Mysql.Repositories;
@@ -22,21 +21,22 @@ WHERE ""Id"" = @id
 ";
 }
 
-public class MysqlAuthenticationCeremonyRepository
+public class MysqlAuthenticationCeremonyRepository : IMysqlAuthenticationCeremonyRepository
 {
-    private readonly IDbConnectionFactory _connectionFactory;
 
-    public MysqlAuthenticationCeremonyRepository(IDbConnectionFactory connectionFactory)
+    private readonly MySqlWebAuthnContext _context;
+
+
+    public MysqlAuthenticationCeremonyRepository(MySqlWebAuthnContext context)
     {
-        _connectionFactory = connectionFactory;
+        _context = context;
     }
 
     public async Task SaveAuthenticationCeremony(AuthenticationCeremonyModel ceremony, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(ceremony);
-        using var db = await _connectionFactory.GetOpenConnectionAsync(cancellationToken);
-        using var trx = await db.BeginTransactionAsync(cancellationToken);
-        using var cmd = new MySqlCommand(AuthenticationCeremonySql.Save, db, trx);
+
+        using var cmd = new MySqlCommand(AuthenticationCeremonySql.Save, _context.Connection, _context.Transaction);
 
         cmd.CommandType = CommandType.Text;
         cmd.Parameters.AddWithValue("@id", ceremony.Id);
@@ -47,7 +47,6 @@ public class MysqlAuthenticationCeremonyRepository
         cmd.Parameters.AddWithValue("@expiresAt", ceremony.ExpiresAt);
 
         await cmd.ExecuteNonQueryAsync(cancellationToken);
-        await trx.CommitAsync(cancellationToken);
     }
 
     public async Task<AuthenticationCeremonyModel?> FindAuthenticationCeremony(string authenticationCeremonyId, CancellationToken cancellationToken)
@@ -55,10 +54,7 @@ public class MysqlAuthenticationCeremonyRepository
         if (!Guid.TryParse(authenticationCeremonyId, out var id))
             throw new ArgumentNullException(nameof(authenticationCeremonyId));
 
-        using var db = await _connectionFactory.GetOpenConnectionAsync(cancellationToken);
-        using var trx = await db.BeginTransactionAsync(cancellationToken);
-        using var cmd = new MySqlCommand(AuthenticationCeremonySql.Find, db, trx);
-
+        using var cmd = new MySqlCommand(AuthenticationCeremonySql.Find, _context.Connection, _context.Transaction);
 
         cmd.CommandType = CommandType.Text;
         cmd.Parameters.AddWithValue("@id", id);
@@ -66,7 +62,6 @@ public class MysqlAuthenticationCeremonyRepository
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
         var schema = await reader.GetSchemaTableAsync(cancellationToken);
         if (schema is null || schema.Rows.Count is 0) return null;
-
 
         return null;
     }

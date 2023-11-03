@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Http;
 using MySqlConnector;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Mysql.Repositories;
 
 namespace WebAuthn.Net.Mysql.Models;
 
 public class MySqlWebAuthnContext : IWebAuthnContext
 {
     public HttpContext HttpContext { get; }
-    protected MySqlConnection Connection { get; }
-    protected MySqlTransaction Transaction { get; }
+    public MySqlConnection Connection { get; }
+    public MySqlTransaction Transaction { get; }
+    public IMysqlAuthenticationCeremonyRepository AuthenticationCeremony { get; }
 
     public MySqlWebAuthnContext(HttpContext httpContext, MySqlConnection connection, MySqlTransaction transaction)
     {
@@ -18,6 +20,7 @@ public class MySqlWebAuthnContext : IWebAuthnContext
         HttpContext = httpContext;
         Connection = connection;
         Transaction = transaction;
+        AuthenticationCeremony = new MysqlAuthenticationCeremonyRepository(this);
     }
 
     public async Task CommitAsync(CancellationToken cancellationToken)
