@@ -565,7 +565,9 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             }
 
             // 27. If all the above steps are successful, continue with the authentication ceremony as appropriate. Otherwise, fail the authentication ceremony.
-            return CompleteAuthenticationCeremonyResult.Success(recommendedActions, credentialRecordUpdateResult.UvInitializedUpdated);
+            return CompleteAuthenticationCeremonyResult.Success(
+                recommendedActions,
+                credentialRecordUpdateResult.UvInitializedUpdated);
         }
     }
 
@@ -953,24 +955,24 @@ public static partial class DefaultAuthenticationCeremonyServiceLoggingExtension
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
-        Message = "Aborted due SignCount is Less Or Equal than stored value")]
+        Message = "The obtained signCount is less than or equal to the one that was saved earlier")]
     public static partial void AbortBySignCount(this ILogger logger);
 
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
-        Message = "AttestationObject is not CBOR data object")]
+        Message = "Failed to perform CBOR decoding of the AttestationObject")]
     public static partial void AttestationObjectDecodeFailed(this ILogger logger);
 
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
-        Message = "AttestationObject is not valid")]
+        Message = "AttestationObject is invalid")]
     public static partial void AttestationObjectVerificationFailed(this ILogger logger);
 
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
-        Message = "Failed to update UserCredential Record")]
+        Message = "Failed to update user credential record")]
     public static partial void CredentialStorageUpdateFailed(this ILogger logger);
 }
