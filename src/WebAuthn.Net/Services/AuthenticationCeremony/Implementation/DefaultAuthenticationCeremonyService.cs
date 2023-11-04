@@ -52,16 +52,16 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     public DefaultAuthenticationCeremonyService(
         IOptionsMonitor<WebAuthnOptions> options,
         IWebAuthnContextFactory<TContext> contextFactory,
-        IRelyingPartyIdProvider<TContext> rpIdProvider,
-        IRelyingPartyOriginProvider<TContext> rpOriginProvider,
+        IRelyingPartyIdProvider rpIdProvider,
+        IRelyingPartyOriginProvider rpOriginProvider,
         IChallengeGenerator challengeGenerator,
         ITimeProvider timeProvider,
-        IPublicKeyCredentialRequestOptionsEncoder<TContext> publicKeyCredentialRequestOptionsEncoder,
+        IPublicKeyCredentialRequestOptionsEncoder publicKeyCredentialRequestOptionsEncoder,
         ICredentialStorage<TContext> credentialStorage,
         IAuthenticationCeremonyStorage<TContext> ceremonyStorage,
-        IAuthenticationResponseDecoder<TContext> authenticationResponseDecoder,
-        IClientDataDecoder<TContext> clientDataDecoder,
-        IAttestationObjectDecoder<TContext> attestationObjectDecoder,
+        IAuthenticationResponseDecoder authenticationResponseDecoder,
+        IClientDataDecoder clientDataDecoder,
+        IAttestationObjectDecoder attestationObjectDecoder,
         IAuthenticatorDataDecoder authenticatorDataDecoder,
         IAttestationStatementDecoder attestationStatementDecoder,
         IAttestationStatementVerifier<TContext> attestationStatementVerifier,
@@ -109,16 +109,16 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
     protected IWebAuthnContextFactory<TContext> ContextFactory { get; }
-    protected IRelyingPartyIdProvider<TContext> RpIdProvider { get; }
-    protected IRelyingPartyOriginProvider<TContext> RpOriginProvider { get; }
+    protected IRelyingPartyIdProvider RpIdProvider { get; }
+    protected IRelyingPartyOriginProvider RpOriginProvider { get; }
     protected IChallengeGenerator ChallengeGenerator { get; }
     protected ITimeProvider TimeProvider { get; }
-    protected IPublicKeyCredentialRequestOptionsEncoder<TContext> PublicKeyCredentialRequestOptionsEncoder { get; }
+    protected IPublicKeyCredentialRequestOptionsEncoder PublicKeyCredentialRequestOptionsEncoder { get; }
     protected ICredentialStorage<TContext> CredentialStorage { get; }
     protected IAuthenticationCeremonyStorage<TContext> CeremonyStorage { get; }
-    protected IAuthenticationResponseDecoder<TContext> AuthenticationResponseDecoder { get; }
-    protected IClientDataDecoder<TContext> ClientDataDecoder { get; }
-    protected IAttestationObjectDecoder<TContext> AttestationObjectDecoder { get; }
+    protected IAuthenticationResponseDecoder AuthenticationResponseDecoder { get; }
+    protected IClientDataDecoder ClientDataDecoder { get; }
+    protected IAttestationObjectDecoder AttestationObjectDecoder { get; }
     protected IAuthenticatorDataDecoder AuthenticatorDataDecoder { get; }
     protected IAttestationStatementDecoder AttestationStatementDecoder { get; }
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
@@ -136,7 +136,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         cancellationToken.ThrowIfCancellationRequested();
         await using var context = await ContextFactory.CreateAsync(httpContext, cancellationToken);
         var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
-        var rpId = await RpIdProvider.GetAsync(context, cancellationToken);
+        var rpId = await RpIdProvider.GetAsync(httpContext, cancellationToken);
         PublicKeyCredentialDescriptor[]? credentialsToInclude = null;
         if (request.UserHandle is not null && request.AllowCredentials is not null)
         {
@@ -148,7 +148,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 cancellationToken);
         }
 
-        var defaultOrigin = await RpOriginProvider.GetAsync(context, cancellationToken);
+        var defaultOrigin = await RpOriginProvider.GetAsync(httpContext, cancellationToken);
         var origins = request.Origins is not null
             ? request.Origins.AllowedOrigins
             : new[] { defaultOrigin };
@@ -167,7 +167,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         var createdAt = TimeProvider.GetRoundUtcDateTime();
         var expiresAt = createdAt.ComputeExpiresAtUtc(timeout);
         var options = ToPublicKeyCredentialRequestOptions(request, timeout, rpId, challenge, credentialsToInclude);
-        var outputOptions = await PublicKeyCredentialRequestOptionsEncoder.EncodeAsync(context, options, cancellationToken);
+        var outputOptions = PublicKeyCredentialRequestOptionsEncoder.Encode(options);
         var authenticationCeremonyOptions = new AuthenticationCeremonyParameters(
             request.UserHandle,
             options,
@@ -208,7 +208,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // If the promise is rejected, abort the ceremony with a user-visible error, or otherwise guide the user experience as might be determinable
             // from the context available in the rejected promise. For information on different error contexts and the circumstances leading to them,
             // see §6.3.3 The authenticatorGetAssertion Operation.
-            var credentialResult = await AuthenticationResponseDecoder.DecodeAsync(context, request.Response, cancellationToken);
+            var credentialResult = AuthenticationResponseDecoder.Decode(request.Response);
             if (credentialResult.HasError)
             {
                 Logger.FailedToDecodeAuthenticationResponseJson();
@@ -338,7 +338,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var JSONtext = Encoding.UTF8.GetString(response.ClientDataJson);
 
             // 11. Let 'C', the client data claimed as used for the signature, be the result of running an implementation-specific JSON parser on 'JSONtext'.
-            var clientDataResult = await ClientDataDecoder.DecodeAsync(context, JSONtext, cancellationToken);
+            var clientDataResult = ClientDataDecoder.Decode(JSONtext);
             if (clientDataResult.HasError)
             {
                 Logger.FailedToDecodeResponseClientDataJson();
@@ -514,7 +514,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // then perform CBOR decoding on attestationObject to obtain the attestation statement format 'fmt', and the attestation statement 'attStmt'.
             if (response.AttestationObject is not null)
             {
-                var attestationObjectResult = await AttestationObjectDecoder.DecodeAsync(context, response.AttestationObject, cancellationToken);
+                var attestationObjectResult = AttestationObjectDecoder.Decode(response.AttestationObject);
                 if (attestationObjectResult.HasError)
                 {
                     Logger.AttestationObjectDecodeFailed();

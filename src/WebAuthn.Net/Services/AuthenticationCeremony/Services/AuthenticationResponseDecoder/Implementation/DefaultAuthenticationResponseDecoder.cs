@@ -1,8 +1,5 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.WebUtilities;
+﻿using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
@@ -10,23 +7,17 @@ using WebAuthn.Net.Services.Serialization.Json;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder.Implementation;
 
-public class DefaultAuthenticationResponseDecoder<TContext>
-    : IAuthenticationResponseDecoder<TContext>
-    where TContext : class, IWebAuthnContext
+public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecoder
 {
     protected static readonly EnumMemberAttributeMapper<AuthenticatorAttachment> AttachmentMapper = new();
     protected static readonly EnumMemberAttributeMapper<PublicKeyCredentialType> TypeMapper = new();
 
-    public Task<Result<AuthenticationResponse>> DecodeAsync(
-        TContext context,
-        AuthenticationResponseJSON authenticationResponse,
-        CancellationToken cancellationToken)
+    public Result<AuthenticationResponse> Decode(AuthenticationResponseJSON authenticationResponse)
     {
-        cancellationToken.ThrowIfCancellationRequested();
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (authenticationResponse is null)
         {
-            return Task.FromResult(Result<AuthenticationResponse>.Fail());
+            return Result<AuthenticationResponse>.Fail();
         }
 
         var id = WebEncoders.Base64UrlDecode(authenticationResponse.Id);
@@ -34,25 +25,25 @@ public class DefaultAuthenticationResponseDecoder<TContext>
         var responseResult = DecodeAuthenticatorAssertionResponse(authenticationResponse.Response);
         if (responseResult.HasError)
         {
-            return Task.FromResult(Result<AuthenticationResponse>.Fail());
+            return Result<AuthenticationResponse>.Fail();
         }
 
         var authenticatorAttachmentResult = DecodeAuthenticatorAttachment(authenticationResponse.AuthenticatorAttachment);
         if (authenticatorAttachmentResult.HasError)
         {
-            return Task.FromResult(Result<AuthenticationResponse>.Fail());
+            return Result<AuthenticationResponse>.Fail();
         }
 
         var clientExtensionResultsResult = DecodeClientExtensionResults(authenticationResponse.ClientExtensionResults);
         if (clientExtensionResultsResult.HasError)
         {
-            return Task.FromResult(Result<AuthenticationResponse>.Fail());
+            return Result<AuthenticationResponse>.Fail();
         }
 
         var typeResult = DecodePublicKeyCredentialType(authenticationResponse.Type);
         if (typeResult.HasError)
         {
-            return Task.FromResult(Result<AuthenticationResponse>.Fail());
+            return Result<AuthenticationResponse>.Fail();
         }
 
         var result = new AuthenticationResponse(
@@ -62,7 +53,7 @@ public class DefaultAuthenticationResponseDecoder<TContext>
             authenticatorAttachmentResult.Ok,
             clientExtensionResultsResult.Ok,
             typeResult.Ok);
-        return Task.FromResult(Result<AuthenticationResponse>.Success(result));
+        return Result<AuthenticationResponse>.Success(result);
     }
 
     protected virtual Result<AuthenticatorAssertionResponse> DecodeAuthenticatorAssertionResponse(AuthenticatorAssertionResponseJSON response)

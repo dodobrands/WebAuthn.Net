@@ -1,10 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Models;
@@ -15,15 +12,14 @@ using WebAuthn.Net.Services.Serialization.Json;
 namespace WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecoder<TContext>
-    where TContext : class, IWebAuthnContext
+public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 {
     // ReSharper disable once StaticMemberInGenericType
     protected static readonly EnumMemberAttributeMapper<AttestationStatementFormat> AttestationStatementFormatMapper = new();
 
     public DefaultAttestationObjectDecoder(
         ICborDecoder cborDecoder,
-        ILogger<DefaultAttestationObjectDecoder<TContext>> logger)
+        ILogger<DefaultAttestationObjectDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(cborDecoder);
         ArgumentNullException.ThrowIfNull(logger);
@@ -32,19 +28,15 @@ public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecod
     }
 
     protected ICborDecoder CborDecoder { get; }
-    protected ILogger<DefaultAttestationObjectDecoder<TContext>> Logger { get; }
+    protected ILogger<DefaultAttestationObjectDecoder> Logger { get; }
 
-    public virtual Task<Result<AttestationObject>> DecodeAsync(
-        TContext context,
-        byte[] attestationObject,
-        CancellationToken cancellationToken)
+    public Result<AttestationObject> Decode(byte[] attestationObject)
     {
-        cancellationToken.ThrowIfCancellationRequested();
         var mapResult = TryRead(attestationObject);
         if (mapResult.HasError)
         {
             Logger.AttObjReadFailure();
-            return Task.FromResult(Result<AttestationObject>.Fail());
+            return Result<AttestationObject>.Fail();
         }
 
         var attestationObjectCbor = mapResult.Ok;
@@ -52,24 +44,25 @@ public class DefaultAttestationObjectDecoder<TContext> : IAttestationObjectDecod
         if (!TryDecodeAttestationStatementFormat(attestationObjectCbor, out var fmt))
         {
             Logger.AttObjDecodeFailureFmt();
-            return Task.FromResult(Result<AttestationObject>.Fail());
+            return Result<AttestationObject>.Fail();
         }
 
         if (!TryDecodeAttestationStatement(attestationObjectCbor, out var attStmt))
         {
             Logger.AttObjDecodeFailureAttStmt();
-            return Task.FromResult(Result<AttestationObject>.Fail());
+            return Result<AttestationObject>.Fail();
         }
 
         if (!TryDecodeAuthData(attestationObjectCbor, out var authData))
         {
             Logger.AttObjDecodeFailureAuthData();
-            return Task.FromResult(Result<AttestationObject>.Fail());
+            return Result<AttestationObject>.Fail();
         }
 
         var result = new AttestationObject(fmt.Value, attStmt, authData);
-        return Task.FromResult(Result<AttestationObject>.Success(result));
+        return Result<AttestationObject>.Success(result);
     }
+
 
     protected virtual Result<CborMap> TryRead(byte[] attestationObject)
     {

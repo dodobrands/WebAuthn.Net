@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
-using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -15,8 +12,7 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.PublicKeyCredent
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-public class DefaultPublicKeyCredentialRequestOptionsEncoder<TContext>
-    : IPublicKeyCredentialRequestOptionsEncoder<TContext> where TContext : class, IWebAuthnContext
+public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredentialRequestOptionsEncoder
 {
     protected static readonly EnumMemberAttributeMapper<PublicKeyCredentialType> PublicKeyCredentialTypeMapper = new();
     protected static readonly EnumMemberAttributeMapper<AuthenticatorTransport> AuthenticatorTransportMapper = new();
@@ -25,13 +21,9 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder<TContext>
     protected static readonly EnumMemberAttributeMapper<AttestationConveyancePreference> AttestationConveyancePreferenceMapper = new();
     protected static readonly EnumMemberAttributeMapper<AttestationStatementFormat> AttestationStatementFormatMapper = new();
 
-    public Task<PublicKeyCredentialRequestOptionsJSON> EncodeAsync(
-        TContext context,
-        PublicKeyCredentialRequestOptions options,
-        CancellationToken cancellationToken)
+    public PublicKeyCredentialRequestOptionsJSON Encode(PublicKeyCredentialRequestOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        cancellationToken.ThrowIfCancellationRequested();
         var challenge = WebEncoders.Base64UrlEncode(options.Challenge);
         var allowCredentials = EncodeAllowCredentials(options.AllowCredentials);
         var userVerification = EncodeUserVerification(options.UserVerification);
@@ -49,7 +41,7 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder<TContext>
             attestation,
             attestationFormats,
             extensions);
-        return Task.FromResult(result);
+        return result;
     }
 
     protected virtual PublicKeyCredentialDescriptorJSON[]? EncodeAllowCredentials(PublicKeyCredentialDescriptor[]? excludeCredentials)

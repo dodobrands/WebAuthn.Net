@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using WebAuthn.Net.Services.Providers;
 
 namespace WebAuthn.Net.DSL.Fakes;
 
-public class FakeRelyingPartyOriginProvider : IRelyingPartyOriginProvider<FakeWebAuthnContext>
+public class FakeRelyingPartyOriginProvider : IRelyingPartyOriginProvider
 {
     private readonly Uri _relyingPartyAddress;
 
@@ -20,9 +21,8 @@ public class FakeRelyingPartyOriginProvider : IRelyingPartyOriginProvider<FakeWe
         _relyingPartyAddress = relyingPartyAddress;
     }
 
-    public Task<string> GetAsync(FakeWebAuthnContext context, CancellationToken cancellationToken)
+    public Task<string> GetAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
         var result = _relyingPartyAddress.IsDefaultPort
             ? $"{_relyingPartyAddress.Scheme}://{_relyingPartyAddress.Host}"

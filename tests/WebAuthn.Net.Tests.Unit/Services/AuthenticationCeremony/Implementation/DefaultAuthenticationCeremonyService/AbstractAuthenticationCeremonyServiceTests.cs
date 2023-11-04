@@ -74,15 +74,15 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var challengeGenerator = new DefaultChallengeGenerator();
         TimeProvider = new(DateTimeOffset.UtcNow);
 
-        var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder<FakeWebAuthnContext>();
+        var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder();
         CredentialStorage = new();
         RegistrationCeremonyStorage = new();
         AuthenticationCeremonyStorage = new();
-        var registrationResponseDecoder = new DefaultRegistrationResponseDecoder<FakeWebAuthnContext>();
-        var clientDataDecoder = new DefaultClientDataDecoder<FakeWebAuthnContext>(NullLogger<DefaultClientDataDecoder<FakeWebAuthnContext>>.Instance);
-        var attestationObjectDecoder = new DefaultAttestationObjectDecoder<FakeWebAuthnContext>(
+        var registrationResponseDecoder = new DefaultRegistrationResponseDecoder();
+        var clientDataDecoder = new DefaultClientDataDecoder(NullLogger<DefaultClientDataDecoder>.Instance);
+        var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
             cborDecoder,
-            NullLogger<DefaultAttestationObjectDecoder<FakeWebAuthnContext>>.Instance);
+            NullLogger<DefaultAttestationObjectDecoder>.Instance);
         DefaultFidoAttestationCertificateInspector<FakeWebAuthnContext> attestationCertificateInspector;
         using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
         {
@@ -161,8 +161,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             appleAnonymousDecoder);
         var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
 
-        var publicKeyCredentialRequestOptionsEncoder = new DefaultPublicKeyCredentialRequestOptionsEncoder<FakeWebAuthnContext>();
-        var authenticationResponseDecoder = new DefaultAuthenticationResponseDecoder<FakeWebAuthnContext>();
+        var publicKeyCredentialRequestOptionsEncoder = new DefaultPublicKeyCredentialRequestOptionsEncoder();
+        var authenticationResponseDecoder = new DefaultAuthenticationResponseDecoder();
 
         RegistrationCeremonyService = new(
             Options,

@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
-using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json;
@@ -15,8 +12,8 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentia
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-public class DefaultPublicKeyCredentialCreationOptionsEncoder<TContext>
-    : IPublicKeyCredentialCreationOptionsEncoder<TContext> where TContext : class, IWebAuthnContext
+public class DefaultPublicKeyCredentialCreationOptionsEncoder
+    : IPublicKeyCredentialCreationOptionsEncoder
 {
     protected static readonly EnumMemberAttributeMapper<PublicKeyCredentialType> PublicKeyCredentialTypeMapper = new();
     protected static readonly EnumMemberAttributeMapper<AuthenticatorTransport> AuthenticatorTransportMapper = new();
@@ -27,13 +24,9 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder<TContext>
     protected static readonly EnumMemberAttributeMapper<AttestationConveyancePreference> AttestationConveyancePreferenceMapper = new();
     protected static readonly EnumMemberAttributeMapper<AttestationStatementFormat> AttestationStatementFormatMapper = new();
 
-    public virtual Task<PublicKeyCredentialCreationOptionsJSON> EncodeAsync(
-        TContext context,
-        PublicKeyCredentialCreationOptions options,
-        CancellationToken cancellationToken)
+    public PublicKeyCredentialCreationOptionsJSON Encode(PublicKeyCredentialCreationOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        cancellationToken.ThrowIfCancellationRequested();
         var rp = EncodeRp(options.Rp);
         var user = EncodeUser(options.User);
         var challenge = WebEncoders.Base64UrlEncode(options.Challenge);
@@ -56,7 +49,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder<TContext>
             attestation,
             attestationFormats,
             extensions);
-        return Task.FromResult(result);
+        return result;
     }
 
     protected virtual PublicKeyCredentialRpEntityJSON EncodeRp(PublicKeyCredentialRpEntity rp)

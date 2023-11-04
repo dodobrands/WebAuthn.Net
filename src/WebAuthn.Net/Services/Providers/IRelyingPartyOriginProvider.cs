@@ -1,11 +1,10 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using WebAuthn.Net.Models.Abstractions;
+using Microsoft.AspNetCore.Http;
 
 namespace WebAuthn.Net.Services.Providers;
 
-public interface IRelyingPartyOriginProvider<TContext>
-    where TContext : class, IWebAuthnContext
+public interface IRelyingPartyOriginProvider
 {
-    Task<string> GetAsync(TContext context, CancellationToken cancellationToken);
+    Task<string> GetAsync(HttpContext httpContext, CancellationToken cancellationToken);
 }

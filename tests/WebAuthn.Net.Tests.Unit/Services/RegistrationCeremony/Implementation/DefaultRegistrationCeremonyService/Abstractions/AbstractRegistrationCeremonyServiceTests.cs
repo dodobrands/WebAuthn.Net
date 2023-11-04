@@ -71,14 +71,14 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var challengeGenerator = new DefaultChallengeGenerator();
         TimeProvider = new(DateTimeOffset.UtcNow);
 
-        var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder<FakeWebAuthnContext>();
+        var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder();
         FakeCredentialStorage credentialStorage = new();
         RegistrationCeremonyStorage = new();
-        var registrationResponseDecoder = new DefaultRegistrationResponseDecoder<FakeWebAuthnContext>();
-        var clientDataDecoder = new DefaultClientDataDecoder<FakeWebAuthnContext>(NullLogger<DefaultClientDataDecoder<FakeWebAuthnContext>>.Instance);
-        var attestationObjectDecoder = new DefaultAttestationObjectDecoder<FakeWebAuthnContext>(
+        var registrationResponseDecoder = new DefaultRegistrationResponseDecoder();
+        var clientDataDecoder = new DefaultClientDataDecoder(NullLogger<DefaultClientDataDecoder>.Instance);
+        var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
             cborDecoder,
-            NullLogger<DefaultAttestationObjectDecoder<FakeWebAuthnContext>>.Instance);
+            NullLogger<DefaultAttestationObjectDecoder>.Instance);
         DefaultFidoAttestationCertificateInspector<FakeWebAuthnContext> attestationCertificateInspector;
         using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
         {

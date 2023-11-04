@@ -1,18 +1,17 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using WebAuthn.Net.Models.Abstractions;
+using Microsoft.AspNetCore.Http;
 
 namespace WebAuthn.Net.Services.Providers.Implementation;
 
-public class DefaultRelyingPartyIdProvider<TContext> : IRelyingPartyIdProvider<TContext>
-    where TContext : class, IWebAuthnContext
+public class DefaultRelyingPartyIdProvider : IRelyingPartyIdProvider
 {
-    public Task<string> GetAsync(TContext context, CancellationToken cancellationToken)
+    public Task<string> GetAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(httpContext);
         cancellationToken.ThrowIfCancellationRequested();
-        var baseAddress = context.HttpContext.Request.Scheme + Uri.SchemeDelimiter + context.HttpContext.Request.Host + context.HttpContext.Request.PathBase;
+        var baseAddress = httpContext.Request.Scheme + Uri.SchemeDelimiter + httpContext.Request.Host + httpContext.Request.PathBase;
         var baseUri = new Uri(baseAddress, UriKind.Absolute);
         if (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps)
         {

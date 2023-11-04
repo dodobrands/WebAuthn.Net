@@ -13,13 +13,13 @@ public class FakeWebAuthnContext : IWebAuthnContext
         HttpContext = httpContext!;
     }
 
+    public HttpContext HttpContext { get; }
+
     public ValueTask DisposeAsync()
     {
         GC.SuppressFinalize(this);
         return ValueTask.CompletedTask;
     }
-
-    public HttpContext HttpContext { get; }
 
     public Task CommitAsync(CancellationToken cancellationToken)
     {
