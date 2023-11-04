@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
 using WebAuthn.Net.Storage.Models;
@@ -16,6 +15,7 @@ public class AuthenticationCeremonyModel
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
     }
+
     public string Id { get; }
     public byte[]? UserHandle { get; }
     public PublicKeyCredentialRequestOptions Options { get; }
@@ -29,6 +29,8 @@ public class AuthenticationCeremonyModel
         return new(id, parameters.UserHandle, parameters.Options, parameters.ExpectedRp, parameters.CreatedAt, parameters.ExpiresAt);
     }
 
-    public AuthenticationCeremonyParameters ToAuthenticationCeremonyParameters() =>
-        new(UserHandle, Options, ExpectedRp, CreatedAt, ExpiresAt);
+    public AuthenticationCeremonyParameters ToAuthenticationCeremonyParameters()
+    {
+        return new(UserHandle, Options, ExpectedRp, CreatedAt, ExpiresAt);
+    }
 }

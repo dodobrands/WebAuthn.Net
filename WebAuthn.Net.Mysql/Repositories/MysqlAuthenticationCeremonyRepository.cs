@@ -23,7 +23,6 @@ WHERE ""Id"" = @id
 
 public class MysqlAuthenticationCeremonyRepository : IMysqlAuthenticationCeremonyRepository
 {
-
     private readonly MySqlWebAuthnContext _context;
 
 
@@ -52,7 +51,9 @@ public class MysqlAuthenticationCeremonyRepository : IMysqlAuthenticationCeremon
     public async Task<AuthenticationCeremonyModel?> FindAuthenticationCeremony(string authenticationCeremonyId, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(authenticationCeremonyId, out var id))
+        {
             throw new ArgumentNullException(nameof(authenticationCeremonyId));
+        }
 
         using var cmd = new MySqlCommand(AuthenticationCeremonySql.Find, _context.Connection, _context.Transaction);
 
@@ -61,10 +62,11 @@ public class MysqlAuthenticationCeremonyRepository : IMysqlAuthenticationCeremon
 
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
         var schema = await reader.GetSchemaTableAsync(cancellationToken);
-        if (schema is null || schema.Rows.Count is 0) return null;
+        if (schema is null || schema.Rows.Count is 0)
+        {
+            return null;
+        }
 
         return null;
     }
-
-
 }

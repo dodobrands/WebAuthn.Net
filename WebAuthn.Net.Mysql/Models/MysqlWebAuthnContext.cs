@@ -7,11 +7,6 @@ namespace WebAuthn.Net.Mysql.Models;
 
 public class MySqlWebAuthnContext : IWebAuthnContext
 {
-    public HttpContext HttpContext { get; }
-    public MySqlConnection Connection { get; }
-    public MySqlTransaction Transaction { get; }
-    public IMysqlAuthenticationCeremonyRepository AuthenticationCeremony { get; }
-
     public MySqlWebAuthnContext(HttpContext httpContext, MySqlConnection connection, MySqlTransaction transaction)
     {
         ArgumentNullException.ThrowIfNull(httpContext);
@@ -22,6 +17,11 @@ public class MySqlWebAuthnContext : IWebAuthnContext
         Transaction = transaction;
         AuthenticationCeremony = new MysqlAuthenticationCeremonyRepository(this);
     }
+
+    public MySqlConnection Connection { get; }
+    public MySqlTransaction Transaction { get; }
+    public IMysqlAuthenticationCeremonyRepository AuthenticationCeremony { get; }
+    public HttpContext HttpContext { get; }
 
     public async Task CommitAsync(CancellationToken cancellationToken)
     {

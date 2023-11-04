@@ -1,4 +1,3 @@
-using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Mysql.Models;
 using WebAuthn.Net.Storage.Credential;
