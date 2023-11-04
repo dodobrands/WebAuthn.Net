@@ -678,7 +678,7 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
-        Message = "Invalid value for topOrigin: '{ClientDataOrigin}'")]
+        Message = "Invalid value for origin: '{ClientDataOrigin}'")]
     public static partial void InvalidOrigin(this ILogger logger, string clientDataOrigin);
 
     [LoggerMessage(
