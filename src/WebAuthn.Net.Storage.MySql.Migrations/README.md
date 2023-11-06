@@ -11,15 +11,13 @@ Execute one of the following commands for the DbContext to which you need to add
 ### MySqlCredentialStorageDbContext
 
 ```bash
-dotnet ef migrations add --context MySqlCredentialStorageDbContext --output-dir Storage/CredentialStorage/Migrations <MIGRATION_NAME>
+dotnet ef migrations add --context MySqlCredentialStorageDbContext --output-dir "Storage/CredentialStorage/Migrations" InitialCreate
 ```
 
-## Viewing the SQL script
-
-To view the SQL script, execute one of the following commands for the DbContext for which you need to view the RAW SQL query.
+## Dump migrations to an SQL file
 
 ### MySqlCredentialStorageDbContext
 
 ```bash
-dotnet ef migrations script --context MySqlCredentialStorageDbContext
+dotnet ef migrations script --context MySqlCredentialStorageDbContext --output "Storage/CredentialStorage/RawMigrations.sql"
 ```

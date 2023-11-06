@@ -29,8 +29,4 @@
     <ProjectReference Include="..\WebAuthn.Net.Storage.MySql\WebAuthn.Net.Storage.MySql.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Infrastructure\" />
-  </ItemGroup>
-
 </Project>

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage;
 
@@ -10,9 +11,10 @@ using WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage;
 namespace WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Migrations
 {
     [DbContext(typeof(MySqlCredentialStorageDbContext))]
-    partial class MySqlCredentialStorageDbContextModelSnapshot : ModelSnapshot
+    [Migration("20231106221754_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

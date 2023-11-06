@@ -21,11 +21,12 @@ public class MySqlUserCredentialRecordConfiguration : IEntityTypeConfiguration<M
             x.UserHandle,
             x.CredentialId
         }).IsUnique();
+        builder.HasIndex(x => new
+        {
+            x.RpId,
+            x.UserHandle
+        });
         builder.Property(x => x.Type);
-        builder.HasOne(x => x.PublicKey)
-            .WithOne(x => x.UserCredentialRecord)
-            .HasForeignKey<AbstractMySqlPublicKeyRecord>(x => x.UserCredentialRecordId)
-            .OnDelete(DeleteBehavior.Cascade);
         builder.Property(x => x.Transports)
             .IsRequired()
             .HasColumnType("json");
