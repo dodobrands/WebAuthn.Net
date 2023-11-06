@@ -1,3 +1,0 @@
-- [ ] Replace FluentMigrator
-- [ ] Seq UUID from Dodo.Primitives
-- [ ] JsonSerializerOptions to storage config

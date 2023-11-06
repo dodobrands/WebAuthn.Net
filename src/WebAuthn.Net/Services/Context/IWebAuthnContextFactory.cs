@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Enums;
 
 namespace WebAuthn.Net.Services.Context;
 
@@ -16,7 +17,11 @@ public interface IWebAuthnContextFactory<TContext>
     ///     Creates the context for a WebAuthn operation.
     /// </summary>
     /// <param name="httpContext">The context of the HTTP request in which the WebAuthn operation is being processed.</param>
+    /// <param name="operation">Operation being performed in the WebAuthn service.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>The context of a WebAuthn operation.</returns>
-    Task<TContext> CreateAsync(HttpContext httpContext, CancellationToken cancellationToken);
+    Task<TContext> CreateAsync(
+        HttpContext httpContext,
+        WebAuthnOperation operation,
+        CancellationToken cancellationToken);
 }

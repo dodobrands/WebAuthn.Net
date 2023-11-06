@@ -16,13 +16,13 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataService;
 public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContext>
     where TContext : class, IWebAuthnContext
 {
-    public DefaultFidoMetadataService(IFidoMetadataStorage metadataStorage)
+    public DefaultFidoMetadataService(IFidoMetadataStorage<TContext> metadataStorage)
     {
         ArgumentNullException.ThrowIfNull(metadataStorage);
         MetadataStorage = metadataStorage;
     }
 
-    protected IFidoMetadataStorage MetadataStorage { get; }
+    protected IFidoMetadataStorage<TContext> MetadataStorage { get; }
 
     public virtual async Task<Optional<FidoMetadataResult>> FindMetadataByAaguidAsync(
         TContext context,
@@ -30,7 +30,7 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var entry = await MetadataStorage.FindByAaguidAsync(aaguid, cancellationToken);
+        var entry = await MetadataStorage.FindByAaguidAsync(context, aaguid, cancellationToken);
         if (entry is null)
         {
             return Optional<FidoMetadataResult>.Empty();
@@ -60,7 +60,7 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var entry = await MetadataStorage.FindBySubjectKeyIdentifierAsync(subjectKeyIdentifier, cancellationToken);
+        var entry = await MetadataStorage.FindBySubjectKeyIdentifierAsync(context, subjectKeyIdentifier, cancellationToken);
         if (entry is null)
         {
             return Optional<FidoMetadataResult>.Empty();

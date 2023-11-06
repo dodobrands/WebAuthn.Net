@@ -132,7 +132,7 @@ public class DefaultAuthenticationCeremonyServicePackedTests : AbstractAuthentic
             null,
             null,
             null);
-        var beginResult = await AuthenticationCeremonyService.CreateOptionsAsync(
+        var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             beginRequest,
             CancellationToken.None);
@@ -173,7 +173,7 @@ public class DefaultAuthenticationCeremonyServicePackedTests : AbstractAuthentic
             null,
             null,
             null);
-        var beginResult = await AuthenticationCeremonyService.CreateOptionsAsync(
+        var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             beginRequest,
             CancellationToken.None);

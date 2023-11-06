@@ -8,12 +8,13 @@ namespace WebAuthn.Net.Configuration.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    public static IWebAuthnBuilder<TContext> AddWebAuthn<TContext>(
+    public static IWebAuthnBuilder<TContext> AddWebAuthnCore<TContext>(
         this IServiceCollection services,
         Action<WebAuthnOptions>? configure = null)
         where TContext : class, IWebAuthnContext
     {
         ArgumentNullException.ThrowIfNull(services);
-        return new WebAuthnBuilder<TContext>(services).AddCoreServices(configure);
+        return new WebAuthnBuilder<TContext>(services)
+            .AddCoreServices(configure);
     }
 }

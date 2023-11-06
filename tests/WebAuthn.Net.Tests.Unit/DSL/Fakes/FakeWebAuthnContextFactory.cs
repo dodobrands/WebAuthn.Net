@@ -1,13 +1,14 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Services.Context;
 
 namespace WebAuthn.Net.DSL.Fakes;
 
 public class FakeWebAuthnContextFactory : IWebAuthnContextFactory<FakeWebAuthnContext>
 {
-    public Task<FakeWebAuthnContext> CreateAsync(HttpContext httpContext, CancellationToken cancellationToken)
+    public Task<FakeWebAuthnContext> CreateAsync(HttpContext httpContext, WebAuthnOperation operation, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var fakeContext = new FakeWebAuthnContext(httpContext);

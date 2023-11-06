@@ -314,6 +314,9 @@ dotnet_diagnostic.CA1056.severity = suggestion
 # CA1200: Avoid using cref tags with a prefix
 # The cref tag in an XML documentation comment uses a prefix.
 dotnet_diagnostic.CA1200.severity = suggestion
+# CA1308: Normalize strings to uppercase
+# An operation normalizes a string to lowercase.
+dotnet_diagnostic.CA1308.severity = suggestion
 # CA1700: Do not name enum values 'Reserved'
 # The name of an enumeration member contains the word "reserved".
 dotnet_diagnostic.CA1700.severity = suggestion

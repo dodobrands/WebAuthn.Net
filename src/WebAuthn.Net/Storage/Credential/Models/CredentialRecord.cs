@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models.Protocol.Enums;
 
 namespace WebAuthn.Net.Storage.Credential.Models;
@@ -132,5 +133,6 @@ public class CredentialRecord
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#abstract-opdef-credential-record-attestationobject">attestationObject</a> <a href="https://infra.spec.whatwg.org/#struct-item">item</a> enables the
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> to re-verify the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-signature">attestation signature</a> at a later time.
     /// </summary>
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public byte[]? AttestationClientDataJSON { get; }
 }

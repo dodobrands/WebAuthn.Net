@@ -102,7 +102,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
                 throw new InvalidOperationException("Can't decode metadata");
             }
 
-            var storage = new DefaultInMemoryFidoMetadataStorage();
+            var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
             await storage.StoreAsync(decodeMetadataResult.Ok, CancellationToken.None);
             var metadataService = new DefaultFidoMetadataService<FakeWebAuthnContext>(storage);
             attestationCertificateInspector = new(

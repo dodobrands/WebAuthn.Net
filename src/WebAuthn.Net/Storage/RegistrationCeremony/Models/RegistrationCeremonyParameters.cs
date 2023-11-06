@@ -1,6 +1,5 @@
 using System;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
-using WebAuthn.Net.Storage.Models;
 
 namespace WebAuthn.Net.Storage.RegistrationCeremony.Models;
 
@@ -8,7 +7,7 @@ public class RegistrationCeremonyParameters
 {
     public RegistrationCeremonyParameters(
         PublicKeyCredentialCreationOptions options,
-        ExpectedRpParameters expectedRp,
+        RegistrationCeremonyRpParameters expectedRp,
         DateTimeOffset createdAt,
         DateTimeOffset expiresAt)
     {
@@ -19,7 +18,7 @@ public class RegistrationCeremonyParameters
     }
 
     public PublicKeyCredentialCreationOptions Options { get; }
-    public ExpectedRpParameters ExpectedRp { get; }
+    public RegistrationCeremonyRpParameters ExpectedRp { get; }
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset ExpiresAt { get; }
 }

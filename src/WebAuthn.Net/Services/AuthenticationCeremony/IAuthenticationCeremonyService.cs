@@ -15,7 +15,7 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony;
 /// </remarks>
 public interface IAuthenticationCeremonyService
 {
-    Task<BeginAuthenticationCeremonyResult> CreateOptionsAsync(
+    Task<BeginAuthenticationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
         BeginAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken);

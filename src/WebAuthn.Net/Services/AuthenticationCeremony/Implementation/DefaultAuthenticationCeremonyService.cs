@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -41,7 +42,6 @@ using WebAuthn.Net.Storage.AuthenticationCeremony;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
 using WebAuthn.Net.Storage.Credential;
 using WebAuthn.Net.Storage.Credential.Models;
-using WebAuthn.Net.Storage.Models;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 
@@ -126,7 +126,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ILogger<DefaultAuthenticationCeremonyService<TContext>> Logger { get; }
 
-    public async Task<BeginAuthenticationCeremonyResult> CreateOptionsAsync(
+    public async Task<BeginAuthenticationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
         BeginAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken)
@@ -134,7 +134,10 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        await using var context = await ContextFactory.CreateAsync(httpContext, cancellationToken);
+        await using var context = await ContextFactory.CreateAsync(
+            httpContext,
+            WebAuthnOperation.BeginAuthenticationCeremony,
+            cancellationToken);
         var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
         var rpId = await RpIdProvider.GetAsync(httpContext, cancellationToken);
         PublicKeyCredentialDescriptor[]? credentialsToInclude = null;
@@ -162,7 +165,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             allowIframe = true;
         }
 
-        var expectedRpParameters = new ExpectedRpParameters(rpId, origins, allowIframe, topOrigins);
+        var expectedRpParameters = new AuthenticationCeremonyRpParameters(rpId, origins, allowIframe, topOrigins);
         var timeout = GetTimeout(request);
         var createdAt = TimeProvider.GetRoundUtcDateTime();
         var expiresAt = createdAt.ComputeExpiresAtUtc(timeout);
@@ -189,7 +192,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         using (Logger.BeginCompleteAuthenticationCeremonyScope(request.AuthenticationCeremonyId))
-        await using (var context = await ContextFactory.CreateAsync(httpContext, cancellationToken))
+        await using (var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.CompleteAuthenticationCeremony, cancellationToken))
         {
             var authenticationCeremonyOptions = await CeremonyStorage.FindAsync(
                 context,
