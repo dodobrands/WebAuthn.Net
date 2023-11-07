@@ -7,7 +7,7 @@
 
 START TRANSACTION;
 
-CREATE TABLE `MySqlUserCredentialRecord`
+CREATE TABLE `CredentialRecords`
 (
     `Id`                        binary(16)      NOT NULL,
     `RpId`                      varchar(300)    NOT NULL,
@@ -29,16 +29,16 @@ CREATE TABLE `MySqlUserCredentialRecord`
     `AttestationObject`         longblob        NULL,
     `AttestationClientDataJson` longblob        NULL,
     `CreatedAtUnixTime`         bigint          NOT NULL,
-    CONSTRAINT `PK_MySqlUserCredentialRecord` PRIMARY KEY (`Id`)
+    CONSTRAINT `PK_CredentialRecords` PRIMARY KEY (`Id`)
 ) CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_0900_ai_ci;
 
-CREATE INDEX `IX_MySqlUserCredentialRecord_RpId_UserHandle` ON `MySqlUserCredentialRecord` (`RpId`, `UserHandle`);
+CREATE INDEX `IX_CredentialRecords_RpId_UserHandle` ON `CredentialRecords` (`RpId`, `UserHandle`);
 
-CREATE UNIQUE INDEX `IX_MySqlUserCredentialRecord_RpId_UserHandle_CredentialId` ON `MySqlUserCredentialRecord` (`RpId`, `UserHandle`, `CredentialId`);
+CREATE UNIQUE INDEX `IX_CredentialRecords_RpId_UserHandle_CredentialId` ON `CredentialRecords` (`RpId`, `UserHandle`, `CredentialId`);
 
 INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
-VALUES ('20231106221754_InitialCreate', '6.0.24');
+VALUES ('20231107102319_InitialCreate', '6.0.24');
 
 COMMIT;
 

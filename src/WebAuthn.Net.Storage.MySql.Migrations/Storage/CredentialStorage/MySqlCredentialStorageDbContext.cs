@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 using WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Configurations;
+using WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Models;
 
 namespace WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage;
 
@@ -13,6 +14,8 @@ public class MySqlCredentialStorageDbContext : DbContext
     public MySqlCredentialStorageDbContext(DbContextOptions<MySqlCredentialStorageDbContext> options) : base(options)
     {
     }
+
+    public DbSet<MySqlUserCredentialRecord> CredentialRecords { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -103,7 +103,7 @@ namespace WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Migrat
                     b.HasIndex("RpId", "UserHandle", "CredentialId")
                         .IsUnique();
 
-                    b.ToTable("MySqlUserCredentialRecord");
+                    b.ToTable("CredentialRecords");
 
                     MySqlEntityTypeBuilderExtensions.HasCharSet(b, "utf8mb4", DelegationModes.ApplyToTables);
                     MySqlEntityTypeBuilderExtensions.UseCollation(b, "utf8mb4_0900_ai_ci", DelegationModes.ApplyToTables);

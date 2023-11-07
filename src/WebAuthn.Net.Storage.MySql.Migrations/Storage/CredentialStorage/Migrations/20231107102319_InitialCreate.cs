@@ -10,7 +10,7 @@ namespace WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Migrat
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "MySqlUserCredentialRecord",
+                name: "CredentialRecords",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", fixedLength: true, maxLength: 16, nullable: false),
@@ -36,19 +36,19 @@ namespace WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Migrat
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_MySqlUserCredentialRecord", x => x.Id);
+                    table.PrimaryKey("PK_CredentialRecords", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .Annotation("Relational:Collation", "utf8mb4_0900_ai_ci");
 
             migrationBuilder.CreateIndex(
-                name: "IX_MySqlUserCredentialRecord_RpId_UserHandle",
-                table: "MySqlUserCredentialRecord",
+                name: "IX_CredentialRecords_RpId_UserHandle",
+                table: "CredentialRecords",
                 columns: new[] { "RpId", "UserHandle" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_MySqlUserCredentialRecord_RpId_UserHandle_CredentialId",
-                table: "MySqlUserCredentialRecord",
+                name: "IX_CredentialRecords_RpId_UserHandle_CredentialId",
+                table: "CredentialRecords",
                 columns: new[] { "RpId", "UserHandle", "CredentialId" },
                 unique: true);
         }
@@ -56,7 +56,7 @@ namespace WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Migrat
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "MySqlUserCredentialRecord");
+                name: "CredentialRecords");
         }
     }
 }
