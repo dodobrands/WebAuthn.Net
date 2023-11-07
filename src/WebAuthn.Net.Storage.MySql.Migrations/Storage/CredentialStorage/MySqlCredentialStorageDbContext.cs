@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 using WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Configurations;
-using WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage.Models;
+using WebAuthn.Net.Storage.MySql.Models;
 
 namespace WebAuthn.Net.Storage.MySql.Migrations.Storage.CredentialStorage;
 
