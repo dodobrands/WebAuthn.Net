@@ -9,13 +9,13 @@ namespace WebAuthn.Net.Storage.Credential;
 public interface ICredentialStorage<TContext>
     where TContext : class, IWebAuthnContext
 {
-    Task<PublicKeyCredentialDescriptor[]?> FindDescriptorsAsync(
+    Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
         TContext context,
         string rpId,
         byte[] userHandle,
         CancellationToken cancellationToken);
 
-    Task<UserCredentialRecord?> FindCredentialAsync(
+    Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
         TContext context,
         string rpId,
         byte[] userHandle,

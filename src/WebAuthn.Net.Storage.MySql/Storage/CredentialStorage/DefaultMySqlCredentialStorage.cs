@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
@@ -9,30 +10,74 @@ using WebAuthn.Net.Storage.Credential;
 using WebAuthn.Net.Storage.Credential.Models;
 using WebAuthn.Net.Storage.MySql.Models;
 using WebAuthn.Net.Storage.MySql.Services.Static;
+using WebAuthn.Net.Storage.MySql.Storage.CredentialStorage.Models;
 
 namespace WebAuthn.Net.Storage.MySql.Storage.CredentialStorage;
 
-public static class MySqlCredentialStorageSql
+public class DefaultMySqlCredentialStorage<TContext> : ICredentialStorage<TContext>
+    where TContext : DefaultMySqlContext
 {
-    public const string FindDescriptors = @"
+    public DefaultMySqlCredentialStorage(ITimeProvider timeProvider)
+    {
+        TimeProvider = timeProvider;
+    }
+
+    protected ITimeProvider TimeProvider { get; }
+
+    public async Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
+        TContext context,
+        string rpId,
+        byte[] userHandle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        cancellationToken.ThrowIfCancellationRequested();
+        var dbPublicKeysEnumerable = await context.Connection.QueryAsync<MySqlPublicKeyCredentialDescriptor>(new(@"
 SELECT `Type`, `CredentialId`, `Transports`, `CreatedAtUnixTime` FROM `CredentialRecords`
-WHERE `RpId` = @rpId AND `UserHandle` = @userHandle;
-";
+WHERE `RpId` = @rpId AND `UserHandle` = @userHandle;",
+            new
+            {
+                rpId,
+                userHandle
+            },
+            context.Transaction,
+            cancellationToken: cancellationToken));
 
-    public const string FindCredentials = @"
-SELECT * FROM `CredentialRecords`
-WHERE `RpId` = @rpId AND `UserHandle` = @userHandles AND `credentialId` = @credentialId;
-";
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (dbPublicKeysEnumerable is null)
+        {
+            return Array.Empty<PublicKeyCredentialDescriptor>();
+        }
 
-    public const string SelectForUpdate = @"
-    SELECT `Id` FROM `CredentialRecords`
-    WHERE `RpId` = @rpId AND `UserHandle` = @userHandles AND `credentialId` = @credentialId
-    FOR UPDATE;
-";
+        var dbPublicKeys = dbPublicKeysEnumerable
+            .OrderByDescending(x => x.CreatedAtUnixTime)
+            .ToList();
+        var result = new PublicKeyCredentialDescriptor[dbPublicKeys.Count];
+        for (var i = 0; i < dbPublicKeys.Count; i++)
+        {
+            if (!dbPublicKeys[i].TryMapToResult(out var descriptor))
+            {
+                throw new InvalidOperationException($"Failed to convert data retrieved from the database into {nameof(PublicKeyCredentialDescriptor)}");
+            }
 
-    public const string InsertCredentialRecords = @"
-    INSERT INTO `CredentialRecords`
-    (
+            result[i] = descriptor;
+        }
+
+        return result;
+    }
+
+
+    public async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
+        TContext context,
+        string rpId,
+        byte[] userHandle,
+        byte[] credentialId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        cancellationToken.ThrowIfCancellationRequested();
+        var model = await context.Connection.QuerySingleAsync<MySqlUserCredentialRecord?>(new(@"
+SELECT
     `Id`,
     `RpId`,
     `UserHandle`,
@@ -53,9 +98,90 @@ WHERE `RpId` = @rpId AND `UserHandle` = @userHandles AND `credentialId` = @crede
     `AttestationObject`,
     `AttestationClientDataJson`,
     `CreatedAtUnixTime`
-    )
-    VALUES
-    (
+FROM `CredentialRecords`
+WHERE `RpId` = @rpId AND `UserHandle` = @userHandles AND `credentialId` = @credentialId
+FOR UPDATE;",
+            new
+            {
+                rpId,
+                userHandle,
+                credentialId
+            },
+            context.Transaction,
+            cancellationToken: cancellationToken)
+        );
+        if (model is null)
+        {
+            return null;
+        }
+
+        if (!model.TryMapToResult(out var result))
+        {
+            throw new InvalidOperationException($"Failed to convert data retrieved from the database into {nameof(UserCredentialRecord)}");
+        }
+
+        return result;
+    }
+
+    public async Task<bool> SaveIfNotRegisteredForOtherUserAsync(
+        TContext context,
+        UserCredentialRecord credential,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(credential);
+        cancellationToken.ThrowIfCancellationRequested();
+        var existingCount = await context.Connection.ExecuteScalarAsync<long>(new(
+            @"
+SELECT COUNT(`Id`) FROM `CredentialRecords`
+WHERE
+    `RpId` = @rpId
+    AND `UserHandle` = @userHandles
+    AND `credentialId` = @credentialId;",
+            new
+            {
+                rpId = credential.RpId,
+                userHandle = credential.UserHandle,
+                credentialId = credential.CredentialRecord.Id
+            },
+            context.Transaction,
+            cancellationToken: cancellationToken
+        ));
+
+        if (existingCount > 0)
+        {
+            return false;
+        }
+
+        var id = UuidVersion7Generator.Generate();
+        var timestamp = TimeProvider.GetPreciseUtcDateTime().ToUnixTimeSeconds();
+        var transportsJson = JsonSerializer.Serialize(credential.CredentialRecord.Transports);
+        var rowsAffected = await context.Connection.ExecuteAsync(new(@"
+INSERT INTO `CredentialRecords`
+(
+    `Id`,
+    `RpId`,
+    `UserHandle`,
+    `CredentialId`,
+    `Type`,
+    `Kty`,
+    `Alg`,
+    `EcdsaCrv`,
+    `EcdsaX`,
+    `EcdsaY`,
+    `RsaModulusN`,
+    `RsaExponentE`,
+    `SignCount`,
+    `Transports`,
+    `UvInitialized`,
+    `BackupEligible`,
+    `BackupState`,
+    `AttestationObject`,
+    `AttestationClientDataJson`,
+    `CreatedAtUnixTime`
+)
+VALUES
+(
      @id,
      @rpId,
      @userHandle,
@@ -76,136 +202,35 @@ WHERE `RpId` = @rpId AND `UserHandle` = @userHandles AND `credentialId` = @crede
      @attestationObject,
      @attestationClientDataJson,
      @createdAtUnixTime
-     );
-";
-
-    public const string UpdateCredentialRecords = @"
-    UPDATE `CredentialRecords`
-    SET
-     `type` = @type,
-     `kty` = @kty,
-     `alg` = @alg,
-     `ecdsaCrv` = @ecdsaCrv,
-     `ecdsaX` = @ecdsaX,
-     `ecdsaY` = @ecdsaY,
-     `rsaModulusN` = @rsaModulusN,
-     `rsaExponentE` = @rsaExponentE,
-     `signCount` = @signCount,
-     `transports` = @transports,
-     `uvInitialized` = @uvInitialized,
-     `backupEligible` = @backupEligible,
-     `backupState` = @backupState,
-     `attestationObject` = @attestationObject,
-     `attestationClientDataJson` = @attestationClientDataJson
-    WHERE Id = @id;
-";
-}
-
-public class DefaultMySqlCredentialStorage<TContext> : ICredentialStorage<TContext>
-    where TContext : DefaultMySqlContext
-{
-    protected ITimeProvider TimeProvider { get; }
-
-    public DefaultMySqlCredentialStorage(ITimeProvider timeProvider)
-    {
-        TimeProvider = timeProvider;
-    }
-
-
-    public async Task<PublicKeyCredentialDescriptor[]?> FindDescriptorsAsync(
-        TContext context,
-        string rpId,
-        byte[] userHandle,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        cancellationToken.ThrowIfCancellationRequested();
-        var queryParams = new
-        {
-            rpId,
-            userHandle
-        };
-        var dbPublicKeys = await context.Connection.QueryAsync<MySqlPublicKeyCredentialDescriptor>(new(
-                MySqlCredentialStorageSql.FindDescriptors,
-                queryParams,
-                context.Transaction,
-                cancellationToken: cancellationToken
-            )
-        );
-
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (dbPublicKeys is null)
-        {
-            return Array.Empty<PublicKeyCredentialDescriptor>();
-        }
-
-        return dbPublicKeys
-            .OrderByDescending(x => x.CreatedAtUnixTime)
-            .Select(x => x.ToResultModel())
-            .ToArray();
-    }
-
-
-    public async Task<UserCredentialRecord?> FindCredentialAsync(
-        TContext context,
-        string rpId,
-        byte[] userHandle,
-        byte[] credentialId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        var queryParams = new
-        {
-            rpId,
-            userHandle,
-            credentialId
-        };
-
-        var model = await context.Connection.QuerySingleAsync<MySqlUserCredentialRecord>(new(
-            MySqlCredentialStorageSql.FindCredentials,
-            queryParams,
-            context.Transaction,
-            cancellationToken: cancellationToken)
-        );
-
-        return model.MapToRecord();
-    }
-
-    public async Task<bool> SaveIfNotRegisteredForOtherUserAsync(
-        TContext context,
-        UserCredentialRecord credential,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(credential);
-
-        var queryParams = new
-        {
-            rpId = credential.RpId,
-            userHandle = credential.UserHandle,
-            credentialId = credential.CredentialRecord.Id
-        };
-        var idsBytes = await context.Connection.QueryFirstOrDefaultAsync<byte[]>(new(
-            MySqlCredentialStorageSql.SelectForUpdate,
-            queryParams,
-            context.Transaction,
-            cancellationToken: cancellationToken
-            ));
-
-        if (idsBytes is not null) return false;
-
-        var id = UuidVersion7Generator.Generate();
-        var timestamp = TimeProvider.GetPreciseUtcDateTime();
-        var upsertQueryParams = credential.AsInsertQueryParams(timestamp, id);
-
-        var affectedRows = await context.Connection.ExecuteAsync(new(
-            MySqlCredentialStorageSql.InsertCredentialRecords,
-            upsertQueryParams,
+);",
+            new
+            {
+                id,
+                rpId = credential.RpId,
+                userHandle = credential.UserHandle,
+                credentialId = credential.CredentialRecord.Id,
+                type = credential.CredentialRecord.Type,
+                kty = credential.CredentialRecord.PublicKey.Kty,
+                alg = credential.CredentialRecord.PublicKey.Alg,
+                ecdsaCrv = credential.CredentialRecord.PublicKey.Ec2?.Crv,
+                ecdsaX = credential.CredentialRecord.PublicKey.Ec2?.X,
+                ecdsaY = credential.CredentialRecord.PublicKey.Ec2?.Y,
+                rsaModulusN = credential.CredentialRecord.PublicKey.Rsa?.ModulusN,
+                rsaExponentE = credential.CredentialRecord.PublicKey.Rsa?.ExponentE,
+                signCount = credential.CredentialRecord.SignCount,
+                transports = transportsJson,
+                uvInitialized = credential.CredentialRecord.UvInitialized,
+                backupEligible = credential.CredentialRecord.BackupEligible,
+                backupState = credential.CredentialRecord.BackupState,
+                attestationObject = credential.CredentialRecord.AttestationObject,
+                attestationClientDataJson = credential.CredentialRecord.AttestationClientDataJSON,
+                createdAtUnixTime = timestamp
+            },
             context.Transaction,
             cancellationToken: cancellationToken
         ));
 
-        return affectedRows > 0;
+        return rowsAffected > 0;
     }
 
     public async Task<bool> UpdateCredentialAsync(
@@ -215,29 +240,54 @@ public class DefaultMySqlCredentialStorage<TContext> : ICredentialStorage<TConte
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(credential);
-
-        var queryParams = new
-        {
-            rpId = credential.RpId,
-            userHandle = credential.UserHandle,
-            credentialId = credential.CredentialRecord.Id
-        };
-        var idsBytes = await context.Connection.QueryFirstOrDefaultAsync<byte[]>(new(
-            MySqlCredentialStorageSql.SelectForUpdate,
-            queryParams,
+        cancellationToken.ThrowIfCancellationRequested();
+        var transportsJson = JsonSerializer.Serialize(credential.CredentialRecord.Transports);
+        var rowsAffected = await context.Connection.ExecuteAsync(new(@"
+UPDATE `CredentialRecords`
+SET
+    `Type` = @type,
+    `Kty` = @kty,
+    `Alg` = @alg,
+    `EcdsaCrv` = @ecdsaCrv,
+    `EcdsaX` = @ecdsaX,
+    `EcdsaY` = @ecdsaY,
+    `RsaModulusN` = @rsaModulusN,
+    `RsaExponentE` = @rsaExponentE,
+    `SignCount` = @signCount,
+    `Transports` = @transports,
+    `UvInitialized` = @uvInitialized,
+    `BackupEligible` = @backupEligible,
+    `BackupState` = @backupState,
+    `AttestationObject` = @attestationObject,
+    `AttestationClientDataJson` = @attestationClientDataJson
+WHERE
+    `RpId` = @rpId
+    AND `UserHandle` = @userHandle
+    AND `credentialId` = @credentialId;",
+            new
+            {
+                type = credential.CredentialRecord.Type,
+                kty = credential.CredentialRecord.PublicKey.Kty,
+                alg = credential.CredentialRecord.PublicKey.Alg,
+                ecdsaCrv = credential.CredentialRecord.PublicKey.Ec2?.Crv,
+                ecdsaX = credential.CredentialRecord.PublicKey.Ec2?.X,
+                ecdsaY = credential.CredentialRecord.PublicKey.Ec2?.Y,
+                rsaModulusN = credential.CredentialRecord.PublicKey.Rsa?.ModulusN,
+                rsaExponentE = credential.CredentialRecord.PublicKey.Rsa?.ExponentE,
+                signCount = credential.CredentialRecord.SignCount,
+                transports = transportsJson,
+                uvInitialized = credential.CredentialRecord.UvInitialized,
+                backupEligible = credential.CredentialRecord.BackupEligible,
+                backupState = credential.CredentialRecord.BackupState,
+                attestationObject = credential.CredentialRecord.AttestationObject,
+                attestationClientDataJson = credential.CredentialRecord.AttestationClientDataJSON,
+                rpId = credential.RpId,
+                userHandle = credential.UserHandle,
+                credentialId = credential.CredentialRecord.Id
+            },
             context.Transaction,
             cancellationToken: cancellationToken
         ));
-
-        if (idsBytes is null) return false;
-
-        var updateQueryParams = credential.AsUpdateQueryParams(idsBytes);
-        var rowsAffected = await context.Connection.ExecuteAsync(new(
-            MySqlCredentialStorageSql.UpdateCredentialRecords,
-            updateQueryParams,
-            context.Transaction,
-            cancellationToken: cancellationToken
-            ));
 
         return rowsAffected > 0;
     }

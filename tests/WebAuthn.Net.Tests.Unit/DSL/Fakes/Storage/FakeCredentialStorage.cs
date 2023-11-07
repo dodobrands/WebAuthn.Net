@@ -13,7 +13,7 @@ public class FakeCredentialStorage : ICredentialStorage<FakeWebAuthnContext>
     private readonly List<UserCredentialRecord> _credentials = new();
     private readonly object _locker = new();
 
-    public Task<PublicKeyCredentialDescriptor[]?> FindDescriptorsAsync(
+    public Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
         FakeWebAuthnContext context,
         string rpId,
         byte[] userHandle,
@@ -36,16 +36,15 @@ public class FakeCredentialStorage : ICredentialStorage<FakeWebAuthnContext>
             }
         }
 
-        PublicKeyCredentialDescriptor[]? result = null;
         if (foundDescriptors.Count > 0)
         {
-            result = foundDescriptors.ToArray();
+            return Task.FromResult(foundDescriptors.ToArray());
         }
 
-        return Task.FromResult(result);
+        return Task.FromResult(Array.Empty<PublicKeyCredentialDescriptor>());
     }
 
-    public Task<UserCredentialRecord?> FindCredentialAsync(
+    public Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
         FakeWebAuthnContext context,
         string rpId,
         byte[] userHandle,

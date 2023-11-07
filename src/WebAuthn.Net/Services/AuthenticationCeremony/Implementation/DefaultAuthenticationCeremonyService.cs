@@ -249,7 +249,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             if (authenticationCeremonyOptions.UserHandle is not null)
             {
                 // verify that the identified user account contains a credential record whose id equals credential.rawId
-                var dbCredential = await CredentialStorage.FindCredentialAsync(
+                var dbCredential = await CredentialStorage.FindExistingCredentialForAuthenticationAsync(
                     context,
                     authenticationCeremonyOptions.ExpectedRp.RpId,
                     authenticationCeremonyOptions.UserHandle,
@@ -297,7 +297,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 }
 
                 //  Verify that the user account identified by response.userHandle contains a credential record whose id equals credential.rawId.
-                var dbCredential = await CredentialStorage.FindCredentialAsync(
+                var dbCredential = await CredentialStorage.FindExistingCredentialForAuthenticationAsync(
                     context,
                     authenticationCeremonyOptions.ExpectedRp.RpId,
                     response.UserHandle,
@@ -758,7 +758,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         if (options.IncludeAllExistingKeys)
         {
             var existingKeys = await CredentialStorage.FindDescriptorsAsync(context, rpId, userHandle, cancellationToken);
-            if (existingKeys?.Length > 0)
+            if (existingKeys.Length > 0)
             {
                 return existingKeys;
             }
@@ -769,7 +769,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         if (options.IncludeManuallySpecified)
         {
             var existingKeys = await CredentialStorage.FindDescriptorsAsync(context, rpId, userHandle, cancellationToken);
-            if ((existingKeys?.Length > 0) is not true)
+            if ((existingKeys.Length > 0) is not true)
             {
                 return null;
             }

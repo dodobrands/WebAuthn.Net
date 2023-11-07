@@ -500,7 +500,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         if (options.ExcludeAllExistingKeys)
         {
             var existingKeys = await CredentialStorage.FindDescriptorsAsync(context, rpId, userHandle, cancellationToken);
-            if (existingKeys?.Length > 0)
+            if (existingKeys.Length > 0)
             {
                 return existingKeys;
             }
@@ -511,7 +511,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         if (options.ExcludeManuallySpecified)
         {
             var existingKeys = await CredentialStorage.FindDescriptorsAsync(context, rpId, userHandle, cancellationToken);
-            if ((existingKeys?.Length > 0) is not true)
+            if ((existingKeys.Length > 0) is not true)
             {
                 return null;
             }

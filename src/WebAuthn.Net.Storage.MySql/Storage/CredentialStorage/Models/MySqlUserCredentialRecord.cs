@@ -1,13 +1,14 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
 using WebAuthn.Net.Storage.Credential.Models;
 
-namespace WebAuthn.Net.Storage.MySql.Models;
+namespace WebAuthn.Net.Storage.MySql.Storage.CredentialStorage.Models;
 
 public class MySqlUserCredentialRecord
 {
@@ -70,48 +71,78 @@ public class MySqlUserCredentialRecord
 
     public long CreatedAtUnixTime { get; set; }
 
-    public UserCredentialRecord? MapToRecord()
+    public bool TryMapToResult([NotNullWhen(true)] out UserCredentialRecord? result)
     {
-
-        if (!Enum.TryParse<PublicKeyCredentialType>($"{Type}", out var publicKeyCredentialType))
+        result = null;
+        var publicKeyCredentialType = (PublicKeyCredentialType) Type;
+        if (!Enum.IsDefined(publicKeyCredentialType))
         {
-            return null;
+            return false;
         }
 
-        if (!Enum.TryParse<CoseKeyType>($"{Kty}", out var coseKeyType))
+        var coseKeyType = (CoseKeyType) Kty;
+        if (!Enum.IsDefined(coseKeyType))
         {
+            return false;
         }
 
-        if (!Enum.TryParse<CoseAlgorithm>($"{Alg}", out var coseAlgorithm))
+        var coseAlgorithm = (CoseAlgorithm) Alg;
+        if (!Enum.IsDefined(coseAlgorithm))
         {
-            return null;
+            return false;
         }
 
         CredentialPublicKeyRsaParametersRecord? rsaKey = null;
         CredentialPublicKeyEc2ParametersRecord? ecKey = null;
-        if (coseKeyType is CoseKeyType.RSA)
-        {
-            rsaKey = new (RsaModulusN!, RsaExponentE!);
-        }
 
-        if (coseKeyType is CoseKeyType.EC2)
+        switch (coseKeyType)
         {
-            if (Enum.TryParse<CoseEllipticCurve>($"{EcdsaCrv}", out var ecdsaCurve))
-            {
-                ecKey = new(ecdsaCurve, EcdsaX!, EcdsaY!);
-            }
+            case CoseKeyType.EC2:
+                {
+                    if (!EcdsaCrv.HasValue)
+                    {
+                        return false;
+                    }
+
+                    var ecdsaCurve = (CoseEllipticCurve) EcdsaCrv.Value;
+                    if (!Enum.IsDefined(ecdsaCurve) || EcdsaX is null || EcdsaY is null)
+                    {
+                        return false;
+                    }
+
+                    ecKey = new(ecdsaCurve, EcdsaX, EcdsaY);
+                    break;
+                }
+            case CoseKeyType.RSA:
+                {
+                    if (RsaModulusN is null || RsaExponentE is null)
+                    {
+                        return false;
+                    }
+
+                    rsaKey = new(RsaModulusN, RsaExponentE);
+                    break;
+                }
+            default:
+                return false;
         }
 
         var publicKey = new CredentialPublicKeyRecord(
             coseKeyType,
             coseAlgorithm,
             rsaKey,
-            ecKey
-        );
+            ecKey);
 
         var authenticatorTransports = Transports
             .Select(x => (AuthenticatorTransport) x)
             .ToArray();
+        foreach (var authenticatorTransport in authenticatorTransports)
+        {
+            if (!Enum.IsDefined(authenticatorTransport))
+            {
+                return false;
+            }
+        }
 
         var credentialRecord = new CredentialRecord(
             publicKeyCredentialType,
@@ -126,6 +157,7 @@ public class MySqlUserCredentialRecord
             AttestationClientDataJson
         );
 
-        return new (UserHandle, RpId, credentialRecord);
+        result = new(UserHandle, RpId, credentialRecord);
+        return true;
     }
 }

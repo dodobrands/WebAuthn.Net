@@ -1,14 +1,13 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Text.Json;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Storage.MySql.Models;
+namespace WebAuthn.Net.Storage.MySql.Storage.CredentialStorage.Models;
 
 [SuppressMessage("Design", "CA1812:Avoid uninstantiated internal classes")]
-internal class MySqlPublicKeyCredentialDescriptor
+public class MySqlPublicKeyCredentialDescriptor
 {
     public MySqlPublicKeyCredentialDescriptor(int type, byte[] credentialId, string transports, long createdAtUnixTime)
     {
@@ -26,22 +25,36 @@ internal class MySqlPublicKeyCredentialDescriptor
 
     public long CreatedAtUnixTime { get; }
 
-    public PublicKeyCredentialDescriptor ToResultModel()
+    public bool TryMapToResult([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
     {
+        result = null;
         var type = (PublicKeyCredentialType) Type;
+        if (!Enum.IsDefined(type))
+        {
+            return false;
+        }
+
         var transports = Array.Empty<AuthenticatorTransport>();
         if (!string.IsNullOrEmpty(Transports))
         {
             var deserializedTransports = JsonSerializer.Deserialize<int[]>(Transports);
             if (deserializedTransports?.Length > 0)
             {
-                transports = deserializedTransports.Select(x => (AuthenticatorTransport) x).ToArray();
+                transports = new AuthenticatorTransport[deserializedTransports.Length];
+                for (var i = 0; i < deserializedTransports.Length; i++)
+                {
+                    var transport = (AuthenticatorTransport) deserializedTransports[i];
+                    if (!Enum.IsDefined(transport))
+                    {
+                        return false;
+                    }
+
+                    transports[i] = transport;
+                }
             }
         }
 
-        return new(
-            type,
-            CredentialId,
-            transports);
+        result = new(type, CredentialId, transports);
+        return true;
     }
 }
