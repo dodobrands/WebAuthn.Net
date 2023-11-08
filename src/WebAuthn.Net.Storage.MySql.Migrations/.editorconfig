@@ -1,6 +1,0 @@
-﻿# C# files
-[{*.cs,*.cshtml}]
-# Diagnostics
-# CA1062: Validate arguments of public methods
-# An externally visible method dereferences one of its reference arguments without verifying whether that argument is null (Nothing in Visual Basic).
-dotnet_diagnostic.CA1062.severity = suggestion
