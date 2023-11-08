@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\WebAuthn.Net.Storage.Shared\WebAuthn.Net.Storage.Shared.csproj" />
     <ProjectReference Include="..\WebAuthn.Net\WebAuthn.Net.csproj" />
   </ItemGroup>
 

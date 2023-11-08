@@ -1,8 +1,7 @@
-﻿using System;
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 
-namespace WebAuthn.Net.Storage.SqlServer.Services.Static;
+namespace WebAuthn.Net.Storage.Shared;
 
 public static class UuidVersion7Generator
 {

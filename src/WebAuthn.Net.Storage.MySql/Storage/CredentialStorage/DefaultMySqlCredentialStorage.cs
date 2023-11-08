@@ -9,8 +9,8 @@ using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Storage.Credential;
 using WebAuthn.Net.Storage.Credential.Models;
 using WebAuthn.Net.Storage.MySql.Models;
-using WebAuthn.Net.Storage.MySql.Services.Static;
 using WebAuthn.Net.Storage.MySql.Storage.CredentialStorage.Models;
+using WebAuthn.Net.Storage.Shared;
 
 namespace WebAuthn.Net.Storage.MySql.Storage.CredentialStorage;
 
