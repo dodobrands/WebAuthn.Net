@@ -5,14 +5,14 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
-    
+
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.15"/>
       <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.2" />
     </ItemGroup>
-    
+
     <ItemGroup>
-      <ProjectReference Include="..\src\WebAuthn.Net\WebAuthn.Net.csproj" />
+      <ProjectReference Include="..\WebAuthn.Net\WebAuthn.Net.csproj" />
       <ProjectReference Include="..\WebAuthn.Net.Storage.Shared\WebAuthn.Net.Storage.Shared.csproj" />
     </ItemGroup>
 

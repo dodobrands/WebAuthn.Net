@@ -1,14 +1,10 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Storage.SqlServer.Configuration.Options;
 using WebAuthn.Net.Storage.SqlServer.Models;
-using WebAuthn.Net.Storage.SqlServer.Configuration.Options;
 
 namespace WebAuthn.Net.Storage.SqlServer.Services.ContextFactory;
 
