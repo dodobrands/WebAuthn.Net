@@ -85,7 +85,7 @@ SELECT
     AttestationClientDataJson,
     CreatedAtUnixTime
 FROM CredentialRecords WITH (updlock)
-WHERE RpId = @rpId AND UserHandle = @userHandles AND credentialId = @credentialId;",
+WHERE RpId = @rpId AND UserHandle = @userHandles AND CredentialId = @credentialId;",
             new
             {
                 rpId,
@@ -119,7 +119,7 @@ SELECT COUNT(Id) FROM CredentialRecords
 WHERE
     RpId = @rpId
     AND UserHandle = @userHandles
-    AND credentialId = @credentialId;",
+    AND CredentialId = @credentialId;",
             new
             {
                 rpId = credential.RpId,
@@ -242,7 +242,7 @@ SET
 WHERE
     RpId = @rpId
     AND UserHandle = @userHandle
-    AND credentialId = @credentialId;",
+    AND CredentialId = @credentialId;",
             new
             {
                 type = credential.CredentialRecord.Type,
