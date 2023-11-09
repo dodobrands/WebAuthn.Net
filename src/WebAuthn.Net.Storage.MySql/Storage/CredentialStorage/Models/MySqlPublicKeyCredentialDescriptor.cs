@@ -25,7 +25,7 @@ public class MySqlPublicKeyCredentialDescriptor
 
     public long CreatedAtUnixTime { get; }
 
-    public bool TryMapToResult([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
+    public virtual bool TryMapToResult([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
     {
         result = null;
         var type = (PublicKeyCredentialType) Type;

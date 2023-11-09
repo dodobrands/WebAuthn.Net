@@ -24,7 +24,7 @@ public class DefaultMySqlCredentialStorage<TContext> : ICredentialStorage<TConte
 
     protected ITimeProvider TimeProvider { get; }
 
-    public async Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
+    public virtual async Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
         TContext context,
         string rpId,
         byte[] userHandle,
@@ -67,7 +67,7 @@ WHERE `RpId` = @rpId AND `UserHandle` = @userHandle;",
     }
 
 
-    public async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
+    public virtual async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
         TContext context,
         string rpId,
         byte[] userHandle,
@@ -123,7 +123,7 @@ FOR UPDATE;",
         return result;
     }
 
-    public async Task<bool> SaveIfNotRegisteredForOtherUserAsync(
+    public virtual async Task<bool> SaveIfNotRegisteredForOtherUserAsync(
         TContext context,
         UserCredentialRecord credential,
         CancellationToken cancellationToken)
@@ -233,7 +233,7 @@ VALUES
         return rowsAffected > 0;
     }
 
-    public async Task<bool> UpdateCredentialAsync(
+    public virtual async Task<bool> UpdateCredentialAsync(
         TContext context,
         UserCredentialRecord credential,
         CancellationToken cancellationToken)

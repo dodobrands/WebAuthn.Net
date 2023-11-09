@@ -21,10 +21,9 @@ public class DefaultMySqlContext : IWebAuthnContext
 
     public MySqlConnection Connection { get; }
     public MySqlTransaction Transaction { get; }
-
     public HttpContext HttpContext { get; }
 
-    public async Task CommitAsync(CancellationToken cancellationToken)
+    public virtual async Task CommitAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await Transaction.CommitAsync(cancellationToken);

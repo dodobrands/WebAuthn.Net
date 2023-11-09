@@ -71,7 +71,7 @@ public class MySqlUserCredentialRecord
 
     public long CreatedAtUnixTime { get; set; }
 
-    public bool TryMapToResult([NotNullWhen(true)] out UserCredentialRecord? result)
+    public virtual bool TryMapToResult([NotNullWhen(true)] out UserCredentialRecord? result)
     {
         result = null;
         var publicKeyCredentialType = (PublicKeyCredentialType) Type;

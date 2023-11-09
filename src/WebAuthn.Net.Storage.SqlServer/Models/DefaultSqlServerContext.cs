@@ -21,10 +21,9 @@ public class DefaultSqlServerContext : IWebAuthnContext
 
     public SqlConnection Connection { get; }
     public SqlTransaction Transaction { get; }
-
     public HttpContext HttpContext { get; }
 
-    public async Task CommitAsync(CancellationToken cancellationToken)
+    public virtual async Task CommitAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await Transaction.CommitAsync(cancellationToken);

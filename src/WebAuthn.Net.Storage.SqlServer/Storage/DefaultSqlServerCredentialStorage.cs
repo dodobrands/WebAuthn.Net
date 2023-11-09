@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -14,17 +14,21 @@ using WebAuthn.Net.Storage.SqlServer.Storage.Models;
 
 namespace WebAuthn.Net.Storage.SqlServer.Storage;
 
-public class DefaultSqlSeverCredentialStorage<TContext> : ICredentialStorage<TContext>
+public class DefaultSqlServerCredentialStorage<TContext> : ICredentialStorage<TContext>
     where TContext : DefaultSqlServerContext
 {
-    public DefaultSqlSeverCredentialStorage(ITimeProvider timeProvider)
+    public DefaultSqlServerCredentialStorage(ITimeProvider timeProvider)
     {
         TimeProvider = timeProvider;
     }
 
     protected ITimeProvider TimeProvider { get; }
 
-    public async Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(TContext context, string rpId, byte[] userHandle, CancellationToken cancellationToken)
+    public virtual async Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
+        TContext context,
+        string rpId,
+        byte[] userHandle,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
@@ -62,7 +66,12 @@ WHERE RpId = @rpId AND UserHandle = @userHandle;",
         return result;
     }
 
-    public async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(TContext context, string rpId, byte[] userHandle, byte[] credentialId, CancellationToken cancellationToken)
+    public virtual async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
+        TContext context,
+        string rpId,
+        byte[] userHandle,
+        byte[] credentialId,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
@@ -112,7 +121,10 @@ WHERE RpId = @rpId AND UserHandle = @userHandles AND CredentialId = @credentialI
         return result;
     }
 
-    public async Task<bool> SaveIfNotRegisteredForOtherUserAsync(TContext context, UserCredentialRecord credential, CancellationToken cancellationToken)
+    public virtual async Task<bool> SaveIfNotRegisteredForOtherUserAsync(
+        TContext context,
+        UserCredentialRecord credential,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(credential);
@@ -219,7 +231,10 @@ VALUES
         return rowsAffected > 0;
     }
 
-    public async Task<bool> UpdateCredentialAsync(TContext context, UserCredentialRecord credential, CancellationToken cancellationToken)
+    public virtual async Task<bool> UpdateCredentialAsync(
+        TContext context,
+        UserCredentialRecord credential,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(credential);

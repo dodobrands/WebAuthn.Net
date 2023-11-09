@@ -5,6 +5,7 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Storage.RegistrationCeremony.Implementation;
 using WebAuthn.Net.Storage.SqlServer.Configuration.Builder;
+using WebAuthn.Net.Storage.SqlServer.Configuration.Options;
 using WebAuthn.Net.Storage.SqlServer.Models;
 using WebAuthn.Net.Storage.SqlServer.Services.ContextFactory;
 using WebAuthn.Net.Storage.SqlServer.Storage;
@@ -25,8 +26,14 @@ public static class ServiceCollectionExtensions
             .AddWebAuthnCore<DefaultSqlServerContext>(configureCore)
             .AddDefaultStorages(configureRegistration, configureAuthentication)
             .AddContextFactory<DefaultSqlServerContext, DefaultSqlServerContextFactory>()
-            .AddCredentialStorage<DefaultSqlServerContext, DefaultSqlSeverCredentialStorage<DefaultSqlServerContext>>();
-        return new SqlServerWebAuthnBuilder<DefaultSqlServerContext>(services)
-            .AddSqlServerCoreServices(configureSqlServer);
+            .AddCredentialStorage<DefaultSqlServerContext, DefaultSqlServerCredentialStorage<DefaultSqlServerContext>>();
+
+        services.AddOptions<SqlServerOptions>();
+        if (configureSqlServer is not null)
+        {
+            services.Configure(configureSqlServer);
+        }
+
+        return new SqlServerWebAuthnBuilder<DefaultSqlServerContext>(services);
     }
 }

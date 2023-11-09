@@ -27,7 +27,13 @@ public static class ServiceCollectionExtensions
             .AddDefaultStorages(configureRegistration, configureAuthentication)
             .AddContextFactory<DefaultMySqlContext, DefaultMySqlContextFactory>()
             .AddCredentialStorage<DefaultMySqlContext, DefaultMySqlCredentialStorage<DefaultMySqlContext>>();
-        return new MySqlWebAuthnBuilder<DefaultMySqlContext>(services)
-            .AddMySqlCoreServices(configureMySql);
+
+        services.AddOptions<MySqlOptions>();
+        if (configureMySql is not null)
+        {
+            services.Configure(configureMySql);
+        }
+
+        return new MySqlWebAuthnBuilder<DefaultMySqlContext>(services);
     }
 }
