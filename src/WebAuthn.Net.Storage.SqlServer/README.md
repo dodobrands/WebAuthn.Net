@@ -1,6 +1,6 @@
 ## WebAuthn.Net.Storage.SqlServer
 
-This project contains an implementation of interfaces responsible for data storage and is intended for use with SqlServer 2019+.
+This project contains an implementation of interfaces responsible for data storage and is intended for use with Microsoft SQL Server 2019+.
 
 ## Database schema
 
@@ -8,6 +8,9 @@ As the library is intended to be integrated into existing applications, they may
 
 > [!WARNING]
 > Please note that having a **unique index** on the `RpId`, `UserHandle`, and `CredentialId` columns is **required**, as the combination of these property values acts as a descriptor, uniquely identifying the public key.
+
+> [!WARNING]
+> Please note, that the identifier generator creates sequential identifiers, **compatible only with the uniqueidentifier** data type and passed as `System.Guid` parameters in queries. If you use `binary(16)` instead of `uniqueidentifier` when creating a table schema for the primary key, you will experience **significant performance degradation**.
 
 ```tsql
 CREATE TABLE [CredentialRecords] (
@@ -42,5 +45,5 @@ CREATE UNIQUE INDEX [IX_CredentialRecords_RpId_UserHandle_CredentialId] ON [Cred
 To start a local test container, execute the following command
 
 ```shell
-docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=RootooR32!" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-CU23-ubuntu-20.04
+docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=RootooR32!" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
 ```
