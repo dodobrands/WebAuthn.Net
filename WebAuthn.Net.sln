@@ -32,6 +32,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAuthn.Net.Storage.SqlSer
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAuthn.Net.Storage.PostgreSql", "src\WebAuthn.Net.Storage.PostgreSql\WebAuthn.Net.Storage.PostgreSql.csproj", "{9955D903-6881-4285-83EC-EFFD7C5F286D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAuthn.Net.Storage.InMemory", "src\WebAuthn.Net.Storage.InMemory\WebAuthn.Net.Storage.InMemory.csproj", "{54D47620-A898-4677-8C2B-AAB43D9D1E2C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,6 +63,10 @@ Global
 		{9955D903-6881-4285-83EC-EFFD7C5F286D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9955D903-6881-4285-83EC-EFFD7C5F286D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9955D903-6881-4285-83EC-EFFD7C5F286D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54D47620-A898-4677-8C2B-AAB43D9D1E2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54D47620-A898-4677-8C2B-AAB43D9D1E2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54D47620-A898-4677-8C2B-AAB43D9D1E2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54D47620-A898-4677-8C2B-AAB43D9D1E2C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{E213A9D0-0AF5-49A5-8649-57CD57BA2DD2} = {1AFD2F40-4DF0-40FC-BE14-B5B939E36A1D}
@@ -71,5 +77,6 @@ Global
 		{F50CB250-99ED-46D7-9325-6B21E7962DBB} = {19131E38-A34B-4D5C-A917-34BDDEA3805D}
 		{0A2A9B04-1EDD-414E-B332-DCBBB0B2BA85} = {1AFD2F40-4DF0-40FC-BE14-B5B939E36A1D}
 		{9955D903-6881-4285-83EC-EFFD7C5F286D} = {1AFD2F40-4DF0-40FC-BE14-B5B939E36A1D}
+		{54D47620-A898-4677-8C2B-AAB43D9D1E2C} = {1AFD2F40-4DF0-40FC-BE14-B5B939E36A1D}
 	EndGlobalSection
 EndGlobal
