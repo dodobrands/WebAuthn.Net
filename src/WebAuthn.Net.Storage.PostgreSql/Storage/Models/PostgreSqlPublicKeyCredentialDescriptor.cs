@@ -1,11 +1,10 @@
-using System;
+﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 
 namespace WebAuthn.Net.Storage.PostgreSql.Storage.Models;
 
-[SuppressMessage("Design", "CA1812:Avoid uninstantiated internal classes")]
 public class PostgreSqlPublicKeyCredentialDescriptor
 {
     public PostgreSqlPublicKeyCredentialDescriptor(int type, byte[] credentialId, int[] transports, long createdAtUnixTime)
@@ -24,7 +23,7 @@ public class PostgreSqlPublicKeyCredentialDescriptor
 
     public long CreatedAtUnixTime { get; }
 
-    public bool TryMapToResult([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
+    public virtual bool TryMapToResult([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
     {
         result = null;
         var type = (PublicKeyCredentialType) Type;

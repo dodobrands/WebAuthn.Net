@@ -5,6 +5,7 @@ using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Storage.PostgreSql.Configuration.Builder;
+using WebAuthn.Net.Storage.PostgreSql.Configuration.Options;
 using WebAuthn.Net.Storage.PostgreSql.Models;
 using WebAuthn.Net.Storage.PostgreSql.Services.ContextFactory;
 using WebAuthn.Net.Storage.PostgreSql.Services.Dapper;
@@ -27,11 +28,15 @@ public static class ServiceCollectionExtensions
             .AddWebAuthnCore<DefaultPostgreSqlContext>(configureCore)
             .AddDefaultStorages(configureRegistration, configureAuthentication)
             .AddContextFactory<DefaultPostgreSqlContext, DefaultPostgreSqlContextFactory>()
-            .AddCredentialStorage<DefaultPostgreSqlContext, DefaultPostgreSqlSeverCredentialStorage<DefaultPostgreSqlContext>>();
+            .AddCredentialStorage<DefaultPostgreSqlContext, DefaultPostgreSqlCredentialStorage<DefaultPostgreSqlContext>>();
 
         SqlMapper.AddTypeHandler(new GenericArrayHandler<int>());
+        services.AddOptions<PostgreSqlOptions>();
+        if (configurePostgreSql is not null)
+        {
+            services.Configure(configurePostgreSql);
+        }
 
-        return new PostgreSqlWebAuthnBuilder<DefaultPostgreSqlContext>(services)
-            .AddPostgreSqlCoreServices(configurePostgreSql);
+        return new PostgreSqlWebAuthnBuilder<DefaultPostgreSqlContext>(services);
     }
 }
