@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using WebAuthn.Net.Models.Protocol;

@@ -1,9 +1,9 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 
-namespace WebAuthn.Net.Storage.Postgres.Storage.Models;
+namespace WebAuthn.Net.Storage.PostgreSql.Storage.Models;
 
 [SuppressMessage("Design", "CA1812:Avoid uninstantiated internal classes")]
 public class PostgreSqlPublicKeyCredentialDescriptor

@@ -1,29 +1,28 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>false</EmbedUntrackedSources>
-    <DebugType>embedded</DebugType>
-    <IncludeSymbols>true</IncludeSymbols>
-    <Version>$(VERSION_RELEASE)</Version>
-    <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>false</EmbedUntrackedSources>
+        <DebugType>embedded</DebugType>
+        <IncludeSymbols>true</IncludeSymbols>
+        <Version>$(VERSION_RELEASE)</Version>
+        <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath=""/>
-  </ItemGroup>
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.15" />
-    <PackageReference Include="MySqlConnector" Version="2.2.7" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Dapper" Version="2.1.15" />
+        <PackageReference Include="MySqlConnector" Version="2.2.7" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\WebAuthn.Net.Storage.Shared\WebAuthn.Net.Storage.Shared.csproj" />
-    <ProjectReference Include="..\WebAuthn.Net\WebAuthn.Net.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\WebAuthn.Net\WebAuthn.Net.csproj" />
+    </ItemGroup>
 
 </Project>

@@ -1,12 +1,16 @@
+using System;
+using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Dapper;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Storage.Credential;
 using WebAuthn.Net.Storage.Credential.Models;
-using WebAuthn.Net.Storage.Shared;
 using WebAuthn.Net.Storage.SqlServer.Models;
 using WebAuthn.Net.Storage.SqlServer.Storage.Models;
+using WebAuthn.Net.Storage.SqlServer.Storage.Static;
 
 namespace WebAuthn.Net.Storage.SqlServer.Storage;
 

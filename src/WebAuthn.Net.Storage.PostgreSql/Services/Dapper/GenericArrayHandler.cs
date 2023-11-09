@@ -1,10 +1,11 @@
+using System;
 using System.Data;
 using Dapper;
 
-namespace WebAuthn.Net.Storage.Postgres.Configuration.TypeHandlers;
+namespace WebAuthn.Net.Storage.PostgreSql.Services.Dapper;
 
 /// <summary>
-/// https://www.niedermann.dk/2021/09/23/using-the-postgresql-array-type-with-dapper/
+///     https://www.niedermann.dk/2021/09/23/using-the-postgresql-array-type-with-dapper/
 /// </summary>
 public class GenericArrayHandler<T> : SqlMapper.TypeHandler<T[]>
 {
@@ -14,5 +15,8 @@ public class GenericArrayHandler<T> : SqlMapper.TypeHandler<T[]>
         parameter.Value = value;
     }
 
-    public override T[] Parse(object value) => (T[]) value;
+    public override T[] Parse(object value)
+    {
+        return (T[]) value;
+    }
 }

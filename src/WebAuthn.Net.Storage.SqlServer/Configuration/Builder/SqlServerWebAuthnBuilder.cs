@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System;
+using Microsoft.Extensions.DependencyInjection;
 using WebAuthn.Net.Storage.SqlServer.Configuration.Options;
 using WebAuthn.Net.Storage.SqlServer.Models;
 

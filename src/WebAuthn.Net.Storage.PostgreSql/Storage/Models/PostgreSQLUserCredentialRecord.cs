@@ -1,12 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
 using WebAuthn.Net.Storage.Credential.Models;
 
-namespace WebAuthn.Net.Storage.Postgres.Storage.Models;
+namespace WebAuthn.Net.Storage.PostgreSql.Storage.Models;
 
 public class PostgreSqlUserCredentialRecord
 {

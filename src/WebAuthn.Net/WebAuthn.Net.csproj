@@ -1,39 +1,39 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>false</EmbedUntrackedSources>
-    <DebugType>embedded</DebugType>
-    <IncludeSymbols>true</IncludeSymbols>
-    <Version>$(VERSION_RELEASE)</Version>
-    <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>false</EmbedUntrackedSources>
+        <DebugType>embedded</DebugType>
+        <IncludeSymbols>true</IncludeSymbols>
+        <Version>$(VERSION_RELEASE)</Version>
+        <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath=""/>
-  </ItemGroup>
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App"/>
-  </ItemGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
-    <PackageReference Include="System.Formats.Cbor" Version="6.0.0" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
+        <PackageReference Include="System.Formats.Cbor" Version="6.0.0" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Remove="Services\**\*.der" />
-    <EmbeddedResource Include="Services\**\*.der" />
-  </ItemGroup>
+    <ItemGroup>
+        <None Remove="Services\**\*.der" />
+        <EmbeddedResource Include="Services\**\*.der" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Remove="Services\**\*.pem" />
-    <EmbeddedResource Include="Services\**\*.pem" />
-  </ItemGroup>
+    <ItemGroup>
+        <None Remove="Services\**\*.pem" />
+        <EmbeddedResource Include="Services\**\*.pem" />
+    </ItemGroup>
 
 </Project>

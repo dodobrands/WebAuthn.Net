@@ -1,6 +1,6 @@
 ﻿using System.Data;
 
-namespace WebAuthn.Net.Storage.Postgres.Configuration.Options;
+namespace WebAuthn.Net.Storage.PostgreSql.Configuration.Options;
 
 public class PostgreSqlCeremonyTransactionOptions
 {

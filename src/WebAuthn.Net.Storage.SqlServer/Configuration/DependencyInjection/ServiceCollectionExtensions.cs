@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System;
+using Microsoft.Extensions.DependencyInjection;
 using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;

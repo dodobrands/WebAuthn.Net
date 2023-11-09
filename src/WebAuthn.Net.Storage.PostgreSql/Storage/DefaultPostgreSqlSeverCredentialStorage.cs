@@ -1,13 +1,17 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Dapper;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Storage.Credential;
 using WebAuthn.Net.Storage.Credential.Models;
-using WebAuthn.Net.Storage.Postgres.Models;
-using WebAuthn.Net.Storage.Postgres.Storage.Models;
-using WebAuthn.Net.Storage.Shared;
+using WebAuthn.Net.Storage.PostgreSql.Models;
+using WebAuthn.Net.Storage.PostgreSql.Services.Static;
+using WebAuthn.Net.Storage.PostgreSql.Storage.Models;
 
-namespace WebAuthn.Net.Storage.Postgres.Storage;
+namespace WebAuthn.Net.Storage.PostgreSql.Storage;
 
 public class DefaultPostgreSqlSeverCredentialStorage<TContext> : ICredentialStorage<TContext>
     where TContext : DefaultPostgreSqlContext

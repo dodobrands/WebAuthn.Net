@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Npgsql;
 using WebAuthn.Net.Models.Abstractions;
 
-namespace WebAuthn.Net.Storage.Postgres.Models;
+namespace WebAuthn.Net.Storage.PostgreSql.Models;
 
 public class DefaultPostgreSqlContext : IWebAuthnContext
 {
