@@ -43,7 +43,6 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
                     return IsValid(
                         verificationResult.AttestationTrustPath,
                         verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.ToArray(),
-                        verificationResult.AcceptableTrustAnchors.AttestationRootRsaPublicKeys,
                         Options.CurrentValue.X509ChainValidation.OnValidateCertificateChain);
                 }
             case AttestationType.Basic:
@@ -63,7 +62,6 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
                     return IsValid(
                         verificationResult.AttestationTrustPath,
                         verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.ToArray(),
-                        verificationResult.AcceptableTrustAnchors.AttestationRootRsaPublicKeys,
                         Options.CurrentValue.X509ChainValidation.OnValidateCertificateChain);
                 }
             case AttestationType.None:
@@ -80,7 +78,6 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
     protected virtual bool IsValid(
         byte[][] attestationTrustPath,
         byte[][] attestationRootCertificates,
-        byte[][]? attestationRootRsaPublicKeys,
         Action<X509Chain> configureChain)
     {
         var isChainOverCertificatesValid = X509TrustChainValidator.IsValidAttestationTrustPath(

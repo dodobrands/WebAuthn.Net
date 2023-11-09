@@ -41,7 +41,7 @@ public class PublicKeyCredentialUserEntity
 
         // id
         ArgumentNullException.ThrowIfNull(id);
-        if (id.Length < 1)
+        if (id.Length == 0)
         {
             throw new ArgumentException("The array must contain at least 1 byte", nameof(id));
         }

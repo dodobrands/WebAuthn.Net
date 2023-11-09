@@ -99,8 +99,10 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             }
 
             var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
-            await storage.StoreAsync(decodeMetadataResult.Ok, CancellationToken.None);
             var metadataService = new DefaultFidoMetadataService<FakeWebAuthnContext>(storage);
+            await metadataService.UpsertAsync(
+                decodeMetadataResult.Ok,
+                CancellationToken.None);
             attestationCertificateInspector = new(
                 metadataService,
                 asn1Decoder);

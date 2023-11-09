@@ -29,7 +29,7 @@ public static class AppleRoots
                 parts.RemoveAt(0);
             }
 
-            if (parts.Count < 1)
+            if (parts.Count == 0)
             {
                 throw new InvalidOperationException($"Can't get root certificate from resource name: {embeddedResource}");
             }
@@ -58,7 +58,7 @@ public static class AppleRoots
             result.Add(certBytes);
         }
 
-        if (result.Count < 1)
+        if (result.Count == 0)
         {
             throw new InvalidOperationException("There is no embedded root certificates for Apple");
         }

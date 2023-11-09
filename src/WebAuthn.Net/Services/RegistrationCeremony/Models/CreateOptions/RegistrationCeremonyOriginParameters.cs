@@ -7,7 +7,7 @@ public class RegistrationCeremonyOriginParameters
     public RegistrationCeremonyOriginParameters(string[] allowedOrigins)
     {
         ArgumentNullException.ThrowIfNull(allowedOrigins);
-        if (allowedOrigins.Length < 1)
+        if (allowedOrigins.Length == 0)
         {
             throw new ArgumentException($"The {nameof(allowedOrigins)} must contain at least one element", nameof(allowedOrigins));
         }
@@ -18,7 +18,7 @@ public class RegistrationCeremonyOriginParameters
     public RegistrationCeremonyOriginParameters(Uri[] origins)
     {
         ArgumentNullException.ThrowIfNull(origins);
-        if (origins.Length < 1)
+        if (origins.Length == 0)
         {
             throw new ArgumentException($"The {nameof(origins)} must contain at least one element", nameof(origins));
         }

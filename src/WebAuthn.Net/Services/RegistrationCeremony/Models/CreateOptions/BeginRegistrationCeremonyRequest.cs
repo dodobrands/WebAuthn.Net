@@ -106,7 +106,7 @@ public class BeginRegistrationCeremonyRequest
 
         // pubKeyCredParams
         ArgumentNullException.ThrowIfNull(pubKeyCredParams);
-        if (pubKeyCredParams.Length < 1)
+        if (pubKeyCredParams.Length == 0)
         {
             throw new ArgumentException($"The {nameof(pubKeyCredParams)} must contain at least one element", nameof(pubKeyCredParams));
         }

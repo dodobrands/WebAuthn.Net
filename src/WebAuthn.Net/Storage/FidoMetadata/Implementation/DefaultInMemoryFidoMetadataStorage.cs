@@ -12,16 +12,6 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> : IFidoMetadataStorage
 {
     protected MetadataBlobPayload? Blob { get; set; }
 
-    public Task StoreAsync(
-        TContext context,
-        MetadataBlobPayload blob,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        Blob = blob;
-        return Task.CompletedTask;
-    }
-
     public Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
         TContext context,
         Guid aaguid,
@@ -56,10 +46,10 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> : IFidoMetadataStorage
         return Task.FromResult(entry);
     }
 
-    public virtual Task StoreAsync(MetadataBlobPayload blob, CancellationToken cancellationToken)
+    public Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Blob = blob;
+        Blob = metadataBlob;
         return Task.CompletedTask;
     }
 }

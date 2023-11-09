@@ -173,7 +173,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
 
         // 5) Verify that x5c is present.
-        if (attStmt.X5C.Length < 1)
+        if (attStmt.X5C.Length == 0)
         {
             return Result<AttestationStatementVerificationResult>.Fail();
         }
@@ -295,7 +295,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             }
         }
 
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates, null));
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates));
     }
 
     protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()

@@ -92,7 +92,7 @@ public class InMemoryUserCredentialRecord
             return null;
         }
 
-        if (src.Length < 1)
+        if (src.Length == 0)
         {
             return Array.Empty<T>();
         }

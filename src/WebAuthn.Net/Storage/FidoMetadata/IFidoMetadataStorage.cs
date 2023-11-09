@@ -9,11 +9,6 @@ namespace WebAuthn.Net.Storage.FidoMetadata;
 public interface IFidoMetadataStorage<TContext>
     where TContext : class, IWebAuthnContext
 {
-    Task StoreAsync(
-        TContext context,
-        MetadataBlobPayload blob,
-        CancellationToken cancellationToken);
-
     Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
         TContext context,
         Guid aaguid,
@@ -22,5 +17,9 @@ public interface IFidoMetadataStorage<TContext>
     Task<MetadataBlobPayloadEntry?> FindBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
+        CancellationToken cancellationToken);
+
+    Task UpsertAsync(
+        MetadataBlobPayload metadataBlob,
         CancellationToken cancellationToken);
 }

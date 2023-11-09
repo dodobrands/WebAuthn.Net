@@ -54,7 +54,7 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
         return HandleMetadataStatement(entry.MetadataStatement);
     }
 
-    public async Task<Optional<FidoMetadataResult>> FindMetadataBySubjectKeyIdentifierAsync(
+    public virtual async Task<Optional<FidoMetadataResult>> FindMetadataBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
         CancellationToken cancellationToken)
@@ -89,6 +89,14 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
         return HandleMetadataStatement(entry.MetadataStatement);
     }
 
+    public virtual async Task UpsertAsync(
+        MetadataBlobPayload metadataBlob,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await MetadataStorage.UpsertAsync(metadataBlob, cancellationToken);
+    }
+
     protected virtual Optional<FidoMetadataResult> HandleMetadataStatement(MetadataStatement metadataStatement)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -116,7 +124,7 @@ public class DefaultFidoMetadataService<TContext> : IFidoMetadataService<TContex
             allowedRootCertificates.Add(attestationRootCertificate);
         }
 
-        if (allowedRootCertificates.Count < 1)
+        if (allowedRootCertificates.Count == 0)
         {
             return Optional<FidoMetadataResult>.Empty();
         }

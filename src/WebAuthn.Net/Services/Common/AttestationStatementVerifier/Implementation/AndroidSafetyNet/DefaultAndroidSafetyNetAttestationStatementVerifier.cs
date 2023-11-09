@@ -222,7 +222,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             }
         }
 
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates, null));
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates));
     }
 
     protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()

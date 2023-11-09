@@ -193,8 +193,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             }
         }
 
-        var embeddedRsaKeys = GetEmbeddedRsaKeys();
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates, embeddedRsaKeys));
+        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates));
     }
 
     protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
@@ -205,11 +204,6 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     protected virtual byte[][] GetEmbeddedRootCertificates()
     {
         return AndroidKeyRoots.Certificates;
-    }
-
-    protected virtual byte[][] GetEmbeddedRsaKeys()
-    {
-        return AndroidKeyRoots.RootRsaKeys;
     }
 
     protected virtual bool IsAuthorizationListDataValid(Asn1Sequence keyDescription)

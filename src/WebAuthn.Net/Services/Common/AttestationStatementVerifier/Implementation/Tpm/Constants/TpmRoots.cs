@@ -36,7 +36,7 @@ public static class TpmRoots
                 parts.RemoveAt(0);
             }
 
-            if (parts.Count < 1)
+            if (parts.Count == 0)
             {
                 throw new InvalidOperationException($"Can't get TPM vendor name from resource name: {embeddedResource}");
             }
@@ -69,7 +69,7 @@ public static class TpmRoots
             }
         }
 
-        if (result.Count < 1)
+        if (result.Count == 0)
         {
             throw new InvalidOperationException($"There is no embedded certificates for vendor: {vendor}");
         }
