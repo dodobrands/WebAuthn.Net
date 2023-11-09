@@ -9,8 +9,8 @@ using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Storage.Credential;
 using WebAuthn.Net.Storage.Credential.Models;
 using WebAuthn.Net.Storage.SqlServer.Models;
+using WebAuthn.Net.Storage.SqlServer.Services.Static;
 using WebAuthn.Net.Storage.SqlServer.Storage.Models;
-using WebAuthn.Net.Storage.SqlServer.Storage.Static;
 
 namespace WebAuthn.Net.Storage.SqlServer.Storage;
 
