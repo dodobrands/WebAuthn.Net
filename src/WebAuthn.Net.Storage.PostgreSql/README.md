@@ -1,4 +1,4 @@
-## WebAuthn.Net.Storage.PostgreSQL
+## WebAuthn.Net.Storage.PostgreSql
 
 This project contains an implementation of interfaces responsible for data storage and is intended for use with PostgreSQL 16.0+.
 
