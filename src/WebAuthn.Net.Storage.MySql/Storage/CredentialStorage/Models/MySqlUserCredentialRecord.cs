@@ -146,7 +146,7 @@ public class MySqlUserCredentialRecord
 
         var credentialRecord = new CredentialRecord(
             publicKeyCredentialType,
-            Id,
+            CredentialId,
             publicKey,
             SignCount,
             authenticatorTransports,

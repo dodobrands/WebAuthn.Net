@@ -146,7 +146,7 @@ public class SqlServerUserCredentialRecord
 
         var credentialRecord = new CredentialRecord(
             publicKeyCredentialType,
-            Id,
+            CredentialId,
             publicKey,
             SignCount,
             authenticatorTransports,
