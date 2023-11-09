@@ -13,8 +13,7 @@ namespace WebAuthn.Net.Storage.SqlServer.Storage.Models;
 public class SqlServerUserCredentialRecord
 {
     [Required]
-    [MaxLength(16)]
-    public byte[] Id { get; set; } = null!;
+    public Guid Id { get; set; }
 
     [Required]
     [MaxLength(300)]
