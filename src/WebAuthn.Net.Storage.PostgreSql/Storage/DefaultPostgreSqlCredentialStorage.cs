@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
@@ -154,6 +155,7 @@ WHERE
 
         var id = UuidVersion7Generator.Generate();
         var timestamp = TimeProvider.GetPreciseUtcDateTime().ToUnixTimeSeconds();
+        var transportsJson = JsonSerializer.Serialize(credential.CredentialRecord.Transports);
         var rowsAffected = await context.Connection.ExecuteAsync(new(@"
 INSERT INTO ""CredentialRecords""
 (
@@ -216,7 +218,7 @@ VALUES
                 rsaModulusN = credential.CredentialRecord.PublicKey.Rsa?.ModulusN,
                 rsaExponentE = credential.CredentialRecord.PublicKey.Rsa?.ExponentE,
                 signCount = credential.CredentialRecord.SignCount,
-                transports = credential.CredentialRecord.Transports,
+                transports = transportsJson,
                 uvInitialized = credential.CredentialRecord.UvInitialized,
                 backupEligible = credential.CredentialRecord.BackupEligible,
                 backupState = credential.CredentialRecord.BackupState,
@@ -239,6 +241,7 @@ VALUES
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(credential);
         cancellationToken.ThrowIfCancellationRequested();
+        var transportsJson = JsonSerializer.Serialize(credential.CredentialRecord.Transports);
         var rowsAffected = await context.Connection.ExecuteAsync(new(@"
 UPDATE ""CredentialRecords""
 SET
@@ -272,7 +275,7 @@ WHERE
                 rsaModulusN = credential.CredentialRecord.PublicKey.Rsa?.ModulusN,
                 rsaExponentE = credential.CredentialRecord.PublicKey.Rsa?.ExponentE,
                 signCount = credential.CredentialRecord.SignCount,
-                transports = credential.CredentialRecord.Transports,
+                transports = transportsJson,
                 uvInitialized = credential.CredentialRecord.UvInitialized,
                 backupEligible = credential.CredentialRecord.BackupEligible,
                 backupState = credential.CredentialRecord.BackupState,

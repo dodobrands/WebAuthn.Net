@@ -24,7 +24,7 @@ CREATE TABLE "CredentialRecords" (
  "RsaModulusN" bytea,
  "RsaExponentE" bytea,
  "SignCount" bigint NOT NULL,
- "Transports" integer[] NOT NULL,
+ "Transports" jsonb NOT NULL,
  "UvInitialized" boolean NOT NULL,
  "BackupEligible" boolean NOT NULL,
  "BackupState" boolean NOT NULL,
