@@ -8,7 +8,6 @@ using WebAuthn.Net.Storage.PostgreSql.Configuration.Builder;
 using WebAuthn.Net.Storage.PostgreSql.Configuration.Options;
 using WebAuthn.Net.Storage.PostgreSql.Models;
 using WebAuthn.Net.Storage.PostgreSql.Services.ContextFactory;
-using WebAuthn.Net.Storage.PostgreSql.Services.Dapper;
 using WebAuthn.Net.Storage.PostgreSql.Storage;
 using WebAuthn.Net.Storage.RegistrationCeremony.Implementation;
 
@@ -30,7 +29,6 @@ public static class ServiceCollectionExtensions
             .AddContextFactory<DefaultPostgreSqlContext, DefaultPostgreSqlContextFactory>()
             .AddCredentialStorage<DefaultPostgreSqlContext, DefaultPostgreSqlCredentialStorage<DefaultPostgreSqlContext>>();
 
-        SqlMapper.AddTypeHandler(new GenericArrayHandler<int>());
         services.AddOptions<PostgreSqlOptions>();
         if (configurePostgreSql is not null)
         {
