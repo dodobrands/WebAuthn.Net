@@ -23,8 +23,8 @@ public class DefaultInMemoryContext : IWebAuthnContext
 
     public async ValueTask DisposeAsync()
     {
-        GC.SuppressFinalize(this);
         await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
     }
 
     protected virtual ValueTask DisposeAsyncCore()

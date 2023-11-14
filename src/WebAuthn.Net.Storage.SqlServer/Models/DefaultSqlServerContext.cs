@@ -31,8 +31,8 @@ public class DefaultSqlServerContext : IWebAuthnContext
 
     public async ValueTask DisposeAsync()
     {
-        GC.SuppressFinalize(this);
         await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
     }
 
     protected virtual async ValueTask DisposeAsyncCore()
