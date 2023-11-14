@@ -1,5 +1,4 @@
 ﻿using System;
-using Dapper;
 using Microsoft.Extensions.DependencyInjection;
 using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Configuration.Options;
