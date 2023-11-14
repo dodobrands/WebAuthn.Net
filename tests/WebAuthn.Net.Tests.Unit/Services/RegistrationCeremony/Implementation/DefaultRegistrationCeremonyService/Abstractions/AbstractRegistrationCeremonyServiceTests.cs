@@ -28,8 +28,9 @@ using WebAuthn.Net.Services.Common.ClientDataDecoder.Implementation;
 using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestService;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataService;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
@@ -99,12 +100,13 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             }
 
             var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
-            var metadataService = new DefaultFidoMetadataService<FakeWebAuthnContext>(storage);
-            await metadataService.UpsertAsync(
+            var metadataSearchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage);
+            var metadataIngestService = new DefaultFidoMetadataIngestService(storage);
+            await metadataIngestService.UpsertAsync(
                 decodeMetadataResult.Ok,
                 CancellationToken.None);
             attestationCertificateInspector = new(
-                metadataService,
+                metadataSearchService,
                 asn1Decoder);
         }
 

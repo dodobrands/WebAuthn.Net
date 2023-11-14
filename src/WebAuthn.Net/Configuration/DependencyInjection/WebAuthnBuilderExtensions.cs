@@ -128,10 +128,10 @@ public static class WebAuthnBuilderExtensions
     public static IWebAuthnBuilder<TContext> AddFidoMetadataStorage<TContext, TFidoMetadataStorageImpl>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
-        where TFidoMetadataStorageImpl : class, IFidoMetadataStorage<TContext>
+        where TFidoMetadataStorageImpl : class, IFidoMetadataSearchStorage<TContext>
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.TryAddSingleton<IFidoMetadataStorage<TContext>, TFidoMetadataStorageImpl>();
+        builder.Services.TryAddSingleton<IFidoMetadataSearchStorage<TContext>, TFidoMetadataStorageImpl>();
         return builder;
     }
 

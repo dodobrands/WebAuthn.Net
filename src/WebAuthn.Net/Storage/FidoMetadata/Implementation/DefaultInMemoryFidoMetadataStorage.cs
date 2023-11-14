@@ -7,10 +7,19 @@ using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 
 namespace WebAuthn.Net.Storage.FidoMetadata.Implementation;
 
-public class DefaultInMemoryFidoMetadataStorage<TContext> : IFidoMetadataStorage<TContext>
+public class DefaultInMemoryFidoMetadataStorage<TContext> :
+    IFidoMetadataSearchStorage<TContext>,
+    IFidoMetadataIngestStorage
     where TContext : class, IWebAuthnContext
 {
     protected MetadataBlobPayload? Blob { get; set; }
+
+    public Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Blob = metadataBlob;
+        return Task.CompletedTask;
+    }
 
     public Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
         TContext context,
@@ -44,12 +53,5 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> : IFidoMetadataStorage
             x.AttestationCertificateKeyIdentifiers is not null
             && x.AttestationCertificateKeyIdentifiers.Any(y => y.AsSpan().SequenceEqual(subjectKeyIdentifier.AsSpan())));
         return Task.FromResult(entry);
-    }
-
-    public Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        Blob = metadataBlob;
-        return Task.CompletedTask;
     }
 }

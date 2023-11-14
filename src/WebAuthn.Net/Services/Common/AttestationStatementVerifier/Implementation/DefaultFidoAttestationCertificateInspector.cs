@@ -26,16 +26,16 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
     where TContext : class, IWebAuthnContext
 {
     public DefaultFidoAttestationCertificateInspector(
-        IFidoMetadataService<TContext> fidoMetadataService,
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService,
         IAsn1Decoder asn1Decoder)
     {
-        ArgumentNullException.ThrowIfNull(fidoMetadataService);
+        ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
-        FidoMetadataService = fidoMetadataService;
+        FidoMetadataSearchService = fidoMetadataSearchService;
         Asn1Decoder = asn1Decoder;
     }
 
-    protected IFidoMetadataService<TContext> FidoMetadataService { get; }
+    protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
 
     public async Task<Result<Optional<FidoAttestationCertificateInspectionResult>>> InspectAttestationCertificateAsync(
@@ -107,7 +107,7 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var metadata = await FidoMetadataService.FindMetadataBySubjectKeyIdentifierAsync(
+        var metadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
             context,
             subjectKeyIdentifier,
             cancellationToken);
@@ -139,7 +139,7 @@ public class DefaultFidoAttestationCertificateInspector<TContext>
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var metadata = await FidoMetadataService.FindMetadataByAaguidAsync(
+        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
             context,
             aaguid,
             cancellationToken);

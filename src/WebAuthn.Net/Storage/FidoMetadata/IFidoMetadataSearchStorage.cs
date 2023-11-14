@@ -6,7 +6,7 @@ using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 
 namespace WebAuthn.Net.Storage.FidoMetadata;
 
-public interface IFidoMetadataStorage<TContext>
+public interface IFidoMetadataSearchStorage<TContext>
     where TContext : class, IWebAuthnContext
 {
     Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
@@ -17,9 +17,5 @@ public interface IFidoMetadataStorage<TContext>
     Task<MetadataBlobPayloadEntry?> FindBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
-        CancellationToken cancellationToken);
-
-    Task UpsertAsync(
-        MetadataBlobPayload metadataBlob,
         CancellationToken cancellationToken);
 }
