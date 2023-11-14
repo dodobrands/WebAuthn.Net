@@ -7,12 +7,12 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService;
+using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
+namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.AttestationTypes;
 
 public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthenticationCeremonyServiceTests
 {
@@ -48,7 +48,7 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("8jSRetKG3xneEajEfed_vmEb9U7bXZ2yrBcvytlj-cI"));
 
-        var competeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
+        var completeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(beginResult.RegistrationCeremonyId, new(
                 "OThmNjc3YmUtMDEwNy00Mzg0LWEzMGMtODczMmI5ZDFiOGI0",
@@ -65,7 +65,7 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.Successful, Is.True);
+        Assert.That(completeResult.Successful, Is.True);
     }
 
     [Test]
@@ -93,7 +93,7 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
             beginResult.AuthenticationCeremonyId,
             WebEncoders.Base64UrlDecode("mm8-K3sJH6aY0bxmLRQIVo65TKDhPiPD862sOvx23sk"));
 
-        var competeResult = await AuthenticationCeremonyService.CompleteCeremonyAsync(
+        var completeResult = await AuthenticationCeremonyService.CompleteCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(beginResult.AuthenticationCeremonyId,
                 new("OThmNjc3YmUtMDEwNy00Mzg0LWEzMGMtODczMmI5ZDFiOGI0",
@@ -107,6 +107,6 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
                     null,
                     "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.Successful, Is.True);
+        Assert.That(completeResult.Successful, Is.True);
     }
 }

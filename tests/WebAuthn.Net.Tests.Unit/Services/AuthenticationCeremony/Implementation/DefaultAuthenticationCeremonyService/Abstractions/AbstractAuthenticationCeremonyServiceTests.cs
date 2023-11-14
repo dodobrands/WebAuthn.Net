@@ -39,7 +39,7 @@ using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata.Implementation;
 
-namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService;
+namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 
 [TestFixture]
 public abstract class AbstractAuthenticationCeremonyServiceTests
@@ -67,7 +67,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var tpmManufacturerVerifier = new DefaultTpmManufacturerVerifier();
         var coseDecoder = new DefaultCoseKeyDecoder(cborDecoder, NullLogger<DefaultCoseKeyDecoder>.Instance);
 
-        var fakeContextFactory = new FakeWebAuthnContextFactory();
+        ContextFactory = new();
         var rpAddress = GetRelyingPartyAddress();
         var rpIdProvider = new FakeRelyingPartyIdProvider(rpAddress);
         var rpOriginProvider = new FakeRelyingPartyOriginProvider(rpAddress);
@@ -168,7 +168,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
 
         RegistrationCeremonyService = new(
             Options,
-            fakeContextFactory,
+            ContextFactory,
             rpIdProvider,
             rpOriginProvider,
             challengeGenerator,
@@ -186,7 +186,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
         AuthenticationCeremonyService = new(
             Options,
-            fakeContextFactory,
+            ContextFactory,
             rpIdProvider,
             rpOriginProvider,
             challengeGenerator,
@@ -226,4 +226,5 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
     protected FakeAuthenticationCeremonyStorage AuthenticationCeremonyStorage { get; set; } = null!;
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
     protected FakeCredentialStorage CredentialStorage { get; set; } = null!;
+    protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
 }

@@ -64,7 +64,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var tpmManufacturerVerifier = new DefaultTpmManufacturerVerifier();
         var coseDecoder = new DefaultCoseKeyDecoder(cborDecoder, NullLogger<DefaultCoseKeyDecoder>.Instance);
 
-        var fakeContextFactory = new FakeWebAuthnContextFactory();
+        ContextFactory = new();
         var rpAddress = GetRelyingPartyAddress();
         var rpIdProvider = new FakeRelyingPartyIdProvider(rpAddress);
         var rpOriginProvider = new FakeRelyingPartyOriginProvider(rpAddress);
@@ -160,7 +160,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
         RegistrationCeremonyService = new(
             Options,
-            fakeContextFactory,
+            ContextFactory,
             rpIdProvider,
             rpOriginProvider,
             challengeGenerator,
@@ -196,4 +196,5 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected ConfigurationManager ConfigurationManager { get; set; } = null!;
     protected FakeRegistrationCeremonyStorage RegistrationCeremonyStorage { get; set; } = null!;
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
+    protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
 }

@@ -8,10 +8,13 @@ namespace WebAuthn.Net.DSL.Fakes;
 
 public class FakeWebAuthnContext : IWebAuthnContext
 {
-    public FakeWebAuthnContext(HttpContext? httpContext)
+    public FakeWebAuthnContext(HttpContext? httpContext, FakeWebAuthnContextMetrics metrics)
     {
         HttpContext = httpContext!;
+        Metrics = metrics;
     }
+
+    private FakeWebAuthnContextMetrics Metrics { get; }
 
     public HttpContext HttpContext { get; }
 
@@ -23,6 +26,7 @@ public class FakeWebAuthnContext : IWebAuthnContext
 
     public Task CommitAsync(CancellationToken cancellationToken)
     {
+        Metrics.Commits++;
         return Task.CompletedTask;
     }
 }

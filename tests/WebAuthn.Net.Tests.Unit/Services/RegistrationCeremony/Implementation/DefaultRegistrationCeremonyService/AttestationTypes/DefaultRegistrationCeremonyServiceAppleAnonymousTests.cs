@@ -7,22 +7,21 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService;
-using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.AttestationTypes;
 
-public class DefaultAuthenticationCeremonyServiceAppleAnonymousTests : AbstractAuthenticationCeremonyServiceTests
+public class DefaultRegistrationCeremonyServiceAppleAnonymousTests : AbstractRegistrationCeremonyServiceTests
 {
     protected override Uri GetRelyingPartyAddress()
     {
         return new("https://goose-wondrous-overly.ngrok-free.app", UriKind.Absolute);
     }
 
-    [SetUp]
-    public async Task SetupRegistrationAsync()
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForApple_WhenAllAlgorithms()
     {
         TimeProvider.Change(DateTimeOffset.Parse("2023-10-16T08:43:33Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
@@ -48,7 +47,7 @@ public class DefaultAuthenticationCeremonyServiceAppleAnonymousTests : AbstractA
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("yup7N3Elt8TEfOl0hjWTyvBZ66Cfd9fCvNVZlpSzVI0"));
 
-        var competeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
+        var completeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(beginResult.RegistrationCeremonyId, new(
                 "hQH9wsekUgtg2RJpgkUcvqDU1cA",
@@ -65,48 +64,6 @@ public class DefaultAuthenticationCeremonyServiceAppleAnonymousTests : AbstractA
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.Successful, Is.True);
-    }
-
-    [Test]
-    public async Task DefaultAuthenticationCeremonyService_PerformsCeremonyWithoutErrorsForApple_WhenAllAlgorithms()
-    {
-        TimeProvider.Change(DateTimeOffset.Parse("2023-10-16T08:43:43Z", CultureInfo.InvariantCulture));
-        var beginRequest = new BeginAuthenticationCeremonyRequest(
-            null,
-            null,
-            null,
-            32,
-            60000,
-            null,
-            UserVerificationRequirement.Required,
-            null,
-            null,
-            null,
-            null);
-        var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
-            new DefaultHttpContext(new FeatureCollection()),
-            beginRequest,
-            CancellationToken.None);
-
-        AuthenticationCeremonyStorage.ReplaceChallengeForAuthenticationCeremonyOptions(
-            beginResult.AuthenticationCeremonyId,
-            WebEncoders.Base64UrlDecode("qq74tcXbJQwmJREHIjTnDNpHwvmFq7ZuJDDzvAr0Ffc"));
-
-        var competeResult = await AuthenticationCeremonyService.CompleteCeremonyAsync(
-            new DefaultHttpContext(new FeatureCollection()),
-            new(beginResult.AuthenticationCeremonyId,
-                new("hQH9wsekUgtg2RJpgkUcvqDU1cA",
-                    "hQH9wsekUgtg2RJpgkUcvqDU1cA",
-                    new("eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoicXE3NHRjWGJKUXdtSlJFSElqVG5ETnBId3ZtRnE3WnVKRER6dkFyMEZmYyIsIm9yaWdpbiI6Imh0dHBzOi8vZ29vc2Utd29uZHJvdXMtb3Zlcmx5Lm5ncm9rLWZyZWUuYXBwIn0",
-                        "miPJOr64Yikjfv8MyyFBLBwA4260CubjCtHmm4ZttsUFAAAAAA",
-                        "MEQCIAtHt5DbKSW1AMor7SgAhNiqrnsihqvq2befT1lVMIKAAiAdlE_FYWJTUvhlStf9AwCKdWh6gSNIahGRWhfwxtXPrw",
-                        "AAAAAAAAAAAAAAAAAAAAAQ",
-                        null),
-                    null,
-                    null,
-                    "public-key")),
-            CancellationToken.None);
-        Assert.That(competeResult.Successful, Is.True);
+        Assert.That(completeResult.Successful, Is.True);
     }
 }

@@ -568,9 +568,11 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             }
 
             // 27. If all the above steps are successful, continue with the authentication ceremony as appropriate. Otherwise, fail the authentication ceremony.
-            return CompleteAuthenticationCeremonyResult.Success(
+            var result = CompleteAuthenticationCeremonyResult.Success(
                 recommendedActions,
                 credentialRecordUpdateResult.UvInitializedUpdated);
+            await context.CommitAsync(cancellationToken);
+            return result;
         }
     }
 

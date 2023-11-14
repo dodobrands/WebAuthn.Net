@@ -13,7 +13,7 @@ using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.AttestationTypes;
 
 public class DefaultRegistrationCeremonyServiceNoneTests : AbstractRegistrationCeremonyServiceTests
 {
@@ -53,7 +53,7 @@ public class DefaultRegistrationCeremonyServiceNoneTests : AbstractRegistrationC
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("EQahQOdHceOWoC3RvPolTLybjIjLwCrhR8b1ZMpijyQ"));
 
-        var competeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
+        var completeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(beginResult.RegistrationCeremonyId, new(
                 "iDFd_AQcKvKWSPeteal0SjVcYuo",
@@ -70,6 +70,6 @@ public class DefaultRegistrationCeremonyServiceNoneTests : AbstractRegistrationC
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.Successful, Is.True);
+        Assert.That(completeResult.Successful, Is.True);
     }
 }

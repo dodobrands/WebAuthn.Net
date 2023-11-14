@@ -10,7 +10,7 @@ using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.AttestationTypes;
 
 public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrationCeremonyServiceTests
 {
@@ -45,7 +45,7 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("rVani_oJjMSJUzQQAvBh-Tjm04RfWN-eKTtP2sz_-Bs"));
 
-        var competeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
+        var completeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(beginResult.RegistrationCeremonyId, new(
                 "Ox696mJ0yDpYMNjNAqSJIbkuvaPEk9CTyMMrvUxCwVWKJblMwcd1zzNyVf7ngMA3X5dewF6-2YDKjrgkghmAZg",
@@ -62,6 +62,6 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.Successful, Is.True);
+        Assert.That(completeResult.Successful, Is.True);
     }
 }

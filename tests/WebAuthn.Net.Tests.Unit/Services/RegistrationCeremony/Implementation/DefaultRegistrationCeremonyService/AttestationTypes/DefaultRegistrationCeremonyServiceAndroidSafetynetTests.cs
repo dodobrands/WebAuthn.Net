@@ -11,7 +11,7 @@ using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService;
+namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.AttestationTypes;
 
 public class DefaultRegistrationCeremonyServiceAndroidSafetynetTests : AbstractRegistrationCeremonyServiceTests
 {
@@ -47,7 +47,7 @@ public class DefaultRegistrationCeremonyServiceAndroidSafetynetTests : AbstractR
             beginResult.RegistrationCeremonyId,
             WebEncoders.Base64UrlDecode("w4fwKLrrnhKGOzpleXpXbsn6c3B6Mtzdk04-SQDRKgA"));
 
-        var competeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
+        var completeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(beginResult.RegistrationCeremonyId, new(
                 "AQhGVh4AhYHIa06UqIE7BpSKEAhmdQCRZXkDohn9wtWcHTIV5_Q1o3pC498cM2Y922-3ikbisHI9l3UhX7tSwhc",
@@ -64,6 +64,6 @@ public class DefaultRegistrationCeremonyServiceAndroidSafetynetTests : AbstractR
                 null,
                 "public-key")),
             CancellationToken.None);
-        Assert.That(competeResult.Successful, Is.True);
+        Assert.That(completeResult.Successful, Is.True);
     }
 }

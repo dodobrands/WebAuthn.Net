@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using WebAuthn.Net.Models.Enums;
@@ -8,10 +9,27 @@ namespace WebAuthn.Net.DSL.Fakes;
 
 public class FakeWebAuthnContextFactory : IWebAuthnContextFactory<FakeWebAuthnContext>
 {
+    private readonly List<FakeWebAuthnContextMetrics> _metrics = new();
+
     public Task<FakeWebAuthnContext> CreateAsync(HttpContext httpContext, WebAuthnOperation operation, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var fakeContext = new FakeWebAuthnContext(httpContext);
+        var metrics = new FakeWebAuthnContextMetrics();
+        _metrics.Add(metrics);
+        var fakeContext = new FakeWebAuthnContext(httpContext, metrics);
         return Task.FromResult(fakeContext);
+    }
+
+    public FakeWebAuthnContextMetrics[] GetMetrics()
+    {
+        return _metrics.ToArray();
+    }
+
+    public void ResetMetrics()
+    {
+        foreach (var metric in _metrics)
+        {
+            metric.Reset();
+        }
     }
 }
