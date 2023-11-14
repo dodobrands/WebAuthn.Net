@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -56,7 +55,6 @@ public class PostgreSqlUserCredentialRecord
 
     public uint SignCount { get; set; }
 
-    [Column(TypeName="json")]
     public int[] Transports { get; set; } = null!;
 
     public bool UvInitialized { get; set; }
