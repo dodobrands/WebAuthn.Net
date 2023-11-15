@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
@@ -80,7 +82,7 @@ public class PublicKeyCredentialCreationOptionsJSON
         string[]? hints,
         string? attestation,
         string[]? attestationFormats,
-        RegistrationExtensionsClientInputsJSON? extensions)
+        Dictionary<string, JsonElement>? extensions)
     {
         Rp = rp;
         User = user;
@@ -256,5 +258,5 @@ public class PublicKeyCredentialCreationOptionsJSON
     /// </summary>
     [JsonPropertyName("extensions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public RegistrationExtensionsClientInputsJSON? Extensions { get; }
+    public Dictionary<string, JsonElement>? Extensions { get; }
 }

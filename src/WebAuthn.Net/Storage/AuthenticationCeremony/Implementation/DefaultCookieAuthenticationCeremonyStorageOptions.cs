@@ -9,12 +9,12 @@ namespace WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 
 public class DefaultCookieAuthenticationCeremonyStorageOptions
 {
-    public const string CookieName = "webauthn.a";
+    public const string CookieName = "webauthna";
 
     private CookieBuilder _cookieBuilder = new RequestPathBaseCookieBuilder
     {
         Name = CookieName,
-        SameSite = SameSiteMode.Lax,
+        SameSite = SameSiteMode.None,
         HttpOnly = true,
         SecurePolicy = CookieSecurePolicy.Always,
         IsEssential = true

@@ -34,12 +34,6 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<AuthenticationResponse>.Fail();
         }
 
-        var clientExtensionResultsResult = DecodeClientExtensionResults(authenticationResponse.ClientExtensionResults);
-        if (clientExtensionResultsResult.HasError)
-        {
-            return Result<AuthenticationResponse>.Fail();
-        }
-
         var typeResult = DecodePublicKeyCredentialType(authenticationResponse.Type);
         if (typeResult.HasError)
         {
@@ -51,7 +45,7 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             rawId,
             responseResult.Ok,
             authenticatorAttachmentResult.Ok,
-            clientExtensionResultsResult.Ok,
+            authenticationResponse.ClientExtensionResults,
             typeResult.Ok);
         return Result<AuthenticationResponse>.Success(result);
     }
@@ -120,16 +114,6 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
         }
 
         return Result<AuthenticatorAttachment?>.Success(attachment.Value);
-    }
-
-    protected virtual Result<AuthenticationExtensionsClientOutputs?> DecodeClientExtensionResults(AuthenticationExtensionsClientOutputsJSON? clientExtensionResults)
-    {
-        if (clientExtensionResults is null)
-        {
-            return Result<AuthenticationExtensionsClientOutputs?>.Success(null);
-        }
-
-        return Result<AuthenticationExtensionsClientOutputs?>.Success(new());
     }
 
     protected virtual Result<PublicKeyCredentialType> DecodePublicKeyCredentialType(string type)

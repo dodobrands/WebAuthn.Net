@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
@@ -71,7 +73,7 @@ public class AuthenticationResponseJSON
         string rawId,
         AuthenticatorAssertionResponseJSON response,
         string? authenticatorAttachment,
-        AuthenticationExtensionsClientOutputsJSON? clientExtensionResults,
+        Dictionary<string, JsonElement> clientExtensionResults,
         string type)
     {
         Id = id;
@@ -170,7 +172,7 @@ public class AuthenticationResponseJSON
     [JsonPropertyName("clientExtensionResults")]
     [Required]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    public AuthenticationExtensionsClientOutputsJSON? ClientExtensionResults { get; }
+    public Dictionary<string, JsonElement> ClientExtensionResults { get; }
 
     /// <summary>
     ///     This attribute's getter returns the value of the object's <a href="https://webidl.spec.whatwg.org/#dfn-interface-object">interface object's</a> <a href="https://w3c.github.io/webappsec-credential-management/#dom-credential-type-slot">[[type]]</a> slot, which specifies the

@@ -1,6 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
-using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
+using System.Text.Json;
 using WebAuthn.Net.Models.Protocol.Enums;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
@@ -153,7 +154,7 @@ public class BeginAuthenticationCeremonyRequest
         PublicKeyCredentialHints[]? hints,
         AttestationConveyancePreference? attestation,
         AttestationStatementFormat[]? attestationFormats,
-        AuthenticationExtensionsClientInputs? extensions)
+        Dictionary<string, JsonElement>? extensions)
     {
         // origins
         Origins = origins;
@@ -390,5 +391,5 @@ public class BeginAuthenticationCeremonyRequest
     ///         <a href="https://www.rfc-editor.org/rfc/rfc8809.html">RFC 8809</a> for an up-to-date list of registered <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-extensions">WebAuthn Extensions</a>.
     ///     </para>
     /// </summary>
-    public AuthenticationExtensionsClientInputs? Extensions { get; }
+    public Dictionary<string, JsonElement>? Extensions { get; }
 }

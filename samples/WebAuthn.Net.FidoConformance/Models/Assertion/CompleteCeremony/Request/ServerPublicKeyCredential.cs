@@ -8,7 +8,10 @@ namespace WebAuthn.Net.FidoConformance.Models.Assertion.CompleteCeremony.Request
 public class ServerPublicKeyCredential
 {
     [JsonConstructor]
-    public ServerPublicKeyCredential(string id, string type, ServerAuthenticatorAssertionResponse response)
+    public ServerPublicKeyCredential(
+        string id,
+        string type,
+        ServerAuthenticatorAssertionResponse response)
     {
         Id = id;
         Type = type;
@@ -44,7 +47,7 @@ public class ServerPublicKeyCredential
             Id,
             response,
             null,
-            null,
+            new(),
             Type);
     }
 

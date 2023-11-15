@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.CreateOptions;
@@ -121,7 +123,7 @@ public class PublicKeyCredentialRequestOptionsJSON
         string[]? hints,
         string? attestation,
         string[]? attestationFormats,
-        AuthenticationExtensionsClientInputsJSON? extensions)
+        Dictionary<string, JsonElement>? extensions)
     {
         Challenge = challenge;
         Timeout = timeout;
@@ -293,5 +295,5 @@ public class PublicKeyCredentialRequestOptionsJSON
     /// </summary>
     [JsonPropertyName("extensions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public AuthenticationExtensionsClientInputsJSON? Extensions { get; }
+    public Dictionary<string, JsonElement>? Extensions { get; }
 }

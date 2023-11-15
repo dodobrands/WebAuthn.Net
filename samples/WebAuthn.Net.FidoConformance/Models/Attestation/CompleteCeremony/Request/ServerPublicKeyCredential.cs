@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
@@ -8,11 +9,16 @@ namespace WebAuthn.Net.FidoConformance.Models.Attestation.CompleteCeremony.Reque
 public class ServerPublicKeyCredential
 {
     [JsonConstructor]
-    public ServerPublicKeyCredential(string id, string type, ServerAuthenticatorAttestationResponse response)
+    public ServerPublicKeyCredential(
+        string id,
+        string type,
+        ServerAuthenticatorAttestationResponse response,
+        Dictionary<string, JsonElement>? getClientExtensionResults)
     {
         Id = id;
         Type = type;
         Response = response;
+        GetClientExtensionResults = getClientExtensionResults;
     }
 
     [JsonPropertyName("id")]
@@ -30,6 +36,10 @@ public class ServerPublicKeyCredential
     [Required]
     public ServerAuthenticatorAttestationResponse Response { get; }
 
+    [JsonPropertyName("getClientExtensionResults")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement>? GetClientExtensionResults { get; }
+
     public CompleteRegistrationCeremonyRequest ToCompleteCeremonyRequest(string registrationCeremonyId)
     {
         var result = ToRegistrationResponseJson();
@@ -44,7 +54,7 @@ public class ServerPublicKeyCredential
             Id,
             response,
             null,
-            null,
+            GetClientExtensionResults ?? new Dictionary<string, JsonElement>(),
             Type);
     }
 

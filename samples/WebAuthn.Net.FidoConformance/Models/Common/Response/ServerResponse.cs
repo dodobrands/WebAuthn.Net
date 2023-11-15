@@ -45,7 +45,7 @@ public class ServerResponse
     [Required]
     public string Status { get; }
 
-    [JsonPropertyName("errorMessage ")]
+    [JsonPropertyName("errorMessage")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [Required]
     public string ErrorMessage { get; }

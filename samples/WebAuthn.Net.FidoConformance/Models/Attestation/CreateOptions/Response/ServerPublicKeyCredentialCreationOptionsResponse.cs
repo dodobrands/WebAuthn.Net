@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.FidoConformance.Models.Common.Response;
@@ -23,7 +24,7 @@ public class ServerPublicKeyCredentialCreationOptionsResponse : ServerResponse
         string[]? hints,
         string? attestation,
         string[]? attestationFormats,
-        RegistrationExtensionsClientInputsJSON? extensions)
+        Dictionary<string, JsonElement>? extensions)
         : base(status, errorMessage)
     {
         Rp = rp;
@@ -85,7 +86,7 @@ public class ServerPublicKeyCredentialCreationOptionsResponse : ServerResponse
 
     [JsonPropertyName("extensions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public RegistrationExtensionsClientInputsJSON? Extensions { get; }
+    public Dictionary<string, JsonElement>? Extensions { get; }
 
     public static ServerPublicKeyCredentialCreationOptionsResponse FromPublicKeyCredentialCreationOptions(
         PublicKeyCredentialCreationOptionsJSON input)

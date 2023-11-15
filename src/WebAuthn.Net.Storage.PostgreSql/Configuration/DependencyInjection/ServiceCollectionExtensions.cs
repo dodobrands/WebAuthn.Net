@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Configuration.Options;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Storage.PostgreSql.Configuration.Builder;
 using WebAuthn.Net.Storage.PostgreSql.Configuration.Options;
@@ -16,14 +17,16 @@ public static class ServiceCollectionExtensions
 {
     public static IPostgreSqlWebAuthnBuilder<DefaultPostgreSqlContext> AddWebAuthnPostgreSql(
         this IServiceCollection services,
-        Action<WebAuthnOptions>? configureCore = null,
+        Action<WebAuthnOptions>? configure = null,
+        Action<IHttpClientBuilder>? configureFidoHttpClientBuilder = null,
+        Action<FidoMetadataBackgroundIngestHostedServiceOptions>? configureBackgroundIngest = null,
         Action<DefaultCookieRegistrationCeremonyStorageOptions>? configureRegistration = null,
         Action<DefaultCookieAuthenticationCeremonyStorageOptions>? configureAuthentication = null,
         Action<DefaultPostgreSqlContext>? configurePostgreSql = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         services
-            .AddWebAuthnCore<DefaultPostgreSqlContext>(configureCore)
+            .AddWebAuthnCore<DefaultPostgreSqlContext>(configure, configureFidoHttpClientBuilder, configureBackgroundIngest)
             .AddDefaultStorages(configureRegistration, configureAuthentication)
             .AddContextFactory<DefaultPostgreSqlContext, DefaultPostgreSqlContextFactory>()
             .AddCredentialStorage<DefaultPostgreSqlContext, DefaultPostgreSqlCredentialStorage<DefaultPostgreSqlContext>>();

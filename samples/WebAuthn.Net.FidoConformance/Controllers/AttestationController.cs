@@ -36,7 +36,8 @@ public class AttestationController : Controller
 
         var beginCeremonyRequest = model.ToBeginCeremonyRequest();
         var result = await _registration.BeginCeremonyAsync(HttpContext, beginCeremonyRequest, cancellationToken);
-        var successfulResult = ServerPublicKeyCredentialCreationOptionsResponse.FromPublicKeyCredentialCreationOptions(result.Options);
+        var successfulResult = ServerPublicKeyCredentialCreationOptionsResponse
+            .FromPublicKeyCredentialCreationOptions(result.Options);
         SaveRegistrationId(result.RegistrationCeremonyId);
         return Ok(successfulResult);
     }

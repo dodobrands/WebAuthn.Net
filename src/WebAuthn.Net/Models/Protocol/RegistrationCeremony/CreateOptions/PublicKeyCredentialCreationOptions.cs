@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Text.Json;
 using WebAuthn.Net.Models.Protocol.Enums;
 
 namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
@@ -83,7 +85,7 @@ public class PublicKeyCredentialCreationOptions
         PublicKeyCredentialHints[]? hints,
         AttestationConveyancePreference? attestation,
         AttestationStatementFormat[]? attestationFormats,
-        RegistrationExtensionsClientInputs? extensions)
+        Dictionary<string, JsonElement>? extensions)
     {
         // rp
         ArgumentNullException.ThrowIfNull(rp);
@@ -295,5 +297,5 @@ public class PublicKeyCredentialCreationOptions
     ///         <a href="https://www.rfc-editor.org/rfc/rfc8809.html">RFC 8809</a> for an up-to-date list of registered <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-extensions">WebAuthn Extensions</a>.
     ///     </para>
     /// </summary>
-    public RegistrationExtensionsClientInputs? Extensions { get; }
+    public Dictionary<string, JsonElement>? Extensions { get; }
 }

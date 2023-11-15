@@ -30,7 +30,6 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         var hints = EncodeHints(options.Hints);
         var attestation = EncodeAttestation(options.Attestation);
         var attestationFormats = EncodeAttestationFormats(options.AttestationFormats);
-        var extensions = EncodeExtensions(options.Extensions);
         var result = new PublicKeyCredentialRequestOptionsJSON(
             challenge,
             options.Timeout,
@@ -40,7 +39,7 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
             hints,
             attestation,
             attestationFormats,
-            extensions);
+            options.Extensions);
         return result;
     }
 
@@ -158,15 +157,5 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         }
 
         return result;
-    }
-
-    protected virtual AuthenticationExtensionsClientInputsJSON? EncodeExtensions(AuthenticationExtensionsClientInputs? extensions)
-    {
-        if (extensions is null)
-        {
-            return null;
-        }
-
-        return new();
     }
 }

@@ -36,7 +36,6 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         var hints = EncodeHints(options.Hints);
         var attestation = EncodeAttestation(options.Attestation);
         var attestationFormats = EncodeAttestationFormats(options.AttestationFormats);
-        var extensions = EncodeExtensions(options.Extensions);
         var result = new PublicKeyCredentialCreationOptionsJSON(
             rp,
             user,
@@ -48,7 +47,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
             hints,
             attestation,
             attestationFormats,
-            extensions);
+            options.Extensions);
         return result;
     }
 
@@ -231,15 +230,5 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         }
 
         return result;
-    }
-
-    protected virtual RegistrationExtensionsClientInputsJSON? EncodeExtensions(RegistrationExtensionsClientInputs? extensions)
-    {
-        if (extensions is null)
-        {
-            return null;
-        }
-
-        return new();
     }
 }

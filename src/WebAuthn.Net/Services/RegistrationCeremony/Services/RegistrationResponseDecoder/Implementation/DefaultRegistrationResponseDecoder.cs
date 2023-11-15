@@ -45,12 +45,6 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             authenticatorAttachment = attachment.Value;
         }
 
-        AuthenticationExtensionsClientOutputs? clientExtensionResults = null;
-        if (registrationResponse.ClientExtensionResults is not null)
-        {
-            clientExtensionResults = new();
-        }
-
         if (!TypeMapper.TryGetEnumFromString(registrationResponse.Type, out var type))
         {
             return Result<RegistrationResponse>.Fail();
@@ -61,7 +55,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             rawId,
             responseResult.Ok,
             authenticatorAttachment,
-            clientExtensionResults,
+            registrationResponse.ClientExtensionResults,
             type.Value);
         return Result<RegistrationResponse>.Success(result);
     }

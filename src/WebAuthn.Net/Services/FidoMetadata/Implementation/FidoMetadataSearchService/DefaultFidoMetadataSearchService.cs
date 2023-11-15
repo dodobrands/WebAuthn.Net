@@ -134,8 +134,8 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
             return false;
         }
 
-        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
-        if (!(blobEntry.StatusReports?.Length > 1))
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (blobEntry.StatusReports is null || blobEntry.StatusReports.Length == 0)
         {
             return false;
         }

@@ -1,4 +1,6 @@
-﻿using WebAuthn.Net.Models.Protocol.Enums;
+﻿using System.Collections.Generic;
+using System.Text.Json;
+using WebAuthn.Net.Models.Protocol.Enums;
 
 namespace WebAuthn.Net.Models.Protocol.AuthenticationCeremony.VerifyAssertion;
 
@@ -9,7 +11,7 @@ public class AuthenticationResponse
         byte[] rawId,
         AuthenticatorAssertionResponse response,
         AuthenticatorAttachment? authenticatorAttachment,
-        AuthenticationExtensionsClientOutputs? clientExtensionResults,
+        Dictionary<string, JsonElement> clientExtensionResults,
         PublicKeyCredentialType type)
     {
         Id = id;
@@ -28,7 +30,7 @@ public class AuthenticationResponse
 
     public AuthenticatorAttachment? AuthenticatorAttachment { get; }
 
-    public AuthenticationExtensionsClientOutputs? ClientExtensionResults { get; }
+    public Dictionary<string, JsonElement> ClientExtensionResults { get; }
 
     public PublicKeyCredentialType Type { get; }
 }

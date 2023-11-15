@@ -98,7 +98,7 @@ public class DefaultRegistrationCeremonyServiceContextTests : AbstractRegistrati
                     "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViYwbGR7JKb_3nCDS_Zb_TxyUe4a4rtFXaAsGAUBoQQGPVdAAAAAAAAAAAAAAAAAAAAAAAAAAAAFIgxXfwEHCrylkj3rXmpdEo1XGLqpQECAyYgASFYICRm7Ppob1RBskUFZmOz0De8LRHkyBmEy_tja6XcAPdbIlggZZc4w5BaGG4IqtOG7lHgTijKOqGUJR98CaU5spPCiTY"
                 ),
                 null,
-                null,
+                new(),
                 "public-key")),
             CancellationToken.None);
         Assert.That(completeResult.Successful, Is.True);

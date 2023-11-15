@@ -36,7 +36,8 @@ public class AssertionController : Controller
 
         var beginCeremonyRequest = model.ToBeginCeremonyRequest();
         var result = await _authentication.BeginCeremonyAsync(HttpContext, beginCeremonyRequest, cancellationToken);
-        var successfulResult = ServerPublicKeyCredentialGetOptionsResponse.FromPublicKeyCredentialRequestOptions(result.Options);
+        var successfulResult = ServerPublicKeyCredentialGetOptionsResponse
+            .FromPublicKeyCredentialRequestOptions(result.Options);
         SaveAuthenticationId(result.AuthenticationCeremonyId);
         return Ok(successfulResult);
     }

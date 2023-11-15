@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
@@ -21,13 +23,16 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
         string userName,
         string displayName,
         AuthenticatorSelectionCriteria? authenticatorSelection,
-        string? attestation)
+        string? attestation,
+        Dictionary<string, JsonElement>? extensions)
     {
         UserName = userName;
         DisplayName = displayName;
         AuthenticatorSelection = authenticatorSelection;
         Attestation = attestation;
+        Extensions = extensions;
     }
+
 
     [JsonPropertyName("username")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
@@ -47,6 +52,10 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? Attestation { get; }
 
+    [JsonPropertyName("extensions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement>? Extensions { get; }
+
     public BeginRegistrationCeremonyRequest ToBeginCeremonyRequest()
     {
         var authenticatorSelection = ParseAuthenticatorSelection(AuthenticatorSelection);
@@ -56,16 +65,16 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
             null,
             null,
             Host.WebAuthnDisplayName,
-            new(UserName, Guid.NewGuid().ToByteArray(), DisplayName),
+            new(UserName, WebEncoders.Base64UrlDecode(UserName), DisplayName),
             16,
             CoseAlgorithms.All,
             120000,
-            RegistrationCeremonyExcludeCredentials.None(),
+            RegistrationCeremonyExcludeCredentials.AllExisting(),
             authenticatorSelection,
             null,
             attestation,
             null,
-            null);
+            Extensions);
     }
 
     private static Net.Models.Protocol.RegistrationCeremony.CreateOptions.AuthenticatorSelectionCriteria? ParseAuthenticatorSelection(AuthenticatorSelectionCriteria? input)
