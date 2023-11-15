@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Models.Protocol;
@@ -23,7 +22,7 @@ using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.VerifyAssertion;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.PublicKeyCredentialRequestOptionsEncoder;
-using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Abstractions;
+using WebAuthn.Net.Services.Common.AttestationObjectDecoder;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
@@ -168,7 +167,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         var expectedRpParameters = new AuthenticationCeremonyRpParameters(rpId, origins, allowIframe, topOrigins);
         var timeout = GetTimeout(request);
         var createdAt = TimeProvider.GetRoundUtcDateTime();
-        var expiresAt = createdAt.ComputeExpiresAtUtc(timeout);
+        var expiresAt = ComputeExpiresAtUtc(createdAt, timeout);
         var options = ToPublicKeyCredentialRequestOptions(request, timeout, rpId, challenge, credentialsToInclude);
         var outputOptions = PublicKeyCredentialRequestOptionsEncoder.Encode(options);
         var authenticationCeremonyOptions = new AuthenticationCeremonyParameters(
@@ -574,6 +573,12 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             await context.CommitAsync(cancellationToken);
             return result;
         }
+    }
+
+    protected static DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset value, uint timeout)
+    {
+        var expiresAtMilliseconds = value.ToUnixTimeMilliseconds() + timeout;
+        return DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMilliseconds);
     }
 
     protected virtual uint GetTimeout(BeginAuthenticationCeremonyRequest request)

@@ -452,3 +452,8 @@ $RECYCLE.BIN/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+##
+## FIDO Conformance Testing Metadata
+##
+samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/*.json

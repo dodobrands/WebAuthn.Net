@@ -11,14 +11,13 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
-using WebAuthn.Net.Extensions;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
-using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Abstractions;
+using WebAuthn.Net.Services.Common.AttestationObjectDecoder;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
@@ -155,7 +154,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         var expectedRpParameters = new RegistrationCeremonyRpParameters(rpId, origins, allowIframe, topOrigins);
         var timeout = GetTimeout(request);
         var createdAt = TimeProvider.GetRoundUtcDateTime();
-        var expiresAt = createdAt.ComputeExpiresAtUtc(timeout);
+        var expiresAt = ComputeExpiresAtUtc(createdAt, timeout);
         var options = ToPublicKeyCredentialCreationOptions(request, timeout, rpId, challenge, credentialsToExclude);
         var outputOptions = PublicKeyCredentialCreationOptionsEncoder.Encode(options);
         var registrationCeremony = new RegistrationCeremonyParameters(
@@ -475,6 +474,12 @@ public class DefaultRegistrationCeremonyService<TContext>
             var requiringAdditionalAuthenticators = !currentBe;
             return CompleteRegistrationCeremonyResult.Success(requiringAdditionalAuthenticators);
         }
+    }
+
+    protected static DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset value, uint timeout)
+    {
+        var expiresAtMilliseconds = value.ToUnixTimeMilliseconds() + timeout;
+        return DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMilliseconds);
     }
 
     protected virtual uint GetTimeout(BeginRegistrationCeremonyRequest request)
