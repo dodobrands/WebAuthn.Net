@@ -89,6 +89,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
                     {
                         return Result<AttestationStatementVerificationResult>.Fail();
                     }
+
+                    if (IsRootCertificate(x5CCert))
+                    {
+                        return Result<AttestationStatementVerificationResult>.Fail();
+                    }
                 }
 
                 var x5CResult = await VerifyPackedWithX5CAsync(
@@ -113,6 +118,12 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 3) If x5c is not present, self attestation is in use.
         var noX5CResult = VerifyPackedWithoutX5C(attStmt, authenticatorData, clientDataHash);
         return noX5CResult;
+    }
+
+    protected virtual bool IsRootCertificate(X509Certificate2 cert)
+    {
+        ArgumentNullException.ThrowIfNull(cert);
+        return cert.SubjectName.RawData.AsSpan().SequenceEqual(cert.IssuerName.RawData.AsSpan());
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
