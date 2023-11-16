@@ -143,7 +143,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             appleAnonymousVerifier,
             NullLogger<DefaultAttestationStatementVerifier<FakeWebAuthnContext>>.Instance
         );
-        var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(coseDecoder, NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
+        var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(coseDecoder, cborDecoder, NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
         var packedDecoder = new DefaultPackedAttestationStatementDecoder(NullLogger<DefaultPackedAttestationStatementDecoder>.Instance);
         var tpmDecoder = new DefaultTpmAttestationStatementDecoder(NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
         var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);

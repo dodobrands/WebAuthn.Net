@@ -79,7 +79,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
                         return Result<CoseKeyDecodeResult>.Fail();
                     }
 
-                    var result = new CoseKeyDecodeResult(ec2Result.Ok, cborResult.Ok.ConsumedBytes);
+                    var result = new CoseKeyDecodeResult(ec2Result.Ok, cborResult.Ok.BytesConsumed);
                     return Result<CoseKeyDecodeResult>.Success(result);
                 }
             case CoseKeyType.RSA:
@@ -91,7 +91,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
                         return Result<CoseKeyDecodeResult>.Fail();
                     }
 
-                    var result = new CoseKeyDecodeResult(rsaResult.Ok, cborResult.Ok.ConsumedBytes);
+                    var result = new CoseKeyDecodeResult(rsaResult.Ok, cborResult.Ok.BytesConsumed);
                     return Result<CoseKeyDecodeResult>.Success(result);
                 }
             default:

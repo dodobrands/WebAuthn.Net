@@ -4,13 +4,13 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.Models;
 
 public class CborRoot
 {
-    public CborRoot(AbstractCborObject root, int consumedBytes)
+    public CborRoot(AbstractCborObject root, int bytesConsumed)
     {
         Root = root;
-        ConsumedBytes = consumedBytes;
+        BytesConsumed = bytesConsumed;
     }
 
     public AbstractCborObject Root { get; }
 
-    public int ConsumedBytes { get; }
+    public int BytesConsumed { get; }
 }

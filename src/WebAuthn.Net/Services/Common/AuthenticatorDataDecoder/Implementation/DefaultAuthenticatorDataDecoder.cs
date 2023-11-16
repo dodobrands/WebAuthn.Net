@@ -8,6 +8,8 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Abstractions;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 
@@ -16,23 +18,29 @@ namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 /// </summary>
 public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 {
-    private readonly ICoseKeyDecoder _coseKeyDecoder;
-    private readonly ILogger<DefaultAuthenticatorDataDecoder> _logger;
-
-    public DefaultAuthenticatorDataDecoder(ICoseKeyDecoder coseKeyDecoder, ILogger<DefaultAuthenticatorDataDecoder> logger)
+    public DefaultAuthenticatorDataDecoder(
+        ICoseKeyDecoder coseKeyDecoder,
+        ICborDecoder cborDecoder,
+        ILogger<DefaultAuthenticatorDataDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(coseKeyDecoder);
+        ArgumentNullException.ThrowIfNull(cborDecoder);
         ArgumentNullException.ThrowIfNull(logger);
-        _coseKeyDecoder = coseKeyDecoder;
-        _logger = logger;
+        CoseKeyDecoder = coseKeyDecoder;
+        CborDecoder = cborDecoder;
+        Logger = logger;
     }
 
-    public Result<AbstractAuthenticatorData> Decode(byte[] rawAuthData)
+    protected ICoseKeyDecoder CoseKeyDecoder { get; }
+    protected ICborDecoder CborDecoder { get; }
+    protected ILogger<DefaultAuthenticatorDataDecoder> Logger { get; }
+
+    public virtual Result<AbstractAuthenticatorData> Decode(byte[] rawAuthData)
     {
         ArgumentNullException.ThrowIfNull(rawAuthData);
         if (rawAuthData.Length < 37)
         {
-            _logger.AuthDataTooSmall();
+            Logger.AuthDataTooSmall();
             return Result<AbstractAuthenticatorData>.Fail();
         }
 
@@ -40,34 +48,55 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 
         if (!TryConsumeRpIdHash(ref buffer, out var rpIdHash))
         {
-            _logger.AuthDataReadFailureRpIdHash();
+            Logger.AuthDataReadFailureRpIdHash();
             return Result<AbstractAuthenticatorData>.Fail();
         }
 
         if (!TryConsumeAuthenticatorDataFlags(ref buffer, out var flags))
         {
-            _logger.AuthDataReadFailureFlags();
+            Logger.AuthDataReadFailureFlags();
             return Result<AbstractAuthenticatorData>.Fail();
         }
 
         if (!TryConsumeSignCount(ref buffer, out var signCount))
         {
-            _logger.AuthDataReadFailureSignCount();
+            Logger.AuthDataReadFailureSignCount();
             return Result<AbstractAuthenticatorData>.Fail();
         }
 
-        AbstractAuthenticatorData result;
+        AttestedCredentialData? attestedCredentialData = null;
         // Bit 6: Attested credential data included (AT)
         if ((flags.Value & AuthenticatorDataFlags.AttestedCredentialData) is AuthenticatorDataFlags.AttestedCredentialData)
         {
             var attestedCredentialDataResult = TryConsumeAttestedCredentialData(ref buffer);
             if (attestedCredentialDataResult.HasError)
             {
-                _logger.AuthDataReadFailureAttestedCredentialData();
+                Logger.AuthDataReadFailureAttestedCredentialData();
                 return Result<AbstractAuthenticatorData>.Fail();
             }
 
-            var attestedCredentialData = attestedCredentialDataResult.Ok;
+            attestedCredentialData = attestedCredentialDataResult.Ok;
+        }
+
+        if ((flags.Value & AuthenticatorDataFlags.ExtensionDataIncluded) is AuthenticatorDataFlags.ExtensionDataIncluded)
+        {
+            var extensions = ConsumeExtensions(ref buffer);
+            if (extensions.HasError)
+            {
+                Logger.AuthDataReadFailureExtensions();
+                return Result<AbstractAuthenticatorData>.Fail();
+            }
+        }
+
+        if (buffer.Length > 0)
+        {
+            Logger.RemainingDataFailure();
+            return Result<AbstractAuthenticatorData>.Fail();
+        }
+
+        AbstractAuthenticatorData result;
+        if (attestedCredentialData is not null)
+        {
             result = new AttestedAuthenticatorData(
                 rawAuthData,
                 rpIdHash,
@@ -87,7 +116,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return Result<AbstractAuthenticatorData>.Success(result);
     }
 
-    private static bool TryConsumeRpIdHash(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out byte[]? rpIdHash)
+    protected static bool TryConsumeRpIdHash(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out byte[]? rpIdHash)
     {
         if (!TryRead(ref input, 32, out var consumedBuffer))
         {
@@ -99,7 +128,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return true;
     }
 
-    private static bool TryConsumeAuthenticatorDataFlags(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out AuthenticatorDataFlags? flags)
+    protected static bool TryConsumeAuthenticatorDataFlags(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out AuthenticatorDataFlags? flags)
     {
         if (!TryRead(ref input, 1, out var consumedBuffer))
         {
@@ -112,7 +141,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return true;
     }
 
-    private static bool TryConsumeSignCount(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out uint? signCount)
+    protected static bool TryConsumeSignCount(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out uint? signCount)
     {
         if (!TryRead(ref input, 4, out var consumedBuffer))
         {
@@ -126,36 +155,36 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 
     [SuppressMessage("ReSharper", "IdentifierTypo")]
     [SuppressMessage("ReSharper", "UnusedVariable")]
-    private Result<AttestedCredentialData> TryConsumeAttestedCredentialData(ref ReadOnlySpan<byte> input)
+    protected virtual Result<AttestedCredentialData> TryConsumeAttestedCredentialData(ref ReadOnlySpan<byte> input)
     {
         if (!TryConsumeAaguid(ref input, out var aaguid))
         {
-            _logger.AuthDataReadFailureAttestedCredentialDataAaguid();
+            Logger.AuthDataReadFailureAttestedCredentialDataAaguid();
             return Result<AttestedCredentialData>.Fail();
         }
 
         if (!TryConsumeCredentialIdLength(ref input, out var credentialIdLength))
         {
-            _logger.AuthDataReadFailureAttestedCredentialDataCredentialIdLength();
+            Logger.AuthDataReadFailureAttestedCredentialDataCredentialIdLength();
             return Result<AttestedCredentialData>.Fail();
         }
 
         if (credentialIdLength.Value > 1023)
         {
-            _logger.AuthDataReadFailureAttestedCredentialDataCredentialIdLengthTooBig(credentialIdLength.Value);
+            Logger.AuthDataReadFailureAttestedCredentialDataCredentialIdLengthTooBig(credentialIdLength.Value);
             return Result<AttestedCredentialData>.Fail();
         }
 
         if (!TryConsumeCredentialId(ref input, credentialIdLength.Value, out var credentialId))
         {
-            _logger.AuthDataReadFailureAttestedCredentialDataCredentialId();
+            Logger.AuthDataReadFailureAttestedCredentialDataCredentialId();
             return Result<AttestedCredentialData>.Fail();
         }
 
         var credentialPublicKeyResult = ConsumeCredentialPublicKey(ref input);
         if (credentialPublicKeyResult.HasError)
         {
-            _logger.AuthDataReadFailureAttestedCredentialDataCredentialPublicKey();
+            Logger.AuthDataReadFailureAttestedCredentialDataCredentialPublicKey();
             return Result<AttestedCredentialData>.Fail();
         }
 
@@ -166,7 +195,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
     }
 
     [SuppressMessage("ReSharper", "IdentifierTypo")]
-    private static bool TryConsumeAaguid(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out byte[]? aaguid)
+    protected static bool TryConsumeAaguid(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out byte[]? aaguid)
     {
         if (!TryRead(ref input, 16, out var consumedBuffer))
         {
@@ -178,7 +207,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return true;
     }
 
-    private static bool TryConsumeCredentialIdLength(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out ushort? credentialIdLength)
+    protected static bool TryConsumeCredentialIdLength(ref ReadOnlySpan<byte> input, [NotNullWhen(true)] out ushort? credentialIdLength)
     {
         if (!TryRead(ref input, 2, out var consumedBuffer))
         {
@@ -190,7 +219,7 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return true;
     }
 
-    private static bool TryConsumeCredentialId(ref ReadOnlySpan<byte> input, ushort credentialIdLength, [NotNullWhen(true)] out byte[]? credentialId)
+    protected static bool TryConsumeCredentialId(ref ReadOnlySpan<byte> input, ushort credentialIdLength, [NotNullWhen(true)] out byte[]? credentialId)
     {
         if (!TryRead(ref input, credentialIdLength, out var consumedBuffer))
         {
@@ -202,10 +231,10 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return true;
     }
 
-    private Result<AbstractCoseKey> ConsumeCredentialPublicKey(ref ReadOnlySpan<byte> input)
+    protected virtual Result<AbstractCoseKey> ConsumeCredentialPublicKey(ref ReadOnlySpan<byte> input)
     {
         var bufferToConsume = input.ToArray();
-        var decodeResult = _coseKeyDecoder.Decode(bufferToConsume);
+        var decodeResult = CoseKeyDecoder.Decode(bufferToConsume);
         if (decodeResult.HasError)
         {
             return Result<AbstractCoseKey>.Fail();
@@ -217,7 +246,22 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return Result<AbstractCoseKey>.Success(credentialPublicKey);
     }
 
-    private static bool TryRead(ref ReadOnlySpan<byte> input, int length, out ReadOnlySpan<byte> consumedBuffer)
+    protected virtual Result<AbstractCborObject> ConsumeExtensions(ref ReadOnlySpan<byte> input)
+    {
+        var bufferToConsume = input.ToArray();
+        var decodeResult = CborDecoder.Decode(bufferToConsume);
+        if (decodeResult.HasError)
+        {
+            return Result<AbstractCborObject>.Fail();
+        }
+
+        var extensionsRoot = decodeResult.Ok.Root;
+        var bytesConsumed = decodeResult.Ok.BytesConsumed;
+        input = input[bytesConsumed..];
+        return Result<AbstractCborObject>.Success(extensionsRoot);
+    }
+
+    protected static bool TryRead(ref ReadOnlySpan<byte> input, int length, out ReadOnlySpan<byte> consumedBuffer)
     {
         if (input.Length < length)
         {
@@ -298,4 +342,16 @@ public static partial class DefaultAuthenticatorDataDecoderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "Failed to read 'attestedCredentialData.credentialPublicKey'")]
     public static partial void AuthDataReadFailureAttestedCredentialDataCredentialPublicKey(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to read 'extensions'")]
+    public static partial void AuthDataReadFailureExtensions(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "After decoding 'authData' in accordance with its structure, some data has been found to still remain within it")]
+    public static partial void RemainingDataFailure(this ILogger logger);
 }
