@@ -456,4 +456,9 @@ $RECYCLE.BIN/
 ##
 ## FIDO Conformance Testing Metadata
 ##
-samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/*.json
+samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Json/*.*
+!samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Json/.gitkeep
+samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Jwt/*.*
+!samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Jwt/.gitkeep
+samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/JwtRoot/*.*
+!samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/JwtRoot/.gitkeep
