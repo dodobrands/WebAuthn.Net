@@ -458,7 +458,7 @@ $RECYCLE.BIN/
 ##
 samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/MetadataStatements/*.*
 !samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/MetadataStatements/.gitkeep
-samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Jwt/*.*
+samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Jwt/*
 !samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Jwt/.gitkeep
 samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/JwtRoot/*.*
 !samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/JwtRoot/.gitkeep
