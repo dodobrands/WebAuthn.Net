@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +23,7 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
     [Test]
     public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForFidoU2F_WhenES256()
     {
+        TimeProvider.Change(DateTimeOffset.Parse("2023-10-17T15:01:40Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

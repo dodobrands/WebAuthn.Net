@@ -13,13 +13,14 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidKey;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey.Constants;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
+using WebAuthn.Net.Services.FidoMetadata;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -31,35 +32,30 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     : IAndroidKeyAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
-    {
-        AttestationType.Basic
-    };
-
     public DefaultAndroidKeyAttestationStatementVerifier(
         IOptionsMonitor<WebAuthnOptions> options,
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
         IAsn1Decoder asn1Decoder,
-        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
-        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
+        ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         Options = options;
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         Asn1Decoder = asn1Decoder;
-        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
+        FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
-    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
+    protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
@@ -173,32 +169,38 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         var rootCertificates = new UniqueByteArraysCollection();
         var embeddedCertificates = GetEmbeddedRootCertificates();
         rootCertificates.AddRange(embeddedCertificates);
-        var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+        var metadataRoots = await GetAcceptableTrustAnchorsFromFidoMetadataAsync(
             context,
-            credCert,
-            authenticatorData,
-            GetSupportedAttestationTypes(),
+            authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
-        if (inspectResult.HasError)
-        {
-            return Result<AcceptableTrustAnchors>.Fail();
-        }
 
-        if (inspectResult.Ok.HasValue)
+        if (metadataRoots.HasValue)
         {
-            var inspectionResult = inspectResult.Ok.Value;
-            if (inspectionResult.AcceptableTrustAnchors is not null)
-            {
-                rootCertificates.AddRange(inspectionResult.AcceptableTrustAnchors.AttestationRootCertificates);
-            }
+            rootCertificates.AddRange(metadataRoots.Value);
         }
 
         return Result<AcceptableTrustAnchors>.Success(new(rootCertificates));
     }
 
-    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    protected virtual async Task<Optional<byte[][]>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+        TContext context,
+        Guid aaguid,
+        CancellationToken cancellationToken)
     {
-        return _supportedAttestationTypes;
+        cancellationToken.ThrowIfCancellationRequested();
+        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
+        if (!metadataResult.HasValue)
+        {
+            return Optional<byte[][]>.Empty();
+        }
+
+        var metadata = metadataResult.Value;
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL))
+        {
+            return Optional<byte[][]>.Payload(metadata.RootCertificates);
+        }
+
+        return Optional<byte[][]>.Empty();
     }
 
     protected virtual byte[][] GetEmbeddedRootCertificates()

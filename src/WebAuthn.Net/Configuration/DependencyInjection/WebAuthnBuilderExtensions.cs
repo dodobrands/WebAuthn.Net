@@ -134,7 +134,6 @@ public static class WebAuthnBuilderExtensions
 
         // -- AttestationStatementVerifier --
         builder.Services.TryAddSingleton<IAttestationStatementVerifier<TContext>, DefaultAttestationStatementVerifier<TContext>>();
-        builder.Services.TryAddSingleton<IFidoAttestationCertificateInspector<TContext>, DefaultFidoAttestationCertificateInspector<TContext>>();
         // AndroidKey
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatementVerifier<TContext>, DefaultAndroidKeyAttestationStatementVerifier<TContext>>();
         // AndroidSafetyNet

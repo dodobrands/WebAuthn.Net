@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
@@ -37,13 +38,19 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
 
                     if (verificationResult.AcceptableTrustAnchors is null)
                     {
-                        return false;
+                        var certificateBytes = verificationResult.AttestationTrustPath.Single();
+                        return IsSelfSigned(certificateBytes);
                     }
 
-                    return IsValid(
-                        verificationResult.AttestationTrustPath,
-                        verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.ToArray(),
-                        Options.CurrentValue.X509ChainValidation.OnValidateCertificateChain);
+                    if (verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Count == 1
+                        && verificationResult.AttestationTrustPath.Length == 1)
+                    {
+                        var rootCertificate = verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Single();
+                        var trustPath = verificationResult.AttestationTrustPath.Single();
+                        return rootCertificate.AsSpan().SequenceEqual(trustPath.AsSpan());
+                    }
+
+                    return false;
                 }
             case AttestationType.Basic:
             case AttestationType.AttCa:
@@ -57,6 +64,17 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
                     if (verificationResult.AcceptableTrustAnchors is null)
                     {
                         return false;
+                    }
+
+                    if (verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Count == 1
+                        && verificationResult.AttestationTrustPath.Length == 1)
+                    {
+                        var rootCertificate = verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Single();
+                        var trustPath = verificationResult.AttestationTrustPath.Single();
+                        if (rootCertificate.AsSpan().SequenceEqual(trustPath.AsSpan()))
+                        {
+                            return true;
+                        }
                     }
 
                     return IsValid(
@@ -75,6 +93,39 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
         }
     }
 
+    protected virtual bool IsSelfSigned(byte[] certificateBytes)
+    {
+        const string authorityKeyIdentifier = "2.5.29.35";
+        const string subjectKeyIdentifier = "2.5.29.14";
+        X509Certificate2? certificate = null;
+        try
+        {
+            if (!X509CertificateInMemoryLoader.TryLoad(certificateBytes, out certificate))
+            {
+                return false;
+            }
+
+            var subjectAndIssuerSame = certificate.SubjectName.RawData.SequenceEqual(certificate.IssuerName.RawData);
+
+            var authorityKeyIdentifierExt = certificate.Extensions.FirstOrDefault(x => x.Oid?.Value == authorityKeyIdentifier);
+            var subjectKeyIdentifierExt = certificate.Extensions.FirstOrDefault(x => x.Oid?.Value == subjectKeyIdentifier);
+
+            if (authorityKeyIdentifierExt is not null && subjectKeyIdentifierExt is not null)
+            {
+                var idsAreSame = authorityKeyIdentifierExt.RawData.AsSpan().SequenceEqual(subjectKeyIdentifierExt.RawData.AsSpan());
+                return idsAreSame && subjectAndIssuerSame;
+            }
+            else
+            {
+                return subjectAndIssuerSame;
+            }
+        }
+        finally
+        {
+            certificate?.Dispose();
+        }
+    }
+
     protected virtual bool IsValid(
         byte[][] attestationTrustPath,
         byte[][] attestationRootCertificates,
@@ -84,7 +135,6 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
             attestationRootCertificates,
             attestationTrustPath,
             configureChain);
-        // TODO: validate against rsa key if exists
         var isValid = isChainOverCertificatesValid;
         return isValid;
     }

@@ -1,6 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Formats.Asn1;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -9,14 +10,18 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.FidoU2F;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models;
+using WebAuthn.Net.Services.FidoMetadata;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
+using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F;
@@ -25,28 +30,22 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     : IFidoU2FAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
-    {
-        AttestationType.Basic,
-        AttestationType.AttCa
-    };
-
     public DefaultFidoU2FAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IAsn1Decoder asn1Decoder,
-        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
-        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
+        ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
         Asn1Decoder = asn1Decoder;
-        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
+        FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
-    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
+    protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
@@ -131,25 +130,22 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             }
 
             // 7) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether 'attStmt' conveys a Basic or AttCA attestation.
-            var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+            var attestationTypeResult = await GetAttestationTypeAsync(
                 context,
                 attCert,
                 authenticatorData,
-                GetSupportedAttestationTypes(),
                 cancellationToken);
-            if (inspectResult.HasError || !inspectResult.Ok.HasValue)
+            if (attestationTypeResult.HasError)
             {
                 return Result<AttestationStatementVerificationResult>.Fail();
             }
 
-            var inspectionResult = inspectResult.Ok.Value;
-
             // 8) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path x5c.
             var result = new AttestationStatementVerificationResult(
                 AttestationStatementFormat.FidoU2F,
-                inspectionResult.AttestationType,
+                attestationTypeResult.Ok.AttestationType,
                 new[] { rawAttCert },
-                inspectionResult.AcceptableTrustAnchors);
+                new(attestationTypeResult.Ok.AttestationRootCertificates));
             return Result<AttestationStatementVerificationResult>.Success(result);
         }
         finally
@@ -158,9 +154,169 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         }
     }
 
-    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    protected virtual async Task<Result<FidoU2FAttestationTypeResult>> GetAttestationTypeAsync(
+        TContext context,
+        X509Certificate2 attCert,
+        AttestedAuthenticatorData authenticatorData,
+        CancellationToken cancellationToken)
     {
-        return _supportedAttestationTypes;
+        ArgumentNullException.ThrowIfNull(authenticatorData);
+        cancellationToken.ThrowIfCancellationRequested();
+        var metadataResult = await TryGetFidoMetadataAsync(context, attCert, authenticatorData, cancellationToken);
+        if (metadataResult.HasError)
+        {
+            return Result<FidoU2FAttestationTypeResult>.Fail();
+        }
+
+        var metadata = metadataResult.Ok;
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
+        {
+            var rootCertificates = new UniqueByteArraysCollection();
+            rootCertificates.AddRange(metadata.RootCertificates);
+            return Result<FidoU2FAttestationTypeResult>.Success(new(AttestationType.AttCa, rootCertificates));
+        }
+
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL))
+        {
+            var rootCertificates = new UniqueByteArraysCollection();
+            rootCertificates.AddRange(metadata.RootCertificates);
+            return Result<FidoU2FAttestationTypeResult>.Success(new(AttestationType.Basic, rootCertificates));
+        }
+
+        return Result<FidoU2FAttestationTypeResult>.Fail();
+    }
+
+    protected virtual async Task<Result<FidoMetadataResult>> TryGetFidoMetadataAsync(
+        TContext context,
+        X509Certificate2 attCert,
+        AttestedAuthenticatorData authenticatorData,
+        CancellationToken cancellationToken)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (authenticatorData is null)
+        {
+            return Result<FidoMetadataResult>.Fail();
+        }
+
+        if (authenticatorData.AttestedCredentialData.Aaguid != Guid.Empty)
+        {
+            var aaguidResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
+                context,
+                authenticatorData.AttestedCredentialData.Aaguid,
+                cancellationToken);
+            if (aaguidResult.HasValue)
+            {
+                return Result<FidoMetadataResult>.Success(aaguidResult.Value);
+            }
+        }
+        else
+        {
+            var embeddedAaguid = TryGetAaguid(attCert);
+            if (embeddedAaguid.HasError)
+            {
+                return Result<FidoMetadataResult>.Fail();
+            }
+
+            var embeddedAaguidResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
+                context,
+                embeddedAaguid.Ok,
+                cancellationToken);
+            if (embeddedAaguidResult.HasValue)
+            {
+                return Result<FidoMetadataResult>.Success(embeddedAaguidResult.Value);
+            }
+        }
+
+
+        // var ski = TryGetSubjectKeyIdentifier(attCert);
+        // if (!ski.HasValue)
+        // {
+        //     return Result<FidoMetadataResult>.Fail();
+        // }
+        //
+        // var skiResult = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
+        //     context,
+        //     ski.Value,
+        //     cancellationToken);
+        // if (skiResult.HasValue)
+        // {
+        //     return Result<FidoMetadataResult>.Success(skiResult.Value);
+        // }
+
+
+        return Result<FidoMetadataResult>.Fail();
+    }
+
+    protected virtual Optional<byte[]> TryGetSubjectKeyIdentifier(X509Certificate2 attCert)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (attCert is null)
+        {
+            return Optional<byte[]>.Empty();
+        }
+
+        var subjectKeyIdentifierExtension = attCert.Extensions.FirstOrDefault(x => x is X509SubjectKeyIdentifierExtension);
+        if (subjectKeyIdentifierExtension is X509SubjectKeyIdentifierExtension skiExtension)
+        {
+            var hexSki = skiExtension.SubjectKeyIdentifier;
+            if (!string.IsNullOrEmpty(hexSki))
+            {
+                var binarySki = Convert.FromHexString(hexSki);
+                return Optional<byte[]>.Payload(binarySki);
+            }
+        }
+
+        return Optional<byte[]>.Empty();
+    }
+
+    protected virtual Result<Guid> TryGetAaguid(X509Certificate2 attCert)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (attCert is null)
+        {
+            return Result<Guid>.Fail();
+        }
+
+        // If the related attestation root certificate is used for multiple authenticator models,
+        // the Extension OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid) MUST be present,
+        // containing the AAGUID as a 16-byte OCTET STRING. The extension MUST NOT be marked as critical.
+        // Note that an X.509 Extension encodes the DER-encoding of the value in an OCTET STRING.
+        // Thus, the AAGUID MUST be wrapped in two OCTET STRINGS to be valid.
+        var extension = attCert.Extensions.FirstOrDefault(static x => x.Oid?.Value is "1.3.6.1.4.1.45724.1.1.4"); // id-fido-gen-ce-aaguid
+        if (extension is not null)
+        {
+            if (extension.Critical)
+            {
+                return Result<Guid>.Fail();
+            }
+
+            var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
+            if (decodeResult.HasError)
+            {
+                return Result<Guid>.Fail();
+            }
+
+            if (!decodeResult.Ok.HasValue)
+            {
+                return Result<Guid>.Fail();
+            }
+
+            if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
+            {
+                return Result<Guid>.Fail();
+            }
+
+            if (aaguidOctetString.Value.Length != 16)
+            {
+                return Result<Guid>.Fail();
+            }
+
+            var hexAaguid = Convert.ToHexString(aaguidOctetString.Value);
+            var typedAaguid = new Guid(hexAaguid);
+            return Result<Guid>.Success(typedAaguid);
+        }
+
+        return Result<Guid>.Fail();
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]

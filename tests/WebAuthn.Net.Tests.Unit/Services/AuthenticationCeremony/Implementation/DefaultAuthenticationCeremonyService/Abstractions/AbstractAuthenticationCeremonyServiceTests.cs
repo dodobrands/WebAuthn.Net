@@ -84,7 +84,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
             cborDecoder,
             NullLogger<DefaultAttestationObjectDecoder>.Instance);
-        DefaultFidoAttestationCertificateInspector<FakeWebAuthnContext> attestationCertificateInspector;
+        DefaultFidoMetadataSearchService<FakeWebAuthnContext> metadataSearchService;
         using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
         {
             var metadataProvider = new DefaultFidoMetadataProvider(
@@ -104,35 +104,37 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             }
 
             var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
-            var metadataSearchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage);
+            metadataSearchService = new(storage, TimeProvider);
             var metadataIngestService = new DefaultFidoMetadataIngestService(storage);
             await metadataIngestService.UpsertAsync(
                 decodeMetadataResult.Ok,
                 CancellationToken.None);
-            attestationCertificateInspector = new(
-                metadataSearchService,
-                asn1Decoder);
         }
 
         var packedVerifier = new DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             digitalSignatureVerifier,
             asn1Decoder,
-            attestationCertificateInspector);
+            metadataSearchService);
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             digitalSignatureVerifier,
             tpmManufacturerVerifier,
             asn1Decoder,
-            attestationCertificateInspector);
+            metadataSearchService);
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
             digitalSignatureVerifier,
             asn1Decoder,
-            attestationCertificateInspector);
-        var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(TimeProvider, attestationCertificateInspector);
-        var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(TimeProvider, asn1Decoder, attestationCertificateInspector);
+            metadataSearchService);
+        var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(
+            TimeProvider,
+            metadataSearchService);
+        var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
+            TimeProvider,
+            asn1Decoder,
+            metadataSearchService);
         var noneVerifier = new DefaultNoneAttestationStatementVerifier<FakeWebAuthnContext>();
         var appleAnonymousVerifier = new DefaultAppleAnonymousAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,

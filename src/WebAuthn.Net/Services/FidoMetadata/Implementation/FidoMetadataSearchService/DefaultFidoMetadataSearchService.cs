@@ -8,6 +8,7 @@ using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
+using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Static;
 using WebAuthn.Net.Storage.FidoMetadata;
 
@@ -16,13 +17,18 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchSe
 public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchService<TContext>
     where TContext : class, IWebAuthnContext
 {
-    public DefaultFidoMetadataSearchService(IFidoMetadataSearchStorage<TContext> metadataSearchStorage)
+    public DefaultFidoMetadataSearchService(
+        IFidoMetadataSearchStorage<TContext> metadataSearchStorage,
+        ITimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(metadataSearchStorage);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         MetadataSearchStorage = metadataSearchStorage;
+        TimeProvider = timeProvider;
     }
 
     protected IFidoMetadataSearchStorage<TContext> MetadataSearchStorage { get; }
+    protected ITimeProvider TimeProvider { get; }
 
     public virtual async Task<Optional<FidoMetadataResult>> FindMetadataByAaguidAsync(
         TContext context,
@@ -104,6 +110,7 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         }
 
         var allowedRootCertificates = new List<byte[]>(metadataStatement.AttestationRootCertificates.Length);
+        var currentDate = TimeProvider.GetPreciseUtcDateTime();
         foreach (var attestationRootCertificate in metadataStatement.AttestationRootCertificates)
         {
             if (!X509CertificateInMemoryLoader.TryLoad(attestationRootCertificate, out var certificate))
@@ -112,8 +119,12 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
                 continue;
             }
 
+            if (!(currentDate < certificate.NotBefore || currentDate > certificate.NotAfter))
+            {
+                allowedRootCertificates.Add(attestationRootCertificate);
+            }
+
             certificate.Dispose();
-            allowedRootCertificates.Add(attestationRootCertificate);
         }
 
         if (allowedRootCertificates.Count == 0)

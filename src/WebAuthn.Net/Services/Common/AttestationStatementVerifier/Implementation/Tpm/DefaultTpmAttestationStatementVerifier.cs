@@ -10,7 +10,6 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums.Extensions;
@@ -20,6 +19,8 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 using WebAuthn.Net.Services.Cryptography.Sign;
+using WebAuthn.Net.Services.FidoMetadata;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -31,35 +32,30 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
-    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
-    {
-        AttestationType.AttCa
-    };
-
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
         IAsn1Decoder asn1Decoder,
-        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
-        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
+        ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         TpmManufacturerVerifier = tpmManufacturerVerifier;
         Asn1Decoder = asn1Decoder;
-        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
+        FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ITpmManufacturerVerifier TpmManufacturerVerifier { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
-    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
+    protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
@@ -268,39 +264,47 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         AttestedAuthenticatorData authenticatorData,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(authenticatorData);
         cancellationToken.ThrowIfCancellationRequested();
+
         var rootCertificates = new UniqueByteArraysCollection();
-        if (manufacturerRootCertificates is not null)
+        if (manufacturerRootCertificates is not null && manufacturerRootCertificates.Length > 0)
         {
             rootCertificates.AddRange(manufacturerRootCertificates);
         }
 
-        var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+        var metadataRoots = await GetAcceptableTrustAnchorsFromFidoMetadataAsync(
             context,
-            aikCert,
-            authenticatorData,
-            GetSupportedAttestationTypes(),
+            authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
-        if (inspectResult.HasError)
-        {
-            return Result<AcceptableTrustAnchors>.Fail();
-        }
 
-        if (inspectResult.Ok.HasValue)
+        if (metadataRoots.HasValue)
         {
-            var inspectionResult = inspectResult.Ok.Value;
-            if (inspectionResult.AcceptableTrustAnchors is not null)
-            {
-                rootCertificates.AddRange(inspectionResult.AcceptableTrustAnchors.AttestationRootCertificates);
-            }
+            rootCertificates.AddRange(metadataRoots.Value);
         }
 
         return Result<AcceptableTrustAnchors>.Success(new(rootCertificates));
     }
 
-    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    protected virtual async Task<Optional<byte[][]>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+        TContext context,
+        Guid aaguid,
+        CancellationToken cancellationToken)
     {
-        return _supportedAttestationTypes;
+        cancellationToken.ThrowIfCancellationRequested();
+        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
+        if (!metadataResult.HasValue)
+        {
+            return Optional<byte[][]>.Empty();
+        }
+
+        var metadata = metadataResult.Value;
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
+        {
+            return Optional<byte[][]>.Payload(metadata.RootCertificates);
+        }
+
+        return Optional<byte[][]>.Empty();
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]

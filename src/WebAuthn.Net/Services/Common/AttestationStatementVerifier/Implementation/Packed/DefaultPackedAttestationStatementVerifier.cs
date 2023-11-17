@@ -10,12 +10,14 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Packed;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Packed.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
+using WebAuthn.Net.Services.FidoMetadata;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -26,33 +28,26 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultPackedAttestationStatementVerifier<TContext> :
     IPackedAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    private readonly IReadOnlySet<AttestationType> _supportedAttestationTypes = new HashSet<AttestationType>
-    {
-        AttestationType.Basic,
-        AttestationType.AttCa,
-        AttestationType.Self
-    };
-
     public DefaultPackedAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
         IAsn1Decoder asn1Decoder,
-        IFidoAttestationCertificateInspector<TContext> fidoAttestationCertificateInspector)
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(asn1Decoder);
-        ArgumentNullException.ThrowIfNull(fidoAttestationCertificateInspector);
+        ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         Asn1Decoder = asn1Decoder;
-        FidoAttestationCertificateInspector = fidoAttestationCertificateInspector;
+        FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected IAsn1Decoder Asn1Decoder { get; }
-    protected IFidoAttestationCertificateInspector<TContext> FidoAttestationCertificateInspector { get; }
+    protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
@@ -168,31 +163,65 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         }
 
         // 4) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether attStmt conveys a Basic or AttCA attestation.
-        var inspectResult = await FidoAttestationCertificateInspector.InspectAttestationCertificateAsync(
+        var attestationTypeResult = await GetAttestationTypeAsync(
             context,
             attestnCert,
             authenticatorData,
-            GetSupportedAttestationTypes(),
             cancellationToken);
-        if (inspectResult.HasError || !inspectResult.Ok.HasValue)
+        if (attestationTypeResult.HasError)
         {
             return Result<AttestationStatementVerificationResult>.Fail();
         }
 
-        var inspectionResult = inspectResult.Ok.Value;
-
         // 5) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
         var result = new AttestationStatementVerificationResult(
             AttestationStatementFormat.Packed,
-            inspectionResult.AttestationType,
+            attestationTypeResult.Ok.AttestationType,
             trustPath,
-            inspectionResult.AcceptableTrustAnchors);
+            new(attestationTypeResult.Ok.AttestationRootCertificates));
         return Result<AttestationStatementVerificationResult>.Success(result);
     }
 
-    protected virtual IReadOnlySet<AttestationType> GetSupportedAttestationTypes()
+    protected virtual async Task<Result<FidoPackedAttestationTypeResult>> GetAttestationTypeAsync(
+        TContext context,
+        X509Certificate2 attestnCert,
+        AttestedAuthenticatorData authenticatorData,
+        CancellationToken cancellationToken)
     {
-        return _supportedAttestationTypes;
+        ArgumentNullException.ThrowIfNull(authenticatorData);
+        cancellationToken.ThrowIfCancellationRequested();
+        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
+            context,
+            authenticatorData.AttestedCredentialData.Aaguid,
+            cancellationToken);
+        if (!metadataResult.HasValue)
+        {
+            return Result<FidoPackedAttestationTypeResult>.Fail();
+        }
+
+        var metadata = metadataResult.Value;
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
+        {
+            var rootCertificates = new UniqueByteArraysCollection();
+            rootCertificates.AddRange(metadata.RootCertificates);
+            return Result<FidoPackedAttestationTypeResult>.Success(new(AttestationType.AttCa, rootCertificates));
+        }
+
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL))
+        {
+            var rootCertificates = new UniqueByteArraysCollection();
+            rootCertificates.AddRange(metadata.RootCertificates);
+            return Result<FidoPackedAttestationTypeResult>.Success(new(AttestationType.Basic, rootCertificates));
+        }
+
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_SURROGATE))
+        {
+            var rootCertificates = new UniqueByteArraysCollection();
+            rootCertificates.AddRange(metadata.RootCertificates);
+            return Result<FidoPackedAttestationTypeResult>.Success(new(AttestationType.Self, rootCertificates));
+        }
+
+        return Result<FidoPackedAttestationTypeResult>.Fail();
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
