@@ -12,9 +12,22 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Update="ConformanceMetadata\*.json">
+        <None Update="ConformanceMetadata\Jwt\*">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
+        </None>
+        <None Update="ConformanceMetadata\Jwt\.gitkeep">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </None>
+        <None Update="ConformanceMetadata\JwtRoot\*.*">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="ConformanceMetadata\MetadataStatements\.gitkeep">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </None>
+        <Content Remove="ConformanceMetadata\MetadataStatements\*.json" />
+        <None Include="ConformanceMetadata\MetadataStatements\*.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>

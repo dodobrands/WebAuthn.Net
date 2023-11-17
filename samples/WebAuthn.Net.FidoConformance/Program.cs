@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
 using WebAuthn.Net.FidoConformance.Services;
+using WebAuthn.Net.FidoConformance.Services.ConformanceMetadata;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
@@ -17,10 +18,12 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddSingleton<RequestLoggingMiddleware>();
+        builder.Services.AddSingleton<LocalFilesFidoMetadataHttpClientDelegatingHandler>();
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();
-        builder.Services.AddSingleton<IFidoMetadataProvider, LocalFilesFidoMetadataProvider>();
+        builder.Services.AddSingleton<IFidoMetadataProvider, LocalFilesFidoMetadataProviderForMdsTests>();
+        //builder.Services.AddSingleton<IFidoMetadataProvider, LocalFilesFidoMetadataProvider>();
         builder.Services.AddSingleton<ITpmManufacturerVerifier, ConformanceTpmManufacturerVerifier>();
         builder.Services.AddWebAuthnInMemory(
             static options =>
@@ -30,6 +33,7 @@ public static class Program
             },
             static fidoHttp =>
             {
+                fidoHttp.AddHttpMessageHandler<LocalFilesFidoMetadataHttpClientDelegatingHandler>();
             },
             static ingest =>
             {

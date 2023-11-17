@@ -404,23 +404,28 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
-            // 17. Verify that the UP bit of the flags in authData is set.
-            if ((authData.Flags & AuthenticatorDataFlags.UserPresent) is not AuthenticatorDataFlags.UserPresent)
-            {
-                Logger.UserPresentBitNotSet();
-                return CompleteAuthenticationCeremonyResult.Fail();
-            }
-
-            // 18. Determine whether user verification is required for this assertion.
-            // User verification SHOULD be required if, and only if, options.userVerification is set to required.
-            // If user verification was determined to be required, verify that the UV bit of the flags in authData is set.
-            // Otherwise, ignore the value of the UV flag.
             var userVerificationRequired = options.UserVerification is UserVerificationRequirement.Required;
-            var uvInitialized = (authData.Flags & AuthenticatorDataFlags.UserVerified) is AuthenticatorDataFlags.UserVerified;
-            if (userVerificationRequired && !uvInitialized)
+            var userPresent = (authData.Flags & AuthenticatorDataFlags.UserPresent) is AuthenticatorDataFlags.UserPresent;
+            bool? uvInitialized = null;
+            if (userVerificationRequired)
             {
-                Logger.UserVerificationBitNotSet();
-                return CompleteAuthenticationCeremonyResult.Fail();
+                // 17. Verify that the UP bit of the flags in authData is set.
+                if (!userPresent)
+                {
+                    Logger.UserPresentBitNotSet();
+                    return CompleteAuthenticationCeremonyResult.Fail();
+                }
+
+                // 18. Determine whether user verification is required for this assertion.
+                // User verification SHOULD be required if, and only if, options.userVerification is set to required.
+                // If user verification was determined to be required, verify that the UV bit of the flags in authData is set.
+                // Otherwise, ignore the value of the UV flag.
+                uvInitialized = (authData.Flags & AuthenticatorDataFlags.UserVerified) is AuthenticatorDataFlags.UserVerified;
+                if (userVerificationRequired && !uvInitialized.Value)
+                {
+                    Logger.UserVerificationBitNotSet();
+                    return CompleteAuthenticationCeremonyResult.Fail();
+                }
             }
 
             // 19. If the BE bit of the flags in authData is not set, verify that the BS bit is not set.
@@ -596,7 +601,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         CredentialRecord old,
         uint authDataSignCount,
         bool currentBs,
-        bool uvInitialized,
+        bool? uvInitialized,
         byte[]? responseAttestationObject,
         byte[]? responseClientDataJson)
     {
@@ -614,9 +619,9 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         var uvInitializedUpdated = false;
         if (Options.CurrentValue.AuthenticationCeremony.AllowToUpdateUserUserVerifiedFlag)
         {
-            if (!old.UvInitialized && uvInitialized)
+            if (!old.UvInitialized && uvInitialized.HasValue && uvInitialized.Value)
             {
-                newUvInitialized = uvInitialized;
+                newUvInitialized = true;
                 uvInitializedUpdated = true;
             }
         }

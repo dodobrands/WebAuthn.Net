@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.FidoConformance.Models.Common.Response;
@@ -17,13 +18,15 @@ public class ServerPublicKeyCredentialGetOptionsResponse : ServerResponse
         uint? timeout,
         string? rpId,
         PublicKeyCredentialDescriptorJSON[]? allowCredentials,
-        string? userVerification) : base(status, errorMessage)
+        string? userVerification,
+        Dictionary<string, JsonElement>? extensions) : base(status, errorMessage)
     {
         Challenge = challenge;
         Timeout = timeout;
         RpId = rpId;
         AllowCredentials = allowCredentials;
         UserVerification = userVerification;
+        Extensions = extensions;
     }
 
     [Required]
@@ -47,6 +50,10 @@ public class ServerPublicKeyCredentialGetOptionsResponse : ServerResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? UserVerification { get; }
 
+    [JsonPropertyName("extensions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement>? Extensions { get; }
+
     public static ServerPublicKeyCredentialGetOptionsResponse FromPublicKeyCredentialRequestOptions(PublicKeyCredentialRequestOptionsJSON input)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -57,6 +64,7 @@ public class ServerPublicKeyCredentialGetOptionsResponse : ServerResponse
             input.Timeout,
             input.RpId,
             input.AllowCredentials,
-            input.UserVerification);
+            input.UserVerification,
+            input.Extensions);
     }
 }

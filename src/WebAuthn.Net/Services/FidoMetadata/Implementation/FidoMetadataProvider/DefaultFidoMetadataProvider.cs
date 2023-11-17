@@ -68,8 +68,9 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             }
 
             // build root certificates chain that avoid expired certificates
+            var fidoRootCertificates = GetFidoMetadataRootCertificates();
             var rootCertificates = new List<X509Certificate2>();
-            foreach (var fidoRootCertBytes in FidoMetadataRoots.GlobalSign)
+            foreach (var fidoRootCertBytes in fidoRootCertificates)
             {
                 if (!X509CertificateInMemoryLoader.TryLoad(fidoRootCertBytes, out var fidoRootCertificate))
                 {
@@ -102,12 +103,12 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 {
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
+            }
 
-                var isJwtCertificateValid = X509TrustChainValidator.IsValidCertificateChain(rootCertificates.ToArray(), jwtCertificate);
-                if (!isJwtCertificateValid)
-                {
-                    return Result<MetadataBLOBPayloadJSON>.Fail();
-                }
+            var isJwtCertificateValid = X509TrustChainValidator.IsValidCertificateChain(rootCertificates.ToArray(), jwtCertificates.ToArray());
+            if (!isJwtCertificateValid)
+            {
+                return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
             var jwtValidationResult = await JwtValidator.ValidateAsync(rawMetadata, securityKeys, cancellationToken);
@@ -189,5 +190,10 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 
         rawCertificates = null;
         return false;
+    }
+
+    protected virtual byte[][] GetFidoMetadataRootCertificates()
+    {
+        return FidoMetadataRoots.GlobalSign;
     }
 }

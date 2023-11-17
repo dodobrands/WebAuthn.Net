@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Json;
@@ -12,10 +14,14 @@ public class ServerPublicKeyCredentialGetOptionsRequest
     private static readonly EnumMemberAttributeMapper<UserVerificationRequirement> UserVerificationRequirementMapper = new();
 
     [JsonConstructor]
-    public ServerPublicKeyCredentialGetOptionsRequest(string userName, string? userVerification)
+    public ServerPublicKeyCredentialGetOptionsRequest(
+        string userName,
+        string? userVerification,
+        Dictionary<string, JsonElement>? extensions)
     {
         UserName = userName;
         UserVerification = userVerification;
+        Extensions = extensions;
     }
 
     [JsonPropertyName("username")]
@@ -23,9 +29,13 @@ public class ServerPublicKeyCredentialGetOptionsRequest
     [Required]
     public string UserName { get; }
 
-    [JsonPropertyName("userVerification  ")]
+    [JsonPropertyName("userVerification")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? UserVerification { get; }
+
+    [JsonPropertyName("extensions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement>? Extensions { get; }
 
     public BeginAuthenticationCeremonyRequest ToBeginCeremonyRequest()
     {
@@ -33,15 +43,15 @@ public class ServerPublicKeyCredentialGetOptionsRequest
         return new(
             null,
             null,
-            null,
+            WebEncoders.Base64UrlDecode(UserName),
             16,
             120000,
-            null,
+            AuthenticationCeremonyIncludeCredentials.AllExisting(),
             userVerification,
             null,
             null,
             null,
-            null);
+            Extensions);
     }
 
     private static TEnum? ParseNullableEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(

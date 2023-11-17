@@ -1,0 +1,178 @@
+﻿using System.Text.Json;
+using WebAuthn.Net.FidoConformance.Constants;
+using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.FidoMetadata;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
+using WebAuthn.Net.Services.Providers;
+
+namespace WebAuthn.Net.FidoConformance.Services.ConformanceMetadata;
+
+public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProvider
+{
+    public LocalFilesFidoMetadataProviderForMdsTests(
+        IFidoMetadataHttpClient metadataHttpClient,
+        ITimeProvider timeProvider)
+        : base(metadataHttpClient, timeProvider)
+    {
+    }
+
+    public override async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsync(CancellationToken cancellationToken)
+    {
+        var result = await base.DownloadMetadataAsync(cancellationToken);
+        if (result.HasError)
+        {
+            return result;
+        }
+
+        var metadataStatements = GetMetadataStatements();
+        var mergedResult = MergeEntries(result.Ok, metadataStatements);
+        return Result<MetadataBLOBPayloadJSON>.Success(mergedResult);
+    }
+
+    private static MetadataBLOBPayloadJSON MergeEntries(MetadataBLOBPayloadJSON src, MetadataBLOBPayloadEntryJSON[] entries)
+    {
+        var result = new List<MetadataBLOBPayloadEntryJSON>(src.Entries);
+        foreach (var entry in entries)
+        {
+            if (!string.IsNullOrEmpty(entry.Aaid) && !string.IsNullOrEmpty(entry.Aaguid))
+            {
+                var existing = result.Where(x => x.Aaid == entry.Aaid || x.Aaguid == entry.Aaguid).ToArray();
+                foreach (var entryToRemove in existing)
+                {
+                    result.Remove(entryToRemove);
+                }
+            }
+            else if (!string.IsNullOrEmpty(entry.Aaid))
+            {
+                var existing = result.Where(x => x.Aaid == entry.Aaid).ToArray();
+                foreach (var entryToRemove in existing)
+                {
+                    result.Remove(entryToRemove);
+                }
+            }
+            else if (!string.IsNullOrEmpty(entry.Aaguid))
+            {
+                var existing = result.Where(x => x.Aaguid == entry.Aaguid).ToArray();
+                foreach (var entryToRemove in existing)
+                {
+                    result.Remove(entryToRemove);
+                }
+            }
+
+
+            result.Add(entry);
+        }
+
+        return new(src.LegalHeader, src.No, src.NextUpdate, result.ToArray());
+    }
+
+
+    private static MetadataBLOBPayloadEntryJSON[] GetMetadataStatements()
+    {
+        var result = new List<MetadataBLOBPayloadEntryJSON>();
+
+        var jsonsDirectory = GetConformanceMetadataDirectory()?
+            .GetDirectories()
+            .FirstOrDefault(x => string.Equals(x.Name, FidoConformanceMetadata.MetadataStatementsSubdirectory, StringComparison.OrdinalIgnoreCase));
+
+        var jsons = jsonsDirectory?
+            .GetFiles()
+            .Where(static x => string.Equals(x.Extension, ".json", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (jsons is not null)
+        {
+            foreach (var json in jsons)
+            {
+                var fileContent = File.ReadAllText(json.FullName);
+                var metadataStatement = JsonSerializer.Deserialize<MetadataStatementJSON>(fileContent);
+                if (metadataStatement is null)
+                {
+                    throw new InvalidOperationException($"The JSON file \"{json.FullName}\" does not contain a valid set of metadata ({nameof(MetadataStatementJSON)})");
+                }
+
+                var entry = new MetadataBLOBPayloadEntryJSON(
+                    metadataStatement.Aaid,
+                    metadataStatement.Aaguid,
+                    metadataStatement.AttestationCertificateKeyIdentifiers,
+                    metadataStatement,
+                    null,
+                    new StatusReportJSON[]
+                    {
+                        new(
+                            "FIDO_CERTIFIED",
+                            "2023-11-15",
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null)
+                    },
+                    "2023-11-15",
+                    null,
+                    null);
+                result.Add(entry);
+            }
+        }
+
+        return result.ToArray();
+    }
+
+    protected override byte[][] GetFidoMetadataRootCertificates()
+    {
+        return GetRootCertificates();
+    }
+
+    private static byte[][] GetRootCertificates()
+    {
+        var rootDirectory = GetConformanceMetadataDirectory();
+        var jwtRoot = rootDirectory
+            .GetDirectories()
+            .FirstOrDefault(static x => string.Equals(x.Name, FidoConformanceMetadata.JwtRootSubdirectory, StringComparison.OrdinalIgnoreCase));
+        if (jwtRoot is null || !jwtRoot.Exists)
+        {
+            throw new InvalidOperationException($"Missing \"{FidoConformanceMetadata.JwtRootSubdirectory}\"");
+        }
+
+        var certificates = jwtRoot
+            .GetFiles()
+            .Where(static x => string.Equals(x.Extension, ".crt", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(x.Extension, ".der", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(x.Extension, ".cer", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var result = new List<byte[]>();
+        foreach (var certificate in certificates)
+        {
+            var rootCertBytes = File.ReadAllBytes(certificate.FullName);
+            result.Add(rootCertBytes);
+        }
+
+        if (result.Count == 0)
+        {
+            throw new InvalidOperationException($"\"{FidoConformanceMetadata.JwtRootSubdirectory}\" is empty. Add conformance metadata root certificate.");
+        }
+
+        return result.ToArray();
+    }
+
+    private static DirectoryInfo GetConformanceMetadataDirectory()
+    {
+        var assemblyDirectory = new FileInfo(typeof(LocalFilesFidoMetadataProviderForMdsTests).Assembly.Location).Directory;
+        if (assemblyDirectory is null || !assemblyDirectory.Exists)
+        {
+            throw new InvalidOperationException("Failed to retrieve the path to the current assembly on disk");
+        }
+
+        var conformanceMetadata = assemblyDirectory
+            .GetDirectories()
+            .FirstOrDefault(static x => string.Equals(x.Name, FidoConformanceMetadata.RootDirectory, StringComparison.OrdinalIgnoreCase));
+        if (conformanceMetadata is null || !conformanceMetadata.Exists)
+        {
+            throw new InvalidOperationException($"The conformance metadata directory \"{FidoConformanceMetadata.RootDirectory}\" does not exist in the folder \"{assemblyDirectory.FullName}\"");
+        }
+
+        return conformanceMetadata;
+    }
+}

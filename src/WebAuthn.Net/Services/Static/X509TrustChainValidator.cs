@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Services.Static;
 
 public static class X509TrustChainValidator
 {
-    public static bool IsValidCertificateChain(X509Certificate2[] rootCertificates, X509Certificate2 certificateToValidate)
+    public static bool IsValidCertificateChain(X509Certificate2[] rootCertificates, X509Certificate2[] trustPath)
     {
         // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         if (!(rootCertificates?.Length > 0))
@@ -15,8 +15,9 @@ public static class X509TrustChainValidator
             return false;
         }
 
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (certificateToValidate is null)
+
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
+        if (!(trustPath?.Length > 0))
         {
             return false;
         }
@@ -26,6 +27,14 @@ public static class X509TrustChainValidator
         chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
         chain.ChainPolicy.UrlRetrievalTimeout = TimeSpan.FromSeconds(10);
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+        chain.ChainPolicy.VerificationFlags = X509VerificationFlags.IgnoreNotTimeValid;
+        var certificateToValidate = trustPath[0];
+        var additionalCertificates = trustPath.Skip(1);
+        foreach (var additionalCertificate in additionalCertificates)
+        {
+            chain.ChainPolicy.ExtraStore.Add(additionalCertificate);
+        }
+
         foreach (var rootCertificate in rootCertificates)
         {
             chain.ChainPolicy.CustomTrustStore.Add(rootCertificate);
