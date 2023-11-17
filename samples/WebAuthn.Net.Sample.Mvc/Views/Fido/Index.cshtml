@@ -1,0 +1,57 @@
+﻿@{
+    ViewData["Title"] = "Fido Register/Authentication";
+}
+
+<h1>Fido</h1>
+<hr/>
+<div>
+    <h2>Register</h2>
+    <form id="webauthn-register">
+        <label for="webauthn-register-name">Username:</label>
+        <input type="text" id="webauthn-register-name" />
+
+        <button type="submit" id="webauthn-register-submit">Register</button>
+    </form>
+</div>
+<hr/>
+<div>
+    <h2>Authenticate</h2>
+    <form id="webauthn-authenticate">
+        <label for="webauthn-authenticate-name">Username:</label>
+        <input type="text" id="webauthn-authenticate-name" />
+        <button type="submit" id="webauthn-authenticate-submit">Login</button>
+    </form>
+</div>
+
+<script type="text/javascript">
+const isWebauthnAvailable = () => {
+    const missingWebauthnApis = window.PublicKeyCredential === undefined
+    || typeof window.PublicKeyCredential !== "function"
+    || typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function";
+
+    return window.isSecureContext && !missingWebauthnApis;
+};
+
+const onRegisterButtonHandler = async (e) => {
+    e.preventDefault();
+
+};
+
+const onAuthenticateButtonHandler = (e) => {
+    e.preventDefault();
+    alert("Authenticate!");
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    if (!isWebauthnAvailable()) {
+        alert("Browser doesn't support Webauthn API");
+        return;
+    }
+
+    const registerButton = document.getElementById("webauthn-register-submit");
+    const authenticateButton = document.getElementById("webauthn-authenticate-submit");
+
+    registerButton.addEventListener("click", onRegisterButtonHandler);
+    authenticateButton.addEventListener("click", onAuthenticateButtonHandler);
+});
+</script>

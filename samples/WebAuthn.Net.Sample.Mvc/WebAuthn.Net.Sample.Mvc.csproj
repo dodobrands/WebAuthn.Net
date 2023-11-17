@@ -69,4 +69,8 @@
       <_ContentIncludedByDefault Remove="wwwroot\lib\jquery\LICENSE.txt" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\WebAuthn.Net.Storage.InMemory\WebAuthn.Net.Storage.InMemory.csproj" />
+    </ItemGroup>
+
 </Project>
