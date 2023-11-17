@@ -211,19 +211,46 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         }
         else
         {
-            var embeddedAaguid = TryGetAaguid(attCert);
-            if (embeddedAaguid.HasError)
+            var embeddedAaguidResult = GetAaguidIfExists(attCert);
+            if (embeddedAaguidResult.HasError)
             {
                 return Result<FidoMetadataResult>.Fail();
             }
 
-            var embeddedAaguidResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
-                context,
-                embeddedAaguid.Ok,
-                cancellationToken);
-            if (embeddedAaguidResult.HasValue)
+            var embeddedAaguidOptional = embeddedAaguidResult.Ok;
+            if (embeddedAaguidOptional.HasValue)
             {
-                return Result<FidoMetadataResult>.Success(embeddedAaguidResult.Value);
+                var embeddedAaguidMetadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
+                    context,
+                    embeddedAaguidOptional.Value,
+                    cancellationToken);
+                if (embeddedAaguidMetadataResult.HasValue)
+                {
+                    return Result<FidoMetadataResult>.Success(embeddedAaguidMetadataResult.Value);
+                }
+
+                return Result<FidoMetadataResult>.Fail();
+            }
+
+            var embeddedSkiResult = GetSubjectKeyIdentifierIfExists(attCert);
+            if (embeddedSkiResult.HasError)
+            {
+                return Result<FidoMetadataResult>.Fail();
+            }
+
+            var embeddedSkiOptional = embeddedSkiResult.Ok;
+            if (embeddedSkiOptional.HasValue)
+            {
+                var embeddedSkiMetadataResult = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
+                    context,
+                    embeddedSkiOptional.Value,
+                    cancellationToken);
+                if (embeddedSkiMetadataResult.HasValue)
+                {
+                    return Result<FidoMetadataResult>.Success(embeddedSkiMetadataResult.Value);
+                }
+
+                return Result<FidoMetadataResult>.Fail();
             }
         }
 
@@ -247,12 +274,12 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return Result<FidoMetadataResult>.Fail();
     }
 
-    protected virtual Optional<byte[]> TryGetSubjectKeyIdentifier(X509Certificate2 attCert)
+    protected virtual Result<Optional<byte[]>> GetSubjectKeyIdentifierIfExists(X509Certificate2 attCert)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (attCert is null)
         {
-            return Optional<byte[]>.Empty();
+            return Result<Optional<byte[]>>.Fail();
         }
 
         var subjectKeyIdentifierExtension = attCert.Extensions.FirstOrDefault(x => x is X509SubjectKeyIdentifierExtension);
@@ -262,19 +289,19 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             if (!string.IsNullOrEmpty(hexSki))
             {
                 var binarySki = Convert.FromHexString(hexSki);
-                return Optional<byte[]>.Payload(binarySki);
+                return Result<Optional<byte[]>>.Success(Optional<byte[]>.Payload(binarySki));
             }
         }
 
-        return Optional<byte[]>.Empty();
+        return Result<Optional<byte[]>>.Success(Optional<byte[]>.Empty());
     }
 
-    protected virtual Result<Guid> TryGetAaguid(X509Certificate2 attCert)
+    protected virtual Result<Optional<Guid>> GetAaguidIfExists(X509Certificate2 attCert)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (attCert is null)
         {
-            return Result<Guid>.Fail();
+            return Result<Optional<Guid>>.Fail();
         }
 
         // If the related attestation root certificate is used for multiple authenticator models,
@@ -287,36 +314,36 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         {
             if (extension.Critical)
             {
-                return Result<Guid>.Fail();
+                return Result<Optional<Guid>>.Fail();
             }
 
             var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
             if (decodeResult.HasError)
             {
-                return Result<Guid>.Fail();
+                return Result<Optional<Guid>>.Fail();
             }
 
             if (!decodeResult.Ok.HasValue)
             {
-                return Result<Guid>.Fail();
+                return Result<Optional<Guid>>.Fail();
             }
 
             if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
             {
-                return Result<Guid>.Fail();
+                return Result<Optional<Guid>>.Fail();
             }
 
             if (aaguidOctetString.Value.Length != 16)
             {
-                return Result<Guid>.Fail();
+                return Result<Optional<Guid>>.Fail();
             }
 
             var hexAaguid = Convert.ToHexString(aaguidOctetString.Value);
             var typedAaguid = new Guid(hexAaguid);
-            return Result<Guid>.Success(typedAaguid);
+            return Result<Optional<Guid>>.Success(Optional<Guid>.Payload(typedAaguid));
         }
 
-        return Result<Guid>.Fail();
+        return Result<Optional<Guid>>.Success(Optional<Guid>.Empty());
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
