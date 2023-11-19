@@ -8,6 +8,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\WebAuthn.Net.Storage.InMemory\WebAuthn.Net.Storage.InMemory.csproj" />
+        <ProjectReference Include="..\..\src\WebAuthn.Net.Storage.MySql\WebAuthn.Net.Storage.MySql.csproj" />
+        <ProjectReference Include="..\..\src\WebAuthn.Net.Storage.PostgreSql\WebAuthn.Net.Storage.PostgreSql.csproj" />
+        <ProjectReference Include="..\..\src\WebAuthn.Net.Storage.SqlServer\WebAuthn.Net.Storage.SqlServer.csproj" />
         <ProjectReference Include="..\..\src\WebAuthn.Net\WebAuthn.Net.csproj" />
     </ItemGroup>
 

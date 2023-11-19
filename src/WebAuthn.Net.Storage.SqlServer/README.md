@@ -13,19 +13,22 @@ As the library is intended to be integrated into existing applications, they may
 > Please note, that the identifier generator creates sequential identifiers, **compatible only with the uniqueidentifier** data type and passed as `System.Guid` parameters in queries. If you use `binary(16)` instead of `uniqueidentifier` when creating a table schema for the primary key, you will experience **significant performance degradation**.
 
 ```tsql
-CREATE TABLE [CredentialRecords] (
+CREATE TABLE [CredentialRecords]
+(
     [Id] uniqueidentifier NOT NULL,
-    [RpId] nvarchar(300) NOT NULL,
-    [UserHandle] varbinary(300) NOT NULL,
+    [RpId] nvarchar(256) NOT NULL,
+    [UserHandle] varbinary(128) NOT NULL,
     [CredentialId] varbinary(1024) NOT NULL,
     [Type] int NOT NULL,
     [Kty] int NOT NULL,
     [Alg] int NOT NULL,
-    [EcdsaCrv] int NULL,
-    [EcdsaX] varbinary(256) NULL,
-    [EcdsaY] varbinary(256) NULL,
+    [Ec2Crv] int NULL,
+    [Ec2X] varbinary(256) NULL,
+    [Ec2Y] varbinary(256) NULL,
     [RsaModulusN] varbinary(1024) NULL,
     [RsaExponentE] varbinary(32) NULL,
+    [OkpCrv] int NULL,
+    [OkpX] varbinary(32) NULL,
     [SignCount] bigint NOT NULL,
     [Transports] nvarchar(max) NOT NULL,
     [UvInitialized] bit NOT NULL,
@@ -34,6 +37,7 @@ CREATE TABLE [CredentialRecords] (
     [AttestationObject] varbinary(max) NULL,
     [AttestationClientDataJson] varbinary(max) NULL,
     [CreatedAtUnixTime] bigint NOT NULL,
+    [UpdatedAtUnixTime] bigint NOT NULL,
     CONSTRAINT [PK_CredentialRecords] PRIMARY KEY ([Id])
 );
 ALTER TABLE [CredentialRecords] ADD CONSTRAINT [Transports should be formatted as JSON] CHECK (ISJSON(Transports)=1);
@@ -45,5 +49,14 @@ CREATE UNIQUE INDEX [IX_CredentialRecords_RpId_UserHandle_CredentialId] ON [Cred
 To start a local test container, execute the following command
 
 ```shell
-docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=RootooR32!" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=WebAuthn!1337" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+```
+
+Connection string for connecting to the container, the command to start which is presented above.
+
+> [!NOTE]
+> Don't forget to change the database name specified in the `Initial Catalog` parameter to the one you will be using.
+
+```
+Data Source=localhost;Initial Catalog=webauthn;User ID=sa;Password=WebAuthn!1337;Pooling=True;Trust Server Certificate=True
 ```

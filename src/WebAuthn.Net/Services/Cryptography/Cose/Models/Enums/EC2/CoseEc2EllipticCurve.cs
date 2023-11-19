@@ -5,14 +5,14 @@
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <a href="https://datatracker.ietf.org/doc/html/rfc9053#section-2.1">RFC9053 CBOR Object Signing and Encryption (COSE): Initial Algorithms - §2.1. ECDSA</a>
+///         <a href="https://www.rfc-editor.org/rfc/rfc9053.html#section-2.1">RFC9053 CBOR Object Signing and Encryption (COSE): Initial Algorithms - §2.1. ECDSA</a>
 ///     </para>
 ///     <para>
 ///         This document defines ECDSA as working only with the curves P-256, P-384, and P-521.
 ///         This document requires that the curves be encoded using the "EC2" (two coordinate elliptic curve) key type.
 ///     </para>
 /// </remarks>
-public enum CoseEllipticCurve
+public enum CoseEc2EllipticCurve
 {
     /// <summary>
     ///     NIST P-256 also known as secp256r1

@@ -7,6 +7,7 @@ using WebAuthn.Net.Services.Cryptography.Cose.Models;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.OKP;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.RSA;
 using WebAuthn.Net.Services.Serialization.Cbor;
 using WebAuthn.Net.Services.Serialization.Cbor.Models;
@@ -18,53 +19,53 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 
 public class DefaultCoseKeyDecoder : ICoseKeyDecoder
 {
-    private readonly ICborDecoder _cborDecoder;
-    private readonly ILogger<DefaultCoseKeyDecoder> _logger;
-
     public DefaultCoseKeyDecoder(ICborDecoder cborDecoder, ILogger<DefaultCoseKeyDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(cborDecoder);
         ArgumentNullException.ThrowIfNull(logger);
-        _cborDecoder = cborDecoder;
-        _logger = logger;
+        CborDecoder = cborDecoder;
+        Logger = logger;
     }
 
-    public Result<CoseKeyDecodeResult> Decode(byte[] encodedCoseKey)
+    protected ICborDecoder CborDecoder { get; }
+    protected ILogger<DefaultCoseKeyDecoder> Logger { get; }
+
+    public virtual Result<CoseKeyDecodeResult> Decode(byte[] encodedCoseKey)
     {
-        var cborResult = _cborDecoder.Decode(encodedCoseKey);
+        var cborResult = CborDecoder.Decode(encodedCoseKey);
         if (cborResult.HasError)
         {
-            _logger.DecodeFailure();
+            Logger.DecodeFailure();
             return Result<CoseKeyDecodeResult>.Fail();
         }
 
         if (!TryGetCoseKeyRoot(cborResult.Ok, out var cborCoseKey))
         {
-            _logger.CborMapObtainingFailure();
+            Logger.CborMapObtainingFailure();
             return Result<CoseKeyDecodeResult>.Fail();
         }
 
         if (!TryGetKty(cborCoseKey, out var kty, out var ktyKey))
         {
-            _logger.KtyObtainingFailure();
+            Logger.KtyObtainingFailure();
             return Result<CoseKeyDecodeResult>.Fail();
         }
 
         if (!cborCoseKey.Remove(ktyKey))
         {
-            _logger.KtyRemoveFailure();
+            Logger.KtyRemoveFailure();
             return Result<CoseKeyDecodeResult>.Fail();
         }
 
         if (!TryGetAlg(cborCoseKey, kty.Value, out var alg, out var algKey))
         {
-            _logger.AlgObtainingFailure();
+            Logger.AlgObtainingFailure();
             return Result<CoseKeyDecodeResult>.Fail();
         }
 
         if (!cborCoseKey.Remove(algKey))
         {
-            _logger.AlgRemoveFailure();
+            Logger.AlgRemoveFailure();
             return Result<CoseKeyDecodeResult>.Fail();
         }
 
@@ -75,7 +76,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
                     var ec2Result = TryGetEc2Key(alg.Value, cborCoseKey);
                     if (ec2Result.HasError)
                     {
-                        _logger.Ec2KeyObtainingFailure(kty.Value);
+                        Logger.Ec2KeyObtainingFailure(kty.Value);
                         return Result<CoseKeyDecodeResult>.Fail();
                     }
 
@@ -87,16 +88,28 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
                     var rsaResult = TryGetRsaKey(alg.Value, cborCoseKey);
                     if (rsaResult.HasError)
                     {
-                        _logger.RsaKeyObtainingFailure(kty.Value);
+                        Logger.RsaKeyObtainingFailure(kty.Value);
                         return Result<CoseKeyDecodeResult>.Fail();
                     }
 
                     var result = new CoseKeyDecodeResult(rsaResult.Ok, cborResult.Ok.BytesConsumed);
                     return Result<CoseKeyDecodeResult>.Success(result);
                 }
+            case CoseKeyType.OKP:
+                {
+                    var okpResult = TryGetOkpKey(alg.Value, cborCoseKey);
+                    if (okpResult.HasError)
+                    {
+                        Logger.OkpKeyObtainingFailure(kty.Value);
+                        return Result<CoseKeyDecodeResult>.Fail();
+                    }
+
+                    var result = new CoseKeyDecodeResult(okpResult.Ok, cborResult.Ok.BytesConsumed);
+                    return Result<CoseKeyDecodeResult>.Success(result);
+                }
             default:
                 {
-                    _logger.UnknownKty();
+                    Logger.UnknownKty();
                     return Result<CoseKeyDecodeResult>.Fail();
                 }
         }
@@ -109,7 +122,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         // https://www.rfc-editor.org/rfc/rfc9052#section-7
         if (root.Root is not CborMap map)
         {
-            _logger.CoseKeyMustBeCborMap();
+            Logger.CoseKeyMustBeCborMap();
             cborCoseKey = null;
             return false;
         }
@@ -122,14 +135,14 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
             var keyType = mapKey.Type;
             if (keyType != CborType.TextString && keyType != CborType.NegativeInteger && keyType != CborType.UnsignedInteger)
             {
-                _logger.InvalidLabel();
+                Logger.InvalidLabel();
                 cborCoseKey = null;
                 return false;
             }
 
             if (!result.TryAdd(mapKey, mapValue))
             {
-                _logger.DuplicateKey();
+                Logger.DuplicateKey();
                 cborCoseKey = null;
                 return false;
             }
@@ -216,7 +229,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
 
         if (!supportedAlg.Contains(alg.Value))
         {
-            _logger.AlgOutOfRangeForKty(alg.Value, kty);
+            Logger.AlgOutOfRangeForKty(alg.Value, kty);
             alg = null;
             algKey = null;
             return false;
@@ -230,45 +243,45 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         CoseAlgorithm alg,
         Dictionary<AbstractCborObject, AbstractCborObject> cborCoseKey)
     {
-        if (!TryGetCrv(cborCoseKey, alg, out var crv, out var crvKey))
+        if (!TryGetEc2Crv(cborCoseKey, alg, out var crv, out var crvKey))
         {
-            _logger.CrvObtainingFailure();
+            Logger.CrvObtainingFailure();
             return Result<CoseEc2Key>.Fail();
         }
 
         if (!cborCoseKey.Remove(crvKey))
         {
-            _logger.CrvRemoveFailure();
+            Logger.CrvRemoveFailure();
             return Result<CoseEc2Key>.Fail();
         }
 
         if (!TryGetEc2XCoordinate(cborCoseKey, out var x, out var xKey))
         {
-            _logger.XCoordinateObtainingFailure();
+            Logger.XCoordinateObtainingFailure();
             return Result<CoseEc2Key>.Fail();
         }
 
         if (!cborCoseKey.Remove(xKey))
         {
-            _logger.XCoordinateRemoveFailure();
+            Logger.XCoordinateRemoveFailure();
             return Result<CoseEc2Key>.Fail();
         }
 
         if (!TryGetEc2YCoordinate(cborCoseKey, out var y, out var yKey))
         {
-            _logger.YCoordinateObtainingFailure();
+            Logger.YCoordinateObtainingFailure();
             return Result<CoseEc2Key>.Fail();
         }
 
         if (!cborCoseKey.Remove(yKey))
         {
-            _logger.YCoordinateRemoveFailure();
+            Logger.YCoordinateRemoveFailure();
             return Result<CoseEc2Key>.Fail();
         }
 
         if (cborCoseKey.Count > 0)
         {
-            _logger.Ec2UnrecognizedKeysRemainFailure();
+            Logger.Ec2UnrecognizedKeysRemainFailure();
             return Result<CoseEc2Key>.Fail();
         }
 
@@ -276,10 +289,10 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         return Result<CoseEc2Key>.Success(result);
     }
 
-    private bool TryGetCrv(
+    private bool TryGetEc2Crv(
         IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> cborCoseKey,
         CoseAlgorithm alg,
-        [NotNullWhen(true)] out CoseEllipticCurve? crv,
+        [NotNullWhen(true)] out CoseEc2EllipticCurve? crv,
         [NotNullWhen(true)] out AbstractCborObject? crvKey)
     {
         // https://www.rfc-editor.org/rfc/rfc9053.html#section-2.1
@@ -304,9 +317,9 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         // --------------------
         // In the current implementation, each kty has its own set of supported algorithms.
 
-        if (!alg.TryGetSupportedEllipticCurves(out var supportedCrv))
+        if (!alg.TryGetEc2SupportedEllipticCurves(out var supportedCrv))
         {
-            _logger.NoEllipticCurvesForAlg(alg);
+            Logger.NoEllipticCurvesForAlg(alg);
             crv = null;
             crvKey = null;
             return false;
@@ -321,7 +334,7 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
 
         if (!supportedCrv.Contains(crv.Value))
         {
-            _logger.DisallowedEllipticCurveForAlg(alg, crv.Value);
+            Logger.DisallowedEc2EllipticCurveForAlg(alg, crv.Value);
             crv = null;
             crvKey = null;
             return false;
@@ -388,31 +401,31 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
     {
         if (!TryGetRsaModulusN(cborCoseKey, out var modulusN, out var nKey))
         {
-            _logger.RsaModulusNObtainingFailure();
+            Logger.RsaModulusNObtainingFailure();
             return Result<CoseRsaKey>.Fail();
         }
 
         if (!cborCoseKey.Remove(nKey))
         {
-            _logger.RsaModulusNRemoveFailure();
+            Logger.RsaModulusNRemoveFailure();
             return Result<CoseRsaKey>.Fail();
         }
 
         if (!TryGetRsaPublicExponentE(cborCoseKey, out var publicExponentE, out var eKey))
         {
-            _logger.RsaPublicExponentEObtainingFailure();
+            Logger.RsaPublicExponentEObtainingFailure();
             return Result<CoseRsaKey>.Fail();
         }
 
         if (!cborCoseKey.Remove(eKey))
         {
-            _logger.RsaPublicExponentERemoveFailure();
+            Logger.RsaPublicExponentERemoveFailure();
             return Result<CoseRsaKey>.Fail();
         }
 
         if (cborCoseKey.Count > 0)
         {
-            _logger.RsaUnrecognizedKeysRemainFailure();
+            Logger.RsaUnrecognizedKeysRemainFailure();
             return Result<CoseRsaKey>.Fail();
         }
 
@@ -470,6 +483,117 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
         return true;
     }
 
+    private Result<CoseOkpKey> TryGetOkpKey(
+        CoseAlgorithm alg,
+        Dictionary<AbstractCborObject, AbstractCborObject> cborCoseKey)
+    {
+        if (!TryGetOkpCrv(cborCoseKey, alg, out var crv, out var crvKey))
+        {
+            Logger.CrvObtainingFailure();
+            return Result<CoseOkpKey>.Fail();
+        }
+
+        if (!cborCoseKey.Remove(crvKey))
+        {
+            Logger.CrvRemoveFailure();
+            return Result<CoseOkpKey>.Fail();
+        }
+
+        if (!TryGetOkpXCoordinate(cborCoseKey, out var x, out var xKey))
+        {
+            Logger.XCoordinateObtainingFailure();
+            return Result<CoseOkpKey>.Fail();
+        }
+
+        if (!cborCoseKey.Remove(xKey))
+        {
+            Logger.XCoordinateRemoveFailure();
+            return Result<CoseOkpKey>.Fail();
+        }
+
+        if (cborCoseKey.Count > 0)
+        {
+            Logger.OkpUnrecognizedKeysRemainFailure();
+            return Result<CoseOkpKey>.Fail();
+        }
+
+        var result = new CoseOkpKey(alg, crv.Value, x);
+        return Result<CoseOkpKey>.Success(result);
+    }
+
+    private bool TryGetOkpCrv(
+        IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> cborCoseKey,
+        CoseAlgorithm alg,
+        [NotNullWhen(true)] out CoseOkpEllipticCurve? crv,
+        [NotNullWhen(true)] out AbstractCborObject? crvKey)
+    {
+        // https://www.rfc-editor.org/rfc/rfc9053.html#section-2.2
+        // In that document, the signature algorithm is instantiated using parameters for the edwards25519 and edwards448 curves
+        // For use with COSE, only the pure EdDSA version is used.
+        // https://www.rfc-editor.org/rfc/rfc9052#section-1.5
+        // label = int / tstr
+        // https://www.iana.org/assignments/cose/cose.xhtml#key-type-parameters
+        // Key Type: 1 (OKP)
+        // Name: crv
+        // Label: -1
+        // CBOR Type: int / tstr
+        // https://www.rfc-editor.org/rfc/rfc9052#section-1.4
+        // tstr: A UTF-8 text string (major type 3).
+        // int: An unsigned integer or a negative integer.
+        // --------------------
+        // In the current implementation, each kty has its own set of supported algorithms.
+        if (!alg.TryGetOkpSupportedEllipticCurves(out var supportedCrv))
+        {
+            Logger.NoEllipticCurvesForAlg(alg);
+            crv = null;
+            crvKey = null;
+            return false;
+        }
+
+        var key = new CborNegativeInteger((int) CoseOkpKeyParameter.crv);
+        if (!TryGetEnumFromInt(cborCoseKey, "crv", key, out crv))
+        {
+            crvKey = null;
+            return false;
+        }
+
+        if (!supportedCrv.Contains(crv.Value))
+        {
+            Logger.DisallowedOkpEllipticCurveForAlg(alg, crv.Value);
+            crv = null;
+            crvKey = null;
+            return false;
+        }
+
+        crvKey = key;
+        return true;
+    }
+
+    private bool TryGetOkpXCoordinate(
+        IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> cborCoseKey,
+        [NotNullWhen(true)] out byte[]? x,
+        [NotNullWhen(true)] out AbstractCborObject? xKey)
+    {
+        // https://www.rfc-editor.org/rfc/rfc9052#section-1.5
+        // label = int / tstr
+        // https://www.iana.org/assignments/cose/cose.xhtml#key-type-parameters
+        // Key Type: 1 (OKP)
+        // Name: x
+        // Label: -2
+        // CBOR Type: bstr
+        // https://www.rfc-editor.org/rfc/rfc9052#section-1.4
+        // bstr: Byte string (major type 2).
+        var key = new CborNegativeInteger((int) CoseEc2KeyParameter.x);
+        if (!TryGetBytesFromByteString(cborCoseKey, "x", key, out x))
+        {
+            xKey = null;
+            return false;
+        }
+
+        xKey = key;
+        return true;
+    }
+
     private bool TryGetEnumFromInt<TEnum>(
         IReadOnlyDictionary<AbstractCborObject, AbstractCborObject> cborCoseKey,
         string cborMapKey,
@@ -478,28 +602,28 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
     {
         if (!cborCoseKey.TryGetValue(key, out var cborValue))
         {
-            _logger.CantFindCborMapKey(cborMapKey);
+            Logger.CantFindCborMapKey(cborMapKey);
             value = null;
             return false;
         }
 
         if (cborValue is not AbstractCborInteger intCborValue)
         {
-            _logger.CborMapKeyInvalidDataType(cborMapKey);
+            Logger.CborMapKeyInvalidDataType(cborMapKey);
             value = null;
             return false;
         }
 
         if (!intCborValue.TryReadAsInt32(out var intValue))
         {
-            _logger.CborMapValueOutOfRange(cborMapKey);
+            Logger.CborMapValueOutOfRange(cborMapKey);
             value = null;
             return false;
         }
 
         if (!Enum.IsDefined(typeof(TEnum), intValue.Value))
         {
-            _logger.CborMapInvalidValue(cborMapKey);
+            Logger.CborMapInvalidValue(cborMapKey);
             value = null;
             return false;
         }
@@ -516,14 +640,14 @@ public class DefaultCoseKeyDecoder : ICoseKeyDecoder
     {
         if (!cborCoseKey.TryGetValue(key, out var cborValue))
         {
-            _logger.CantFindCborMapKey(cborMapKey);
+            Logger.CantFindCborMapKey(cborMapKey);
             value = null;
             return false;
         }
 
         if (cborValue is not CborByteString byteStringCborValue)
         {
-            _logger.CborMapKeyInvalidDataType(cborMapKey);
+            Logger.CborMapKeyInvalidDataType(cborMapKey);
             value = null;
             return false;
         }
@@ -634,6 +758,12 @@ public static partial class DefaultCoseKeyDecoderLoggingExtensions
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
+        Message = "The COSE_Key, based on 'kty': {kty}, was recognized as an OKP-formatted key but encountered an error during reading")]
+    public static partial void OkpKeyObtainingFailure(this ILogger logger, CoseKeyType kty);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
         Message = "An unknown 'kty' value has been encountered")]
     public static partial void UnknownKty(this ILogger logger);
 
@@ -647,7 +777,13 @@ public static partial class DefaultCoseKeyDecoderLoggingExtensions
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'crv': {crv} is not included in the set of supported elliptic curve formats for 'alg': {alg}")]
-    public static partial void DisallowedEllipticCurveForAlg(this ILogger logger, CoseAlgorithm alg, CoseEllipticCurve crv);
+    public static partial void DisallowedEc2EllipticCurveForAlg(this ILogger logger, CoseAlgorithm alg, CoseEc2EllipticCurve crv);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The 'crv': {crv} is not included in the set of supported elliptic curve formats for 'alg': {alg}")]
+    public static partial void DisallowedOkpEllipticCurveForAlg(this ILogger logger, CoseAlgorithm alg, CoseOkpEllipticCurve crv);
 
     [LoggerMessage(
         EventId = default,
@@ -720,4 +856,10 @@ public static partial class DefaultCoseKeyDecoderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "The COSE_Key was not properly encoded in the RSA format, as the map still contains unrecognized keys after the necessary values have been extracted")]
     public static partial void RsaUnrecognizedKeysRemainFailure(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "The COSE_Key was not properly encoded in the OKP format, as the map still contains unrecognized keys after the necessary values have been extracted")]
+    public static partial void OkpUnrecognizedKeysRemainFailure(this ILogger logger);
 }

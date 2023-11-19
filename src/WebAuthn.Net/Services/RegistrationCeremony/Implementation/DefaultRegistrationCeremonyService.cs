@@ -604,7 +604,7 @@ public class DefaultRegistrationCeremonyService<TContext>
                     }
 
                     var ec2Parameters = new CredentialPublicKeyEc2ParametersRecord(ec2Key.Crv, ec2Key.X, ec2Key.Y);
-                    publicKey = new(ec2Key.Kty, ec2Key.Alg, null, ec2Parameters);
+                    publicKey = new(ec2Key.Kty, ec2Key.Alg, null, ec2Parameters, null);
                     break;
                 }
             case CoseKeyType.RSA:
@@ -615,7 +615,18 @@ public class DefaultRegistrationCeremonyService<TContext>
                     }
 
                     var rsaParameters = new CredentialPublicKeyRsaParametersRecord(rsaKey.ModulusN, rsaKey.ExponentE);
-                    publicKey = new(rsaKey.Kty, rsaKey.Alg, rsaParameters, null);
+                    publicKey = new(rsaKey.Kty, rsaKey.Alg, rsaParameters, null, null);
+                    break;
+                }
+            case CoseKeyType.OKP:
+                {
+                    if (authData.AttestedCredentialData.CredentialPublicKey is not CoseOkpKey okpKey)
+                    {
+                        throw new InvalidOperationException($"authData.attestedCredentialData.credentialPublicKey must contain a '{nameof(CoseOkpKey)}'");
+                    }
+
+                    var okpParameters = new CredentialPublicKeyOkpParametersRecord(okpKey.Crv, okpKey.X);
+                    publicKey = new(okpKey.Kty, okpKey.Alg, null, null, okpParameters);
                     break;
                 }
             default:

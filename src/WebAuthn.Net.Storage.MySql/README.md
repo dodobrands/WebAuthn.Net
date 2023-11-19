@@ -13,17 +13,19 @@ As the library is intended to be integrated into existing applications, they may
 CREATE TABLE `CredentialRecords`
 (
     `Id`                        binary(16)      NOT NULL,
-    `RpId`                      varchar(300)    NOT NULL,
-    `UserHandle`                varbinary(300)  NOT NULL,
+    `RpId`                      varchar(256)    NOT NULL,
+    `UserHandle`                varbinary(128)  NOT NULL,
     `CredentialId`              varbinary(1024) NOT NULL,
     `Type`                      int             NOT NULL,
     `Kty`                       int             NOT NULL,
     `Alg`                       int             NOT NULL,
-    `EcdsaCrv`                  int             NULL,
-    `EcdsaX`                    varbinary(256)  NULL,
-    `EcdsaY`                    varbinary(256)  NULL,
+    `Ec2Crv`                    int             NULL,
+    `Ec2X`                      varbinary(256)  NULL,
+    `Ec2Y`                      varbinary(256)  NULL,
     `RsaModulusN`               varbinary(1024) NULL,
     `RsaExponentE`              varbinary(32)   NULL,
+    `OkpCrv`                    int             NULL,
+    `OkpX`                      varbinary(32)  NULL,
     `SignCount`                 int unsigned    NOT NULL,
     `Transports`                json            NOT NULL,
     `UvInitialized`             tinyint(1)      NOT NULL,
@@ -32,6 +34,7 @@ CREATE TABLE `CredentialRecords`
     `AttestationObject`         longblob        NULL,
     `AttestationClientDataJson` longblob        NULL,
     `CreatedAtUnixTime`         bigint          NOT NULL,
+    `UpdatedAtUnixTime`         bigint          NOT NULL,
     CONSTRAINT `PK_CredentialRecords` PRIMARY KEY (`Id`)
 ) CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_0900_ai_ci;
@@ -50,4 +53,13 @@ To start a local test container, execute the following command
 
 ```shell
 docker run -d -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 mysql:8.0.15
+```
+
+Connection string for connecting to the container, the command to start which is presented above.
+
+> [!NOTE]
+> Don't forget to change the database name specified in the `Database` parameter to the one you will be using.
+
+```
+Server=localhost;Port=3306;User ID=root;Password=root;Database=webauthn;Pooling=True;Default Command Timeout=30
 ```

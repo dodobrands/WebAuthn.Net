@@ -1,5 +1,9 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Text.Json;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 
@@ -7,7 +11,7 @@ namespace WebAuthn.Net.Storage.PostgreSql.Storage.Models;
 
 public class PostgreSqlPublicKeyCredentialDescriptor
 {
-    public PostgreSqlPublicKeyCredentialDescriptor(int type, byte[] credentialId, int[] transports, long createdAtUnixTime)
+    public PostgreSqlPublicKeyCredentialDescriptor(int type, byte[] credentialId, string transports, long createdAtUnixTime)
     {
         Type = type;
         CredentialId = credentialId;
@@ -17,13 +21,17 @@ public class PostgreSqlPublicKeyCredentialDescriptor
 
     public int Type { get; }
 
+    [Required]
+    [MaxLength(1024)]
     public byte[] CredentialId { get; }
 
-    public int[] Transports { get; }
+    [Column(TypeName = "jsonb")]
+    [Required]
+    public string Transports { get; }
 
     public long CreatedAtUnixTime { get; }
 
-    public virtual bool TryMapToResult([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
+    public virtual bool TryToPublicKeyCredentialDescriptor([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
     {
         result = null;
         var type = (PublicKeyCredentialType) Type;
@@ -33,18 +41,23 @@ public class PostgreSqlPublicKeyCredentialDescriptor
         }
 
         var transports = Array.Empty<AuthenticatorTransport>();
-        if (Transports.Length > 0)
+        if (!string.IsNullOrEmpty(Transports))
         {
-            transports = new AuthenticatorTransport[Transports.Length];
-            for (var i = 0; i < Transports.Length; i++)
+            var transportsIntegers = JsonSerializer.Deserialize<int[]>(Transports);
+            if (transportsIntegers?.Length > 0)
             {
-                var transport = (AuthenticatorTransport) Transports[i];
-                if (!Enum.IsDefined(transport))
+                var typedTransports = transportsIntegers
+                    .Select(x => (AuthenticatorTransport) x)
+                    .ToArray();
+                foreach (var authenticatorTransport in typedTransports)
                 {
-                    return false;
+                    if (!Enum.IsDefined(authenticatorTransport))
+                    {
+                        return false;
+                    }
                 }
 
-                transports[i] = transport;
+                transports = typedTransports;
             }
         }
 

@@ -11,27 +11,30 @@ As the library is intended to be integrated into existing applications, they may
 
 ```postgresql
 CREATE TABLE "CredentialRecords" (
- "Id" uuid NOT NULL,
- "RpId" character varying(300) NOT NULL,
- "UserHandle" bytea NOT NULL,
- "CredentialId" bytea NOT NULL,
- "Type" integer NOT NULL,
- "Kty" integer NOT NULL,
- "Alg" integer NOT NULL,
- "EcdsaCrv" integer,
- "EcdsaX" bytea,
- "EcdsaY" bytea,
- "RsaModulusN" bytea,
- "RsaExponentE" bytea,
- "SignCount" bigint NOT NULL,
- "Transports" jsonb NOT NULL,
- "UvInitialized" boolean NOT NULL,
- "BackupEligible" boolean NOT NULL,
- "BackupState" boolean NOT NULL,
- "AttestationObject" bytea,
- "AttestationClientDataJson" bytea,
- "CreatedAtUnixTime" bigint NOT NULL,
- CONSTRAINT "PK_CredentialRecords" PRIMARY KEY ("Id")
+    "Id" uuid NOT NULL,
+    "RpId" character varying(256) NOT NULL,
+    "UserHandle" bytea NOT NULL,
+    "CredentialId" bytea NOT NULL,
+    "Type" integer NOT NULL,
+    "Kty" integer NOT NULL,
+    "Alg" integer NOT NULL,
+    "Ec2Crv" integer,
+    "Ec2X" bytea,
+    "Ec2Y" bytea,
+    "RsaModulusN" bytea,
+    "RsaExponentE" bytea,
+    "OkpCrv" integer,
+    "OkpX" bytea,
+    "SignCount" bigint NOT NULL,
+    "Transports" jsonb NOT NULL,
+    "UvInitialized" boolean NOT NULL,
+    "BackupEligible" boolean NOT NULL,
+    "BackupState" boolean NOT NULL,
+    "AttestationObject" bytea,
+    "AttestationClientDataJson" bytea,
+    "CreatedAtUnixTime" bigint NOT NULL,
+    "UpdatedAtUnixTime" bigint NOT NULL,
+    CONSTRAINT "PK_CredentialRecords" PRIMARY KEY ("Id")
 );
 
 CREATE UNIQUE INDEX "IX_CredentialRecords_RpId_UserHandle_CredentialId" ON "CredentialRecords" ("RpId", "UserHandle", "CredentialId");
@@ -43,4 +46,13 @@ To start a local test container, execute the following command
 
 ```shell
 docker run -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16.0
+```
+
+Connection string for connecting to the container, the command to start which is presented above.
+
+> [!NOTE]
+> Don't forget to change the database name specified in the `Database` parameter to the one you will be using.
+
+```
+Host=localhost;Port=5432;Password=postgres;Username=postgres;Database=webauthn;Pooling=True
 ```

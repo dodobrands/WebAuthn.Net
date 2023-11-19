@@ -12,7 +12,7 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Models;
 
 public class CoseEc2Key : AbstractCoseKey
 {
-    public CoseEc2Key(CoseAlgorithm alg, CoseEllipticCurve crv, byte[] x, byte[] y)
+    public CoseEc2Key(CoseAlgorithm alg, CoseEc2EllipticCurve crv, byte[] x, byte[] y)
     {
         // alg
         if (!CoseKeyType.EC2.GetSupportedAlgorithms().Contains(alg))
@@ -20,7 +20,7 @@ public class CoseEc2Key : AbstractCoseKey
             throw new ArgumentOutOfRangeException(nameof(alg), $"The specified '{nameof(alg)}' is not included in the list of permitted values for kty = EC2");
         }
 
-        if (!alg.TryGetSupportedEllipticCurves(out var supportedCurves))
+        if (!alg.TryGetEc2SupportedEllipticCurves(out var supportedCurves))
         {
             throw new ArgumentOutOfRangeException(nameof(alg), $"For the specified '{nameof(alg)}', there are no valid '{nameof(crv)}' values");
         }
@@ -28,9 +28,9 @@ public class CoseEc2Key : AbstractCoseKey
         Alg = alg;
 
         // crv
-        if (!Enum.IsDefined(typeof(CoseEllipticCurve), crv))
+        if (!Enum.IsDefined(typeof(CoseEc2EllipticCurve), crv))
         {
-            throw new InvalidEnumArgumentException(nameof(crv), (int) crv, typeof(CoseEllipticCurve));
+            throw new InvalidEnumArgumentException(nameof(crv), (int) crv, typeof(CoseEc2EllipticCurve));
         }
 
         if (!supportedCurves.Contains(crv))
@@ -51,7 +51,7 @@ public class CoseEc2Key : AbstractCoseKey
 
     public override CoseKeyType Kty => CoseKeyType.EC2;
     public override CoseAlgorithm Alg { get; }
-    public CoseEllipticCurve Crv { get; }
+    public CoseEc2EllipticCurve Crv { get; }
     public byte[] X { get; }
     public byte[] Y { get; }
 
@@ -116,7 +116,7 @@ public class CoseEc2Key : AbstractCoseKey
                && other.Y.AsSpan().SequenceEqual(Y.AsSpan());
     }
 
-    private static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEllipticCurve? coseCurve)
+    protected static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEc2EllipticCurve? coseCurve)
     {
         if (string.IsNullOrEmpty(ecCurve.Oid.Value))
         {
@@ -126,19 +126,19 @@ public class CoseEc2Key : AbstractCoseKey
 
         if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP256.Oid.Value, StringComparison.Ordinal))
         {
-            coseCurve = CoseEllipticCurve.P256;
+            coseCurve = CoseEc2EllipticCurve.P256;
             return true;
         }
 
         if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value, StringComparison.Ordinal))
         {
-            coseCurve = CoseEllipticCurve.P384;
+            coseCurve = CoseEc2EllipticCurve.P384;
             return true;
         }
 
         if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP521.Oid.Value, StringComparison.Ordinal))
         {
-            coseCurve = CoseEllipticCurve.P521;
+            coseCurve = CoseEc2EllipticCurve.P521;
             return true;
         }
 

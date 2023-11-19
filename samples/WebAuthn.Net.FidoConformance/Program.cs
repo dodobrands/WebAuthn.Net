@@ -23,7 +23,6 @@ public static class Program
         // Add services to the container.
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<IFidoMetadataProvider, LocalFilesFidoMetadataProviderForMdsTests>();
-        //builder.Services.AddSingleton<IFidoMetadataProvider, LocalFilesFidoMetadataProvider>();
         builder.Services.AddSingleton<ITpmManufacturerVerifier, ConformanceTpmManufacturerVerifier>();
         builder.Services.AddWebAuthnInMemory(
             static options =>
@@ -46,6 +45,83 @@ public static class Program
             {
                 authOptions.Cookie.HttpOnly = false;
             });
+
+        //
+        // builder.Services.AddWebAuthnMySql(
+        //     static options =>
+        //     {
+        //         options.AttestationTypes.None.IsAcceptable = true;
+        //         options.AttestationTypes.Self.IsAcceptable = true;
+        //     },
+        //     static fidoHttp =>
+        //     {
+        //         fidoHttp.AddHttpMessageHandler<LocalFilesFidoMetadataHttpClientDelegatingHandler>();
+        //     },
+        //     static ingest =>
+        //     {
+        //     },
+        //     static regOptions =>
+        //     {
+        //         regOptions.Cookie.HttpOnly = false;
+        //     },
+        //     static authOptions =>
+        //     {
+        //         authOptions.Cookie.HttpOnly = false;
+        //     },
+        //     static mysql =>
+        //     {
+        //         mysql.ConnectionString = "Server=localhost;Port=3306;User ID=root;Password=root;Database=webauthn;Pooling=True;Default Command Timeout=30";
+        //     });
+        // builder.Services.AddWebAuthnPostgreSql(
+        //     static options =>
+        //     {
+        //         options.AttestationTypes.None.IsAcceptable = true;
+        //         options.AttestationTypes.Self.IsAcceptable = true;
+        //     },
+        //     static fidoHttp =>
+        //     {
+        //         fidoHttp.AddHttpMessageHandler<LocalFilesFidoMetadataHttpClientDelegatingHandler>();
+        //     },
+        //     static ingest =>
+        //     {
+        //     },
+        //     static regOptions =>
+        //     {
+        //         regOptions.Cookie.HttpOnly = false;
+        //     },
+        //     static authOptions =>
+        //     {
+        //         authOptions.Cookie.HttpOnly = false;
+        //     },
+        //     static postgresql =>
+        //     {
+        //         postgresql.ConnectionString = "Host=localhost;Port=5432;Password=postgres;Username=postgres;Database=webauthn;Pooling=True";
+        //     });
+        // builder.Services.AddWebAuthnSqlServer(
+        //     static options =>
+        //     {
+        //         options.AttestationTypes.None.IsAcceptable = true;
+        //         options.AttestationTypes.Self.IsAcceptable = true;
+        //     },
+        //     static fidoHttp =>
+        //     {
+        //         fidoHttp.AddHttpMessageHandler<LocalFilesFidoMetadataHttpClientDelegatingHandler>();
+        //     },
+        //     static ingest =>
+        //     {
+        //     },
+        //     static regOptions =>
+        //     {
+        //         regOptions.Cookie.HttpOnly = false;
+        //     },
+        //     static authOptions =>
+        //     {
+        //         authOptions.Cookie.HttpOnly = false;
+        //     },
+        //      static sqlServer =>
+        //     {
+        //         sqlServer.ConnectionString = "Data Source=localhost;Initial Catalog=webauthn;User ID=sa;Password=WebAuthn!1337;Pooling=True;Trust Server Certificate=True";
+        //     });
         var app = builder.Build();
         app.UseMiddleware<RequestLoggingMiddleware>();
 
