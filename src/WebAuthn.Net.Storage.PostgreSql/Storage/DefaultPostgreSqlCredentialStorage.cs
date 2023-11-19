@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
@@ -8,6 +7,7 @@ using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Storage.Credential;
 using WebAuthn.Net.Storage.Credential.Models;
+using WebAuthn.Net.Storage.PostgreSql.Infrastructure.Dapper;
 using WebAuthn.Net.Storage.PostgreSql.Models;
 using WebAuthn.Net.Storage.PostgreSql.Services.Static;
 using WebAuthn.Net.Storage.PostgreSql.Storage.Models;
@@ -56,7 +56,7 @@ WHERE ""RpId"" = @rpId AND ""UserHandle"" = @userHandle;",
         var result = new PublicKeyCredentialDescriptor[dbPublicKeys.Count];
         for (var i = 0; i < dbPublicKeys.Count; i++)
         {
-            if (!dbPublicKeys[i].TryMapToResult(out var descriptor))
+            if (!dbPublicKeys[i].TryToPublicKeyCredentialDescriptor(out var descriptor))
             {
                 throw new InvalidOperationException($"Failed to convert data retrieved from the database into {nameof(PublicKeyCredentialDescriptor)}");
             }
@@ -67,6 +67,7 @@ WHERE ""RpId"" = @rpId AND ""UserHandle"" = @userHandle;",
         return result;
     }
 
+
     public virtual async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
         TContext context,
         string rpId,
@@ -76,31 +77,11 @@ WHERE ""RpId"" = @rpId AND ""UserHandle"" = @userHandle;",
     {
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
-        var model = await context.Connection.QuerySingleOrDefaultAsync<PostgreSqlUserCredentialRecord>(new(@"
-SELECT
-    ""Id"",
-    ""RpId"",
-    ""UserHandle"",
-    ""CredentialId"",
-    ""Type"",
-    ""Kty"",
-    ""Alg"",
-    ""EcdsaCrv"",
-    ""EcdsaX"",
-    ""EcdsaY"",
-    ""RsaModulusN"",
-    ""RsaExponentE"",
-    ""SignCount"",
-    ""Transports"",
-    ""UvInitialized"",
-    ""BackupEligible"",
-    ""BackupState"",
-    ""AttestationObject"",
-    ""AttestationClientDataJson"",
-    ""CreatedAtUnixTime""
+
+        var exisingId = await context.Connection.QuerySingleOrDefaultAsync<Guid?>(new(@"
+SELECT ""Id""
 FROM ""CredentialRecords""
-WHERE ""RpId"" = @rpId AND ""UserHandle"" = @userHandles AND ""CredentialId"" = @credentialId
-FOR UPDATE;",
+WHERE ""RpId"" = @rpId AND ""UserHandle"" = @userHandle AND ""CredentialId"" = @credentialId;",
             new
             {
                 rpId,
@@ -110,12 +91,52 @@ FOR UPDATE;",
             context.Transaction,
             cancellationToken: cancellationToken)
         );
+        if (!exisingId.HasValue)
+        {
+            return null;
+        }
+
+        var model = await context.Connection.QuerySingleOrDefaultAsync<PostgreSqlUserCredentialRecord?>(new(@"
+SELECT
+    ""Id"",
+    ""RpId"",
+    ""UserHandle"",
+    ""CredentialId"",
+    ""Type"",
+    ""Kty"",
+    ""Alg"",
+    ""Ec2Crv"",
+    ""Ec2X"",
+    ""Ec2Y"",
+    ""RsaModulusN"",
+    ""RsaExponentE"",
+    ""OkpCrv"",
+    ""OkpX"",
+    ""SignCount"",
+    ""Transports"",
+    ""UvInitialized"",
+    ""BackupEligible"",
+    ""BackupState"",
+    ""AttestationObject"",
+    ""AttestationClientDataJson"",
+    ""CreatedAtUnixTime"",
+    ""UpdatedAtUnixTime""
+FROM ""CredentialRecords""
+WHERE ""Id"" = @id
+FOR UPDATE;",
+            new
+            {
+                id = exisingId.Value
+            },
+            context.Transaction,
+            cancellationToken: cancellationToken)
+        );
         if (model is null)
         {
             return null;
         }
 
-        if (!model.TryMapToResult(out var result))
+        if (!model.TryToUserCredentialRecord(out var result))
         {
             throw new InvalidOperationException($"Failed to convert data retrieved from the database into {nameof(UserCredentialRecord)}");
         }
@@ -136,12 +157,10 @@ FOR UPDATE;",
 SELECT COUNT(""Id"") FROM ""CredentialRecords""
 WHERE
     ""RpId"" = @rpId
-    AND ""UserHandle"" = @userHandles
     AND ""CredentialId"" = @credentialId;",
             new
             {
                 rpId = credential.RpId,
-                userHandle = credential.UserHandle,
                 credentialId = credential.CredentialRecord.Id
             },
             context.Transaction,
@@ -154,9 +173,10 @@ WHERE
         }
 
         var id = UuidVersion7Generator.Generate();
-        var timestamp = TimeProvider.GetPreciseUtcDateTime().ToUnixTimeSeconds();
-        var transportsJson = JsonSerializer.Serialize(credential.CredentialRecord.Transports);
-        var rowsAffected = await context.Connection.ExecuteAsync(new(@"
+        var createdAt = TimeProvider.GetPreciseUtcDateTime();
+        var updatedAt = createdAt;
+        var insert = PostgreSqlUserCredentialRecord.Create(credential, id, createdAt, updatedAt);
+        var rowsInserted = await context.Connection.ExecuteAsync(new(@"
 INSERT INTO ""CredentialRecords""
 (
     ""Id"",
@@ -166,11 +186,13 @@ INSERT INTO ""CredentialRecords""
     ""Type"",
     ""Kty"",
     ""Alg"",
-    ""EcdsaCrv"",
-    ""EcdsaX"",
-    ""EcdsaY"",
+    ""Ec2Crv"",
+    ""Ec2X"",
+    ""Ec2Y"",
     ""RsaModulusN"",
     ""RsaExponentE"",
+    ""OkpCrv"",
+    ""OkpX"",
     ""SignCount"",
     ""Transports"",
     ""UvInitialized"",
@@ -178,7 +200,8 @@ INSERT INTO ""CredentialRecords""
     ""BackupState"",
     ""AttestationObject"",
     ""AttestationClientDataJson"",
-    ""CreatedAtUnixTime""
+    ""CreatedAtUnixTime"",
+    ""UpdatedAtUnixTime""
 )
 VALUES
 (
@@ -189,11 +212,13 @@ VALUES
      @type,
      @kty,
      @alg,
-     @ecdsaCrv,
-     @ecdsaX,
-     @ecdsaY,
+     @ec2Crv,
+     @ec2X,
+     @ec2Y,
      @rsaModulusN,
      @rsaExponentE,
+     @okpCrv,
+     @okpX,
      @signCount,
      @transports,
      @uvInitialized,
@@ -201,36 +226,40 @@ VALUES
      @backupState,
      @attestationObject,
      @attestationClientDataJson,
-     @createdAtUnixTime
+     @createdAtUnixTime,
+     @updatedAtUnixTime
 );",
             new
             {
-                id,
-                rpId = credential.RpId,
-                userHandle = credential.UserHandle,
-                credentialId = credential.CredentialRecord.Id,
-                type = credential.CredentialRecord.Type,
-                kty = credential.CredentialRecord.PublicKey.Kty,
-                alg = credential.CredentialRecord.PublicKey.Alg,
-                ecdsaCrv = credential.CredentialRecord.PublicKey.Ec2?.Crv,
-                ecdsaX = credential.CredentialRecord.PublicKey.Ec2?.X,
-                ecdsaY = credential.CredentialRecord.PublicKey.Ec2?.Y,
-                rsaModulusN = credential.CredentialRecord.PublicKey.Rsa?.ModulusN,
-                rsaExponentE = credential.CredentialRecord.PublicKey.Rsa?.ExponentE,
-                signCount = credential.CredentialRecord.SignCount,
-                transports = transportsJson,
-                uvInitialized = credential.CredentialRecord.UvInitialized,
-                backupEligible = credential.CredentialRecord.BackupEligible,
-                backupState = credential.CredentialRecord.BackupState,
-                attestationObject = credential.CredentialRecord.AttestationObject,
-                attestationClientDataJson = credential.CredentialRecord.AttestationClientDataJSON,
-                createdAtUnixTime = timestamp
+                id = insert.Id,
+                rpId = insert.RpId,
+                userHandle = insert.UserHandle,
+                credentialId = insert.CredentialId,
+                type = insert.Type,
+                kty = insert.Kty,
+                alg = insert.Alg,
+                ec2Crv = insert.Ec2Crv,
+                ec2X = insert.Ec2X,
+                ec2Y = insert.Ec2Y,
+                rsaModulusN = insert.RsaModulusN,
+                rsaExponentE = insert.RsaExponentE,
+                okpCrv = insert.OkpCrv,
+                okpX = insert.OkpX,
+                signCount = insert.SignCount,
+                transports = new DapperJsonbQueryParameter(insert.Transports),
+                uvInitialized = insert.UvInitialized,
+                backupEligible = insert.BackupEligible,
+                backupState = insert.BackupState,
+                attestationObject = insert.AttestationObject,
+                attestationClientDataJson = insert.AttestationClientDataJson,
+                createdAtUnixTime = insert.CreatedAtUnixTime,
+                updatedAtUnixTime = insert.UpdatedAtUnixTime
             },
             context.Transaction,
             cancellationToken: cancellationToken
         ));
 
-        return rowsAffected > 0;
+        return rowsInserted > 0;
     }
 
     public virtual async Task<bool> UpdateCredentialAsync(
@@ -241,46 +270,15 @@ VALUES
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(credential);
         cancellationToken.ThrowIfCancellationRequested();
-        var transportsJson = JsonSerializer.Serialize(credential.CredentialRecord.Transports);
-        var rowsAffected = await context.Connection.ExecuteAsync(new(@"
-UPDATE ""CredentialRecords""
-SET
-    ""Type"" = @type,
-    ""Kty"" = @kty,
-    ""Alg"" = @alg,
-    ""EcdsaCrv"" = @ecdsaCrv,
-    ""EcdsaX"" = @ecdsaX,
-    ""EcdsaY"" = @ecdsaY,
-    ""RsaModulusN"" = @rsaModulusN,
-    ""RsaExponentE"" = @rsaExponentE,
-    ""SignCount"" = @signCount,
-    ""Transports"" = @transports,
-    ""UvInitialized"" = @uvInitialized,
-    ""BackupEligible"" = @backupEligible,
-    ""BackupState"" = @backupState,
-    ""AttestationObject"" = @attestationObject,
-    ""AttestationClientDataJson"" = @attestationClientDataJson
+        var recordIdToUpdate = await context.Connection.QuerySingleOrDefaultAsync<Guid?>(new(
+            @"
+SELECT ""Id"" FROM ""CredentialRecords""
 WHERE
     ""RpId"" = @rpId
     AND ""UserHandle"" = @userHandle
     AND ""CredentialId"" = @credentialId;",
             new
             {
-                type = credential.CredentialRecord.Type,
-                kty = credential.CredentialRecord.PublicKey.Kty,
-                alg = credential.CredentialRecord.PublicKey.Alg,
-                ecdsaCrv = credential.CredentialRecord.PublicKey.Ec2?.Crv,
-                ecdsaX = credential.CredentialRecord.PublicKey.Ec2?.X,
-                ecdsaY = credential.CredentialRecord.PublicKey.Ec2?.Y,
-                rsaModulusN = credential.CredentialRecord.PublicKey.Rsa?.ModulusN,
-                rsaExponentE = credential.CredentialRecord.PublicKey.Rsa?.ExponentE,
-                signCount = credential.CredentialRecord.SignCount,
-                transports = transportsJson,
-                uvInitialized = credential.CredentialRecord.UvInitialized,
-                backupEligible = credential.CredentialRecord.BackupEligible,
-                backupState = credential.CredentialRecord.BackupState,
-                attestationObject = credential.CredentialRecord.AttestationObject,
-                attestationClientDataJson = credential.CredentialRecord.AttestationClientDataJSON,
                 rpId = credential.RpId,
                 userHandle = credential.UserHandle,
                 credentialId = credential.CredentialRecord.Id
@@ -289,6 +287,62 @@ WHERE
             cancellationToken: cancellationToken
         ));
 
-        return rowsAffected > 0;
+        if (!recordIdToUpdate.HasValue)
+        {
+            return false;
+        }
+
+        var updatedAt = TimeProvider.GetPreciseUtcDateTime();
+        // We do not use CreatedAt for updating, so we pass default.
+        var updated = PostgreSqlUserCredentialRecord.Create(credential, recordIdToUpdate.Value, default, updatedAt);
+        var rowsUpdated = await context.Connection.ExecuteAsync(new(@"
+UPDATE ""CredentialRecords""
+SET
+    ""Type"" = @type,
+    ""Kty"" = @kty,
+    ""Alg"" = @alg,
+    ""Ec2Crv"" = @ec2Crv,
+    ""Ec2X"" = @ec2X,
+    ""Ec2Y"" = @ec2Y,
+    ""RsaModulusN"" = @rsaModulusN,
+    ""RsaExponentE"" = @rsaExponentE,
+    ""OkpCrv"" = @okpCrv,
+    ""OkpX"" = @okpX,
+    ""SignCount"" = @signCount,
+    ""Transports"" = @transports,
+    ""UvInitialized"" = @uvInitialized,
+    ""BackupEligible"" = @backupEligible,
+    ""BackupState"" = @backupState,
+    ""AttestationObject"" = @attestationObject,
+    ""AttestationClientDataJson"" = @attestationClientDataJson,
+    ""UpdatedAtUnixTime"" = @updatedAtUnixTime
+WHERE ""Id"" = @id;",
+            new
+            {
+                id = updated.Id,
+                type = updated.Type,
+                kty = updated.Kty,
+                alg = updated.Alg,
+                ec2Crv = updated.Ec2Crv,
+                ec2X = updated.Ec2X,
+                ec2Y = updated.Ec2Y,
+                rsaModulusN = updated.RsaModulusN,
+                rsaExponentE = updated.RsaExponentE,
+                okpCrv = updated.OkpCrv,
+                okpX = updated.OkpX,
+                signCount = updated.SignCount,
+                transports = new DapperJsonbQueryParameter(updated.Transports),
+                uvInitialized = updated.UvInitialized,
+                backupEligible = updated.BackupEligible,
+                backupState = updated.BackupState,
+                attestationObject = updated.AttestationObject,
+                attestationClientDataJson = updated.AttestationClientDataJson,
+                updatedAtUnixTime = updated.UpdatedAtUnixTime
+            },
+            context.Transaction,
+            cancellationToken: cancellationToken
+        ));
+
+        return rowsUpdated > 0;
     }
 }

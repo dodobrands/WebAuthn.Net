@@ -9,6 +9,7 @@
         <DebugType>embedded</DebugType>
         <IncludeSymbols>true</IncludeSymbols>
         <Version>$(VERSION_RELEASE)</Version>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
     </PropertyGroup>
 
@@ -21,6 +22,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="libsodium" Version="1.0.19" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
         <PackageReference Include="System.Formats.Cbor" Version="6.0.0" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />

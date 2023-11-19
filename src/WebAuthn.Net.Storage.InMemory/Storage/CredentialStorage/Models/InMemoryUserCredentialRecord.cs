@@ -6,6 +6,7 @@ using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.OKP;
 using WebAuthn.Net.Storage.Credential.Models;
 
 namespace WebAuthn.Net.Storage.InMemory.Storage.CredentialStorage.Models;
@@ -21,11 +22,13 @@ public class InMemoryUserCredentialRecord
         Type = (int) record.CredentialRecord.Type;
         Kty = (int) record.CredentialRecord.PublicKey.Kty;
         Alg = (int) record.CredentialRecord.PublicKey.Alg;
-        EcdsaCrv = (int?) record.CredentialRecord.PublicKey.Ec2?.Crv;
-        EcdsaX = record.CredentialRecord.PublicKey.Ec2?.X;
-        EcdsaY = record.CredentialRecord.PublicKey.Ec2?.Y;
+        Ec2Crv = (int?) record.CredentialRecord.PublicKey.Ec2?.Crv;
+        Ec2X = record.CredentialRecord.PublicKey.Ec2?.X;
+        Ec2Y = record.CredentialRecord.PublicKey.Ec2?.Y;
         RsaModulusN = record.CredentialRecord.PublicKey.Rsa?.ModulusN;
         RsaExponentE = record.CredentialRecord.PublicKey.Rsa?.ExponentE;
+        OkpCrv = (int?) record.CredentialRecord.PublicKey.Okp?.Crv;
+        OkpX = record.CredentialRecord.PublicKey.Okp?.X;
         SignCount = record.CredentialRecord.SignCount;
         Transports = record.CredentialRecord.Transports.Select(x => (int) x).ToArray();
         UvInitialized = record.CredentialRecord.UvInitialized;
@@ -48,13 +51,13 @@ public class InMemoryUserCredentialRecord
 
     public int Alg { get; }
 
-    public int? EcdsaCrv { get; }
+    public int? Ec2Crv { get; }
 
     [MaxLength(256)]
-    public byte[]? EcdsaX { get; }
+    public byte[]? Ec2X { get; }
 
     [MaxLength(256)]
-    public byte[]? EcdsaY { get; }
+    public byte[]? Ec2Y { get; }
 
     [MaxLength(8192 / 8)]
     public byte[]? RsaModulusN { get; }
@@ -67,6 +70,11 @@ public class InMemoryUserCredentialRecord
     // 65,537 ≤ e < 2^256
     [MaxLength(256 / 8)]
     public byte[]? RsaExponentE { get; }
+
+    public int? OkpCrv { get; }
+
+    [MaxLength(32)]
+    public byte[]? OkpX { get; }
 
     public uint SignCount { get; }
 
@@ -154,23 +162,24 @@ public class InMemoryUserCredentialRecord
 
         CredentialPublicKeyRsaParametersRecord? rsaKey = null;
         CredentialPublicKeyEc2ParametersRecord? ecKey = null;
+        CredentialPublicKeyOkpParametersRecord? okpKey = null;
 
         switch (coseKeyType)
         {
             case CoseKeyType.EC2:
                 {
-                    if (!EcdsaCrv.HasValue)
+                    if (!Ec2Crv.HasValue)
                     {
                         return false;
                     }
 
-                    var ecdsaCurve = (CoseEllipticCurve) EcdsaCrv.Value;
-                    if (!Enum.IsDefined(ecdsaCurve) || EcdsaX is null || EcdsaY is null)
+                    var ec2Curve = (CoseEc2EllipticCurve) Ec2Crv.Value;
+                    if (!Enum.IsDefined(ec2Curve) || Ec2X is null || Ec2Y is null)
                     {
                         return false;
                     }
 
-                    ecKey = new(ecdsaCurve, EcdsaX, EcdsaY);
+                    ecKey = new(ec2Curve, Ec2X, Ec2Y);
                     break;
                 }
             case CoseKeyType.RSA:
@@ -183,6 +192,22 @@ public class InMemoryUserCredentialRecord
                     rsaKey = new(RsaModulusN, RsaExponentE);
                     break;
                 }
+            case CoseKeyType.OKP:
+                {
+                    if (!OkpCrv.HasValue)
+                    {
+                        return false;
+                    }
+
+                    var okpCurve = (CoseOkpEllipticCurve) OkpCrv.Value;
+                    if (!Enum.IsDefined(okpCurve) || OkpX is null)
+                    {
+                        return false;
+                    }
+
+                    okpKey = new(okpCurve, OkpX);
+                    break;
+                }
             default:
                 return false;
         }
@@ -191,7 +216,8 @@ public class InMemoryUserCredentialRecord
             coseKeyType,
             coseAlgorithm,
             rsaKey,
-            ecKey);
+            ecKey,
+            okpKey);
 
         var authenticatorTransports = Transports
             .Select(x => (AuthenticatorTransport) x)

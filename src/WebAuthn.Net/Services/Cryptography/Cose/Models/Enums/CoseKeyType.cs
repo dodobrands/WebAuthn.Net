@@ -12,6 +12,11 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 public enum CoseKeyType
 {
     /// <summary>
+    ///     Octet Key Pair
+    /// </summary>
+    OKP = 1,
+
+    /// <summary>
     ///     Elliptic Curve Keys w/ x- and y-coordinate pair
     /// </summary>
     EC2 = 2,

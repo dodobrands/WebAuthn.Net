@@ -62,6 +62,11 @@ public enum CoseAlgorithm
     ES384 = -35,
 
     /// <summary>
+    ///     EdDSA
+    /// </summary>
+    EdDSA = -8,
+
+    /// <summary>
     ///     ECDSA w/ SHA-256
     /// </summary>
     ES256 = -7

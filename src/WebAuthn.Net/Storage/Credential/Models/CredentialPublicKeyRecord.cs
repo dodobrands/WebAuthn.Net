@@ -17,7 +17,8 @@ public class CredentialPublicKeyRecord
         CoseKeyType kty,
         CoseAlgorithm alg,
         CredentialPublicKeyRsaParametersRecord? rsa,
-        CredentialPublicKeyEc2ParametersRecord? ec2)
+        CredentialPublicKeyEc2ParametersRecord? ec2,
+        CredentialPublicKeyOkpParametersRecord? okp)
     {
         // kty
         if (!Enum.IsDefined(typeof(CoseKeyType), kty))
@@ -51,7 +52,7 @@ public class CredentialPublicKeyRecord
         if (kty == CoseKeyType.EC2)
         {
             ArgumentNullException.ThrowIfNull(ec2);
-            if (!alg.TryGetSupportedEllipticCurves(out var supportedCurves))
+            if (!alg.TryGetEc2SupportedEllipticCurves(out var supportedCurves))
             {
                 throw new ArgumentOutOfRangeException(nameof(alg), $"For the specified '{nameof(alg)}', there are no valid '{nameof(ec2)}.{nameof(ec2.Crv)}' values");
             }
@@ -63,12 +64,30 @@ public class CredentialPublicKeyRecord
 
             Ec2 = ec2;
         }
+
+        // okp
+        if (kty == CoseKeyType.OKP)
+        {
+            ArgumentNullException.ThrowIfNull(okp);
+            if (!alg.TryGetOkpSupportedEllipticCurves(out var supportedCurves))
+            {
+                throw new ArgumentOutOfRangeException(nameof(alg), $"For the specified '{nameof(alg)}', there are no valid '{nameof(okp)}.{nameof(okp.Crv)}' values");
+            }
+
+            if (!supportedCurves.Contains(okp.Crv))
+            {
+                throw new ArgumentOutOfRangeException(nameof(okp), $"The specified '{nameof(okp)}.{nameof(okp.Crv)}' is not included in the list of valid values for '{nameof(alg)}'");
+            }
+
+            Okp = okp;
+        }
     }
 
     public CoseKeyType Kty { get; }
     public CoseAlgorithm Alg { get; }
     public CredentialPublicKeyRsaParametersRecord? Rsa { get; }
     public CredentialPublicKeyEc2ParametersRecord? Ec2 { get; }
+    public CredentialPublicKeyOkpParametersRecord? Okp { get; }
 
     public virtual bool TryToCoseKey([NotNullWhen(true)] out AbstractCoseKey? key)
     {
@@ -94,6 +113,17 @@ public class CredentialPublicKeyRecord
                     }
 
                     key = new CoseRsaKey(Alg, Rsa.ModulusN, Rsa.ExponentE);
+                    return true;
+                }
+            case CoseKeyType.OKP:
+                {
+                    if (Okp is null)
+                    {
+                        key = null;
+                        return false;
+                    }
+
+                    key = new CoseOkpKey(Alg, Okp.Crv, Okp.X);
                     return true;
                 }
             default:

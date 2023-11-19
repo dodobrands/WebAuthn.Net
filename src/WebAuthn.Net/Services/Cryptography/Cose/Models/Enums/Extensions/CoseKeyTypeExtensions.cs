@@ -23,12 +23,18 @@ public static class CoseKeyTypeExtensions
         CoseAlgorithm.PS256
     };
 
+    private static readonly IReadOnlySet<CoseAlgorithm> Okp = new HashSet<CoseAlgorithm>
+    {
+        CoseAlgorithm.EdDSA
+    };
+
     public static IReadOnlySet<CoseAlgorithm> GetSupportedAlgorithms(this CoseKeyType kty)
     {
         return kty switch
         {
             CoseKeyType.EC2 => Ec2,
             CoseKeyType.RSA => Rsa,
+            CoseKeyType.OKP => Okp,
             _ => throw new InvalidEnumArgumentException(nameof(kty), (int) kty, typeof(CoseKeyType))
         };
     }

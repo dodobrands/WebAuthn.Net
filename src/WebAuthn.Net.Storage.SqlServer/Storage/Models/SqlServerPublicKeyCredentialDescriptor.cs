@@ -1,5 +1,7 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Text.Json;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -19,13 +21,16 @@ public class SqlServerPublicKeyCredentialDescriptor
 
     public int Type { get; }
 
+    [Required]
+    [MaxLength(1024)]
     public byte[] CredentialId { get; }
 
+    [Required]
     public string Transports { get; }
 
     public long CreatedAtUnixTime { get; }
 
-    public virtual bool TryMapToResult([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
+    public virtual bool TryToPublicKeyCredentialDescriptor([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
     {
         result = null;
         var type = (PublicKeyCredentialType) Type;
@@ -37,20 +42,21 @@ public class SqlServerPublicKeyCredentialDescriptor
         var transports = Array.Empty<AuthenticatorTransport>();
         if (!string.IsNullOrEmpty(Transports))
         {
-            var deserializedTransports = JsonSerializer.Deserialize<int[]>(Transports);
-            if (deserializedTransports?.Length > 0)
+            var transportsIntegers = JsonSerializer.Deserialize<int[]>(Transports);
+            if (transportsIntegers?.Length > 0)
             {
-                transports = new AuthenticatorTransport[deserializedTransports.Length];
-                for (var i = 0; i < deserializedTransports.Length; i++)
+                var typedTransports = transportsIntegers
+                    .Select(x => (AuthenticatorTransport) x)
+                    .ToArray();
+                foreach (var authenticatorTransport in typedTransports)
                 {
-                    var transport = (AuthenticatorTransport) deserializedTransports[i];
-                    if (!Enum.IsDefined(transport))
+                    if (!Enum.IsDefined(authenticatorTransport))
                     {
                         return false;
                     }
-
-                    transports[i] = transport;
                 }
+
+                transports = typedTransports;
             }
         }
 

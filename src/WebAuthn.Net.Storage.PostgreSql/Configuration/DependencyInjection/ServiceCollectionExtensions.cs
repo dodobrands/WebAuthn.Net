@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
         Action<FidoMetadataBackgroundIngestHostedServiceOptions>? configureBackgroundIngest = null,
         Action<DefaultCookieRegistrationCeremonyStorageOptions>? configureRegistration = null,
         Action<DefaultCookieAuthenticationCeremonyStorageOptions>? configureAuthentication = null,
-        Action<DefaultPostgreSqlContext>? configurePostgreSql = null)
+        Action<PostgreSqlOptions>? configurePostgreSql = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         services

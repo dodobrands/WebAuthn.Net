@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.OKP;
 
 namespace WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 
@@ -11,38 +12,32 @@ namespace WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 /// </summary>
 public static class CoseAlgorithmIdentifierExtensions
 {
-    private static readonly IReadOnlySet<CoseEllipticCurve> Es512 = new HashSet<CoseEllipticCurve>
+    private static readonly IReadOnlySet<CoseEc2EllipticCurve> Es512 = new HashSet<CoseEc2EllipticCurve>
     {
-        CoseEllipticCurve.P521
+        CoseEc2EllipticCurve.P521
     };
 
-    private static readonly IReadOnlySet<CoseEllipticCurve> Es384 = new HashSet<CoseEllipticCurve>
+    private static readonly IReadOnlySet<CoseEc2EllipticCurve> Es384 = new HashSet<CoseEc2EllipticCurve>
     {
-        CoseEllipticCurve.P384
+        CoseEc2EllipticCurve.P384
     };
 
-    private static readonly IReadOnlySet<CoseEllipticCurve> Es256 = new HashSet<CoseEllipticCurve>
+    private static readonly IReadOnlySet<CoseEc2EllipticCurve> Es256 = new HashSet<CoseEc2EllipticCurve>
     {
-        CoseEllipticCurve.P256
+        CoseEc2EllipticCurve.P256
     };
 
-    public static bool TryGetSupportedEllipticCurves(
+    private static readonly IReadOnlySet<CoseOkpEllipticCurve> EdDsa = new HashSet<CoseOkpEllipticCurve>
+    {
+        CoseOkpEllipticCurve.Ed25519
+    };
+
+    public static bool TryGetEc2SupportedEllipticCurves(
         this CoseAlgorithm coseAlgorithm,
-        [NotNullWhen(true)] out IReadOnlySet<CoseEllipticCurve>? ellipticCurves)
+        [NotNullWhen(true)] out IReadOnlySet<CoseEc2EllipticCurve>? ellipticCurves)
     {
         switch (coseAlgorithm)
         {
-            case CoseAlgorithm.RS1:
-            case CoseAlgorithm.RS512:
-            case CoseAlgorithm.RS384:
-            case CoseAlgorithm.RS256:
-            case CoseAlgorithm.PS512:
-            case CoseAlgorithm.PS384:
-            case CoseAlgorithm.PS256:
-                {
-                    ellipticCurves = null;
-                    return false;
-                }
             case CoseAlgorithm.ES512:
                 {
                     ellipticCurves = Es512;
@@ -64,6 +59,20 @@ public static class CoseAlgorithmIdentifierExtensions
                     return false;
                 }
         }
+    }
+
+    public static bool TryGetOkpSupportedEllipticCurves(
+        this CoseAlgorithm coseAlgorithm,
+        [NotNullWhen(true)] out IReadOnlySet<CoseOkpEllipticCurve>? ellipticCurves)
+    {
+        if (coseAlgorithm == CoseAlgorithm.EdDSA)
+        {
+            ellipticCurves = EdDsa;
+            return true;
+        }
+
+        ellipticCurves = null;
+        return false;
     }
 
     public static bool TryGetCoseKeyType(
@@ -120,6 +129,11 @@ public static class CoseAlgorithmIdentifierExtensions
             case CoseAlgorithm.ES256:
                 {
                     kty = CoseKeyType.EC2;
+                    return true;
+                }
+            case CoseAlgorithm.EdDSA:
+                {
+                    kty = CoseKeyType.OKP;
                     return true;
                 }
             default:
@@ -281,9 +295,6 @@ public static class CoseAlgorithmIdentifierExtensions
                     padding = RSASignaturePadding.Pss;
                     return true;
                 }
-            case CoseAlgorithm.ES512:
-            case CoseAlgorithm.ES384:
-            case CoseAlgorithm.ES256:
             default:
                 {
                     padding = null;

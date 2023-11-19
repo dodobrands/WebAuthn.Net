@@ -1,11 +1,12 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text.Json;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
+using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.OKP;
 using WebAuthn.Net.Storage.Credential.Models;
 
 namespace WebAuthn.Net.Storage.SqlServer.Storage.Models;
@@ -16,11 +17,11 @@ public class SqlServerUserCredentialRecord
     public Guid Id { get; set; }
 
     [Required]
-    [MaxLength(300)]
+    [MaxLength(256)]
     public string RpId { get; set; } = null!;
 
     [Required]
-    [MaxLength(300)]
+    [MaxLength(128)]
     public byte[] UserHandle { get; set; } = null!;
 
     [Required]
@@ -33,13 +34,13 @@ public class SqlServerUserCredentialRecord
 
     public int Alg { get; set; }
 
-    public int? EcdsaCrv { get; set; }
+    public int? Ec2Crv { get; set; }
 
     [MaxLength(256)]
-    public byte[]? EcdsaX { get; set; }
+    public byte[]? Ec2X { get; set; }
 
     [MaxLength(256)]
-    public byte[]? EcdsaY { get; set; }
+    public byte[]? Ec2Y { get; set; }
 
     [MaxLength(8192 / 8)]
     public byte[]? RsaModulusN { get; set; }
@@ -53,10 +54,15 @@ public class SqlServerUserCredentialRecord
     [MaxLength(256 / 8)]
     public byte[]? RsaExponentE { get; set; }
 
-    public uint SignCount { get; set; }
+    public int? OkpCrv { get; set; }
 
-    [Column(TypeName = "json")]
-    public int[] Transports { get; set; } = null!;
+    [MaxLength(32)]
+    public byte[]? OkpX { get; set; }
+
+    public long SignCount { get; set; }
+
+    [Required]
+    public string Transports { get; set; } = null!;
 
     public bool UvInitialized { get; set; }
 
@@ -69,8 +75,48 @@ public class SqlServerUserCredentialRecord
     public byte[]? AttestationClientDataJson { get; set; }
 
     public long CreatedAtUnixTime { get; set; }
+    public long UpdatedAtUnixTime { get; set; }
 
-    public virtual bool TryMapToResult([NotNullWhen(true)] out UserCredentialRecord? result)
+    public static SqlServerUserCredentialRecord Create(
+        UserCredentialRecord credential,
+        Guid id,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+        var transportsIntegers = credential.CredentialRecord.Transports.Select(x => (int) x).ToArray();
+        var transportsJson = JsonSerializer.Serialize(transportsIntegers);
+        var createdAtUnixTime = createdAt.ToUnixTimeSeconds();
+        var updatedAtUnixTime = updatedAt.ToUnixTimeSeconds();
+        return new()
+        {
+            Id = id,
+            RpId = credential.RpId,
+            UserHandle = credential.UserHandle,
+            CredentialId = credential.CredentialRecord.Id,
+            Type = (int) credential.CredentialRecord.Type,
+            Kty = (int) credential.CredentialRecord.PublicKey.Kty,
+            Alg = (int) credential.CredentialRecord.PublicKey.Alg,
+            Ec2Crv = (int?) credential.CredentialRecord.PublicKey.Ec2?.Crv,
+            Ec2X = credential.CredentialRecord.PublicKey.Ec2?.X,
+            Ec2Y = credential.CredentialRecord.PublicKey.Ec2?.Y,
+            RsaModulusN = credential.CredentialRecord.PublicKey.Rsa?.ModulusN,
+            RsaExponentE = credential.CredentialRecord.PublicKey.Rsa?.ExponentE,
+            OkpCrv = (int?) credential.CredentialRecord.PublicKey.Okp?.Crv,
+            OkpX = credential.CredentialRecord.PublicKey.Okp?.X,
+            SignCount = credential.CredentialRecord.SignCount,
+            Transports = transportsJson,
+            UvInitialized = credential.CredentialRecord.UvInitialized,
+            BackupEligible = credential.CredentialRecord.BackupEligible,
+            BackupState = credential.CredentialRecord.BackupState,
+            AttestationObject = credential.CredentialRecord.AttestationObject,
+            AttestationClientDataJson = credential.CredentialRecord.AttestationClientDataJSON,
+            CreatedAtUnixTime = createdAtUnixTime,
+            UpdatedAtUnixTime = updatedAtUnixTime
+        };
+    }
+
+    public virtual bool TryToUserCredentialRecord([NotNullWhen(true)] out UserCredentialRecord? result)
     {
         result = null;
         var publicKeyCredentialType = (PublicKeyCredentialType) Type;
@@ -93,23 +139,24 @@ public class SqlServerUserCredentialRecord
 
         CredentialPublicKeyRsaParametersRecord? rsaKey = null;
         CredentialPublicKeyEc2ParametersRecord? ecKey = null;
+        CredentialPublicKeyOkpParametersRecord? okpKey = null;
 
         switch (coseKeyType)
         {
             case CoseKeyType.EC2:
                 {
-                    if (!EcdsaCrv.HasValue)
+                    if (!Ec2Crv.HasValue)
                     {
                         return false;
                     }
 
-                    var ecdsaCurve = (CoseEllipticCurve) EcdsaCrv.Value;
-                    if (!Enum.IsDefined(ecdsaCurve) || EcdsaX is null || EcdsaY is null)
+                    var ec2Curve = (CoseEc2EllipticCurve) Ec2Crv.Value;
+                    if (!Enum.IsDefined(ec2Curve) || Ec2X is null || Ec2Y is null)
                     {
                         return false;
                     }
 
-                    ecKey = new(ecdsaCurve, EcdsaX, EcdsaY);
+                    ecKey = new(ec2Curve, Ec2X, Ec2Y);
                     break;
                 }
             case CoseKeyType.RSA:
@@ -122,6 +169,22 @@ public class SqlServerUserCredentialRecord
                     rsaKey = new(RsaModulusN, RsaExponentE);
                     break;
                 }
+            case CoseKeyType.OKP:
+                {
+                    if (!OkpCrv.HasValue)
+                    {
+                        return false;
+                    }
+
+                    var okpCurve = (CoseOkpEllipticCurve) OkpCrv.Value;
+                    if (!Enum.IsDefined(okpCurve) || OkpX is null)
+                    {
+                        return false;
+                    }
+
+                    okpKey = new(okpCurve, OkpX);
+                    break;
+                }
             default:
                 return false;
         }
@@ -130,31 +193,47 @@ public class SqlServerUserCredentialRecord
             coseKeyType,
             coseAlgorithm,
             rsaKey,
-            ecKey);
-
-        var authenticatorTransports = Transports
-            .Select(x => (AuthenticatorTransport) x)
-            .ToArray();
-        foreach (var authenticatorTransport in authenticatorTransports)
+            ecKey,
+            okpKey);
+        var transports = Array.Empty<AuthenticatorTransport>();
+        if (!string.IsNullOrEmpty(Transports))
         {
-            if (!Enum.IsDefined(authenticatorTransport))
+            var transportsIntegers = JsonSerializer.Deserialize<int[]>(Transports);
+            if (transportsIntegers?.Length > 0)
             {
-                return false;
+                var typedTransports = transportsIntegers
+                    .Select(x => (AuthenticatorTransport) x)
+                    .ToArray();
+                foreach (var authenticatorTransport in typedTransports)
+                {
+                    if (!Enum.IsDefined(authenticatorTransport))
+                    {
+                        return false;
+                    }
+                }
+
+                transports = typedTransports;
             }
         }
+
+        if (SignCount is > uint.MaxValue or < uint.MinValue)
+        {
+            return false;
+        }
+
+        var signCount = (uint) SignCount;
 
         var credentialRecord = new CredentialRecord(
             publicKeyCredentialType,
             CredentialId,
             publicKey,
-            SignCount,
-            authenticatorTransports,
+            signCount,
+            transports,
             UvInitialized,
             BackupEligible,
             BackupState,
             AttestationObject,
-            AttestationClientDataJson
-        );
+            AttestationClientDataJson);
 
         result = new(UserHandle, RpId, credentialRecord);
         return true;

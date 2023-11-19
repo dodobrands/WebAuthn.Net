@@ -13,13 +13,13 @@ public static class UuidVersion7Generator
         const byte bits64To71ResetVersionMask = 0x3F;
         const byte bits64To71SetVersionMask = 0x80;
 
-        Span<Guid> buffer = stackalloc Guid[1];
-        buffer[0] = Guid.NewGuid();
-        var result = MemoryMarshal.AsBytes(buffer);
-        var temp48To63 = (ushort) ((ushort) (BinaryPrimitives.ReadUInt16LittleEndian(result[6..]) & bits48To63ResetVersionMask) | bits48To63SetVersionMask);
-        result[8] = (byte) ((byte) (result[8] & bits64To71ResetVersionMask) | bits64To71SetVersionMask);
+        Span<Guid> guidBuffer = stackalloc Guid[1];
+        guidBuffer[0] = Guid.NewGuid();
+        var buffer = MemoryMarshal.AsBytes(guidBuffer);
+        var temp48To63 = (ushort) ((ushort) (BinaryPrimitives.ReadUInt16LittleEndian(buffer[6..]) & bits48To63ResetVersionMask) | bits48To63SetVersionMask);
+        buffer[8] = (byte) ((byte) (buffer[8] & bits64To71ResetVersionMask) | bits64To71SetVersionMask);
         var unixTimeMilliseconds = (ulong) DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        BinaryPrimitives.WriteUInt64BigEndian(result, (unixTimeMilliseconds << 16) | temp48To63);
-        return result.ToArray();
+        BinaryPrimitives.WriteUInt64BigEndian(buffer, (unixTimeMilliseconds << 16) | temp48To63);
+        return buffer.ToArray();
     }
 }
