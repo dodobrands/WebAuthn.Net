@@ -68,6 +68,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             var certificatesToDispose = new List<X509Certificate2>();
             try
             {
+                if (attStmt.X5C.Length == 0)
+                {
+                    return Result<AttestationStatementVerificationResult>.Fail();
+                }
+
                 var currentDate = TimeProvider.GetPreciseUtcDateTime();
                 var x5CCertificates = new List<X509Certificate2>(attStmt.X5C.Length);
                 foreach (var x5CBytes in attStmt.X5C)

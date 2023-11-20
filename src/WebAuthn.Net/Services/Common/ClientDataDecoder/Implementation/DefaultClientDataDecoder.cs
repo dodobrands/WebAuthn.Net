@@ -2,12 +2,12 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.ClientDataDecoder.Models;
 using WebAuthn.Net.Services.Common.ClientDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.ClientDataDecoder.Implementation;
 
@@ -25,7 +25,7 @@ public class DefaultClientDataDecoder : IClientDataDecoder
 
     public Result<CollectedClientData> Decode(string jsonText)
     {
-        var clientData = JsonSerializer.Deserialize<CollectedClientDataJson>(jsonText);
+        var clientData = JsonSerializer.Deserialize<CollectedClientDataJson>(jsonText, new JsonSerializerOptions());
         if (clientData is null)
         {
             _logger.FailedToDeserializeClientData();
@@ -81,6 +81,11 @@ public class DefaultClientDataDecoder : IClientDataDecoder
             return Result<TokenBinding>.Fail();
         }
 
+        if (string.IsNullOrEmpty(tokenBinding.Status))
+        {
+            return Result<TokenBinding>.Fail();
+        }
+
         if (!TokenBindingStatusMapper.TryGetEnumFromString(tokenBinding.Status, out var status))
         {
             _logger.InvalidTokenBindingStatus();
@@ -95,9 +100,9 @@ public class DefaultClientDataDecoder : IClientDataDecoder
         }
 
         byte[]? id = null;
-        if (tokenBinding.Id is not null)
+        if (tokenBinding.Id is not null && !Base64Url.TryDecode(tokenBinding.Id, out id))
         {
-            id = WebEncoders.Base64UrlDecode(tokenBinding.Id);
+            return Result<TokenBinding>.Fail();
         }
 
         var result = new TokenBinding(status.Value, id);

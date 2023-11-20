@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 
@@ -26,8 +26,16 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             return Result<RegistrationResponse>.Fail();
         }
 
-        var id = WebEncoders.Base64UrlDecode(registrationResponse.Id);
-        var rawId = WebEncoders.Base64UrlDecode(registrationResponse.RawId);
+        if (!Base64Url.TryDecode(registrationResponse.Id, out var id))
+        {
+            return Result<RegistrationResponse>.Fail();
+        }
+
+        if (!Base64Url.TryDecode(registrationResponse.RawId, out var rawId))
+        {
+            return Result<RegistrationResponse>.Fail();
+        }
+
         var responseResult = DecodeAttestationResponse(registrationResponse.Response);
         if (responseResult.HasError)
         {
@@ -64,11 +72,15 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
         AuthenticatorAttestationResponseJSON attestationResponseJson)
     {
         ArgumentNullException.ThrowIfNull(attestationResponseJson);
-        var clientDataJson = WebEncoders.Base64UrlDecode(attestationResponseJson.ClientDataJson);
-        byte[]? authenticatorData = null;
-        if (attestationResponseJson.AuthenticatorData is not null)
+        if (!Base64Url.TryDecode(attestationResponseJson.ClientDataJson, out var clientDataJson))
         {
-            authenticatorData = WebEncoders.Base64UrlDecode(attestationResponseJson.AuthenticatorData);
+            return Result<AuthenticatorAttestationResponse>.Fail();
+        }
+
+        byte[]? authenticatorData = null;
+        if (attestationResponseJson.AuthenticatorData is not null && !Base64Url.TryDecode(attestationResponseJson.AuthenticatorData, out authenticatorData))
+        {
+            return Result<AuthenticatorAttestationResponse>.Fail();
         }
 
         AuthenticatorTransport[]? transports = null;
@@ -87,9 +99,9 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
         }
 
         byte[]? publicKey = null;
-        if (attestationResponseJson.PublicKey is not null)
+        if (attestationResponseJson.PublicKey is not null && !Base64Url.TryDecode(attestationResponseJson.PublicKey, out publicKey))
         {
-            publicKey = WebEncoders.Base64UrlDecode(attestationResponseJson.PublicKey);
+            return Result<AuthenticatorAttestationResponse>.Fail();
         }
 
         CoseAlgorithm? publicKeyAlgorithm = null;
@@ -104,7 +116,11 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             publicKeyAlgorithm = castedAlgorithm;
         }
 
-        var attestationObject = WebEncoders.Base64UrlDecode(attestationResponseJson.AttestationObject);
+        if (!Base64Url.TryDecode(attestationResponseJson.AttestationObject, out var attestationObject))
+        {
+            return Result<AuthenticatorAttestationResponse>.Fail();
+        }
+
         var result = new AuthenticatorAttestationResponse(
             clientDataJson,
             authenticatorData,

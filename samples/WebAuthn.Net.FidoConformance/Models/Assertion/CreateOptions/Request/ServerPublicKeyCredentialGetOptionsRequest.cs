@@ -2,10 +2,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.FidoConformance.Models.Assertion.CreateOptions.Request;
 
@@ -37,13 +37,24 @@ public class ServerPublicKeyCredentialGetOptionsRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, JsonElement>? Extensions { get; }
 
-    public BeginAuthenticationCeremonyRequest ToBeginCeremonyRequest()
+    public bool TryToBeginCeremonyRequest([NotNullWhen(true)] out BeginAuthenticationCeremonyRequest? result)
     {
-        var userVerification = ParseNullableEnum(UserVerification, UserVerificationRequirementMapper);
-        return new(
+        if (!TryParseNullableEnum(UserVerification, UserVerificationRequirementMapper, out var userVerification))
+        {
+            result = null;
+            return false;
+        }
+
+        if (!Base64Url.TryDecode(UserName, out var userHandle))
+        {
+            result = null;
+            return false;
+        }
+
+        result = new(
             null,
             null,
-            WebEncoders.Base64UrlDecode(UserName),
+            userHandle,
             16,
             120000,
             AuthenticationCeremonyIncludeCredentials.AllExisting(),
@@ -52,23 +63,28 @@ public class ServerPublicKeyCredentialGetOptionsRequest
             null,
             null,
             Extensions);
+        return true;
     }
 
-    private static TEnum? ParseNullableEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(
+    private static bool TryParseNullableEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(
         string? value,
-        EnumMemberAttributeMapper<TEnum> mapper)
+        EnumMemberAttributeMapper<TEnum> mapper,
+        out TEnum? result)
         where TEnum : struct, Enum
     {
         if (string.IsNullOrEmpty(value))
         {
-            return null;
+            result = null;
+            return true;
         }
 
-        if (!mapper.TryGetEnumFromString(value, out var result))
+        if (!mapper.TryGetEnumFromString(value, out var parsedResult))
         {
-            throw new ArgumentOutOfRangeException(nameof(value), "The value is not in the set of acceptable ones");
+            result = null;
+            return false;
         }
 
-        return result.Value;
+        result = parsedResult.Value;
+        return true;
     }
 }

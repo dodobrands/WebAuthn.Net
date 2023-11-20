@@ -5,9 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Services.Static;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation.Models;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
 
@@ -45,7 +45,7 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
         var container = new AuthenticationCeremonyParametersCookieContainer(id, authenticationCeremony);
         var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(container, options.SerializerOptions);
         var protectedJsonBytes = Protector.Protect(jsonBytes);
-        var encodedProtectedJsonBytes = WebEncoders.Base64UrlEncode(protectedJsonBytes);
+        var encodedProtectedJsonBytes = Base64Url.Encode(protectedJsonBytes);
         var cookieOptions = options.Cookie.Build(context.HttpContext);
         var cookieName = GetCookieName(options);
         CookieManager.AppendResponseCookie(
@@ -75,7 +75,11 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
                 return Task.FromResult((AuthenticationCeremonyParameters?) null);
             }
 
-            var protectedJsonBytes = WebEncoders.Base64UrlDecode(encodedProtectedJsonBytes);
+            if (!Base64Url.TryDecode(encodedProtectedJsonBytes, out var protectedJsonBytes))
+            {
+                return Task.FromResult((AuthenticationCeremonyParameters?) null);
+            }
+
             var jsonBytes = Protector.Unprotect(protectedJsonBytes);
             var container = JsonSerializer.Deserialize<AuthenticationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
             if (container is not null && container.Id == id)
@@ -111,7 +115,11 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
                 return Task.CompletedTask;
             }
 
-            var protectedJsonBytes = WebEncoders.Base64UrlDecode(encodedProtectedJsonBytes);
+            if (!Base64Url.TryDecode(encodedProtectedJsonBytes, out var protectedJsonBytes))
+            {
+                return Task.FromResult((AuthenticationCeremonyParameters?) null);
+            }
+
             var jsonBytes = Protector.Unprotect(protectedJsonBytes);
             var container = JsonSerializer.Deserialize<AuthenticationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
             if (container is not null && container.Id == id)
