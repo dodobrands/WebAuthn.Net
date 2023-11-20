@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
 
 namespace WebAuthn.Net.Sample.Mvc;
@@ -9,15 +9,9 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         var services = builder.Services;
+        services.AddSingleton<UserSessionStorage>();
         services.AddControllersWithViews();
         services.AddWebAuthnInMemory();
-        services.AddAuthentication()
-            .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
-            {
-                options.Cookie.HttpOnly = true;
-                options.Cookie.SameSite = SameSiteMode.None;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            });
 
         var app = builder.Build();
 
@@ -31,7 +25,7 @@ public static class Program
         app.UseHttpsRedirection();
         app.UseStaticFiles();
         app.UseRouting();
-        app.UseAuthentication();
+
         app.MapControllerRoute(
             "default",
             "{controller=Home}/{action=Index}/{id?}");

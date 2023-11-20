@@ -1,22 +1,23 @@
-using System.Net.Mime;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using WebAuthn.Net.Sample.Mvc.Constants;
+using WebAuthn.Net.Sample.Mvc.Models.Attestation.CompleteCeremony.Request;
+using WebAuthn.Net.Sample.Mvc.Models.Attestation.CreateOptions.Request;
+using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Services.RegistrationCeremony;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
-#pragma warning disable CA1825
+
 namespace WebAuthn.Net.Sample.Mvc.Controllers;
 
 public class FidoController : Controller
 {
 
+    private readonly UserSessionStorage _userSession;
     private readonly IRegistrationCeremonyService _registrationCeremony;
 
-    public FidoController(IRegistrationCeremonyService registrationCeremony)
+    public FidoController(IRegistrationCeremonyService registrationCeremony, UserSessionStorage userSession)
     {
         _registrationCeremony = registrationCeremony;
+        _userSession = userSession;
     }
 
     // GET
@@ -41,27 +42,34 @@ public class FidoController : Controller
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(BeginRegistrationCeremonyResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json)]
-    public async Task<IActionResult> BeginRegisterCeremony([FromBody] BeginRegisterViewModel request, CancellationToken token)
+    public async Task<IActionResult> BeginRegisterCeremony([FromBody] ServerPublicKeyCredentialCreationOptionsRequest request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(request.Request);
         token.ThrowIfCancellationRequested();
 
-        var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.Request, token);
+        var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(), token);
+        HttpContext.Response.Cookies
+            .Append(ExampleConstants.CookieAuthentication.RegistrationSessionId, result.RegistrationCeremonyId);
+        _userSession.SaveRegistration(request.UserName, result.RegistrationCeremonyId);
         return Json(result);
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(CompleteRegistrationCeremonyResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json)]
-    public async Task<IActionResult> RegisterCeremony([FromBody] RegisterViewModel request, CancellationToken token)
+    public async Task<IActionResult> RegisterCeremony([FromBody] ServerPublicKeyCredential request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(request.Request);
-        ArgumentNullException.ThrowIfNull(request.UserName);
         token.ThrowIfCancellationRequested();
 
-        var result = await _registrationCeremony.CompleteCeremonyAsync(HttpContext, request.Request, token);
+        if (!HttpContext.Request.Cookies.TryGetValue(ExampleConstants.CookieAuthentication.AuthCookieName, out var cookie))
+            throw new UnauthorizedAccessException();
+
+        var ceremonyModel = request.ToCompleteCeremonyRequest(cookie!);
+        var userName = _userSession.GetUsernameByRegId(cookie!);
+        var result = await _registrationCeremony.CompleteCeremonyAsync(HttpContext, ceremonyModel, token);
+
+        HttpContext.Response.Cookies.Delete(ExampleConstants.CookieAuthentication.RegistrationSessionId);
+        _userSession.ClearRegistration(cookie!);
+
         if (result.Successful)
         {
             var cookieBuilder = new CookieBuilder()
@@ -71,26 +79,9 @@ public class FidoController : Controller
                 SecurePolicy = CookieSecurePolicy.Always
             };
             var cookieOptions = cookieBuilder.Build(HttpContext, DateTimeOffset.Now.AddDays(1));
-            HttpContext.Response.Cookies.Append(ExampleConstants.CookieAuthentication.AuthCookieName, request.UserName, cookieOptions);
+            HttpContext.Response.Cookies.Append(ExampleConstants.CookieAuthentication.AuthCookieName, userName, cookieOptions);
         }
         return Json(result);
     }
 }
 
-public class BeginRegisterViewModel
-{
-    [JsonPropertyName("request")]
-    public BeginRegistrationCeremonyRequest? Request { get; set; }
-}
-
-public class RegisterViewModel
-{
-
-    [JsonPropertyName("username")]
-    public string? UserName { get; set; }
-
-    [JsonPropertyName("request")]
-    public CompleteRegistrationCeremonyRequest? Request { get; set; }
-}
-
-#pragma warning restore CA1825
