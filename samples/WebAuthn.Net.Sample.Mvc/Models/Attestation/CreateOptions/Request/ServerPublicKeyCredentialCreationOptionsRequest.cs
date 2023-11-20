@@ -63,7 +63,7 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
         return new(
             null,
             null,
-            ExampleConstants.Webauthn.WebAuthnDisplayName,
+            ExampleConstants.Host.WebAuthnDisplayName,
             new(UserName, WebEncoders.Base64UrlDecode(UserName), DisplayName),
             16,
             CoseAlgorithms.All,

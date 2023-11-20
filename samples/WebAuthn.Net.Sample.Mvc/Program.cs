@@ -11,7 +11,7 @@ public static class Program
         var services = builder.Services;
         services.AddSingleton<UserSessionStorage>();
         services.AddControllersWithViews();
-        services.AddWebAuthnInMemory();
+        services.AddWebAuthnInMemory(options => options.AttestationTypes.None.IsAcceptable = true);
 
         var app = builder.Build();
 
