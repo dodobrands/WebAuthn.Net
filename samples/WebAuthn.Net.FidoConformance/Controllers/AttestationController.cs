@@ -1,13 +1,13 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.FidoConformance.Models.Attestation.CompleteCeremony.Request;
 using WebAuthn.Net.FidoConformance.Models.Attestation.CreateOptions.Request;
 using WebAuthn.Net.FidoConformance.Models.Attestation.CreateOptions.Response;
 using WebAuthn.Net.FidoConformance.Models.Common.Response;
 using WebAuthn.Net.Services.RegistrationCeremony;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.FidoConformance.Controllers;
 
@@ -34,7 +34,11 @@ public class AttestationController : Controller
             return BadRequest(ServerResponse.Error("Invalid model"));
         }
 
-        var beginCeremonyRequest = model.ToBeginCeremonyRequest();
+        if (!model.TryToBeginCeremonyRequest(out var beginCeremonyRequest))
+        {
+            return BadRequest(ServerResponse.Error("Can't map model to begin registration ceremony request"));
+        }
+
         var result = await _registration.BeginCeremonyAsync(HttpContext, beginCeremonyRequest, cancellationToken);
         var successfulResult = ServerPublicKeyCredentialCreationOptionsResponse
             .FromPublicKeyCredentialCreationOptions(result.Options);
@@ -73,7 +77,7 @@ public class AttestationController : Controller
     {
         HttpContext.Response.Cookies.Append(
             TempCookies.RegistrationCeremonyId,
-            WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(registrationCeremonyId)));
+            Base64Url.Encode(Encoding.UTF8.GetBytes(registrationCeremonyId)));
     }
 
     private bool TryReadRegistrationId([NotNullWhen(true)] out string? registrationId)
@@ -84,7 +88,12 @@ public class AttestationController : Controller
             return false;
         }
 
-        var utf8Bytes = WebEncoders.Base64UrlDecode(cookies);
+        if (!Base64Url.TryDecode(cookies, out var utf8Bytes))
+        {
+            registrationId = null;
+            return false;
+        }
+
         registrationId = Encoding.UTF8.GetString(utf8Bytes);
         return true;
     }

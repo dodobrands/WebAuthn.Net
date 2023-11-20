@@ -9,7 +9,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using WebAuthn.Net.Models;
@@ -49,6 +48,11 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
+            if (headerCertificates.Length == 0)
+            {
+                return Result<MetadataBLOBPayloadJSON>.Fail();
+            }
+
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             var jwtCertificates = new List<X509Certificate2>();
             foreach (var certBytes in headerCertificates)
@@ -69,6 +73,11 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 
             // build root certificates chain that avoid expired certificates
             var fidoRootCertificates = GetFidoMetadataRootCertificates();
+            if (fidoRootCertificates.Length == 0)
+            {
+                return Result<MetadataBLOBPayloadJSON>.Fail();
+            }
+
             var rootCertificates = new List<X509Certificate2>();
             foreach (var fidoRootCertBytes in fidoRootCertificates)
             {
@@ -117,7 +126,12 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
-            var payload = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(jwt.EncodedPayload));
+            if (!Base64Url.TryDecode(jwt.EncodedPayload, out var jwtPayloadBytes))
+            {
+                return Result<MetadataBLOBPayloadJSON>.Fail();
+            }
+
+            var payload = Encoding.UTF8.GetString(jwtPayloadBytes);
             var blobPayload = JsonSerializer.Deserialize<MetadataBLOBPayloadJSON>(payload);
             if (blobPayload is null)
             {
@@ -158,7 +172,12 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 
         if (certificatesObject is string certificatesString)
         {
-            var rawCert = WebEncoders.Base64UrlDecode(certificatesString);
+            if (!Base64Raw.TryDecode(certificatesString, out var rawCert))
+            {
+                rawCertificates = null;
+                return false;
+            }
+
             rawCertificates = new[] { rawCert };
             return true;
         }
@@ -174,7 +193,12 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                     return false;
                 }
 
-                var rawCert = WebEncoders.Base64UrlDecode(certificateString);
+                if (!Base64Raw.TryDecode(certificateString, out var rawCert))
+                {
+                    rawCertificates = null;
+                    return false;
+                }
+
                 result.Add(rawCert);
             }
 

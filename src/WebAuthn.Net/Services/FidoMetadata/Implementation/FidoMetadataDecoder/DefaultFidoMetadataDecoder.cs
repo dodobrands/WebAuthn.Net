@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 using Version = WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Version;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
@@ -630,7 +630,13 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         result = new byte[attestationRootCertificates.Length][];
         for (var i = 0; i < attestationRootCertificates.Length; i++)
         {
-            result[i] = Convert.FromBase64String(attestationRootCertificates[i]);
+            if (!Base64Raw.TryDecode(attestationRootCertificates[i], out var attestationRootCertificate))
+            {
+                result = null;
+                return false;
+            }
+
+            result[i] = attestationRootCertificate;
         }
 
         return true;
@@ -669,11 +675,16 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             return false;
         }
 
-        var x = WebEncoders.Base64UrlDecode(ecdaaTrustAnchor.X);
-        var y = WebEncoders.Base64UrlDecode(ecdaaTrustAnchor.Y);
-        var c = WebEncoders.Base64UrlDecode(ecdaaTrustAnchor.C);
-        var sx = WebEncoders.Base64UrlDecode(ecdaaTrustAnchor.Sx);
-        var sy = WebEncoders.Base64UrlDecode(ecdaaTrustAnchor.Sy);
+        if (!Base64Url.TryDecode(ecdaaTrustAnchor.X, out var x)
+            || !Base64Url.TryDecode(ecdaaTrustAnchor.Y, out var y)
+            || !Base64Url.TryDecode(ecdaaTrustAnchor.C, out var c)
+            || !Base64Url.TryDecode(ecdaaTrustAnchor.Sx, out var sx)
+            || !Base64Url.TryDecode(ecdaaTrustAnchor.Sy, out var sy))
+        {
+            result = null;
+            return false;
+        }
+
         result = new(
             x,
             y,
@@ -852,7 +863,13 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         byte[]? certificate = null;
         if (statusReport.Certificate is not null)
         {
-            certificate = Convert.FromBase64String(statusReport.Certificate);
+            if (!Base64Raw.TryDecode(statusReport.Certificate, out var statusReportCertificate))
+            {
+                result = null;
+                return false;
+            }
+
+            certificate = statusReportCertificate;
         }
 
         result = new(

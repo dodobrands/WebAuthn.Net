@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.WebUtilities;
-using WebAuthn.Net.Models;
+﻿using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder.Implementation;
 
@@ -20,8 +20,16 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<AuthenticationResponse>.Fail();
         }
 
-        var id = WebEncoders.Base64UrlDecode(authenticationResponse.Id);
-        var rawId = WebEncoders.Base64UrlDecode(authenticationResponse.RawId);
+        if (!Base64Url.TryDecode(authenticationResponse.Id, out var id))
+        {
+            return Result<AuthenticationResponse>.Fail();
+        }
+
+        if (!Base64Url.TryDecode(authenticationResponse.RawId, out var rawId))
+        {
+            return Result<AuthenticationResponse>.Fail();
+        }
+
         var responseResult = DecodeAuthenticatorAssertionResponse(authenticationResponse.Response);
         if (responseResult.HasError)
         {
@@ -63,33 +71,47 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<AuthenticatorAssertionResponse>.Fail();
         }
 
-        var clientDataJson = WebEncoders.Base64UrlDecode(response.ClientDataJson);
+        if (!Base64Url.TryDecode(response.ClientDataJson, out var clientDataJson))
+        {
+            return Result<AuthenticatorAssertionResponse>.Fail();
+        }
 
         if (string.IsNullOrEmpty(response.AuthenticatorData))
         {
             return Result<AuthenticatorAssertionResponse>.Fail();
         }
 
-        var authenticatorData = WebEncoders.Base64UrlDecode(response.AuthenticatorData);
+        if (!Base64Url.TryDecode(response.AuthenticatorData, out var authenticatorData))
+        {
+            return Result<AuthenticatorAssertionResponse>.Fail();
+        }
 
         if (string.IsNullOrEmpty(response.Signature))
         {
             return Result<AuthenticatorAssertionResponse>.Fail();
         }
 
-        var signature = WebEncoders.Base64UrlDecode(response.Signature);
-
+        if (!Base64Url.TryDecode(response.Signature, out var signature))
+        {
+            return Result<AuthenticatorAssertionResponse>.Fail();
+        }
 
         byte[]? userHandle = null;
         if (!string.IsNullOrEmpty(response.UserHandle))
         {
-            userHandle = WebEncoders.Base64UrlDecode(response.UserHandle);
+            if (!Base64Url.TryDecode(response.UserHandle, out userHandle))
+            {
+                return Result<AuthenticatorAssertionResponse>.Fail();
+            }
         }
 
         byte[]? attestationObject = null;
         if (!string.IsNullOrEmpty(response.AttestationObject))
         {
-            attestationObject = WebEncoders.Base64UrlDecode(response.AttestationObject);
+            if (!Base64Url.TryDecode(response.AttestationObject, out attestationObject))
+            {
+                return Result<AuthenticatorAssertionResponse>.Fail();
+            }
         }
 
         var result = new AuthenticatorAssertionResponse(

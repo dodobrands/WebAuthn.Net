@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
 
@@ -29,7 +29,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         ArgumentNullException.ThrowIfNull(options);
         var rp = EncodeRp(options.Rp);
         var user = EncodeUser(options.User);
-        var challenge = WebEncoders.Base64UrlEncode(options.Challenge);
+        var challenge = Base64Url.Encode(options.Challenge);
         var pubKeyCredParams = EncodePubKeyCredParams(options.PubKeyCredParams);
         var excludeCredentials = EncodeExcludeCredentials(options.ExcludeCredentials);
         var authenticatorSelection = EncodeAuthenticatorSelection(options.AuthenticatorSelection);
@@ -60,7 +60,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
     protected virtual PublicKeyCredentialUserEntityJSON EncodeUser(PublicKeyCredentialUserEntity user)
     {
         ArgumentNullException.ThrowIfNull(user);
-        var id = WebEncoders.Base64UrlEncode(user.Id);
+        var id = Base64Url.Encode(user.Id);
         return new(id, user.Name, user.DisplayName);
     }
 
@@ -107,7 +107,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
     protected virtual PublicKeyCredentialDescriptorJSON EncodeExcludeCredential(PublicKeyCredentialDescriptor excludeCredential)
     {
         ArgumentNullException.ThrowIfNull(excludeCredential);
-        var id = WebEncoders.Base64UrlEncode(excludeCredential.Id);
+        var id = Base64Url.Encode(excludeCredential.Id);
         if (!PublicKeyCredentialTypeMapper.TryGetStringFromEnum(excludeCredential.Type, out var type))
         {
             throw new InvalidOperationException("Failed to encode type in PublicKeyCredentialDescriptor");

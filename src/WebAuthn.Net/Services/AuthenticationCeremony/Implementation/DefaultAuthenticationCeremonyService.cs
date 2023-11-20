@@ -7,7 +7,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
@@ -37,6 +36,7 @@ using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Providers;
+using WebAuthn.Net.Services.Static;
 using WebAuthn.Net.Storage.AuthenticationCeremony;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
 using WebAuthn.Net.Storage.Credential;
@@ -358,7 +358,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             }
 
             // 13. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
-            if (!string.Equals(C.Challenge, WebEncoders.Base64UrlEncode(options.Challenge), StringComparison.Ordinal))
+            if (!string.Equals(C.Challenge, Base64Url.Encode(options.Challenge), StringComparison.Ordinal))
             {
                 Logger.ChallengeMismatch();
                 return CompleteAuthenticationCeremonyResult.Fail();

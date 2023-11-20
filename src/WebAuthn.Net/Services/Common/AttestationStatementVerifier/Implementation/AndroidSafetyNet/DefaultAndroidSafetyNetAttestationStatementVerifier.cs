@@ -9,7 +9,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
@@ -74,6 +73,11 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 return Result<AttestationStatementVerificationResult>.Fail();
             }
 
+            if (trustPath.Length == 0)
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             var securityKeys = new List<SecurityKey>();
             foreach (var certBytes in trustPath)
@@ -128,7 +132,11 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             // 3) Verify that the 'nonce' attribute in the payload of response
             // is identical to the Base64 encoding of the SHA-256 hash of the concatenation of 'authenticatorData' and 'clientDataHash'.
             var dataToVerify = SHA256.HashData(Concat(authenticatorData.Raw, clientDataHash));
-            var binaryNonce = Convert.FromBase64String(nonce);
+            if (!Base64Raw.TryDecode(nonce, out var binaryNonce))
+            {
+                return Result<AttestationStatementVerificationResult>.Fail();
+            }
+
             if (!binaryNonce.AsSpan().SequenceEqual(dataToVerify.AsSpan()))
             {
                 return Result<AttestationStatementVerificationResult>.Fail();
@@ -264,7 +272,12 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
 
         if (certificatesObject is string certificatesString)
         {
-            var rawCert = WebEncoders.Base64UrlDecode(certificatesString);
+            if (!Base64Raw.TryDecode(certificatesString, out var rawCert))
+            {
+                rawCertificates = null;
+                return false;
+            }
+
             rawCertificates = new[] { rawCert };
             return true;
         }
@@ -280,7 +293,12 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                     return false;
                 }
 
-                var rawCert = WebEncoders.Base64UrlDecode(certificateString);
+                if (!Base64Raw.TryDecode(certificateString, out var rawCert))
+                {
+                    rawCertificates = null;
+                    return false;
+                }
+
                 result.Add(rawCert);
             }
 

@@ -1,13 +1,13 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.FidoConformance.Models.Assertion.CompleteCeremony.Request;
 using WebAuthn.Net.FidoConformance.Models.Assertion.CreateOptions.Request;
 using WebAuthn.Net.FidoConformance.Models.Assertion.CreateOptions.Response;
 using WebAuthn.Net.FidoConformance.Models.Common.Response;
 using WebAuthn.Net.Services.AuthenticationCeremony;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.FidoConformance.Controllers;
 
@@ -34,7 +34,11 @@ public class AssertionController : Controller
             return BadRequest(ServerResponse.Error("Invalid model"));
         }
 
-        var beginCeremonyRequest = model.ToBeginCeremonyRequest();
+        if (!model.TryToBeginCeremonyRequest(out var beginCeremonyRequest))
+        {
+            return BadRequest(ServerResponse.Error("Can't map model to begin authentication ceremony request"));
+        }
+
         var result = await _authentication.BeginCeremonyAsync(HttpContext, beginCeremonyRequest, cancellationToken);
         var successfulResult = ServerPublicKeyCredentialGetOptionsResponse
             .FromPublicKeyCredentialRequestOptions(result.Options);
@@ -73,19 +77,24 @@ public class AssertionController : Controller
     {
         HttpContext.Response.Cookies.Append(
             TempCookies.AuthenticationCeremonyId,
-            WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(registrationCeremonyId)));
+            Base64Url.Encode(Encoding.UTF8.GetBytes(registrationCeremonyId)));
     }
 
-    private bool TryReadAuthenticationId([NotNullWhen(true)] out string? registrationId)
+    private bool TryReadAuthenticationId([NotNullWhen(true)] out string? authenticationId)
     {
         if (!HttpContext.Request.Cookies.TryGetValue(TempCookies.AuthenticationCeremonyId, out var cookies) || string.IsNullOrEmpty(cookies))
         {
-            registrationId = null;
+            authenticationId = null;
             return false;
         }
 
-        var utf8Bytes = WebEncoders.Base64UrlDecode(cookies);
-        registrationId = Encoding.UTF8.GetString(utf8Bytes);
+        if (!Base64Url.TryDecode(cookies, out var utf8Bytes))
+        {
+            authenticationId = null;
+            return false;
+        }
+
+        authenticationId = Encoding.UTF8.GetString(utf8Bytes);
         return true;
     }
 }

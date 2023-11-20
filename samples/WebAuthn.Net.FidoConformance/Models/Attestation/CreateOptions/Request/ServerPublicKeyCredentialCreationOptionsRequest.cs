@@ -2,11 +2,11 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 using Host = WebAuthn.Net.FidoConformance.Constants.Host;
 
 namespace WebAuthn.Net.FidoConformance.Models.Attestation.CreateOptions.Request;
@@ -56,16 +56,37 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, JsonElement>? Extensions { get; }
 
-    public BeginRegistrationCeremonyRequest ToBeginCeremonyRequest()
+    public bool TryToBeginCeremonyRequest([NotNullWhen(true)] out BeginRegistrationCeremonyRequest? result)
     {
-        var authenticatorSelection = ParseAuthenticatorSelection(AuthenticatorSelection);
-        var attestation = ParseNullableEnum(Attestation, AttestationMapper);
+        Net.Models.Protocol.RegistrationCeremony.CreateOptions.AuthenticatorSelectionCriteria? authenticatorSelection = null;
+        if (AuthenticatorSelection is not null)
+        {
+            if (!TryParseAuthenticatorSelection(AuthenticatorSelection, out var parsedAuthenticatorSelection))
+            {
+                result = null;
+                return false;
+            }
 
-        return new(
+            authenticatorSelection = parsedAuthenticatorSelection;
+        }
+
+        if (!TryParseNullableEnum(Attestation, AttestationMapper, out var attestation))
+        {
+            result = null;
+            return false;
+        }
+
+        if (!Base64Url.TryDecode(UserName, out var userHandle))
+        {
+            result = null;
+            return false;
+        }
+
+        result = new(
             null,
             null,
             Host.WebAuthnDisplayName,
-            new(UserName, WebEncoders.Base64UrlDecode(UserName), DisplayName),
+            new(UserName, userHandle, DisplayName),
             16,
             CoseAlgorithms.All,
             120000,
@@ -75,41 +96,59 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
             attestation,
             null,
             Extensions);
+        return true;
     }
 
-    private static Net.Models.Protocol.RegistrationCeremony.CreateOptions.AuthenticatorSelectionCriteria? ParseAuthenticatorSelection(AuthenticatorSelectionCriteria? input)
+    private static bool TryParseAuthenticatorSelection(
+        AuthenticatorSelectionCriteria input,
+        [NotNullWhen(true)] out Net.Models.Protocol.RegistrationCeremony.CreateOptions.AuthenticatorSelectionCriteria? result)
     {
-        if (input is null)
+        if (!TryParseNullableEnum(input.AuthenticatorAttachment, AuthenticatorAttachmentMapper, out var authenticatorAttachment))
         {
-            return null;
+            result = null;
+            return false;
         }
 
-        var authenticatorAttachment = ParseNullableEnum(input.AuthenticatorAttachment, AuthenticatorAttachmentMapper);
-        var residentKey = ParseNullableEnum(input.ResidentKey, ResidentKeyRequirementMapper);
+        if (!TryParseNullableEnum(input.ResidentKey, ResidentKeyRequirementMapper, out var residentKey))
+        {
+            result = null;
+            return false;
+        }
+
+        if (!TryParseNullableEnum(input.UserVerification, UserVerificationRequirementMapper, out var userVerification))
+        {
+            result = null;
+            return false;
+        }
+
         var requireResidentKey = input.RequireResidentKey;
-        var userVerification = ParseNullableEnum(input.UserVerification, UserVerificationRequirementMapper);
-        return new(
+        result = new(
             authenticatorAttachment,
             residentKey,
             requireResidentKey,
             userVerification);
+        return true;
     }
 
-    private static TEnum? ParseNullableEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(
+    private static bool TryParseNullableEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(
         string? value,
-        EnumMemberAttributeMapper<TEnum> mapper)
+        EnumMemberAttributeMapper<TEnum> mapper,
+        out TEnum? result)
         where TEnum : struct, Enum
     {
         if (string.IsNullOrEmpty(value))
         {
-            return null;
+            result = null;
+            return true;
         }
 
-        if (!mapper.TryGetEnumFromString(value, out var result))
+        if (!mapper.TryGetEnumFromString(value, out var parsedResult))
         {
-            throw new ArgumentOutOfRangeException(nameof(value), "The value is not in the set of acceptable ones");
+            result = null;
+            return false;
         }
 
-        return result.Value;
+        result = parsedResult.Value;
+        return true;
     }
 }
