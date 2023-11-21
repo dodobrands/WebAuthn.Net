@@ -1,4 +1,4 @@
-﻿using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
+﻿using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Sample.Mvc.Constants;
 

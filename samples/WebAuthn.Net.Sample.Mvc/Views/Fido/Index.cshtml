@@ -30,7 +30,7 @@ const coerceToArrayBuffer = (x) => {
     const fix = x.replace(/-/g, "+").replace(/_/g, "/");
     return Uint8Array.from(window.atob(fix), c => c.charCodeAt(0));
 };
-const coerceToBase64Url = function (x) {
+const coerceToBase64Url = (x) => {
     const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
     return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
 };
@@ -68,15 +68,12 @@ const initiateRegistration = async () => {
     const url = "/Fido/BeginRegisterCeremony";
     const data = {
         username,
-        displayName: username,
         extensions: {}
     };
     return await makeJsonApiCall({ url, data, method: "POST" });
 };
-
 const submitRegistration = async ({ response }) => {
     const url = "/Fido/RegisterCeremony";
-    console.warn(response);
     const data = {
         id: coerceToBase64Url(response.rawId),
         type: response.type,
@@ -85,10 +82,8 @@ const submitRegistration = async ({ response }) => {
             clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
         }
     };
-    console.warn(data);
     return await makeJsonApiCall({ url, data, method: "POST" });
 };
-
 const initiateAuthentication = async () => {
     const username = getAuthenticateUsernameInputValue();
     const url = "/Fido/BeginAuthenticationCeremony";
@@ -97,10 +92,8 @@ const initiateAuthentication = async () => {
     };
     return await makeJsonApiCall({ url, data, method: "POST" });
 };
-
 const submitAttestation = async ({ response }) => {
     const url = "/Fido/AuthenticationCeremony";
-    console.warn(response);
     const data = {
         id: coerceToBase64Url(response.rawId),
         type: response.type,
@@ -112,7 +105,6 @@ const submitAttestation = async ({ response }) => {
             signature: coerceToBase64Url(response.response.signature),
         }
     }
-    console.warn(data);
     return await makeJsonApiCall({ url, data, method: "POST" });
 };
 
