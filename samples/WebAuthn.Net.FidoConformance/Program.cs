@@ -4,10 +4,13 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Extensions;
+using Polly;
 using WebAuthn.Net.FidoConformance.Services;
 using WebAuthn.Net.FidoConformance.Services.ConformanceMetadata;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.FidoMetadata;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
 
 namespace WebAuthn.Net.FidoConformance;
@@ -22,6 +25,15 @@ public static class Program
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();
+        builder.Services.AddSingleton(new ResiliencePipelineBuilder<Result<MetadataBLOBPayloadJSON>>()
+            .AddRetry(new()
+            {
+                ShouldHandle = new PredicateBuilder<Result<MetadataBLOBPayloadJSON>>().HandleResult(result => result.HasError),
+                Delay = TimeSpan.FromMilliseconds(1),
+                MaxRetryAttempts = 10,
+                BackoffType = DelayBackoffType.Constant
+            })
+            .Build());
         builder.Services.AddSingleton<IFidoMetadataProvider, LocalFilesFidoMetadataProviderForMdsTests>();
         builder.Services.AddSingleton<ITpmManufacturerVerifier, ConformanceTpmManufacturerVerifier>();
         builder.Services.AddWebAuthnInMemory(

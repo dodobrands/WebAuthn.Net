@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Security.Cryptography;
 using System.Text;
 using WebAuthn.Net.FidoConformance.Constants;
 
@@ -7,13 +6,16 @@ namespace WebAuthn.Net.FidoConformance.Services.ConformanceMetadata;
 
 public class LocalFilesFidoMetadataHttpClientDelegatingHandler : DelegatingHandler
 {
+    private readonly string[] _jwtBlobContents = GetJwtBlobsContents();
+    private int _calls = -1;
+
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var jwtBlobs = GetJwtBlobsContents();
-        if (jwtBlobs.Length > 0)
+        if (_jwtBlobContents.Length > 0)
         {
-            var index = RandomNumberGenerator.GetInt32(0, jwtBlobs.Length);
-            var result = jwtBlobs[index];
+            var calls = Interlocked.Increment(ref _calls);
+            var index = calls % _jwtBlobContents.Length;
+            var result = _jwtBlobContents[index];
             return new(HttpStatusCode.OK)
             {
                 Content = new StringContent(result, Encoding.UTF8)

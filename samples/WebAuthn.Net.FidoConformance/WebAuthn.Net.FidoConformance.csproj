@@ -33,4 +33,8 @@
         </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Polly" Version="8.2.0" />
+    </ItemGroup>
+
 </Project>

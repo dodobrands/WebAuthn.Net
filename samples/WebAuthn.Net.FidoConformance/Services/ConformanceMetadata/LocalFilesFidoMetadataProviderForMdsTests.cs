@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Polly;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata;
@@ -10,14 +11,29 @@ namespace WebAuthn.Net.FidoConformance.Services.ConformanceMetadata;
 
 public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProvider
 {
+    private readonly ResiliencePipeline<Result<MetadataBLOBPayloadJSON>> _resiliencePipeline;
+
     public LocalFilesFidoMetadataProviderForMdsTests(
         IFidoMetadataHttpClient metadataHttpClient,
-        ITimeProvider timeProvider)
+        ITimeProvider timeProvider,
+        ResiliencePipeline<Result<MetadataBLOBPayloadJSON>> resiliencePipeline)
         : base(metadataHttpClient, timeProvider)
     {
+        ArgumentNullException.ThrowIfNull(resiliencePipeline);
+        _resiliencePipeline = resiliencePipeline;
     }
 
     public override async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = await _resiliencePipeline.ExecuteAsync(
+            async static (self, ct) => await self.DownloadMetadataAsyncCore(ct),
+            this,
+            cancellationToken);
+        return result;
+    }
+
+    private async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsyncCore(CancellationToken cancellationToken)
     {
         var result = await base.DownloadMetadataAsync(cancellationToken);
         if (result.HasError)
