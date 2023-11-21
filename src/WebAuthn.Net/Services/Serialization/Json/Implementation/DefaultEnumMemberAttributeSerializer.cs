@@ -19,7 +19,7 @@ public class DefaultEnumMemberAttributeSerializer<TEnum> : IEnumMemberAttributeS
     private readonly Dictionary<TEnum, string> _valuesToNames;
 
     /// <summary>
-    ///     Constructs <see cref="EnumMemberAttributeMapper{TEnum}" />.
+    ///     Constructs <see cref="DefaultEnumMemberAttributeSerializer{TEnum}" />.
     /// </summary>
     public DefaultEnumMemberAttributeSerializer()
     {
