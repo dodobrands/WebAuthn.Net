@@ -1,4 +1,4 @@
-using WebAuthn.Net.Sample.Mvc.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
 
 namespace WebAuthn.Net.Sample.Mvc;
@@ -9,9 +9,18 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         var services = builder.Services;
-        services.AddSingleton<UserSessionStorage>();
         services.AddControllersWithViews();
         services.AddWebAuthnInMemory(options => options.AttestationTypes.None.IsAcceptable = true);
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(static options =>
+            {
+                options.ExpireTimeSpan = TimeSpan.FromDays(1);
+                options.SlidingExpiration = false;
+                options.Cookie.SameSite = SameSiteMode.None;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.LoginPath = "/Fido";
+            });
 
         var app = builder.Build();
 
@@ -26,9 +35,10 @@ public static class Program
         app.UseStaticFiles();
         app.UseRouting();
 
-        app.MapControllerRoute(
-            "default",
-            "{controller=Home}/{action=Index}/{id?}");
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
         app.Run();
     }
 }

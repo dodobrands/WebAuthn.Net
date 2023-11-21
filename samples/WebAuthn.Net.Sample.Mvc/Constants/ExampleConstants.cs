@@ -10,8 +10,6 @@ public static class ExampleConstants
 
     public static class CookieAuthentication
     {
-        public const string AuthCookieName = "WebauthnExampleUser";
-
         public const string RegistrationSessionId = "WebauthnRegId";
         public const string AuthAssertionSessionId = "WebauthnAssertId";
     }

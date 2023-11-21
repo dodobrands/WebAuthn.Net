@@ -1,8 +1,11 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebAuthn.Net.Sample.Mvc.Constants;
 using WebAuthn.Net.Sample.Mvc.Models.Attestation.CompleteCeremony.Request;
 using WebAuthn.Net.Sample.Mvc.Models.Attestation.CreateOptions.Request;
-using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.RegistrationCeremony;
 
@@ -15,40 +18,34 @@ namespace WebAuthn.Net.Sample.Mvc.Controllers;
 
 public class FidoController : Controller
 {
-
-    private readonly UserSessionStorage _userSession;
     private readonly IRegistrationCeremonyService _registrationCeremony;
     private readonly IAuthenticationCeremonyService _authenticationCeremony;
 
-    public FidoController(IRegistrationCeremonyService registrationCeremony, UserSessionStorage userSession, IAuthenticationCeremonyService authenticationCeremony)
+    public FidoController(IRegistrationCeremonyService registrationCeremony, IAuthenticationCeremonyService authenticationCeremony)
     {
         _registrationCeremony = registrationCeremony;
-        _userSession = userSession;
         _authenticationCeremony = authenticationCeremony;
     }
 
     // GET
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult Index(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (HttpContext.Request.Cookies.TryGetValue(ExampleConstants.CookieAuthentication.AuthCookieName, out var cookie))
-            return RedirectToAction("Authenticated");
-
         return View();
     }
 
     [HttpGet]
+    [Authorize]
     public IActionResult Authenticated(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (!HttpContext.Request.Cookies.TryGetValue(ExampleConstants.CookieAuthentication.AuthCookieName, out var cookie))
-            return RedirectToAction("Index");
-
         return View();
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> BeginRegisterCeremony([FromBody] ServerPublicKeyCredentialCreationOptionsRequest request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -62,11 +59,11 @@ public class FidoController : Controller
         var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(), token);
         HttpContext.Response.Cookies
             .Append(ExampleConstants.CookieAuthentication.RegistrationSessionId, result.RegistrationCeremonyId);
-        _userSession.SaveRegistration(request.UserName, result.RegistrationCeremonyId);
         return Json(result);
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> RegisterCeremony([FromBody] ServerPublicKeyCredential request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -84,12 +81,11 @@ public class FidoController : Controller
         var result = await _registrationCeremony.CompleteCeremonyAsync(HttpContext, ceremonyModel, token);
 
         HttpContext.Response.Cookies.Delete(ExampleConstants.CookieAuthentication.RegistrationSessionId);
-        _userSession.ClearRegistration(cookie!);
-
         return Json(result);
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> BeginAuthenticationCeremony([FromBody] AssertionOptions request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -102,12 +98,11 @@ public class FidoController : Controller
 
         var result = await _authenticationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(), token);
         HttpContext.Response.Cookies.Append(ExampleConstants.CookieAuthentication.AuthAssertionSessionId, result.AuthenticationCeremonyId);
-        _userSession.SaveAssertion(request.UserName, result.AuthenticationCeremonyId);
-
         return Ok(result);
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> AuthenticationCeremony([FromBody] AssertionKey request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -126,20 +121,15 @@ public class FidoController : Controller
 
         if (result.Successful)
         {
-            var username = _userSession.GetUsernameByAssertionId(cookie!);
-            var cookieOptions = new CookieBuilder()
+            var claims = new List<Claim>()
             {
-                HttpOnly = true,
-                SecurePolicy = CookieSecurePolicy.Always,
-                SameSite = SameSiteMode.None
+                new (ClaimTypes.Name, request.Username),
             };
-            var cookieResult = cookieOptions.Build(HttpContext, DateTimeOffset.Now.AddMonths(1));
-            HttpContext.Response.Cookies.Append(ExampleConstants.CookieAuthentication.AuthCookieName, username, cookieResult);
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new(claimsIdentity), new());
         }
 
         HttpContext.Response.Cookies.Delete(ExampleConstants.CookieAuthentication.AuthAssertionSessionId);
-        _userSession.ClearAssertion(cookie!);
-
         return Ok(result);
     }
 }

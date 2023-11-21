@@ -11,11 +11,13 @@ public class ServerPublicKeyCredential
     public ServerPublicKeyCredential(
         string id,
         string type,
-        ServerAuthenticatorAssertionResponse response)
+        ServerAuthenticatorAssertionResponse response,
+        string username)
     {
         Id = id;
         Type = type;
         Response = response;
+        Username = username;
     }
 
     [JsonPropertyName("id")]
@@ -27,6 +29,12 @@ public class ServerPublicKeyCredential
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [Required]
     public string Type { get; }
+
+    [JsonPropertyName("username")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [Required]
+    public string Username { get; }
+
 
     [JsonPropertyName("response")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]

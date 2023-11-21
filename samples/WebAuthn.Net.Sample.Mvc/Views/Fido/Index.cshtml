@@ -34,7 +34,6 @@ const coerceToBase64Url = (x) => {
     const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
     return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
 };
-
 const getRegisterUsernameInputValue = () => document.getElementById("webauthn-register-name")?.value;
 const getAuthenticateUsernameInputValue = () => document.getElementById("webauthn-authenticate-name")?.value;
 const makeJsonApiCall = async ({url, data, method}) => {
@@ -84,18 +83,18 @@ const submitRegistration = async ({ response }) => {
     };
     return await makeJsonApiCall({ url, data, method: "POST" });
 };
-const initiateAuthentication = async () => {
-    const username = getAuthenticateUsernameInputValue();
+const initiateAuthentication = async ({ username }) => {
     const url = "/Fido/BeginAuthenticationCeremony";
     const data = {
         username,
     };
     return await makeJsonApiCall({ url, data, method: "POST" });
 };
-const submitAttestation = async ({ response }) => {
+const submitAttestation = async ({ username, response }) => {
     const url = "/Fido/AuthenticationCeremony";
     const data = {
         id: coerceToBase64Url(response.rawId),
+        username,
         type: response.type,
         extensions: response.getClientExtensionResults(),
         response: {
@@ -141,7 +140,8 @@ const onRegisterButtonHandler = async (e) => {
 };
 const onAuthenticateButtonHandler = async (e) => {
     e.preventDefault();
-    const initialData = await initiateAuthentication();
+    const username = getAuthenticateUsernameInputValue();
+    const initialData = await initiateAuthentication({ username });
     if (!initialData) return;
     const { options } = initialData;
     const publicKey = {
@@ -152,14 +152,14 @@ const onAuthenticateButtonHandler = async (e) => {
     const response = await navigator.credentials.get({ publicKey });
     if (!response) return;
 
-    const attestationResult = await submitAttestation({ response });
+    const attestationResult = await submitAttestation({ username, response });
     if (!attestationResult) return;
     const { successful } = attestationResult;
     if (!successful) {
         alert("Failed to register user");
         return;
     }
-    location.reload();
+    location.assign("/Fido/Authenticated");
 };
 
 // INIT
