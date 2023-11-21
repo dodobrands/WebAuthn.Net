@@ -6,6 +6,7 @@ using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Services.Static;
 using Host = WebAuthn.Net.FidoConformance.Constants.Host;
 
@@ -13,10 +14,18 @@ namespace WebAuthn.Net.FidoConformance.Models.Attestation.CreateOptions.Request;
 
 public class ServerPublicKeyCredentialCreationOptionsRequest
 {
-    private static readonly EnumMemberAttributeMapper<AuthenticatorAttachment> AuthenticatorAttachmentMapper = new();
-    private static readonly EnumMemberAttributeMapper<ResidentKeyRequirement> ResidentKeyRequirementMapper = new();
-    private static readonly EnumMemberAttributeMapper<UserVerificationRequirement> UserVerificationRequirementMapper = new();
-    private static readonly EnumMemberAttributeMapper<AttestationConveyancePreference> AttestationMapper = new();
+    private static readonly IEnumMemberAttributeSerializer<AuthenticatorAttachment> AuthenticatorAttachmentSerializer
+        = new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>();
+
+    private static readonly IEnumMemberAttributeSerializer<ResidentKeyRequirement> ResidentKeyRequirementSerializer
+        = new DefaultEnumMemberAttributeSerializer<ResidentKeyRequirement>();
+
+    private static readonly IEnumMemberAttributeSerializer<UserVerificationRequirement> UserVerificationRequirementSerializer
+        = new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>();
+
+    private static readonly IEnumMemberAttributeSerializer<AttestationConveyancePreference> AttestationConveyancePreferenceSerializer
+        = new DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>();
+
 
     [JsonConstructor]
     public ServerPublicKeyCredentialCreationOptionsRequest(
@@ -70,7 +79,7 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
             authenticatorSelection = parsedAuthenticatorSelection;
         }
 
-        if (!TryParseNullableEnum(Attestation, AttestationMapper, out var attestation))
+        if (!TryParseNullableEnum(Attestation, AttestationConveyancePreferenceSerializer, out var attestation))
         {
             result = null;
             return false;
@@ -103,19 +112,19 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
         AuthenticatorSelectionCriteria input,
         [NotNullWhen(true)] out Net.Models.Protocol.RegistrationCeremony.CreateOptions.AuthenticatorSelectionCriteria? result)
     {
-        if (!TryParseNullableEnum(input.AuthenticatorAttachment, AuthenticatorAttachmentMapper, out var authenticatorAttachment))
+        if (!TryParseNullableEnum(input.AuthenticatorAttachment, AuthenticatorAttachmentSerializer, out var authenticatorAttachment))
         {
             result = null;
             return false;
         }
 
-        if (!TryParseNullableEnum(input.ResidentKey, ResidentKeyRequirementMapper, out var residentKey))
+        if (!TryParseNullableEnum(input.ResidentKey, ResidentKeyRequirementSerializer, out var residentKey))
         {
             result = null;
             return false;
         }
 
-        if (!TryParseNullableEnum(input.UserVerification, UserVerificationRequirementMapper, out var userVerification))
+        if (!TryParseNullableEnum(input.UserVerification, UserVerificationRequirementSerializer, out var userVerification))
         {
             result = null;
             return false;
@@ -130,9 +139,9 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
         return true;
     }
 
-    private static bool TryParseNullableEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(
+    private static bool TryParseNullableEnum<TEnum>(
         string? value,
-        EnumMemberAttributeMapper<TEnum> mapper,
+        IEnumMemberAttributeSerializer<TEnum> mapper,
         out TEnum? result)
         where TEnum : struct, Enum
     {
@@ -142,7 +151,7 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
             return true;
         }
 
-        if (!mapper.TryGetEnumFromString(value, out var parsedResult))
+        if (!mapper.TryDeserialize(value, out var parsedResult))
         {
             result = null;
             return false;

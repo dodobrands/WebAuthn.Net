@@ -15,14 +15,42 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentia
 public class DefaultPublicKeyCredentialCreationOptionsEncoder
     : IPublicKeyCredentialCreationOptionsEncoder
 {
-    protected static readonly EnumMemberAttributeMapper<PublicKeyCredentialType> PublicKeyCredentialTypeMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AuthenticatorTransport> AuthenticatorTransportMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AuthenticatorAttachment> AuthenticatorAttachmentMapper = new();
-    protected static readonly EnumMemberAttributeMapper<ResidentKeyRequirement> ResidentKeyRequirementMapper = new();
-    protected static readonly EnumMemberAttributeMapper<UserVerificationRequirement> UserVerificationRequirementMapper = new();
-    protected static readonly EnumMemberAttributeMapper<PublicKeyCredentialHints> PublicKeyCredentialHintsMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AttestationConveyancePreference> AttestationConveyancePreferenceMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AttestationStatementFormat> AttestationStatementFormatMapper = new();
+    public DefaultPublicKeyCredentialCreationOptionsEncoder(
+        IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer,
+        IEnumMemberAttributeSerializer<AuthenticatorTransport> authenticatorTransportSerializer,
+        IEnumMemberAttributeSerializer<AuthenticatorAttachment> authenticatorAttachmentSerializer,
+        IEnumMemberAttributeSerializer<ResidentKeyRequirement> residentKeyRequirementSerializer,
+        IEnumMemberAttributeSerializer<UserVerificationRequirement> userVerificationRequirementSerializer,
+        IEnumMemberAttributeSerializer<PublicKeyCredentialHints> publicKeyCredentialHintsSerializer,
+        IEnumMemberAttributeSerializer<AttestationConveyancePreference> attestationConveyancePreferenceSerializer,
+        IEnumMemberAttributeSerializer<AttestationStatementFormat> attestationStatementFormatSerializer)
+    {
+        ArgumentNullException.ThrowIfNull(publicKeyCredentialTypeSerializer);
+        ArgumentNullException.ThrowIfNull(authenticatorTransportSerializer);
+        ArgumentNullException.ThrowIfNull(authenticatorAttachmentSerializer);
+        ArgumentNullException.ThrowIfNull(residentKeyRequirementSerializer);
+        ArgumentNullException.ThrowIfNull(userVerificationRequirementSerializer);
+        ArgumentNullException.ThrowIfNull(publicKeyCredentialHintsSerializer);
+        ArgumentNullException.ThrowIfNull(attestationConveyancePreferenceSerializer);
+        ArgumentNullException.ThrowIfNull(attestationStatementFormatSerializer);
+        PublicKeyCredentialTypeSerializer = publicKeyCredentialTypeSerializer;
+        AuthenticatorTransportSerializer = authenticatorTransportSerializer;
+        AuthenticatorAttachmentSerializer = authenticatorAttachmentSerializer;
+        ResidentKeyRequirementSerializer = residentKeyRequirementSerializer;
+        UserVerificationRequirementSerializer = userVerificationRequirementSerializer;
+        PublicKeyCredentialHintsSerializer = publicKeyCredentialHintsSerializer;
+        AttestationConveyancePreferenceSerializer = attestationConveyancePreferenceSerializer;
+        AttestationStatementFormatSerializer = attestationStatementFormatSerializer;
+    }
+
+    protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
+    protected IEnumMemberAttributeSerializer<AuthenticatorTransport> AuthenticatorTransportSerializer { get; }
+    protected IEnumMemberAttributeSerializer<AuthenticatorAttachment> AuthenticatorAttachmentSerializer { get; }
+    protected IEnumMemberAttributeSerializer<ResidentKeyRequirement> ResidentKeyRequirementSerializer { get; }
+    protected IEnumMemberAttributeSerializer<UserVerificationRequirement> UserVerificationRequirementSerializer { get; }
+    protected IEnumMemberAttributeSerializer<PublicKeyCredentialHints> PublicKeyCredentialHintsSerializer { get; }
+    protected IEnumMemberAttributeSerializer<AttestationConveyancePreference> AttestationConveyancePreferenceSerializer { get; }
+    protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
 
     public PublicKeyCredentialCreationOptionsJSON Encode(PublicKeyCredentialCreationOptions options)
     {
@@ -79,7 +107,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
     protected virtual PublicKeyCredentialParametersJSON EncodePubKeyCredParam(PublicKeyCredentialParameters pubKeyCredParam)
     {
         ArgumentNullException.ThrowIfNull(pubKeyCredParam);
-        if (!PublicKeyCredentialTypeMapper.TryGetStringFromEnum(pubKeyCredParam.Type, out var type))
+        if (!PublicKeyCredentialTypeSerializer.TrySerialize(pubKeyCredParam.Type, out var type))
         {
             throw new InvalidOperationException("Failed to encode type in PublicKeyCredentialParameters");
         }
@@ -108,7 +136,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
     {
         ArgumentNullException.ThrowIfNull(excludeCredential);
         var id = Base64Url.Encode(excludeCredential.Id);
-        if (!PublicKeyCredentialTypeMapper.TryGetStringFromEnum(excludeCredential.Type, out var type))
+        if (!PublicKeyCredentialTypeSerializer.TrySerialize(excludeCredential.Type, out var type))
         {
             throw new InvalidOperationException("Failed to encode type in PublicKeyCredentialDescriptor");
         }
@@ -120,7 +148,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
             for (var i = 0; i < excludeCredential.Transports.Length; i++)
             {
                 var transportToEncode = excludeCredential.Transports[i];
-                if (!AuthenticatorTransportMapper.TryGetStringFromEnum(transportToEncode, out var encodedTransport))
+                if (!AuthenticatorTransportSerializer.TrySerialize(transportToEncode, out var encodedTransport))
                 {
                     throw new InvalidOperationException("Failed to encode transports in PublicKeyCredentialDescriptor");
                 }
@@ -142,7 +170,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         string? authenticatorAttachment = null;
         if (authenticatorSelection.AuthenticatorAttachment.HasValue)
         {
-            if (!AuthenticatorAttachmentMapper.TryGetStringFromEnum(authenticatorSelection.AuthenticatorAttachment.Value, out var resultAuthenticatorAttachment))
+            if (!AuthenticatorAttachmentSerializer.TrySerialize(authenticatorSelection.AuthenticatorAttachment.Value, out var resultAuthenticatorAttachment))
             {
                 throw new InvalidOperationException("Failed to encode authenticatorAttachment in AuthenticatorSelectionCriteria");
             }
@@ -153,7 +181,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         string? residentKey = null;
         if (authenticatorSelection.ResidentKey.HasValue)
         {
-            if (!ResidentKeyRequirementMapper.TryGetStringFromEnum(authenticatorSelection.ResidentKey.Value, out var resultResidentKey))
+            if (!ResidentKeyRequirementSerializer.TrySerialize(authenticatorSelection.ResidentKey.Value, out var resultResidentKey))
             {
                 throw new InvalidOperationException("Failed to encode residentKey in AuthenticatorSelectionCriteria");
             }
@@ -164,7 +192,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         string? userVerification = null;
         if (authenticatorSelection.UserVerification.HasValue)
         {
-            if (!UserVerificationRequirementMapper.TryGetStringFromEnum(authenticatorSelection.UserVerification.Value, out var resultUserVerification))
+            if (!UserVerificationRequirementSerializer.TrySerialize(authenticatorSelection.UserVerification.Value, out var resultUserVerification))
             {
                 throw new InvalidOperationException("Failed to encode userVerification in AuthenticatorSelectionCriteria");
             }
@@ -185,7 +213,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         var result = new string[hints.Length];
         for (var i = 0; i < hints.Length; i++)
         {
-            if (!PublicKeyCredentialHintsMapper.TryGetStringFromEnum(hints[i], out var resultHint))
+            if (!PublicKeyCredentialHintsSerializer.TrySerialize(hints[i], out var resultHint))
             {
                 throw new InvalidOperationException("Failed to encode hint in hints");
             }
@@ -203,7 +231,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
             return null;
         }
 
-        if (!AttestationConveyancePreferenceMapper.TryGetStringFromEnum(attestation.Value, out var result))
+        if (!AttestationConveyancePreferenceSerializer.TrySerialize(attestation.Value, out var result))
         {
             throw new InvalidOperationException("Failed to encode attestation");
         }
@@ -221,7 +249,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         var result = new string[attestationFormats.Length];
         for (var i = 0; i < attestationFormats.Length; i++)
         {
-            if (!AttestationStatementFormatMapper.TryGetStringFromEnum(attestationFormats[i], out var resultHint))
+            if (!AttestationStatementFormatSerializer.TrySerialize(attestationFormats[i], out var resultHint))
             {
                 throw new InvalidOperationException("Failed to encode attestationFormats");
             }

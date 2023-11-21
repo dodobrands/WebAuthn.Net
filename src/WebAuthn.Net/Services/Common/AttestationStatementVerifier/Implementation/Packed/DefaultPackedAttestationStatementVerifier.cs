@@ -31,22 +31,22 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     public DefaultPackedAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
-        IAsn1Decoder asn1Decoder,
+        IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
-        ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
-        Asn1Decoder = asn1Decoder;
+        Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
-    protected IAsn1Decoder Asn1Decoder { get; }
+    protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
@@ -418,18 +418,18 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
                 return Result<Optional<Guid>>.Fail();
             }
 
-            var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
-            if (decodeResult.HasError)
+            var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.BER);
+            if (deserializeResult.HasError)
             {
                 return Result<Optional<Guid>>.Fail();
             }
 
-            if (!decodeResult.Ok.HasValue)
+            if (!deserializeResult.Ok.HasValue)
             {
                 return Result<Optional<Guid>>.Fail();
             }
 
-            if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
+            if (deserializeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
             {
                 return Result<Optional<Guid>>.Fail();
             }

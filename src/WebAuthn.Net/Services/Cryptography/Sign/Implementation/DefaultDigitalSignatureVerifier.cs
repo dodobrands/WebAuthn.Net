@@ -2,12 +2,12 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using WebAuthn.Net.Services.Cryptography.Cose.Models;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.OKP;
+using WebAuthn.Net.Services.Serialization.Cose.Models;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.EC2;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.Extensions;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.OKP;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Cryptography.Sign.Implementation;

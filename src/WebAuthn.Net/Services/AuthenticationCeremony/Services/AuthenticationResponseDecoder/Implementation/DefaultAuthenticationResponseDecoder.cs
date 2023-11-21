@@ -1,4 +1,5 @@
-﻿using WebAuthn.Net.Models;
+﻿using System;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
@@ -9,8 +10,18 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationRe
 
 public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecoder
 {
-    protected static readonly EnumMemberAttributeMapper<AuthenticatorAttachment> AttachmentMapper = new();
-    protected static readonly EnumMemberAttributeMapper<PublicKeyCredentialType> TypeMapper = new();
+    public DefaultAuthenticationResponseDecoder(
+        IEnumMemberAttributeSerializer<AuthenticatorAttachment> authenticatorAttachmentSerializer,
+        IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer)
+    {
+        ArgumentNullException.ThrowIfNull(authenticatorAttachmentSerializer);
+        ArgumentNullException.ThrowIfNull(publicKeyCredentialTypeSerializer);
+        AuthenticatorAttachmentSerializer = authenticatorAttachmentSerializer;
+        PublicKeyCredentialTypeSerializer = publicKeyCredentialTypeSerializer;
+    }
+
+    protected IEnumMemberAttributeSerializer<AuthenticatorAttachment> AuthenticatorAttachmentSerializer { get; }
+    protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
 
     public Result<AuthenticationResponse> Decode(AuthenticationResponseJSON authenticationResponse)
     {
@@ -130,7 +141,7 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<AuthenticatorAttachment?>.Success(null);
         }
 
-        if (!AttachmentMapper.TryGetEnumFromString(authenticatorAttachment, out var attachment))
+        if (!AuthenticatorAttachmentSerializer.TryDeserialize(authenticatorAttachment, out var attachment))
         {
             return Result<AuthenticatorAttachment?>.Fail();
         }
@@ -145,7 +156,7 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<PublicKeyCredentialType>.Fail();
         }
 
-        if (!TypeMapper.TryGetEnumFromString(type, out var publicKeyCredentialType))
+        if (!PublicKeyCredentialTypeSerializer.TryDeserialize(type, out var publicKeyCredentialType))
         {
             return Result<PublicKeyCredentialType>.Fail();
         }

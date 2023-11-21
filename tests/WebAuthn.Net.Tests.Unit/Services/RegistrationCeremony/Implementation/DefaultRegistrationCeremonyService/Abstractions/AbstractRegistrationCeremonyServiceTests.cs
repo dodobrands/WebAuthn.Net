@@ -10,6 +10,7 @@ using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.DSL.Fakes.Storage;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
@@ -25,16 +26,19 @@ using WebAuthn.Net.Services.Common.AttestationTrustPathValidator.Implementation;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 using WebAuthn.Net.Services.Common.ChallengeGenerator.Implementation;
 using WebAuthn.Net.Services.Common.ClientDataDecoder.Implementation;
-using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
+using WebAuthn.Net.Services.Common.ClientDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestService;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
+using WebAuthn.Net.Services.Serialization.Cose.Implementation;
+using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata.Implementation;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
@@ -60,10 +64,10 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             },
             optionsCache);
         var digitalSignatureVerifier = new DefaultDigitalSignatureVerifier();
-        var cborDecoder = new DefaultCborDecoder(NullLogger<DefaultCborDecoder>.Instance);
-        var asn1Decoder = new DefaultAsn1Decoder();
+        var cborDeserializer = new DefaultCborDeserializer(NullLogger<DefaultCborDeserializer>.Instance);
+        var asn1Deserializer = new DefaultAsn1Deserializer();
         var tpmManufacturerVerifier = new DefaultTpmManufacturerVerifier();
-        var coseDecoder = new DefaultCoseKeyDecoder(cborDecoder, NullLogger<DefaultCoseKeyDecoder>.Instance);
+        var coseDecoder = new DefaultCoseKeyDeserializer(cborDeserializer, NullLogger<DefaultCoseKeyDeserializer>.Instance);
 
         ContextFactory = new();
         var rpAddress = GetRelyingPartyAddress();
@@ -72,18 +76,33 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var challengeGenerator = new DefaultChallengeGenerator();
         TimeProvider = new(DateTimeOffset.UtcNow);
 
-        var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder();
+        var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder(
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
+            new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
+            new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
+            new DefaultEnumMemberAttributeSerializer<ResidentKeyRequirement>(),
+            new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>(),
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>(),
+            new DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>(),
+            new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>());
         FakeCredentialStorage credentialStorage = new();
         RegistrationCeremonyStorage = new();
-        var registrationResponseDecoder = new DefaultRegistrationResponseDecoder();
-        var clientDataDecoder = new DefaultClientDataDecoder(NullLogger<DefaultClientDataDecoder>.Instance);
+        var registrationResponseDecoder = new DefaultRegistrationResponseDecoder(
+            new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
+            new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
+        var clientDataDecoder = new DefaultClientDataDecoder(
+            new DefaultEnumMemberAttributeSerializer<TokenBindingStatus>(),
+            NullLogger<DefaultClientDataDecoder>.Instance);
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
-            cborDecoder,
+            cborDeserializer,
+            new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>(),
             NullLogger<DefaultAttestationObjectDecoder>.Instance);
         DefaultFidoMetadataSearchService<FakeWebAuthnContext> metadataSearchService;
         using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
         {
             var metadataProvider = new DefaultFidoMetadataProvider(
+                Options,
                 fakeFidoHttpClientProvider.Client,
                 new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
             var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);
@@ -92,7 +111,16 @@ public abstract class AbstractRegistrationCeremonyServiceTests
                 throw new InvalidOperationException("Can't get metadata to decode");
             }
 
-            var decoder = new DefaultFidoMetadataDecoder();
+            var decoder = new DefaultFidoMetadataDecoder(
+                new DefaultEnumMemberAttributeSerializer<UserVerificationMethod>(),
+                new DefaultEnumMemberAttributeSerializer<ProtocolFamily>(),
+                new DefaultEnumMemberAttributeSerializer<AuthenticationAlgorithm>(),
+                new DefaultEnumMemberAttributeSerializer<PublicKeyRepresentationFormat>(),
+                new DefaultEnumMemberAttributeSerializer<AuthenticatorAttestationType>(),
+                new DefaultEnumMemberAttributeSerializer<KeyProtectionType>(),
+                new DefaultEnumMemberAttributeSerializer<MatcherProtectionType>(),
+                new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>(),
+                new DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>());
             var decodeMetadataResult = decoder.Decode(downloadMetadataResult.Ok);
             if (decodeMetadataResult.HasError)
             {
@@ -110,31 +138,31 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var packedVerifier = new DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             digitalSignatureVerifier,
-            asn1Decoder,
+            asn1Deserializer,
             metadataSearchService);
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             digitalSignatureVerifier,
             tpmManufacturerVerifier,
-            asn1Decoder,
+            asn1Deserializer,
             metadataSearchService);
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
             digitalSignatureVerifier,
-            asn1Decoder,
+            asn1Deserializer,
             metadataSearchService);
         var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             metadataSearchService);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
-            asn1Decoder,
+            asn1Deserializer,
             metadataSearchService);
         var noneVerifier = new DefaultNoneAttestationStatementVerifier<FakeWebAuthnContext>();
         var appleAnonymousVerifier = new DefaultAppleAnonymousAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
-            asn1Decoder);
+            asn1Deserializer);
         var attestationStatementVerifier = new DefaultAttestationStatementVerifier<FakeWebAuthnContext>(
             packedVerifier,
             tpmVerifier,
@@ -145,7 +173,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             appleAnonymousVerifier,
             NullLogger<DefaultAttestationStatementVerifier<FakeWebAuthnContext>>.Instance
         );
-        var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(coseDecoder, cborDecoder, NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
+        var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(coseDecoder, cborDeserializer, NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
         var packedDecoder = new DefaultPackedAttestationStatementDecoder(NullLogger<DefaultPackedAttestationStatementDecoder>.Instance);
         var tpmDecoder = new DefaultTpmAttestationStatementDecoder(NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
         var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);

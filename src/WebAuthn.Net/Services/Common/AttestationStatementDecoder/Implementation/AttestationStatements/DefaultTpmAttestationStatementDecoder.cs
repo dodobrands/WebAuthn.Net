@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 

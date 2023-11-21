@@ -4,7 +4,7 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 
@@ -14,9 +14,22 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationRespon
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
 {
-    protected static readonly EnumMemberAttributeMapper<AuthenticatorTransport> TransportMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AuthenticatorAttachment> AttachmentMapper = new();
-    protected static readonly EnumMemberAttributeMapper<PublicKeyCredentialType> TypeMapper = new();
+    public DefaultRegistrationResponseDecoder(
+        IEnumMemberAttributeSerializer<AuthenticatorTransport> authenticatorTransportSerializer,
+        IEnumMemberAttributeSerializer<AuthenticatorAttachment> authenticatorAttachmentSerializer,
+        IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer)
+    {
+        ArgumentNullException.ThrowIfNull(authenticatorTransportSerializer);
+        ArgumentNullException.ThrowIfNull(authenticatorAttachmentSerializer);
+        ArgumentNullException.ThrowIfNull(publicKeyCredentialTypeSerializer);
+        AuthenticatorTransportSerializer = authenticatorTransportSerializer;
+        AuthenticatorAttachmentSerializer = authenticatorAttachmentSerializer;
+        PublicKeyCredentialTypeSerializer = publicKeyCredentialTypeSerializer;
+    }
+
+    protected IEnumMemberAttributeSerializer<AuthenticatorTransport> AuthenticatorTransportSerializer { get; }
+    protected IEnumMemberAttributeSerializer<AuthenticatorAttachment> AuthenticatorAttachmentSerializer { get; }
+    protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
 
     public Result<RegistrationResponse> Decode(RegistrationResponseJSON registrationResponse)
     {
@@ -45,7 +58,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
         AuthenticatorAttachment? authenticatorAttachment = null;
         if (registrationResponse.AuthenticatorAttachment is not null)
         {
-            if (!AttachmentMapper.TryGetEnumFromString(registrationResponse.AuthenticatorAttachment, out var attachment))
+            if (!AuthenticatorAttachmentSerializer.TryDeserialize(registrationResponse.AuthenticatorAttachment, out var attachment))
             {
                 return Result<RegistrationResponse>.Fail();
             }
@@ -53,7 +66,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             authenticatorAttachment = attachment.Value;
         }
 
-        if (!TypeMapper.TryGetEnumFromString(registrationResponse.Type, out var type))
+        if (!PublicKeyCredentialTypeSerializer.TryDeserialize(registrationResponse.Type, out var type))
         {
             return Result<RegistrationResponse>.Fail();
         }
@@ -89,7 +102,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             transports = new AuthenticatorTransport[attestationResponseJson.Transports.Length];
             for (var i = 0; i < attestationResponseJson.Transports.Length; i++)
             {
-                if (!TransportMapper.TryGetEnumFromString(attestationResponseJson.Transports[i], out var transport))
+                if (!AuthenticatorTransportSerializer.TryDeserialize(attestationResponseJson.Transports[i], out var transport))
                 {
                     return Result<AuthenticatorAttestationResponse>.Fail();
                 }

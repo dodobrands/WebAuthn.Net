@@ -15,13 +15,13 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.F
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
-using WebAuthn.Net.Services.Cryptography.Cose.Models;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
+using WebAuthn.Net.Services.Serialization.Cose.Models;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F;
@@ -32,19 +32,19 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
 {
     public DefaultFidoU2FAttestationStatementVerifier(
         ITimeProvider timeProvider,
-        IAsn1Decoder asn1Decoder,
+        IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
-        Asn1Decoder = asn1Decoder;
+        Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
-    protected IAsn1Decoder Asn1Decoder { get; }
+    protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
@@ -317,18 +317,18 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                 return Result<Optional<Guid>>.Fail();
             }
 
-            var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
-            if (decodeResult.HasError)
+            var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.BER);
+            if (deserializeResult.HasError)
             {
                 return Result<Optional<Guid>>.Fail();
             }
 
-            if (!decodeResult.Ok.HasValue)
+            if (!deserializeResult.Ok.HasValue)
             {
                 return Result<Optional<Guid>>.Fail();
             }
 
-            if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
+            if (deserializeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
             {
                 return Result<Optional<Guid>>.Fail();
             }

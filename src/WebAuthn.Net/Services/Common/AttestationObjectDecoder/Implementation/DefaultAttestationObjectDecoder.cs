@@ -13,20 +13,21 @@ namespace WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 {
-    // ReSharper disable once StaticMemberInGenericType
-    protected static readonly EnumMemberAttributeMapper<AttestationStatementFormat> AttestationStatementFormatMapper = new();
-
     public DefaultAttestationObjectDecoder(
-        ICborDecoder cborDecoder,
+        ICborDeserializer cborDeserializer,
+        IEnumMemberAttributeSerializer<AttestationStatementFormat> attestationStatementFormatSerializer,
         ILogger<DefaultAttestationObjectDecoder> logger)
     {
-        ArgumentNullException.ThrowIfNull(cborDecoder);
+        ArgumentNullException.ThrowIfNull(cborDeserializer);
+        ArgumentNullException.ThrowIfNull(attestationStatementFormatSerializer);
         ArgumentNullException.ThrowIfNull(logger);
-        CborDecoder = cborDecoder;
+        CborDeserializer = cborDeserializer;
+        AttestationStatementFormatSerializer = attestationStatementFormatSerializer;
         Logger = logger;
     }
 
-    protected ICborDecoder CborDecoder { get; }
+    protected ICborDeserializer CborDeserializer { get; }
+    protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
     protected ILogger<DefaultAttestationObjectDecoder> Logger { get; }
 
     public Result<AttestationObject> Decode(byte[] attestationObject)
@@ -65,14 +66,14 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 
     protected virtual Result<CborMap> TryRead(byte[] attestationObject)
     {
-        var attestationObjectCborDecode = CborDecoder.Decode(attestationObject);
-        if (attestationObjectCborDecode.HasError)
+        var attestationObjectCborDeserialize = CborDeserializer.Deserialize(attestationObject);
+        if (attestationObjectCborDeserialize.HasError)
         {
             Logger.AttObjDecodeFailure();
             return Result<CborMap>.Fail();
         }
 
-        var attestationObjectCborRoot = attestationObjectCborDecode.Ok.Root;
+        var attestationObjectCborRoot = attestationObjectCborDeserialize.Ok.Root;
         if (attestationObjectCborRoot is not CborMap attestationObjectCborMap)
         {
             Logger.AttObjMustBeCborMap();
@@ -102,14 +103,14 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
             return false;
         }
 
-        if (!AttestationStatementFormatMapper.TryGetEnumFromString(fmtCborText.RawValue, out var mappedValue))
+        if (!AttestationStatementFormatSerializer.TryDeserialize(fmtCborText.RawValue, out var attestationStatementFormat))
         {
             Logger.AttObjFmtValueUnknown(fmtCborText.RawValue);
             value = null;
             return false;
         }
 
-        value = mappedValue.Value;
+        value = attestationStatementFormat.Value;
         return true;
     }
 

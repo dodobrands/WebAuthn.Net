@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 
