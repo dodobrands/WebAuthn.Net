@@ -4,9 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.OKP;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.EC2;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.OKP;
 using WebAuthn.Net.Storage.Credential.Models;
 
 namespace WebAuthn.Net.Storage.SqlServer.Storage.Models;

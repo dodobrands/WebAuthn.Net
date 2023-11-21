@@ -36,25 +36,25 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         IOptionsMonitor<WebAuthnOptions> options,
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
-        IAsn1Decoder asn1Decoder,
+        IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
-        ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         Options = options;
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
-        Asn1Decoder = asn1Decoder;
+        Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
-    protected IAsn1Decoder Asn1Decoder { get; }
+    protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
@@ -499,14 +499,14 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         {
             if (extension.Oid?.Value == "1.3.6.1.4.1.11129.2.1.17")
             {
-                var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.DER);
-                if (decodeResult.HasError)
+                var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.DER);
+                if (deserializeResult.HasError)
                 {
                     asn1AttestationExtension = null;
                     return false;
                 }
 
-                if (!decodeResult.Ok.HasValue)
+                if (!deserializeResult.Ok.HasValue)
                 {
                     asn1AttestationExtension = null;
                     return false;
@@ -516,7 +516,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                 // KeyDescription ::= SEQUENCE {
                 //   ...
                 // }
-                if (decodeResult.Ok.Value is not Asn1Sequence keyDescriptionAsn1)
+                if (deserializeResult.Ok.Value is not Asn1Sequence keyDescriptionAsn1)
                 {
                     asn1AttestationExtension = null;
                     return false;

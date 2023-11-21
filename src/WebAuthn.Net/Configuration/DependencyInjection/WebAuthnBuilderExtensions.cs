@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using WebAuthn.Net.Configuration.Builder;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder;
@@ -40,9 +41,8 @@ using WebAuthn.Net.Services.Common.ChallengeGenerator;
 using WebAuthn.Net.Services.Common.ChallengeGenerator.Implementation;
 using WebAuthn.Net.Services.Common.ClientDataDecoder;
 using WebAuthn.Net.Services.Common.ClientDataDecoder.Implementation;
+using WebAuthn.Net.Services.Common.ClientDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Context;
-using WebAuthn.Net.Services.Cryptography.Cose;
-using WebAuthn.Net.Services.Cryptography.Cose.Implementation;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 using WebAuthn.Net.Services.FidoMetadata;
@@ -52,6 +52,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataHttpClient;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestService;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Providers.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony;
@@ -64,6 +65,10 @@ using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cbor;
 using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
+using WebAuthn.Net.Services.Serialization.Cose;
+using WebAuthn.Net.Services.Serialization.Cose.Implementation;
+using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Storage.AuthenticationCeremony;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Storage.Credential;
@@ -174,7 +179,6 @@ public static class WebAuthnBuilderExtensions
         where TContext : class, IWebAuthnContext
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.TryAddSingleton<ICoseKeyDecoder, DefaultCoseKeyDecoder>();
         builder.Services.TryAddSingleton<IDigitalSignatureVerifier, DefaultDigitalSignatureVerifier>();
         return builder;
     }
@@ -246,10 +250,30 @@ public static class WebAuthnBuilderExtensions
         where TContext : class, IWebAuthnContext
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.TryAddSingleton<IAsn1Decoder, DefaultAsn1Decoder>();
-        builder.Services.TryAddSingleton<ICborDecoder, DefaultCborDecoder>();
+        builder.Services.TryAddSingleton<ICoseKeyDeserializer, DefaultCoseKeyDeserializer>();
+        builder.Services.TryAddSingleton<IAsn1Deserializer, DefaultAsn1Deserializer>();
+        builder.Services.TryAddSingleton<ICborDeserializer, DefaultCborDeserializer>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AttestationStatementFormat>, DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<TokenBindingStatus>, DefaultEnumMemberAttributeSerializer<TokenBindingStatus>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<UserVerificationMethod>, DefaultEnumMemberAttributeSerializer<UserVerificationMethod>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<ProtocolFamily>, DefaultEnumMemberAttributeSerializer<ProtocolFamily>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticationAlgorithm>, DefaultEnumMemberAttributeSerializer<AuthenticationAlgorithm>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<PublicKeyRepresentationFormat>, DefaultEnumMemberAttributeSerializer<PublicKeyRepresentationFormat>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorAttestationType>, DefaultEnumMemberAttributeSerializer<AuthenticatorAttestationType>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<KeyProtectionType>, DefaultEnumMemberAttributeSerializer<KeyProtectionType>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<MatcherProtectionType>, DefaultEnumMemberAttributeSerializer<MatcherProtectionType>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>, DefaultEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>, DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorAttachment>, DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<PublicKeyCredentialType>, DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorTransport>, DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<UserVerificationRequirement>, DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<PublicKeyCredentialHints>, DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AttestationConveyancePreference>, DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<ResidentKeyRequirement>, DefaultEnumMemberAttributeSerializer<ResidentKeyRequirement>>();
         return builder;
     }
+
 
     /*********************************/
     /******** CONTEXT FACTORY ********/

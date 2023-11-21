@@ -14,15 +14,46 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
 {
-    protected static readonly EnumMemberAttributeMapper<UserVerificationMethod> UserVerificationMethodMapper = new();
-    protected static readonly EnumMemberAttributeMapper<ProtocolFamily> ProtocolFamilyMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AuthenticationAlgorithm> AuthenticationAlgorithmMapper = new();
-    protected static readonly EnumMemberAttributeMapper<PublicKeyRepresentationFormat> PublicKeyRepresentationFormatMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AuthenticatorAttestationType> AuthenticatorAttestationTypeMapper = new();
-    protected static readonly EnumMemberAttributeMapper<KeyProtectionType> KeyProtectionTypeTypeMapper = new();
-    protected static readonly EnumMemberAttributeMapper<MatcherProtectionType> MatcherProtectionTypeMapper = new();
-    protected static readonly EnumMemberAttributeMapper<AuthenticatorAttachmentHint> AuthenticatorAttachmentHintMapper = new();
-    protected static readonly EnumMemberAttributeMapper<TransactionConfirmationDisplayType> TransactionConfirmationDisplayTypeMapper = new();
+    public DefaultFidoMetadataDecoder(
+        IEnumMemberAttributeSerializer<UserVerificationMethod> userVerificationMethodSerializer,
+        IEnumMemberAttributeSerializer<ProtocolFamily> protocolFamilySerializer,
+        IEnumMemberAttributeSerializer<AuthenticationAlgorithm> authenticationAlgorithmSerializer,
+        IEnumMemberAttributeSerializer<PublicKeyRepresentationFormat> publicKeyRepresentationFormatSerializer,
+        IEnumMemberAttributeSerializer<AuthenticatorAttestationType> authenticatorAttestationTypeSerializer,
+        IEnumMemberAttributeSerializer<KeyProtectionType> keyProtectionTypeSerializer,
+        IEnumMemberAttributeSerializer<MatcherProtectionType> matcherProtectionTypeSerializer,
+        IEnumMemberAttributeSerializer<AuthenticatorAttachmentHint> authenticatorAttachmentHintSerializer,
+        IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType> transactionConfirmationDisplayTypeSerializer)
+    {
+        ArgumentNullException.ThrowIfNull(userVerificationMethodSerializer);
+        ArgumentNullException.ThrowIfNull(protocolFamilySerializer);
+        ArgumentNullException.ThrowIfNull(authenticationAlgorithmSerializer);
+        ArgumentNullException.ThrowIfNull(publicKeyRepresentationFormatSerializer);
+        ArgumentNullException.ThrowIfNull(authenticatorAttestationTypeSerializer);
+        ArgumentNullException.ThrowIfNull(keyProtectionTypeSerializer);
+        ArgumentNullException.ThrowIfNull(matcherProtectionTypeSerializer);
+        ArgumentNullException.ThrowIfNull(authenticatorAttachmentHintSerializer);
+        ArgumentNullException.ThrowIfNull(transactionConfirmationDisplayTypeSerializer);
+        UserVerificationMethodSerializer = userVerificationMethodSerializer;
+        ProtocolFamilySerializer = protocolFamilySerializer;
+        AuthenticationAlgorithmSerializer = authenticationAlgorithmSerializer;
+        PublicKeyRepresentationFormatSerializer = publicKeyRepresentationFormatSerializer;
+        AuthenticatorAttestationTypeSerializer = authenticatorAttestationTypeSerializer;
+        KeyProtectionTypeSerializer = keyProtectionTypeSerializer;
+        MatcherProtectionTypeSerializer = matcherProtectionTypeSerializer;
+        AuthenticatorAttachmentHintSerializer = authenticatorAttachmentHintSerializer;
+        TransactionConfirmationDisplayTypeSerializer = transactionConfirmationDisplayTypeSerializer;
+    }
+
+    protected IEnumMemberAttributeSerializer<UserVerificationMethod> UserVerificationMethodSerializer { get; }
+    protected IEnumMemberAttributeSerializer<ProtocolFamily> ProtocolFamilySerializer { get; }
+    protected IEnumMemberAttributeSerializer<AuthenticationAlgorithm> AuthenticationAlgorithmSerializer { get; }
+    protected IEnumMemberAttributeSerializer<PublicKeyRepresentationFormat> PublicKeyRepresentationFormatSerializer { get; }
+    protected IEnumMemberAttributeSerializer<AuthenticatorAttestationType> AuthenticatorAttestationTypeSerializer { get; }
+    protected IEnumMemberAttributeSerializer<KeyProtectionType> KeyProtectionTypeSerializer { get; }
+    protected IEnumMemberAttributeSerializer<MatcherProtectionType> MatcherProtectionTypeSerializer { get; }
+    protected IEnumMemberAttributeSerializer<AuthenticatorAttachmentHint> AuthenticatorAttachmentHintSerializer { get; }
+    protected IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType> TransactionConfirmationDisplayTypeSerializer { get; }
 
     public virtual Result<MetadataBlobPayload> Decode(MetadataBLOBPayloadJSON json)
     {
@@ -182,7 +213,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             }
         }
 
-        if (!ProtocolFamilyMapper.TryGetEnumFromString(metadataStatement.ProtocolFamily, out var protocolFamily))
+        if (!ProtocolFamilySerializer.TryDeserialize(metadataStatement.ProtocolFamily, out var protocolFamily))
         {
             result = null;
             return false;
@@ -348,17 +379,17 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
 
     protected virtual bool TryDecodeAuthenticationAlgorithms(string[] authenticationAlgorithms, [NotNullWhen(true)] out AuthenticationAlgorithm[]? result)
     {
-        return TryDecodeEnumMemberArray(authenticationAlgorithms, AuthenticationAlgorithmMapper, out result);
+        return TryDecodeEnumMemberArray(authenticationAlgorithms, AuthenticationAlgorithmSerializer, out result);
     }
 
     protected virtual bool TryDecodePublicKeyAlgAndEncodings(string[] authenticationAlgorithms, [NotNullWhen(true)] out PublicKeyRepresentationFormat[]? result)
     {
-        return TryDecodeEnumMemberArray(authenticationAlgorithms, PublicKeyRepresentationFormatMapper, out result);
+        return TryDecodeEnumMemberArray(authenticationAlgorithms, PublicKeyRepresentationFormatSerializer, out result);
     }
 
     protected virtual bool TryDecodeAttestationTypes(string[] attestationTypes, [NotNullWhen(true)] out AuthenticatorAttestationType[]? result)
     {
-        return TryDecodeEnumMemberArray(attestationTypes, AuthenticatorAttestationTypeMapper, out result);
+        return TryDecodeEnumMemberArray(attestationTypes, AuthenticatorAttestationTypeSerializer, out result);
     }
 
     protected virtual bool TryDecodeUserVerificationDetails(VerificationMethodDescriptorJSON[][] userVerificationDetails, [NotNullWhen(true)] out VerificationMethodDescriptor[][]? result)
@@ -420,7 +451,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
 
         UserVerificationMethod? userVerificationMethod = null;
         if (userVerificationDetails.UserVerificationMethod is not null
-            && !UserVerificationMethodMapper.TryGetEnumFromString(userVerificationDetails.UserVerificationMethod, out userVerificationMethod))
+            && !UserVerificationMethodSerializer.TryDeserialize(userVerificationDetails.UserVerificationMethod, out userVerificationMethod))
         {
             result = null;
             return false;
@@ -508,22 +539,22 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
 
     protected virtual bool TryDecodeKeyProtection(string[] keyProtection, [NotNullWhen(true)] out KeyProtectionType[]? result)
     {
-        return TryDecodeEnumMemberArray(keyProtection, KeyProtectionTypeTypeMapper, out result);
+        return TryDecodeEnumMemberArray(keyProtection, KeyProtectionTypeSerializer, out result);
     }
 
     protected virtual bool TryDecodeMatcherProtection(string[] matcherProtection, [NotNullWhen(true)] out MatcherProtectionType[]? result)
     {
-        return TryDecodeEnumMemberArray(matcherProtection, MatcherProtectionTypeMapper, out result);
+        return TryDecodeEnumMemberArray(matcherProtection, MatcherProtectionTypeSerializer, out result);
     }
 
     protected virtual bool TryDecodeAttachmentHint(string[] attachmentHint, [NotNullWhen(true)] out AuthenticatorAttachmentHint[]? result)
     {
-        return TryDecodeEnumMemberArray(attachmentHint, AuthenticatorAttachmentHintMapper, out result);
+        return TryDecodeEnumMemberArray(attachmentHint, AuthenticatorAttachmentHintSerializer, out result);
     }
 
     protected virtual bool TryDecodeTcDisplay(string[] tcDisplay, [NotNullWhen(true)] out TransactionConfirmationDisplayType[]? result)
     {
-        return TryDecodeEnumMemberArray(tcDisplay, TransactionConfirmationDisplayTypeMapper, out result);
+        return TryDecodeEnumMemberArray(tcDisplay, TransactionConfirmationDisplayTypeSerializer, out result);
     }
 
     protected virtual bool TryDecodeTcDisplayPngCharacteristics(DisplayPNGCharacteristicsDescriptorJSON[] tcDisplayPngCharacteristics, [NotNullWhen(true)] out DisplayPngCharacteristicsDescriptor[]? result)
@@ -790,7 +821,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             return false;
         }
 
-        if (!UserVerificationMethodMapper.TryGetEnumFromString(biometricStatusReport.Modality, out var modality))
+        if (!UserVerificationMethodSerializer.TryDeserialize(biometricStatusReport.Modality, out var modality))
         {
             result = null;
             return false;
@@ -897,9 +928,9 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return false;
     }
 
-    protected virtual bool TryDecodeEnumMemberArray<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(
+    protected virtual bool TryDecodeEnumMemberArray<TEnum>(
         string[] input,
-        EnumMemberAttributeMapper<TEnum> mapper,
+        IEnumMemberAttributeSerializer<TEnum> mapper,
         [NotNullWhen(true)] out TEnum[]? result)
         where TEnum : struct, Enum
     {
@@ -920,7 +951,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         result = new TEnum[input.Length];
         for (var i = 0; i < input.Length; i++)
         {
-            if (!mapper.TryGetEnumFromString(input[i], out var parsedValue))
+            if (!mapper.TryDeserialize(input[i], out var parsedValue))
             {
                 result = null;
                 return false;

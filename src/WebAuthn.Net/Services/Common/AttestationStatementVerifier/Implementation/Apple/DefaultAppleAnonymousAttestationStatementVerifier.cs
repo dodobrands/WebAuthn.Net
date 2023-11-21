@@ -27,16 +27,16 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     : IAppleAnonymousAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    public DefaultAppleAnonymousAttestationStatementVerifier(ITimeProvider timeProvider, IAsn1Decoder asn1Decoder)
+    public DefaultAppleAnonymousAttestationStatementVerifier(ITimeProvider timeProvider, IAsn1Deserializer asn1Deserializer)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(asn1Deserializer);
         TimeProvider = timeProvider;
-        Asn1Decoder = asn1Decoder;
+        Asn1Deserializer = asn1Deserializer;
     }
 
     protected ITimeProvider TimeProvider { get; }
-    protected IAsn1Decoder Asn1Decoder { get; }
+    protected IAsn1Deserializer Asn1Deserializer { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
         TContext context,
@@ -143,14 +143,14 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             return false;
         }
 
-        var decodeResult = Asn1Decoder.Decode(extensionData, AsnEncodingRules.DER);
-        if (decodeResult.HasError)
+        var deserializeResult = Asn1Deserializer.Deserialize(extensionData, AsnEncodingRules.DER);
+        if (deserializeResult.HasError)
         {
             certificateNonce = null;
             return false;
         }
 
-        if (!decodeResult.Ok.HasValue)
+        if (!deserializeResult.Ok.HasValue)
         {
             certificateNonce = null;
             return false;
@@ -159,7 +159,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         // Certificate SEQUENCE (1 elem)
         // //   tbsCertificate TBSCertificate [?] [1] (1 elem)
         // //     serialNumber CertificateSerialNumber [?] OCTET STRING (32 byte) 2A2C4080A1705F7408A8FE78D211FF68871AEE73EF59EF8EE3C4DF3915A30484
-        var root = decodeResult.Ok.Value;
+        var root = deserializeResult.Ok.Value;
         if (root is not Asn1Sequence certificate)
         {
             certificateNonce = null;
@@ -188,7 +188,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             return false;
         }
 
-        var tbsCertificateResult = Asn1Decoder.Decode(tbsCertificateReader.ReadEncodedValue().ToArray(), AsnEncodingRules.DER);
+        var tbsCertificateResult = Asn1Deserializer.Deserialize(tbsCertificateReader.ReadEncodedValue().ToArray(), AsnEncodingRules.DER);
         if (tbsCertificateResult.HasError)
         {
             certificateNonce = null;

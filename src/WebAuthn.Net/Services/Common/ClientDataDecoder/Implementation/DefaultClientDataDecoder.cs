@@ -13,40 +13,43 @@ namespace WebAuthn.Net.Services.Common.ClientDataDecoder.Implementation;
 
 public class DefaultClientDataDecoder : IClientDataDecoder
 {
-    protected static readonly EnumMemberAttributeMapper<TokenBindingStatus> TokenBindingStatusMapper = new();
-
-    private readonly ILogger<DefaultClientDataDecoder> _logger;
-
-    public DefaultClientDataDecoder(ILogger<DefaultClientDataDecoder> logger)
+    public DefaultClientDataDecoder(
+        IEnumMemberAttributeSerializer<TokenBindingStatus> tokenBindingStatusSerializer,
+        ILogger<DefaultClientDataDecoder> logger)
     {
+        ArgumentNullException.ThrowIfNull(tokenBindingStatusSerializer);
         ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
+        TokenBindingStatusSerializer = tokenBindingStatusSerializer;
+        Logger = logger;
     }
+
+    protected IEnumMemberAttributeSerializer<TokenBindingStatus> TokenBindingStatusSerializer { get; }
+    protected ILogger<DefaultClientDataDecoder> Logger { get; }
 
     public Result<CollectedClientData> Decode(string jsonText)
     {
         var clientData = JsonSerializer.Deserialize<CollectedClientDataJson>(jsonText, new JsonSerializerOptions());
         if (clientData is null)
         {
-            _logger.FailedToDeserializeClientData();
+            Logger.FailedToDeserializeClientData();
             return Result<CollectedClientData>.Fail();
         }
 
         if (string.IsNullOrEmpty(clientData.Type))
         {
-            _logger.ClientDataTypeIsNullOrEmpty();
+            Logger.ClientDataTypeIsNullOrEmpty();
             return Result<CollectedClientData>.Fail();
         }
 
         if (string.IsNullOrEmpty(clientData.Challenge))
         {
-            _logger.ClientDataChallengeIsNullOrEmpty();
+            Logger.ClientDataChallengeIsNullOrEmpty();
             return Result<CollectedClientData>.Fail();
         }
 
         if (string.IsNullOrEmpty(clientData.Origin))
         {
-            _logger.ClientDataOriginIsNullOrEmpty();
+            Logger.ClientDataOriginIsNullOrEmpty();
             return Result<CollectedClientData>.Fail();
         }
 
@@ -86,16 +89,9 @@ public class DefaultClientDataDecoder : IClientDataDecoder
             return Result<TokenBinding>.Fail();
         }
 
-        if (!TokenBindingStatusMapper.TryGetEnumFromString(tokenBinding.Status, out var status))
+        if (!TokenBindingStatusSerializer.TryDeserialize(tokenBinding.Status, out var tokenBindingStatus))
         {
-            _logger.InvalidTokenBindingStatus();
-            return Result<TokenBinding>.Fail();
-        }
-
-
-        if (status.Value == TokenBindingStatus.Present && string.IsNullOrEmpty(tokenBinding.Id))
-        {
-            _logger.TokenBindingIdIsNullOrEmpty();
+            Logger.InvalidTokenBindingStatus();
             return Result<TokenBinding>.Fail();
         }
 
@@ -105,7 +101,13 @@ public class DefaultClientDataDecoder : IClientDataDecoder
             return Result<TokenBinding>.Fail();
         }
 
-        var result = new TokenBinding(status.Value, id);
+        if (tokenBindingStatus.Value == TokenBindingStatus.Present && id is null)
+        {
+            Logger.TokenBindingIdIsNullOrEmpty();
+            return Result<TokenBinding>.Fail();
+        }
+
+        var result = new TokenBinding(tokenBindingStatus.Value, id);
         return Result<TokenBinding>.Success(result);
     }
 

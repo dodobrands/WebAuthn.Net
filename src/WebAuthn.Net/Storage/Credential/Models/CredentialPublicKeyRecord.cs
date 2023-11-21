@@ -1,10 +1,10 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using WebAuthn.Net.Services.Cryptography.Cose.Models;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
+using WebAuthn.Net.Services.Serialization.Cose.Models;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.Extensions;
 
 namespace WebAuthn.Net.Storage.Credential.Models;
 

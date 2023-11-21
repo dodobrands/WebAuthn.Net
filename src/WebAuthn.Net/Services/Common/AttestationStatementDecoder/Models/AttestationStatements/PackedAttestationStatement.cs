@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
 

@@ -6,10 +6,10 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Abstractions;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Enums;
-using WebAuthn.Net.Services.Cryptography.Cose;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cbor;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cose;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
 
 namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 
@@ -19,20 +19,20 @@ namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 {
     public DefaultAuthenticatorDataDecoder(
-        ICoseKeyDecoder coseKeyDecoder,
-        ICborDecoder cborDecoder,
+        ICoseKeyDeserializer coseKeyDeserializer,
+        ICborDeserializer cborDeserializer,
         ILogger<DefaultAuthenticatorDataDecoder> logger)
     {
-        ArgumentNullException.ThrowIfNull(coseKeyDecoder);
-        ArgumentNullException.ThrowIfNull(cborDecoder);
+        ArgumentNullException.ThrowIfNull(coseKeyDeserializer);
+        ArgumentNullException.ThrowIfNull(cborDeserializer);
         ArgumentNullException.ThrowIfNull(logger);
-        CoseKeyDecoder = coseKeyDecoder;
-        CborDecoder = cborDecoder;
+        CoseKeyDeserializer = coseKeyDeserializer;
+        CborDeserializer = cborDeserializer;
         Logger = logger;
     }
 
-    protected ICoseKeyDecoder CoseKeyDecoder { get; }
-    protected ICborDecoder CborDecoder { get; }
+    protected ICoseKeyDeserializer CoseKeyDeserializer { get; }
+    protected ICborDeserializer CborDeserializer { get; }
     protected ILogger<DefaultAuthenticatorDataDecoder> Logger { get; }
 
     public virtual Result<AbstractAuthenticatorData> Decode(byte[] rawAuthData)
@@ -234,14 +234,14 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
     protected virtual Result<AbstractCoseKey> ConsumeCredentialPublicKey(ref ReadOnlySpan<byte> input)
     {
         var bufferToConsume = input.ToArray();
-        var decodeResult = CoseKeyDecoder.Decode(bufferToConsume);
-        if (decodeResult.HasError)
+        var deserializeResult = CoseKeyDeserializer.Deserialize(bufferToConsume);
+        if (deserializeResult.HasError)
         {
             return Result<AbstractCoseKey>.Fail();
         }
 
-        var credentialPublicKey = decodeResult.Ok.CoseKey;
-        var bytesConsumed = decodeResult.Ok.BytesConsumed;
+        var credentialPublicKey = deserializeResult.Ok.CoseKey;
+        var bytesConsumed = deserializeResult.Ok.BytesConsumed;
         input = input[bytesConsumed..];
         return Result<AbstractCoseKey>.Success(credentialPublicKey);
     }
@@ -249,14 +249,14 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
     protected virtual Result<AbstractCborObject> ConsumeExtensions(ref ReadOnlySpan<byte> input)
     {
         var bufferToConsume = input.ToArray();
-        var decodeResult = CborDecoder.Decode(bufferToConsume);
-        if (decodeResult.HasError)
+        var deserializeResult = CborDeserializer.Deserialize(bufferToConsume);
+        if (deserializeResult.HasError)
         {
             return Result<AbstractCborObject>.Fail();
         }
 
-        var extensionsRoot = decodeResult.Ok.Root;
-        var bytesConsumed = decodeResult.Ok.BytesConsumed;
+        var extensionsRoot = deserializeResult.Ok.Root;
+        var bytesConsumed = deserializeResult.Ok.BytesConsumed;
         input = input[bytesConsumed..];
         return Result<AbstractCborObject>.Success(extensionsRoot);
     }

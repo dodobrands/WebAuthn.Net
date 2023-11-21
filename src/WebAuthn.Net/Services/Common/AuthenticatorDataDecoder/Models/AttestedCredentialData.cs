@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
 
 namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 

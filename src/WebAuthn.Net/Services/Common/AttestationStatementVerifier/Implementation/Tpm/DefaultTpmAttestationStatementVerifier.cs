@@ -16,8 +16,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.T
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Abstractions;
-using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.Extensions;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
@@ -25,6 +23,8 @@ using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.Extensions;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
@@ -36,25 +36,25 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
-        IAsn1Decoder asn1Decoder,
+        IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
-        ArgumentNullException.ThrowIfNull(asn1Decoder);
+        ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         TpmManufacturerVerifier = tpmManufacturerVerifier;
-        Asn1Decoder = asn1Decoder;
+        Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ITpmManufacturerVerifier TpmManufacturerVerifier { get; }
-    protected IAsn1Decoder Asn1Decoder { get; }
+    protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
@@ -491,20 +491,20 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         //         SEQUENCE (2 elem)
         //           OBJECT IDENTIFIER 2.23.133.2.1 tcgTpmManufacturer (TCPA/TCG Attribute)
         //           UTF8String id:FFFFF1D0
-        var rootDecodeResult = Asn1Decoder.Decode(extension, AsnEncodingRules.DER);
-        if (rootDecodeResult.HasError)
+        var rootDeserializeResult = Asn1Deserializer.Deserialize(extension, AsnEncodingRules.DER);
+        if (rootDeserializeResult.HasError)
         {
             values = null;
             return false;
         }
 
-        if (!rootDecodeResult.Ok.HasValue)
+        if (!rootDeserializeResult.Ok.HasValue)
         {
             values = null;
             return false;
         }
 
-        var asnRoot = rootDecodeResult.Ok.Value;
+        var asnRoot = rootDeserializeResult.Ok.Value;
         byte[] tpmSpecSanRawSequence;
         // Certificate or serialNumber?
         if (asnRoot is AbstractAsn1Enumerable rootEnumerable)
@@ -568,20 +568,20 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
-        var sanDecodeResult = Asn1Decoder.Decode(tpmSpecSanRawSequence, AsnEncodingRules.DER);
-        if (sanDecodeResult.HasError)
+        var sanDeserializeResult = Asn1Deserializer.Deserialize(tpmSpecSanRawSequence, AsnEncodingRules.DER);
+        if (sanDeserializeResult.HasError)
         {
             values = null;
             return false;
         }
 
-        if (!sanDecodeResult.Ok.HasValue)
+        if (!sanDeserializeResult.Ok.HasValue)
         {
             values = null;
             return false;
         }
 
-        if (sanDecodeResult.Ok.Value is not AbstractAsn1Enumerable tpmSpecSanSequence)
+        if (sanDeserializeResult.Ok.Value is not AbstractAsn1Enumerable tpmSpecSanSequence)
         {
             values = null;
             return false;
@@ -684,18 +684,18 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
                 return Result<Optional<Guid>>.Fail();
             }
 
-            var decodeResult = Asn1Decoder.Decode(extension.RawData, AsnEncodingRules.BER);
-            if (decodeResult.HasError)
+            var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.BER);
+            if (deserializeResult.HasError)
             {
                 return Result<Optional<Guid>>.Fail();
             }
 
-            if (!decodeResult.Ok.HasValue)
+            if (!deserializeResult.Ok.HasValue)
             {
                 return Result<Optional<Guid>>.Fail();
             }
 
-            if (decodeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
+            if (deserializeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
             {
                 return Result<Optional<Guid>>.Fail();
             }

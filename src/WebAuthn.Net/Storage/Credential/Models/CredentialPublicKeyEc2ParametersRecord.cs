@@ -1,4 +1,4 @@
-﻿using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.EC2;
+﻿using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.EC2;
 
 namespace WebAuthn.Net.Storage.Credential.Models;
 

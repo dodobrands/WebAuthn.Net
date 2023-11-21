@@ -7,7 +7,9 @@ using NUnit.Framework;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
+using WebAuthn.Net.Services.Serialization.Json.Implementation;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
 
@@ -23,7 +25,16 @@ public class DefaultFidoMetadataDecoderTests
     {
         FakeFidoHttpClientProvider = new();
         MetadataProvider = new(FakeFidoHttpClientProvider.Client, new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
-        Decoder = new();
+        Decoder = new(
+            new DefaultEnumMemberAttributeSerializer<UserVerificationMethod>(),
+            new DefaultEnumMemberAttributeSerializer<ProtocolFamily>(),
+            new DefaultEnumMemberAttributeSerializer<AuthenticationAlgorithm>(),
+            new DefaultEnumMemberAttributeSerializer<PublicKeyRepresentationFormat>(),
+            new DefaultEnumMemberAttributeSerializer<AuthenticatorAttestationType>(),
+            new DefaultEnumMemberAttributeSerializer<KeyProtectionType>(),
+            new DefaultEnumMemberAttributeSerializer<MatcherProtectionType>(),
+            new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>(),
+            new DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>());
         var result = await MetadataProvider.DownloadMetadataAsync(CancellationToken.None);
         if (result.HasError)
         {

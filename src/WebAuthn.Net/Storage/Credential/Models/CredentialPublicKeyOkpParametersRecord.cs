@@ -1,4 +1,4 @@
-﻿using WebAuthn.Net.Services.Cryptography.Cose.Models.Enums.OKP;
+﻿using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.OKP;
 
 namespace WebAuthn.Net.Storage.Credential.Models;
 

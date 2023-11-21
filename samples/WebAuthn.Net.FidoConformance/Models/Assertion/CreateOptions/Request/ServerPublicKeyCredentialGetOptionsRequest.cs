@@ -5,15 +5,16 @@ using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.FidoConformance.Models.Assertion.CreateOptions.Request;
 
 public class ServerPublicKeyCredentialGetOptionsRequest
 {
-    private static readonly EnumMemberAttributeMapper<UserVerificationRequirement> UserVerificationRequirementMapper = new();
+    private static readonly IEnumMemberAttributeSerializer<UserVerificationRequirement> UserVerificationRequirementSerializer
+        = new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>();
 
-    [JsonConstructor]
     public ServerPublicKeyCredentialGetOptionsRequest(
         string userName,
         string? userVerification,
@@ -39,7 +40,7 @@ public class ServerPublicKeyCredentialGetOptionsRequest
 
     public bool TryToBeginCeremonyRequest([NotNullWhen(true)] out BeginAuthenticationCeremonyRequest? result)
     {
-        if (!TryParseNullableEnum(UserVerification, UserVerificationRequirementMapper, out var userVerification))
+        if (!TryParseNullableEnum(UserVerification, UserVerificationRequirementSerializer, out var userVerification))
         {
             result = null;
             return false;
@@ -66,9 +67,9 @@ public class ServerPublicKeyCredentialGetOptionsRequest
         return true;
     }
 
-    private static bool TryParseNullableEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>(
+    private static bool TryParseNullableEnum<TEnum>(
         string? value,
-        EnumMemberAttributeMapper<TEnum> mapper,
+        IEnumMemberAttributeSerializer<TEnum> mapper,
         out TEnum? result)
         where TEnum : struct, Enum
     {
@@ -78,7 +79,7 @@ public class ServerPublicKeyCredentialGetOptionsRequest
             return true;
         }
 
-        if (!mapper.TryGetEnumFromString(value, out var parsedResult))
+        if (!mapper.TryDeserialize(value, out var parsedResult))
         {
             result = null;
             return false;
