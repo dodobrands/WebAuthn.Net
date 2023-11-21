@@ -102,6 +102,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
         {
             var metadataProvider = new DefaultFidoMetadataProvider(
+                Options,
                 fakeFidoHttpClientProvider.Client,
                 new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
             var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);

@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
@@ -15,6 +18,8 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
 
 public class DefaultFidoMetadataDecoderTests
 {
+    private OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
+    private ConfigurationManager ConfigurationManager { get; set; } = null!;
     private FakeFidoMetadataHttpClientProvider FakeFidoHttpClientProvider { get; set; } = null!;
     private DefaultFidoMetadataProvider MetadataProvider { get; set; } = null!;
     private DefaultFidoMetadataDecoder Decoder { get; set; } = null!;
@@ -23,8 +28,24 @@ public class DefaultFidoMetadataDecoderTests
     [SetUp]
     public async Task SetupServices()
     {
+        ConfigurationManager = new();
+        var webAuthnOptions = ConfigurationManager.Get<WebAuthnOptions>() ?? new WebAuthnOptions();
+        var optionsCache = new OptionsCache<WebAuthnOptions>();
+        optionsCache.TryAdd(string.Empty, webAuthnOptions);
+        Options = new(
+            new OptionsFactory<WebAuthnOptions>(
+                new List<IConfigureOptions<WebAuthnOptions>>(),
+                new List<IPostConfigureOptions<WebAuthnOptions>>()),
+            new List<IOptionsChangeTokenSource<WebAuthnOptions>>
+            {
+                new ConfigurationChangeTokenSource<WebAuthnOptions>(ConfigurationManager)
+            },
+            optionsCache);
         FakeFidoHttpClientProvider = new();
-        MetadataProvider = new(FakeFidoHttpClientProvider.Client, new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
+        MetadataProvider = new(
+            Options,
+            FakeFidoHttpClientProvider.Client,
+            new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
         Decoder = new(
             new DefaultEnumMemberAttributeSerializer<UserVerificationMethod>(),
             new DefaultEnumMemberAttributeSerializer<ProtocolFamily>(),
@@ -54,10 +75,6 @@ public class DefaultFidoMetadataDecoderTests
     public void DefaultFidoMetadataDecoder_Decode_WhenCorrectDataProvided()
     {
         var result = Decoder.Decode(PayloadToDecode);
-        var res = result.Ok!.Entries
-            .Where(x => x.MetadataStatement is not null)
-            .Where(x => x.MetadataStatement!.AttestationTypes.Length > 1)
-            .ToArray();
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok, Is.Not.Null);
     }

@@ -9,8 +9,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
@@ -22,14 +24,20 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 {
-    public DefaultFidoMetadataProvider(IFidoMetadataHttpClient metadataHttpClient, ITimeProvider timeProvider)
+    public DefaultFidoMetadataProvider(
+        IOptionsMonitor<WebAuthnOptions> options,
+        IFidoMetadataHttpClient metadataHttpClient,
+        ITimeProvider timeProvider)
     {
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(metadataHttpClient);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        Options = options;
         MetadataHttpClient = metadataHttpClient;
         TimeProvider = timeProvider;
     }
 
+    protected IOptionsMonitor<WebAuthnOptions> Options { get; }
     protected IFidoMetadataHttpClient MetadataHttpClient { get; }
     protected ITimeProvider TimeProvider { get; }
 
@@ -114,7 +122,10 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 }
             }
 
-            var isJwtCertificateValid = X509TrustChainValidator.IsValidCertificateChain(rootCertificates.ToArray(), jwtCertificates.ToArray());
+            var isJwtCertificateValid = X509TrustChainValidator.IsFidoMetadataBlobJwtChainValid(
+                rootCertificates.ToArray(),
+                jwtCertificates.ToArray(),
+                Options.CurrentValue.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain);
             if (!isJwtCertificateValid)
             {
                 return Result<MetadataBLOBPayloadJSON>.Fail();

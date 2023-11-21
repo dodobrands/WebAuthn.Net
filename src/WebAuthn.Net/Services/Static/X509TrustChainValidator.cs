@@ -7,7 +7,10 @@ namespace WebAuthn.Net.Services.Static;
 
 public static class X509TrustChainValidator
 {
-    public static bool IsValidCertificateChain(X509Certificate2[] rootCertificates, X509Certificate2[] trustPath)
+    public static bool IsFidoMetadataBlobJwtChainValid(
+        X509Certificate2[] rootCertificates,
+        X509Certificate2[] trustPath,
+        Action<X509Chain>? configureChain)
     {
         // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         if (!(rootCertificates?.Length > 0))
@@ -23,11 +26,11 @@ public static class X509TrustChainValidator
         }
 
         using var chain = new X509Chain();
-        chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-        chain.ChainPolicy.UrlRetrievalTimeout = TimeSpan.FromSeconds(10);
-        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-        chain.ChainPolicy.VerificationFlags = X509VerificationFlags.IgnoreNotTimeValid;
+        if (configureChain is not null)
+        {
+            configureChain(chain);
+        }
+
         var certificateToValidate = trustPath[0];
         var additionalCertificates = trustPath.Skip(1);
         foreach (var additionalCertificate in additionalCertificates)
@@ -43,7 +46,7 @@ public static class X509TrustChainValidator
         return chain.Build(certificateToValidate);
     }
 
-    public static bool IsValidAttestationTrustPath(
+    public static bool IsAttestationTrustPathChainValid(
         byte[][] rootCertificates,
         byte[][] trustPath,
         Action<X509Chain>? configureChain)

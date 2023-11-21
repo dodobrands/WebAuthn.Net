@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
+using Microsoft.Extensions.Options;
 using Polly;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.FidoConformance.Constants;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata;
@@ -14,10 +16,11 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
     private readonly ResiliencePipeline<Result<MetadataBLOBPayloadJSON>> _resiliencePipeline;
 
     public LocalFilesFidoMetadataProviderForMdsTests(
+        IOptionsMonitor<WebAuthnOptions> options,
         IFidoMetadataHttpClient metadataHttpClient,
         ITimeProvider timeProvider,
         ResiliencePipeline<Result<MetadataBLOBPayloadJSON>> resiliencePipeline)
-        : base(metadataHttpClient, timeProvider)
+        : base(options, metadataHttpClient, timeProvider)
     {
         ArgumentNullException.ThrowIfNull(resiliencePipeline);
         _resiliencePipeline = resiliencePipeline;
