@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 using WebAuthn.Net.Storage.RegistrationCeremony.Implementation.Models;
 using WebAuthn.Net.Storage.RegistrationCeremony.Models;
@@ -20,18 +20,22 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
 
     public DefaultCookieRegistrationCeremonyStorage(
         IOptionsMonitor<DefaultCookieRegistrationCeremonyStorageOptions> options,
-        IDataProtectionProvider provider)
+        IDataProtectionProvider provider,
+        ISafeJsonSerializer safeJsonSerializer)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(safeJsonSerializer);
         Options = options;
         Protector = provider.CreateProtector(DataProtectionPurpose, "v1");
         CookieManager = new ChunkingCookieManager();
+        SafeJsonSerializer = safeJsonSerializer;
     }
 
     protected IOptionsMonitor<DefaultCookieRegistrationCeremonyStorageOptions> Options { get; }
     protected IDataProtector Protector { get; }
     protected ICookieManager CookieManager { get; }
+    protected ISafeJsonSerializer SafeJsonSerializer { get; }
 
     public virtual Task<string> SaveAsync(
         TContext context,
@@ -43,7 +47,13 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
         var options = Options.CurrentValue;
         var id = Guid.NewGuid().ToString("N").ToLowerInvariant();
         var container = new RegistrationCeremonyParametersCookieContainer(id, registrationCeremony);
-        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(container, options.SerializerOptions);
+        var jsonBytesResult = SafeJsonSerializer.SerializeToUtf8Bytes(container, options.SerializerOptions);
+        if (jsonBytesResult.HasError)
+        {
+            throw new InvalidOperationException($"Failed to serialize {nameof(RegistrationCeremonyParametersCookieContainer)} into json");
+        }
+
+        var jsonBytes = jsonBytesResult.Ok;
         var protectedJsonBytes = Protector.Protect(jsonBytes);
         var encodedProtectedJsonBytes = Base64Url.Encode(protectedJsonBytes);
         var cookieOptions = options.Cookie.Build(context.HttpContext);
@@ -81,7 +91,13 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
             }
 
             var jsonBytes = Protector.Unprotect(protectedJsonBytes);
-            var container = JsonSerializer.Deserialize<RegistrationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            var containerResult = SafeJsonSerializer.DeserializeNonNullable<RegistrationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            if (containerResult.HasError)
+            {
+                return Task.FromResult((RegistrationCeremonyParameters?) null);
+            }
+
+            var container = containerResult.Ok;
             if (container is not null && container.Id == id)
             {
                 return Task.FromResult<RegistrationCeremonyParameters?>(container.RegistrationCeremonyParameters);
@@ -121,7 +137,13 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
             }
 
             var jsonBytes = Protector.Unprotect(protectedJsonBytes);
-            var container = JsonSerializer.Deserialize<RegistrationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            var containerResult = SafeJsonSerializer.DeserializeNonNullable<RegistrationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            if (containerResult.HasError)
+            {
+                return Task.CompletedTask;
+            }
+
+            var container = containerResult.Ok;
             if (container is not null && container.Id == id)
             {
                 CookieManager.DeleteCookie(context.HttpContext, cookieName, cookieOptions);

@@ -1,9 +1,7 @@
 using System;
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.Common.ClientDataDecoder.Implementation.Models;
 using WebAuthn.Net.Services.Common.ClientDataDecoder.Models;
 using WebAuthn.Net.Services.Common.ClientDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Json;
@@ -14,27 +12,32 @@ namespace WebAuthn.Net.Services.Common.ClientDataDecoder.Implementation;
 public class DefaultClientDataDecoder : IClientDataDecoder
 {
     public DefaultClientDataDecoder(
+        ISafeJsonSerializer safeJsonSerializer,
         IEnumMemberAttributeSerializer<TokenBindingStatus> tokenBindingStatusSerializer,
         ILogger<DefaultClientDataDecoder> logger)
     {
+        ArgumentNullException.ThrowIfNull(safeJsonSerializer);
         ArgumentNullException.ThrowIfNull(tokenBindingStatusSerializer);
         ArgumentNullException.ThrowIfNull(logger);
+        SafeJsonSerializer = safeJsonSerializer;
         TokenBindingStatusSerializer = tokenBindingStatusSerializer;
         Logger = logger;
     }
 
+    protected ISafeJsonSerializer SafeJsonSerializer { get; }
     protected IEnumMemberAttributeSerializer<TokenBindingStatus> TokenBindingStatusSerializer { get; }
     protected ILogger<DefaultClientDataDecoder> Logger { get; }
 
-    public Result<CollectedClientData> Decode(string jsonText)
+    public virtual Result<CollectedClientData> Decode(string jsonText)
     {
-        var clientData = JsonSerializer.Deserialize<CollectedClientDataJson>(jsonText, new JsonSerializerOptions());
-        if (clientData is null)
+        var clientDataResult = SafeJsonSerializer.DeserializeNonNullable<CollectedClientDataJson>(jsonText);
+        if (clientDataResult.HasError)
         {
             Logger.FailedToDeserializeClientData();
             return Result<CollectedClientData>.Fail();
         }
 
+        var clientData = clientDataResult.Ok;
         if (string.IsNullOrEmpty(clientData.Type))
         {
             Logger.ClientDataTypeIsNullOrEmpty();
@@ -59,6 +62,7 @@ public class DefaultClientDataDecoder : IClientDataDecoder
             var tokenBindingResult = ParseTokenBinding(clientData.TokenBinding);
             if (tokenBindingResult.HasError)
             {
+                Logger.FailedToParseTokenBinding();
                 return Result<CollectedClientData>.Fail();
             }
 
@@ -110,73 +114,6 @@ public class DefaultClientDataDecoder : IClientDataDecoder
         var result = new TokenBinding(tokenBindingStatus.Value, id);
         return Result<TokenBinding>.Success(result);
     }
-
-    protected class CollectedClientDataJson
-    {
-        [JsonConstructor]
-        public CollectedClientDataJson(
-            string type,
-            string challenge,
-            string origin,
-            string? topOrigin,
-            bool? crossOrigin,
-            TokenBindingJson? tokenBinding)
-        {
-            Type = type;
-            Challenge = challenge;
-            Origin = origin;
-            TopOrigin = topOrigin;
-            CrossOrigin = crossOrigin;
-            TokenBinding = tokenBinding;
-        }
-
-        [JsonPropertyName("type")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-        [Required]
-        public string Type { get; }
-
-        [JsonPropertyName("challenge")]
-        [Required]
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-        public string Challenge { get; }
-
-        [JsonPropertyName("origin")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-        [Required]
-        public string Origin { get; }
-
-        [JsonPropertyName("topOrigin")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-        [Required]
-        public string? TopOrigin { get; }
-
-        [JsonPropertyName("crossOrigin")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public bool? CrossOrigin { get; }
-
-        [JsonPropertyName("tokenBinding")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-        public TokenBindingJson? TokenBinding { get; }
-    }
-
-    protected class TokenBindingJson
-    {
-        [JsonConstructor]
-        public TokenBindingJson(string status, string? id)
-        {
-            Status = status;
-            Id = id;
-        }
-
-        [JsonPropertyName("status")]
-        [Required]
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-        public string Status { get; }
-
-        [JsonPropertyName("id")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-        public string? Id { get; }
-    }
 }
 
 public static partial class DefaultClientDataDecoderLoggingExtensions
@@ -204,6 +141,12 @@ public static partial class DefaultClientDataDecoderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "'clientData.origin' contains an empty string or null")]
     public static partial void ClientDataOriginIsNullOrEmpty(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to parse 'clientData.tokenBinding'")]
+    public static partial void FailedToParseTokenBinding(this ILogger logger);
 
     [LoggerMessage(
         EventId = default,

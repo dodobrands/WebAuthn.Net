@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
@@ -42,8 +43,10 @@ public class DefaultFidoMetadataDecoderTests
             },
             optionsCache);
         FakeFidoHttpClientProvider = new();
+        var safeJsonDeserializer = new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance);
         MetadataProvider = new(
             Options,
+            safeJsonDeserializer,
             FakeFidoHttpClientProvider.Client,
             new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
         Decoder = new(

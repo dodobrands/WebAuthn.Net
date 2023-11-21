@@ -253,6 +253,7 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<ICoseKeyDeserializer, DefaultCoseKeyDeserializer>();
         builder.Services.TryAddSingleton<IAsn1Deserializer, DefaultAsn1Deserializer>();
         builder.Services.TryAddSingleton<ICborDeserializer, DefaultCborDeserializer>();
+        builder.Services.TryAddSingleton<ISafeJsonSerializer, DefaultSafeJsonSerializer>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AttestationStatementFormat>, DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<TokenBindingStatus>, DefaultEnumMemberAttributeSerializer<TokenBindingStatus>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<UserVerificationMethod>, DefaultEnumMemberAttributeSerializer<UserVerificationMethod>>();
