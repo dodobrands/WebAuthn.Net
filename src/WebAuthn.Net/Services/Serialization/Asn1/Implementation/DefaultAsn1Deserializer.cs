@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -8,22 +9,31 @@ namespace WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 
 public class DefaultAsn1Deserializer : IAsn1Deserializer
 {
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public Result<Optional<AbstractAsn1Element>> Deserialize(byte[] input, AsnEncodingRules encodingRules)
     {
-        var reader = new AsnReader(input, encodingRules);
-        if (!reader.HasData)
+        try
         {
-            return Result<Optional<AbstractAsn1Element>>.Success(Optional<AbstractAsn1Element>.Empty());
-        }
+            var reader = new AsnReader(input, encodingRules);
+            if (!reader.HasData)
+            {
+                return Result<Optional<AbstractAsn1Element>>.Success(Optional<AbstractAsn1Element>.Empty());
+            }
 
-        var rootResult = Read(reader);
-        if (rootResult.HasError)
+            var rootResult = Read(reader);
+            if (rootResult.HasError)
+            {
+                return Result<Optional<AbstractAsn1Element>>.Fail();
+            }
+
+            var root = Optional<AbstractAsn1Element>.Payload(rootResult.Ok);
+            return Result<Optional<AbstractAsn1Element>>.Success(root);
+        }
+        // ReSharper disable once EmptyGeneralCatchClause
+        catch
         {
             return Result<Optional<AbstractAsn1Element>>.Fail();
         }
-
-        var root = Optional<AbstractAsn1Element>.Payload(rootResult.Ok);
-        return Result<Optional<AbstractAsn1Element>>.Success(root);
     }
 
     private static Result<AbstractAsn1Element> Read(AsnReader reader)
