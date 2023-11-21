@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Formats.Cbor;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -30,13 +29,11 @@ public class DefaultCborDeserializerTests
     }
 
     [Test]
-    public void DefaultCborDeserializer_DecodesThrowsCborException_WhenMalformedDataOnInput()
+    public void DefaultCborDeserializer_DecodesWithError_WhenMalformedDataOnInput()
     {
         var decoder = new DefaultCborDeserializer(NullLogger<DefaultCborDeserializer>.Instance);
-        Assert.Throws<CborContentException>(() =>
-        {
-            _ = decoder.Deserialize(new byte[] { 0xf8, 0x18 });
-        });
+        var decodeResult = decoder.Deserialize(new byte[] { 0xf8, 0x18 });
+        Assert.That(decodeResult.HasError, Is.True);
     }
 
     public static TestVector[] GetSuccessfulTestVectors()
