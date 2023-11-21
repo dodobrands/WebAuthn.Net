@@ -4,11 +4,13 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
+using WebAuthn.Net.Services.Serialization.Json.Implementation;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
 
@@ -36,8 +38,10 @@ public class DefaultFidoMetadataProviderTests
             },
             optionsCache);
         FakeFidoHttpClientProvider = new();
+        var safeJsonDeserializer = new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance);
         MetadataProvider = new(
             Options,
+            safeJsonDeserializer,
             FakeFidoHttpClientProvider.Client,
             new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
     }

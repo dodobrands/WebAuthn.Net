@@ -6,7 +6,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -17,6 +16,7 @@ using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Providers;
+using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
@@ -26,18 +26,22 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 {
     public DefaultFidoMetadataProvider(
         IOptionsMonitor<WebAuthnOptions> options,
+        ISafeJsonSerializer safeJsonSerializer,
         IFidoMetadataHttpClient metadataHttpClient,
         ITimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(safeJsonSerializer);
         ArgumentNullException.ThrowIfNull(metadataHttpClient);
         ArgumentNullException.ThrowIfNull(timeProvider);
         Options = options;
+        SafeJsonSerializer = safeJsonSerializer;
         MetadataHttpClient = metadataHttpClient;
         TimeProvider = timeProvider;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
+    protected ISafeJsonSerializer SafeJsonSerializer { get; }
     protected IFidoMetadataHttpClient MetadataHttpClient { get; }
     protected ITimeProvider TimeProvider { get; }
 
@@ -143,13 +147,13 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             }
 
             var payload = Encoding.UTF8.GetString(jwtPayloadBytes);
-            var blobPayload = JsonSerializer.Deserialize<MetadataBLOBPayloadJSON>(payload);
-            if (blobPayload is null)
+            var blobPayloadResult = SafeJsonSerializer.DeserializeNonNullable<MetadataBLOBPayloadJSON>(payload);
+            if (blobPayloadResult.HasError)
             {
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
-            return Result<MetadataBLOBPayloadJSON>.Success(blobPayload);
+            return Result<MetadataBLOBPayloadJSON>.Success(blobPayloadResult.Ok);
         }
         finally
         {

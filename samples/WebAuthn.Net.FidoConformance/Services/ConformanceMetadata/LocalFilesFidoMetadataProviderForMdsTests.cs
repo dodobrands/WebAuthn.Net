@@ -8,6 +8,7 @@ using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Providers;
+using WebAuthn.Net.Services.Serialization.Json;
 
 namespace WebAuthn.Net.FidoConformance.Services.ConformanceMetadata;
 
@@ -17,10 +18,11 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
 
     public LocalFilesFidoMetadataProviderForMdsTests(
         IOptionsMonitor<WebAuthnOptions> options,
+        ISafeJsonSerializer safeJsonSerializer,
         IFidoMetadataHttpClient metadataHttpClient,
         ITimeProvider timeProvider,
         ResiliencePipeline<Result<MetadataBLOBPayloadJSON>> resiliencePipeline)
-        : base(options, metadataHttpClient, timeProvider)
+        : base(options, safeJsonSerializer, metadataHttpClient, timeProvider)
     {
         ArgumentNullException.ThrowIfNull(resiliencePipeline);
         _resiliencePipeline = resiliencePipeline;

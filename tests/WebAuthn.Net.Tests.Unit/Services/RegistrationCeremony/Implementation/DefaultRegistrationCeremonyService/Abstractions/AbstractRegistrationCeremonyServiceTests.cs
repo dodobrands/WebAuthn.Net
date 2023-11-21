@@ -63,6 +63,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
                 new ConfigurationChangeTokenSource<WebAuthnOptions>(ConfigurationManager)
             },
             optionsCache);
+        var safeJsonDeserializer = new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance);
         var digitalSignatureVerifier = new DefaultDigitalSignatureVerifier();
         var cborDeserializer = new DefaultCborDeserializer(NullLogger<DefaultCborDeserializer>.Instance);
         var asn1Deserializer = new DefaultAsn1Deserializer();
@@ -92,6 +93,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
         var clientDataDecoder = new DefaultClientDataDecoder(
+            safeJsonDeserializer,
             new DefaultEnumMemberAttributeSerializer<TokenBindingStatus>(),
             NullLogger<DefaultClientDataDecoder>.Instance);
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
@@ -103,6 +105,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         {
             var metadataProvider = new DefaultFidoMetadataProvider(
                 Options,
+                safeJsonDeserializer,
                 fakeFidoHttpClientProvider.Client,
                 new FakeTimeProvider(DateTimeOffset.Parse("2023-10-20T16:36:38Z", CultureInfo.InvariantCulture)));
             var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);

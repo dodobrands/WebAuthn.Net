@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Models.Abstractions;
+using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation.Models;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
@@ -20,18 +20,22 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
 
     public DefaultCookieAuthenticationCeremonyStorage(
         IOptionsMonitor<DefaultCookieAuthenticationCeremonyStorageOptions> options,
-        IDataProtectionProvider provider)
+        IDataProtectionProvider provider,
+        ISafeJsonSerializer safeJsonSerializer)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(safeJsonSerializer);
         Options = options;
         Protector = provider.CreateProtector(DataProtectionPurpose, "v1");
         CookieManager = new ChunkingCookieManager();
+        SafeJsonSerializer = safeJsonSerializer;
     }
 
     protected IOptionsMonitor<DefaultCookieAuthenticationCeremonyStorageOptions> Options { get; }
     protected IDataProtector Protector { get; }
     protected ICookieManager CookieManager { get; }
+    protected ISafeJsonSerializer SafeJsonSerializer { get; }
 
     public virtual Task<string> SaveAsync(
         TContext context,
@@ -43,7 +47,13 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
         var options = Options.CurrentValue;
         var id = Guid.NewGuid().ToString("N").ToLowerInvariant();
         var container = new AuthenticationCeremonyParametersCookieContainer(id, authenticationCeremony);
-        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(container, options.SerializerOptions);
+        var jsonBytesResult = SafeJsonSerializer.SerializeToUtf8Bytes(container, options.SerializerOptions);
+        if (jsonBytesResult.HasError)
+        {
+            throw new InvalidOperationException($"Failed to serialize {nameof(AuthenticationCeremonyParametersCookieContainer)} into json");
+        }
+
+        var jsonBytes = jsonBytesResult.Ok;
         var protectedJsonBytes = Protector.Protect(jsonBytes);
         var encodedProtectedJsonBytes = Base64Url.Encode(protectedJsonBytes);
         var cookieOptions = options.Cookie.Build(context.HttpContext);
@@ -81,7 +91,13 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
             }
 
             var jsonBytes = Protector.Unprotect(protectedJsonBytes);
-            var container = JsonSerializer.Deserialize<AuthenticationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            var containerResult = SafeJsonSerializer.DeserializeNonNullable<AuthenticationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            if (containerResult.HasError)
+            {
+                return Task.FromResult((AuthenticationCeremonyParameters?) null);
+            }
+
+            var container = containerResult.Ok;
             if (container is not null && container.Id == id)
             {
                 return Task.FromResult<AuthenticationCeremonyParameters?>(container.AuthenticationCeremonyParameters);
@@ -121,7 +137,13 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
             }
 
             var jsonBytes = Protector.Unprotect(protectedJsonBytes);
-            var container = JsonSerializer.Deserialize<AuthenticationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            var containerResult = SafeJsonSerializer.DeserializeNonNullable<AuthenticationCeremonyParametersCookieContainer>(jsonBytes, options.SerializerOptions);
+            if (containerResult.HasError)
+            {
+                return Task.FromResult((AuthenticationCeremonyParameters?) null);
+            }
+
+            var container = containerResult.Ok;
             if (container is not null && container.Id == id)
             {
                 CookieManager.DeleteCookie(context.HttpContext, cookieName, cookieOptions);
