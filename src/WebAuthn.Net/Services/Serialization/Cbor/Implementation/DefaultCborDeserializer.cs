@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
@@ -19,19 +20,27 @@ public class DefaultCborDeserializer : ICborDeserializer
         _logger = logger;
     }
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public Result<CborRoot> Deserialize(byte[] input)
     {
-        ArgumentNullException.ThrowIfNull(input);
-        var reader = new CborReader(input, CborConformanceMode.Ctap2Canonical);
-        var rootResult = Read(reader);
-        if (rootResult.HasError)
+        try
+        {
+            var reader = new CborReader(input, CborConformanceMode.Ctap2Canonical);
+            var rootResult = Read(reader);
+            if (rootResult.HasError)
+            {
+                return Result<CborRoot>.Fail();
+            }
+
+            var bytesRead = ComputeBytesRead(input, reader);
+            var root = new CborRoot(rootResult.Ok, bytesRead);
+            return Result<CborRoot>.Success(root);
+        }
+        // ReSharper disable once EmptyGeneralCatchClause
+        catch
         {
             return Result<CborRoot>.Fail();
         }
-
-        var bytesRead = ComputeBytesRead(input, reader);
-        var root = new CborRoot(rootResult.Ok, bytesRead);
-        return Result<CborRoot>.Success(root);
     }
 
     private static int ComputeBytesRead(ReadOnlySpan<byte> input, CborReader reader)
