@@ -19,7 +19,7 @@ public static class Program
                 options.Cookie.SameSite = SameSiteMode.None;
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-                options.LoginPath = "/Fido";
+                options.LoginPath = "/Passwordless";
                 options.LogoutPath = "/Fido/Logout";
             });
 

@@ -1,0 +1,127 @@
+﻿@{
+    ViewData["Title"] = "Webauthn Passwordless";
+    ViewData["ShowLogoutButton"] = false;
+}
+
+<div class="row">
+    <div class="col-md-4"></div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Passwordless Authentication</h2>
+                <form id="webauthn-authenticate" class="p-1">
+                    <div class="form-floating mb-1">
+                        <input type="text" id="webauthn-authenticate-name" placeholder="Username" class="form-control mb-1"/>
+                        <label for="webauthn-authenticate-name">Username</label>
+                    </div>
+                    <hr>
+                    <button type="submit" id="webauthn-authenticate-submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4"></div>
+</div>
+
+<script async type="text/javascript">
+const elements = {
+    authenticateInput: () => document.getElementById("webauthn-authenticate-name"),
+    authenticateButton: () => document.getElementById("webauthn-authenticate-submit")
+};
+
+// Utils
+const coerceToArrayBuffer = (x) => {
+    const fix = x.replace(/-/g, "+").replace(/_/g, "/");
+    return Uint8Array.from(window.atob(fix), c => c.charCodeAt(0));
+};
+const coerceToBase64Url = (x) => {
+    const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
+    return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
+};
+const clearInput = (x) => x.value = "";
+const getValue = (x) => x.value;
+
+const makeJsonApiCall = async ({url, data, method}) => {
+    const response = await fetch(url, {
+        method,
+        body: JSON.stringify(data),
+        credentials: "same-origin",
+        headers: {
+            "content-type": "application/json"
+        }
+    });
+
+    if (response.ok) {
+        return await response.json();
+    }
+
+    alert(await response.text());
+    return undefined;
+};
+const isWebauthnAvailable = () => {
+    const missingWebauthnApis = window.PublicKeyCredential === undefined
+    || typeof window.PublicKeyCredential !== "function"
+    || typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function";
+
+    return window.isSecureContext && !missingWebauthnApis;
+};
+
+// API
+const initiateAuthentication = async ({ username }) => {
+    const url = "/Passwordless/BeginAuthenticationCeremony";
+    const data = {
+        username,
+    };
+    return await makeJsonApiCall({ url, data, method: "POST" });
+};
+const submitAuthentication = async ({ username, response }) => {
+    const url = "/Passwordless/AuthenticationCeremony";
+    const data = {
+        id: coerceToBase64Url(response.rawId),
+        username,
+        type: response.type,
+        extensions: response.getClientExtensionResults(),
+        response: {
+            userHandle: coerceToBase64Url(response.response.userHandle),
+            authenticatorData: coerceToBase64Url(response.response.authenticatorData),
+            clientDataJSON: coerceToBase64Url(response.response.clientDataJSON),
+            signature: coerceToBase64Url(response.response.signature),
+        }
+    }
+    return await makeJsonApiCall({ url, data, method: "POST" });
+};
+
+// DOM Handlers
+const onAuthenticateButtonHandler = async (e) => {
+    e.preventDefault();
+    const username = getValue(elements.authenticateInput());
+    const initialData = await initiateAuthentication({ username });
+    if (!initialData) return;
+    const { options } = initialData;
+    const publicKey = {
+        ...options,
+        challenge: coerceToArrayBuffer(options.challenge),
+        allowCredentials: (options.allowCredentials ?? []).map(x => ({...x,  id: coerceToArrayBuffer(x.id)}))
+    };
+    const response = await navigator.credentials.get({ publicKey });
+    if (!response) return;
+
+    const attestationResult = await submitAuthentication({ username, response });
+    if (!attestationResult) return;
+    const { successful } = attestationResult;
+    if (!successful) {
+        alert("Failed to register user");
+        return;
+    }
+    location.assign("/Fido/Authenticated");
+};
+
+// INIT
+document.addEventListener("DOMContentLoaded", () => {
+    if (!isWebauthnAvailable()) {
+        alert("Browser doesn't support Webauthn API");
+        return;
+    }
+    elements.authenticateButton().addEventListener("click", onAuthenticateButtonHandler);
+});
+</script>

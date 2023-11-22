@@ -1,0 +1,131 @@
+@{
+    ViewData["Title"] = "Webauthn.Net Register";
+    ViewData["ShowLogoutButton"] = false;
+}
+
+<div class="row">
+    <div class="col-md-4"></div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Register</h2>
+                <form id="webauthn-register" class="p-1">
+                    <div class="form-floating mb-1">
+                        <input type="text" id="webauthn-register-name" class="form-control" placeholder="Username"/>
+                        <label for="webauthn-register-name">Username</label>
+                    </div>
+                    <hr>
+                    <button type="submit" id="webauthn-register-submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4"></div>
+</div>
+
+<script async type="text/javascript">
+// Utils
+const elements = {
+    registerInput: () => document.getElementById("webauthn-register-name"),
+    registerButton: () => document.getElementById("webauthn-register-submit")
+};
+const coerceToArrayBuffer = (x) => {
+    const fix = x.replace(/-/g, "+").replace(/_/g, "/");
+    return Uint8Array.from(window.atob(fix), c => c.charCodeAt(0));
+};
+const coerceToBase64Url = (x) => {
+    const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
+    return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
+};
+const clearInput = (x) => x.value = "";
+const getValue = (x) => x.value;
+const makeJsonApiCall = async ({url, data, method}) => {
+    const response = await fetch(url, {
+        method,
+        body: JSON.stringify(data),
+        credentials: "same-origin",
+        headers: {
+            "content-type": "application/json"
+        }
+    });
+
+    if (response.ok) {
+        return await response.json();
+    }
+
+    alert(await response.text());
+    return undefined;
+};
+const isWebauthnAvailable = () => {
+    const missingWebauthnApis = window.PublicKeyCredential === undefined
+    || typeof window.PublicKeyCredential !== "function"
+    || typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function";
+
+    return window.isSecureContext && !missingWebauthnApis;
+};
+
+// API
+const initiateRegistration = async () => {
+    const username = getValue(elements.registerInput());
+    const url = "/Register/BeginRegisterCeremony";
+    const data = {
+        username,
+        extensions: {}
+    };
+    return await makeJsonApiCall({ url, data, method: "POST" });
+};
+const submitRegistration = async ({ response }) => {
+    const url = "/Register/RegisterCeremony";
+    const data = {
+        id: coerceToBase64Url(response.rawId),
+        type: response.type,
+        response: {
+            attestationObject: coerceToBase64Url(response.response.attestationObject),
+            clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
+        }
+    };
+    return await makeJsonApiCall({ url, data, method: "POST" });
+};
+
+// DOM Handlers
+const onRegisterButtonHandler = async (e) => {
+    e.preventDefault();
+    const initialData = await initiateRegistration();
+    if (!initialData) return;
+    const { options } = initialData;
+    const publicKey = {
+        ...options,
+        challenge: coerceToArrayBuffer(options.challenge),
+        user: {
+            ...options.user,
+            id: coerceToArrayBuffer(options.user.id),
+        },
+        authenticatorSelection: {
+            userVerification: "preferred"
+        }
+    };
+
+    const response = await navigator.credentials.create({ publicKey });
+    if (!response) return;
+
+    const registrationResult = await submitRegistration({ response });
+    if (!registrationResult) return;
+    const { successful } = registrationResult;
+    if (successful) {
+        alert("User registered!");
+        clearInput(elements.registerInput());
+        return;
+    }
+
+    alert("Failed to register user");
+};
+
+// INIT
+document.addEventListener("DOMContentLoaded", () => {
+    if (!isWebauthnAvailable()) {
+        alert("Browser doesn't support Webauthn API");
+        return;
+    }
+    elements.registerButton().addEventListener("click", onRegisterButtonHandler);
+});
+</script>

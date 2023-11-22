@@ -6,5 +6,5 @@ namespace WebAuthn.Net.Sample.Mvc.Controllers;
 public class HomeController : Controller
 {
     [HttpGet]
-    public  IActionResult Index() => RedirectToActionPermanent("Index", "Fido");
+    public IActionResult Index() => RedirectToActionPermanent("Index", "Passwordless");
 }
