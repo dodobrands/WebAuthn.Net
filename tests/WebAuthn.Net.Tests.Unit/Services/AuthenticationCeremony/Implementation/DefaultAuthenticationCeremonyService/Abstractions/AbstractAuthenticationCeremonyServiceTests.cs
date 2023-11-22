@@ -150,6 +150,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             metadataSearchService);
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
+            new DefaultTpmPubAreaDecoder(),
+            new DefaultTpmCertInfoDecoder(),
             digitalSignatureVerifier,
             tpmManufacturerVerifier,
             asn1Deserializer,
