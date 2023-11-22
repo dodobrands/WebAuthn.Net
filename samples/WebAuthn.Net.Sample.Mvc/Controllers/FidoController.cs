@@ -132,5 +132,13 @@ public class FidoController : Controller
         HttpContext.Response.Cookies.Delete(ExampleConstants.CookieAuthentication.AuthAssertionSessionId);
         return Ok(result);
     }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync();
+        return RedirectToAction("Index");
+    }
 }
 

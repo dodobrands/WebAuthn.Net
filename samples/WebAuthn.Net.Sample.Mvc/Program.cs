@@ -20,6 +20,7 @@ public static class Program
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.LoginPath = "/Fido";
+                options.LogoutPath = "/Fido/Logout";
             });
 
         var app = builder.Build();

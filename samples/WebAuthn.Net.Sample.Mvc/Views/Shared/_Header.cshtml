@@ -1,0 +1,19 @@
+
+
+<header class="mui-appbar mui--z1">
+    <div class="mui-container">
+      <table>
+        <tr class="mui--appbar-height">
+          <td class="mui--text-title">WebAuthn.Net Example</td>
+          <td class="mui--text-right">
+              <ul class="mui-list--inline mui--text-body2">
+                  @if (ViewData["ShowLogoutButton"] is true)
+                  {
+                      <li><a href="/Fido/Logout">Logout</a></li>
+                  }
+              </ul>
+          </td>
+        </tr>
+      </table>
+    </div>
+</header>

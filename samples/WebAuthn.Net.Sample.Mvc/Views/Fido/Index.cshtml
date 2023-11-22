@@ -1,30 +1,30 @@
 ﻿@{
     ViewData["Title"] = "Fido Register/Authentication";
+    ViewData["ShowLogoutButton"] = false;
 }
 
-<h1>Fido</h1>
-<hr/>
-<div>
+<div class="mui-panel">
     <h2>Register</h2>
-    <form id="webauthn-register">
-        <label for="webauthn-register-name">Username:</label>
-        <input type="text" id="webauthn-register-name" />
+    <form id="webauthn-register" class="mui-form">
+        <div class="mui-textfield">
+            <input type="text" id="webauthn-register-name" placeholder="Username"/>
+        </div>
+        <button type="submit" id="webauthn-register-submit" class="mui-btn mui-btn--primary mui-btn--raised">Register</button>
+    </form>
+</div>
 
-        <button type="submit" id="webauthn-register-submit">Register</button>
-    </form>
-</div>
-<hr/>
-<div>
+
+<div class="mui-panel">
     <h2>Authenticate</h2>
-    <form id="webauthn-authenticate">
-        <label for="webauthn-authenticate-name">Username:</label>
-        <input type="text" id="webauthn-authenticate-name" />
-        <button type="submit" id="webauthn-authenticate-submit">Login</button>
+    <form id="webauthn-authenticate" class="mui-form">
+        <div class="mui-textfield">
+            <input type="text" id="webauthn-authenticate-name" placeholder="Username" />
+        </div>
+        <button type="submit" id="webauthn-authenticate-submit" class="mui-btn mui-btn--primary">Login</button>
     </form>
-</div>
+ </div>
 
 <script type="text/javascript">
-
 // Utils
 const coerceToArrayBuffer = (x) => {
     const fix = x.replace(/-/g, "+").replace(/_/g, "/");

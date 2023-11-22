@@ -4,9 +4,18 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"] - WebAuthn.Net.Sample.Mvc</title>
+    <link rel="stylesheet" href="~/css/mui.min.css"/>
+    <link rel="stylesheet" href="~/css/globals.css" />
+    <script src="~/js/mui.min.js"></script>
 </head>
+
 <body>
-@RenderBody()
-@await RenderSectionAsync("Scripts", false)
+    <partial name="_Header"/>
+    <div id="content-wrapper" class="mui-container mui--text-center">
+        <div class="mui--appbar-height"></div>
+        <br>
+        @RenderBody()
+    </div>
+    @await RenderSectionAsync("Scripts", false)
 </body>
 </html>
