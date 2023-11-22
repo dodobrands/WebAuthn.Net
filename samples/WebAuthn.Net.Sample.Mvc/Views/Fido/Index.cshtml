@@ -25,6 +25,12 @@
  </div>
 
 <script type="text/javascript">
+
+const elements = {
+    registerInput: document.getElementById("webauthn-register-name"),
+    authenticateInput: document.getElementById("webauthn-authenticate-name")
+};
+
 // Utils
 const coerceToArrayBuffer = (x) => {
     const fix = x.replace(/-/g, "+").replace(/_/g, "/");
@@ -34,8 +40,9 @@ const coerceToBase64Url = (x) => {
     const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
     return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
 };
-const getRegisterUsernameInputValue = () => document.getElementById("webauthn-register-name")?.value;
-const getAuthenticateUsernameInputValue = () => document.getElementById("webauthn-authenticate-name")?.value;
+const clearInput = (x) => x.value = "";
+const getValue = (x) => x.value;
+
 const makeJsonApiCall = async ({url, data, method}) => {
     const response = await fetch(url, {
         method,
@@ -63,7 +70,7 @@ const isWebauthnAvailable = () => {
 
 // API
 const initiateRegistration = async () => {
-    const username = getRegisterUsernameInputValue();
+    const username = getValue(elements.registerInput);
     const url = "/Fido/BeginRegisterCeremony";
     const data = {
         username,
@@ -133,6 +140,7 @@ const onRegisterButtonHandler = async (e) => {
     const { successful } = registrationResult;
     if (successful) {
         alert("User registered!");
+        clearInput(elements.registerInput);
         return;
     }
 
@@ -140,7 +148,7 @@ const onRegisterButtonHandler = async (e) => {
 };
 const onAuthenticateButtonHandler = async (e) => {
     e.preventDefault();
-    const username = getAuthenticateUsernameInputValue();
+    const username = getValue(elements.authenticateInput);
     const initialData = await initiateAuthentication({ username });
     if (!initialData) return;
     const { options } = initialData;
