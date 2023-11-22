@@ -159,6 +159,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             metadataSearchService);
         var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
+            safeJsonDeserializer,
             metadataSearchService);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,

@@ -25,7 +25,7 @@
         <PackageReference Include="libsodium" Version="1.0.19" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
         <PackageReference Include="System.Formats.Cbor" Version="6.0.0" />
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.33.0" />
     </ItemGroup>
 
     <ItemGroup>
