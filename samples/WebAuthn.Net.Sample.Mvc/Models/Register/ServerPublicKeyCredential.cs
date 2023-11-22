@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 
-namespace WebAuthn.Net.Sample.Mvc.Models.Attestation.CompleteCeremony.Request;
+namespace WebAuthn.Net.Sample.Mvc.Models.Register;
 
 public class ServerPublicKeyCredential
 {

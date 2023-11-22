@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Sample.Mvc.Constants;
 
-namespace WebAuthn.Net.Sample.Mvc.Models.Common.Response;
+namespace WebAuthn.Net.Sample.Mvc.Models.Common;
 
 public class ServerResponse
 {

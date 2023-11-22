@@ -4,24 +4,17 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebAuthn.Net.Sample.Mvc.Constants;
+using WebAuthn.Net.Sample.Mvc.Models.Passwordless;
 using WebAuthn.Net.Services.AuthenticationCeremony;
-using WebAuthn.Net.Services.RegistrationCeremony;
-
-using AssertionOptions =
-    WebAuthn.Net.Sample.Mvc.Models.Assertion.CreateOptions.Request.ServerPublicKeyCredentialGetOptionsRequest;
-using AssertionKey =
-    WebAuthn.Net.Sample.Mvc.Models.Assertion.CompleteCeremony.Request.ServerPublicKeyCredential;
 
 namespace WebAuthn.Net.Sample.Mvc.Controllers;
 
 public class PasswordlessController : Controller
 {
-    private readonly IRegistrationCeremonyService _registrationCeremony;
     private readonly IAuthenticationCeremonyService _authenticationCeremony;
 
-    public PasswordlessController(IRegistrationCeremonyService registrationCeremony, IAuthenticationCeremonyService authenticationCeremony)
+    public PasswordlessController(IAuthenticationCeremonyService authenticationCeremony)
     {
-        _registrationCeremony = registrationCeremony;
         _authenticationCeremony = authenticationCeremony;
     }
 
@@ -36,7 +29,7 @@ public class PasswordlessController : Controller
 
     [HttpPost]
     [AllowAnonymous]
-    public async Task<IActionResult> BeginAuthenticationCeremony([FromBody] AssertionOptions request, CancellationToken token)
+    public async Task<IActionResult> BeginAuthenticationCeremony([FromBody] ServerPublicKeyCredentialGetOptionsRequest request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
         token.ThrowIfCancellationRequested();
@@ -53,7 +46,7 @@ public class PasswordlessController : Controller
 
     [HttpPost]
     [AllowAnonymous]
-    public async Task<IActionResult> AuthenticationCeremony([FromBody] AssertionKey request, CancellationToken token)
+    public async Task<IActionResult> AuthenticationCeremony([FromBody] ServerPublicKeyCredential request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
         token.ThrowIfCancellationRequested();

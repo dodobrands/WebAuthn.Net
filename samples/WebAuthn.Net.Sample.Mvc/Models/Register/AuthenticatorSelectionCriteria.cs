@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Sample.Mvc.Models.Attestation.CreateOptions.Request;
+namespace WebAuthn.Net.Sample.Mvc.Models.Register;
 
 public class AuthenticatorSelectionCriteria
 {

@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Json;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Sample.Mvc.Constants;
-using WebAuthn.Net.Sample.Mvc.Models.Common.Response;
+using WebAuthn.Net.Sample.Mvc.Models.Common;
 
-namespace WebAuthn.Net.Sample.Mvc.Models.Attestation.CreateOptions.Response;
+namespace WebAuthn.Net.Sample.Mvc.Models.Register;
 
 public class ServerPublicKeyCredentialCreationOptionsResponse : ServerResponse
 {

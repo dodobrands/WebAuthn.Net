@@ -1,26 +1,21 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models.Protocol.Enums;
-using WebAuthn.Net.Sample.Mvc.Constants;
-using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
-using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 
-namespace WebAuthn.Net.Sample.Mvc.Models.Attestation.CreateOptions.Request;
+namespace WebAuthn.Net.Sample.Mvc.Models.Passwordless;
 
-public class ServerPublicKeyCredentialCreationOptionsRequest
+public class ServerPublicKeyCredentialGetOptionsRequest
 {
+
     [JsonConstructor]
-    public ServerPublicKeyCredentialCreationOptionsRequest(
-        string userName,
-        Dictionary<string, JsonElement>? extensions)
+    public ServerPublicKeyCredentialGetOptionsRequest(string userName, Dictionary<string, JsonElement>? extensions)
     {
         UserName = userName;
         Extensions = extensions;
     }
-
 
     [JsonPropertyName("username")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
@@ -31,18 +26,16 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, JsonElement>? Extensions { get; }
 
-    public BeginRegistrationCeremonyRequest ToBeginCeremonyRequest()
+    public BeginAuthenticationCeremonyRequest ToBeginCeremonyRequest()
     {
         return new(
             null,
             null,
-            ExampleConstants.Host.WebAuthnDisplayName,
-            new(UserName, WebEncoders.Base64UrlDecode(UserName), UserName),
+            WebEncoders.Base64UrlDecode(UserName),
             16,
-            CoseAlgorithms.All,
             120000,
-            RegistrationCeremonyExcludeCredentials.AllExisting(),
-            null,
+            AuthenticationCeremonyIncludeCredentials.AllExisting(),
+            UserVerificationRequirement.Preferred,
             null,
             null,
             null,

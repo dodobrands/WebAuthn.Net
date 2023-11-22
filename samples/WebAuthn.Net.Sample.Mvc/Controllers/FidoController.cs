@@ -15,7 +15,6 @@ public class FidoController : Controller
     }
 
     [HttpGet]
-    [Authorize]
     public async Task<IActionResult> Logout(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();

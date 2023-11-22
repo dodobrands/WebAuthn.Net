@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace WebAuthn.Net.Sample.Mvc.Models.Attestation.CompleteCeremony.Request;
+namespace WebAuthn.Net.Sample.Mvc.Models.Register;
 
 public class ServerAuthenticatorAttestationResponse
 {

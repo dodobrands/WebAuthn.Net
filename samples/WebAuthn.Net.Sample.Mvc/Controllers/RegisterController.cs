@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebAuthn.Net.Sample.Mvc.Constants;
-using WebAuthn.Net.Sample.Mvc.Models.Attestation.CompleteCeremony.Request;
-using WebAuthn.Net.Sample.Mvc.Models.Attestation.CreateOptions.Request;
+using WebAuthn.Net.Sample.Mvc.Models.Register;
 using WebAuthn.Net.Services.RegistrationCeremony;
 
 namespace WebAuthn.Net.Sample.Mvc.Controllers;

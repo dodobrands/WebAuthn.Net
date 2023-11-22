@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.VerifyAssertion;
 
-namespace WebAuthn.Net.Sample.Mvc.Models.Assertion.CompleteCeremony.Request;
+namespace WebAuthn.Net.Sample.Mvc.Models.Passwordless;
 
 public class ServerPublicKeyCredential
 {
