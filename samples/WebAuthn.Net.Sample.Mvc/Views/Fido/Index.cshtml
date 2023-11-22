@@ -3,26 +3,31 @@
     ViewData["ShowLogoutButton"] = false;
 }
 
-<div class="mui-panel">
-    <h2>Register</h2>
-    <form id="webauthn-register" class="mui-form">
-        <div class="mui-textfield">
-            <input type="text" id="webauthn-register-name" placeholder="Username"/>
+<div class="row">
+    <div class="col-md-6 p-1">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Register</h2>
+                <form id="webauthn-register" class="p-1">
+                    <input type="text" id="webauthn-register-name" placeholder="Username" class="form-control mb-1"/>
+                    <button type="submit" id="webauthn-register-submit" class="btn btn-primary">Register</button>
+                </form>
+            </div>
         </div>
-        <button type="submit" id="webauthn-register-submit" class="mui-btn mui-btn--primary mui-btn--raised">Register</button>
-    </form>
+    </div>
+
+    <div class="col-md-6 p-1">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Authenticate</h2>
+                <form id="webauthn-authenticate" class="p-1">
+                    <input type="text" id="webauthn-authenticate-name" placeholder="Username" class="form-control mb-1"/>
+                    <button type="submit" id="webauthn-authenticate-submit" class="btn btn-primary">Authenticate</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
-
-
-<div class="mui-panel">
-    <h2>Authenticate</h2>
-    <form id="webauthn-authenticate" class="mui-form">
-        <div class="mui-textfield">
-            <input type="text" id="webauthn-authenticate-name" placeholder="Username" />
-        </div>
-        <button type="submit" id="webauthn-authenticate-submit" class="mui-btn mui-btn--primary">Login</button>
-    </form>
- </div>
 
 <script type="text/javascript">
 
