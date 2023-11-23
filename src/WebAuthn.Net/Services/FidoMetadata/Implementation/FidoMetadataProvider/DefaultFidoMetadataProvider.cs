@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -169,25 +168,45 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         }
     }
 
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool TryGetRawCertificates(JsonWebToken jwt, [NotNullWhen(true)] out byte[][]? rawCertificates)
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (jwt is null)
         {
             rawCertificates = null;
             return false;
         }
 
-        var header = JwtHeader.Base64UrlDeserialize(jwt.EncodedHeader);
-        if (!header.TryGetValue("x5c", out var certificatesObject) || certificatesObject is null)
+        if (!Base64Url.TryDecode(jwt.EncodedHeader, out var utf8Bytes))
         {
             rawCertificates = null;
             return false;
         }
 
-        if (certificatesObject is string certificatesString)
+        var headerResult = SafeJsonSerializer.DeserializeNonNullable<JsonDocument>(utf8Bytes);
+        if (headerResult.HasError)
         {
-            if (!Base64Raw.TryDecode(certificatesString, out var rawCert))
+            rawCertificates = null;
+            return false;
+        }
+
+        using var header = headerResult.Ok;
+        if (!header.RootElement.TryGetProperty("x5c", out var x5CJson))
+        {
+            rawCertificates = null;
+            return false;
+        }
+
+        if (x5CJson.ValueKind == JsonValueKind.String)
+        {
+            var base64Certificate = x5CJson.GetString();
+            if (string.IsNullOrEmpty(base64Certificate))
+            {
+                rawCertificates = null;
+                return false;
+            }
+
+            if (!Base64Raw.TryDecode(base64Certificate, out var rawCert))
             {
                 rawCertificates = null;
                 return false;
@@ -197,30 +216,37 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             return true;
         }
 
-        if (certificatesObject is IEnumerable certificatesEnumerable)
+        if (x5CJson.ValueKind == JsonValueKind.Array)
         {
             var result = new List<byte[]>();
-            foreach (var certificateObject in certificatesEnumerable)
+            foreach (var x5CElement in x5CJson.EnumerateArray())
             {
-                if (certificateObject is not string certificateString)
+                if (x5CElement.ValueKind != JsonValueKind.String)
                 {
                     rawCertificates = null;
                     return false;
                 }
 
-                if (!Base64Raw.TryDecode(certificateString, out var rawCert))
+                var base64Certificate = x5CElement.GetString();
+                if (string.IsNullOrEmpty(base64Certificate))
+                {
+                    rawCertificates = null;
+                    return false;
+                }
+
+                if (!Base64Raw.TryDecode(base64Certificate, out var rawCert))
+                {
+                    rawCertificates = null;
+                    return false;
+                }
+
+                if (rawCert.Length == 0)
                 {
                     rawCertificates = null;
                     return false;
                 }
 
                 result.Add(rawCert);
-            }
-
-            if (result.Count == 0)
-            {
-                rawCertificates = null;
-                return false;
             }
 
             rawCertificates = result.ToArray();

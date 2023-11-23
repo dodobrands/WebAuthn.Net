@@ -154,6 +154,8 @@ public static class WebAuthnBuilderExtensions
         // Tpm
         builder.Services.TryAddSingleton<ITpmAttestationStatementVerifier<TContext>, DefaultTpmAttestationStatementVerifier<TContext>>();
         builder.Services.TryAddSingleton<ITpmManufacturerVerifier, DefaultTpmManufacturerVerifier>();
+        builder.Services.TryAddSingleton<ITpmPubAreaDecoder, DefaultTpmPubAreaDecoder>();
+        builder.Services.TryAddSingleton<ITpmCertInfoDecoder, DefaultTpmCertInfoDecoder>();
         // ----------------------------------
 
         // -- AttestationTrustPathValidator --

@@ -150,6 +150,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             metadataSearchService);
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
+            new DefaultTpmPubAreaDecoder(),
+            new DefaultTpmCertInfoDecoder(),
             digitalSignatureVerifier,
             tpmManufacturerVerifier,
             asn1Deserializer,
@@ -162,6 +164,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             metadataSearchService);
         var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
+            safeJsonDeserializer,
             metadataSearchService);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,

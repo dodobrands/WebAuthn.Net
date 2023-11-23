@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +14,7 @@ using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums.Extensions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
@@ -34,17 +37,23 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
 {
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
+        ITpmPubAreaDecoder tpmPubAreaDecoder,
+        ITpmCertInfoDecoder tpmCertInfoDecoder,
         IDigitalSignatureVerifier signatureVerifier,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(tpmPubAreaDecoder);
+        ArgumentNullException.ThrowIfNull(tpmCertInfoDecoder);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
+        TpmPubAreaDecoder = tpmPubAreaDecoder;
+        TpmCertInfoDecoder = tpmCertInfoDecoder;
         SignatureVerifier = signatureVerifier;
         TpmManufacturerVerifier = tpmManufacturerVerifier;
         Asn1Deserializer = asn1Deserializer;
@@ -52,6 +61,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     }
 
     protected ITimeProvider TimeProvider { get; }
+    protected ITpmPubAreaDecoder TpmPubAreaDecoder { get; }
+    protected ITpmCertInfoDecoder TpmCertInfoDecoder { get; }
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ITpmManufacturerVerifier TpmManufacturerVerifier { get; }
     protected IAsn1Deserializer Asn1Deserializer { get; }
@@ -73,12 +84,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // 1 - Verify that 'attStmt' is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
         // 2 - Verify that the public key specified by the 'parameters' and 'unique' fields of 'pubArea'
         // is identical to the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
-        if (!PubArea.TryParse(attStmt.PubArea, out var pubArea))
+        var pubAreaResult = TpmPubAreaDecoder.Decode(attStmt.PubArea);
+        if (pubAreaResult.HasError)
         {
             return Result<AttestationStatementVerificationResult>.Fail();
         }
 
-        if (!PubAreaKeySameAsAttestedCredentialData(pubArea, authenticatorData.AttestedCredentialData.CredentialPublicKey))
+        if (!PubAreaKeySameAsAttestedCredentialData(pubAreaResult.Ok, authenticatorData.AttestedCredentialData.CredentialPublicKey))
         {
             return Result<AttestationStatementVerificationResult>.Fail();
         }
@@ -100,7 +112,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
 
         bool matches;
-        if (!pubArea.TryToAsymmetricAlgorithm(out var algorithm))
+        if (!TryToAsymmetricAlgorithm(pubArea, out var algorithm))
         {
             return false;
         }
@@ -134,10 +146,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // Handled in CertInfo.TryParse
         // 2) Verify that 'type' is set to TPM_ST_ATTEST_CERTIFY.
         // Handled in CertInfo.TryParse
-        if (!CertInfo.TryParse(attStmt.CertInfo, out var certInfo))
+        var certInfoResult = TpmCertInfoDecoder.Decode(attStmt.CertInfo);
+        if (certInfoResult.HasError)
         {
             return Result<AttestationStatementVerificationResult>.Fail();
         }
+
+        var certInfo = certInfoResult.Ok;
 
         // 3) Verify that 'extraData' is set to the hash of 'attToBeSigned' using the hash algorithm employed in 'alg'.
         if (!attStmt.Alg.TryComputeHash(attToBeSigned, out var attToBeSignedHash))
@@ -719,5 +734,81 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         a.CopyTo(result);
         b.CopyTo(result.AsSpan(a.Length));
         return result;
+    }
+
+    protected virtual bool TryToAsymmetricAlgorithm(PubArea pubArea, [NotNullWhen(true)] out AsymmetricAlgorithm? algorithm)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (pubArea is null)
+        {
+            algorithm = null;
+            return false;
+        }
+
+        switch (pubArea.Type)
+        {
+            case TpmAlgPublic.Rsa:
+                {
+                    if (pubArea.Unique is not RsaUnique tpmModulus)
+                    {
+                        algorithm = null;
+                        return false;
+                    }
+
+                    if (pubArea.Parameters is not RsaParms tpmExponent)
+                    {
+                        algorithm = null;
+                        return false;
+                    }
+
+                    var pubAreaExponent = new byte[4];
+                    BinaryPrimitives.WriteUInt32BigEndian(pubAreaExponent, tpmExponent.Exponent);
+                    var rsa = RSA.Create(new RSAParameters
+                    {
+                        Modulus = tpmModulus.Buffer,
+                        Exponent = pubAreaExponent
+                    });
+                    algorithm = rsa;
+                    return true;
+                }
+            case TpmAlgPublic.Ecc:
+                {
+                    if (pubArea.Unique is not EccUnique tpmEcPoint)
+                    {
+                        algorithm = null;
+                        return false;
+                    }
+
+                    if (pubArea.Parameters is not EccParms tpmCurve)
+                    {
+                        algorithm = null;
+                        return false;
+                    }
+
+                    if (!tpmCurve.CurveId.TryToEcCurve(out var ecCurve))
+                    {
+                        algorithm = null;
+                        return false;
+                    }
+
+                    var point = new ECPoint
+                    {
+                        X = tpmEcPoint.X,
+                        Y = tpmEcPoint.Y
+                    };
+                    var ecdsa = ECDsa.Create(new ECParameters
+                    {
+                        Q = point,
+                        Curve = ecCurve.Value
+                    });
+                    algorithm = ecdsa;
+                    return true;
+                }
+            default:
+                {
+                    algorithm = null;
+                    return false;
+                }
+        }
     }
 }

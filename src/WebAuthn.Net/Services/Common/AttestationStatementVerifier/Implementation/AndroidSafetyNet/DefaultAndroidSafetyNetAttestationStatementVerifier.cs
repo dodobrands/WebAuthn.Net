@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
@@ -7,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Tokens;
@@ -22,6 +22,7 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Providers;
+using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidSafetyNet;
@@ -32,15 +33,19 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
 {
     public DefaultAndroidSafetyNetAttestationStatementVerifier(
         ITimeProvider timeProvider,
+        ISafeJsonSerializer safeJsonSerializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(safeJsonSerializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
+        SafeJsonSerializer = safeJsonSerializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
+    protected ISafeJsonSerializer SafeJsonSerializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     [SuppressMessage("Security", "CA5404:Do not disable token validation checks")]
@@ -255,24 +260,45 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         return result;
     }
 
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool TryGetRawCertificates(JwtSecurityToken jwt, [NotNullWhen(true)] out byte[][]? rawCertificates)
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (jwt is null)
         {
             rawCertificates = null;
             return false;
         }
 
-        if (!jwt.Header.TryGetValue("x5c", out var certificatesObject) || certificatesObject is null)
+        if (!Base64Url.TryDecode(jwt.EncodedHeader, out var utf8Bytes))
         {
             rawCertificates = null;
             return false;
         }
 
-        if (certificatesObject is string certificatesString)
+        var headerResult = SafeJsonSerializer.DeserializeNonNullable<JsonDocument>(utf8Bytes);
+        if (headerResult.HasError)
         {
-            if (!Base64Raw.TryDecode(certificatesString, out var rawCert))
+            rawCertificates = null;
+            return false;
+        }
+
+        using var header = headerResult.Ok;
+        if (!header.RootElement.TryGetProperty("x5c", out var x5CJson))
+        {
+            rawCertificates = null;
+            return false;
+        }
+
+        if (x5CJson.ValueKind == JsonValueKind.String)
+        {
+            var base64Certificate = x5CJson.GetString();
+            if (string.IsNullOrEmpty(base64Certificate))
+            {
+                rawCertificates = null;
+                return false;
+            }
+
+            if (!Base64Raw.TryDecode(base64Certificate, out var rawCert))
             {
                 rawCertificates = null;
                 return false;
@@ -282,30 +308,37 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             return true;
         }
 
-        if (certificatesObject is IEnumerable certificatesEnumerable)
+        if (x5CJson.ValueKind == JsonValueKind.Array)
         {
             var result = new List<byte[]>();
-            foreach (var certificateObject in certificatesEnumerable)
+            foreach (var x5CElement in x5CJson.EnumerateArray())
             {
-                if (certificateObject is not string certificateString)
+                if (x5CElement.ValueKind != JsonValueKind.String)
                 {
                     rawCertificates = null;
                     return false;
                 }
 
-                if (!Base64Raw.TryDecode(certificateString, out var rawCert))
+                var base64Certificate = x5CElement.GetString();
+                if (string.IsNullOrEmpty(base64Certificate))
+                {
+                    rawCertificates = null;
+                    return false;
+                }
+
+                if (!Base64Raw.TryDecode(base64Certificate, out var rawCert))
+                {
+                    rawCertificates = null;
+                    return false;
+                }
+
+                if (rawCert.Length == 0)
                 {
                     rawCertificates = null;
                     return false;
                 }
 
                 result.Add(rawCert);
-            }
-
-            if (result.Count == 0)
-            {
-                rawCertificates = null;
-                return false;
             }
 
             rawCertificates = result.ToArray();
