@@ -79,8 +79,23 @@ using WebAuthn.Net.Storage.RegistrationCeremony.Implementation;
 
 namespace WebAuthn.Net.Configuration.DependencyInjection;
 
+/// <summary>
+///     Extension methods to <see cref="IWebAuthnBuilder{TContext}" /> for configuring WebAuthn.Net.
+/// </summary>
 public static class WebAuthnBuilderExtensions
 {
+    /// <summary>
+    ///     Adds the essential services to <see cref="IServiceCollection" />, which are necessary for WebAuthn.Net
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <param name="configure">An optional delegate for configuring global WebAuthn.Net options.</param>
+    /// <param name="configureFidoHttpClientBuilder">
+    ///     An optional delegate for configuring the HttpClient that will be used to access the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>. Here you can add retries using
+    ///     <a href="https://github.com/App-vNext/Polly">Polly</a>, set timeouts, add your own DelegatingHandlers, or otherwise customize the behavior of HttpClient.
+    /// </param>
+    /// <param name="configureBackgroundIngest">An optional delegate for configuring the behavior of background data ingest from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddCoreServices<TContext>(
         this IWebAuthnBuilder<TContext> builder,
         Action<WebAuthnOptions>? configure = null,
@@ -95,7 +110,7 @@ public static class WebAuthnBuilderExtensions
             builder.Services.Configure(configure);
         }
 
-        builder.AddAuthenticationServices()
+        builder.AddAuthenticationCeremonyServices()
             .AddCommonServices()
             .AddCryptographyServices()
             .AddFidoMetadataServices()
@@ -107,7 +122,13 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
-    public static IWebAuthnBuilder<TContext> AddAuthenticationServices<TContext>(this IWebAuthnBuilder<TContext> builder)
+    /// <summary>
+    ///     Adds a set of services directly responsible for the authentication ceremony to DI.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
+    public static IWebAuthnBuilder<TContext> AddAuthenticationCeremonyServices<TContext>(this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -117,6 +138,12 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds a set of common services to DI that are used both in the registration ceremony and in the authentication ceremony.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddCommonServices<TContext>(this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
     {
@@ -177,6 +204,12 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds a set of common services to DI responsible for handling cryptography.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddCryptographyServices<TContext>(this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
     {
@@ -185,6 +218,12 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds a set of services to DI responsible for working with <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddFidoMetadataServices<TContext>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
@@ -197,6 +236,16 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds an HttpClient to DI, responsible for interacting with <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <param name="configure">
+    ///     An optional delegate for configuring the HttpClient that will be used to access the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>. Here you can add retries using <a href="https://github.com/App-vNext/Polly">Polly</a>, set timeouts,
+    ///     add your own DelegatingHandlers, or otherwise customize the behavior of HttpClient.
+    /// </param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddFidoMetadataHttpClient<TContext>(
         this IWebAuthnBuilder<TContext> builder,
         Action<IHttpClientBuilder>? configure = null)
@@ -212,6 +261,13 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds a set of services to DI responsible for background data ingest from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <param name="configure">An optional delegate for configuring the behavior of background data ingest from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddFidoMetadataBackgroundIngest<TContext>(
         this IWebAuthnBuilder<TContext> builder,
         Action<FidoMetadataBackgroundIngestHostedServiceOptions>? configure = null)
@@ -228,6 +284,12 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds a set of provider services to DI that provide data about the environment in which WebAuthn operations are processed - the current time, rpId, etc.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddProviders<TContext>(this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
     {
@@ -238,6 +300,12 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds a set of services to DI responsible for the registration ceremony.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddRegistrationCeremonyServices<TContext>(this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
     {
@@ -248,6 +316,12 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds a common set of services to DI responsible for serialization and deserialization.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddSerializationServices<TContext>(this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
     {
@@ -281,6 +355,14 @@ public static class WebAuthnBuilderExtensions
     /*********************************/
     /******** CONTEXT FACTORY ********/
     /*********************************/
+
+    /// <summary>
+    ///     Adds a factory to DI, which will create objects of type <see cref="TContext" /> before performing any operations, so that any WebAuthn operations are carried out in the specified context.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <typeparam name="TContextFactoryImpl">A class implementing the <see cref="IWebAuthnContextFactory{TContext}" /> interface.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddContextFactory<TContext, TContextFactoryImpl>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
@@ -295,6 +377,15 @@ public static class WebAuthnBuilderExtensions
     /*********** STORAGES ***********/
     /********************************/
     // Default
+
+    /// <summary>
+    ///     Adds standard implementations of several storages to DI.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <param name="configureRegistration">An optional delegate for configuring the behavior of the storage responsible for storing registration ceremony data.</param>
+    /// <param name="configureAuthentication">An optional delegate for configuring the behavior of the storage responsible for storing authentication ceremony data.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddDefaultStorages<TContext>(
         this IWebAuthnBuilder<TContext> builder,
         Action<DefaultCookieRegistrationCeremonyStorageOptions>? configureRegistration = null,
@@ -308,6 +399,13 @@ public static class WebAuthnBuilderExtensions
             .AddDefaultFidoMetadataStorage();
     }
 
+    /// <summary>
+    ///     Adds a standard implementation of storage to DI, responsible for handling the registration ceremony.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <param name="configure">An optional delegate for configuring the behavior of the storage responsible for storing registration ceremony data.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddDefaultRegistrationCeremonyStorage<TContext>(
         this IWebAuthnBuilder<TContext> builder,
         Action<DefaultCookieRegistrationCeremonyStorageOptions>? configure = null)
@@ -324,6 +422,13 @@ public static class WebAuthnBuilderExtensions
         return builder.AddRegistrationCeremonyStorage<TContext, DefaultCookieRegistrationCeremonyStorage<TContext>>();
     }
 
+    /// <summary>
+    ///     Adds a standard implementation of storage to DI, responsible for handling the authentication ceremony.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <param name="configure">An optional delegate for configuring the behavior of the storage responsible for storing authentication ceremony data.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddDefaultAuthenticationCeremonyStorage<TContext>(
         this IWebAuthnBuilder<TContext> builder,
         Action<DefaultCookieAuthenticationCeremonyStorageOptions>? configure = null)
@@ -340,6 +445,12 @@ public static class WebAuthnBuilderExtensions
         return builder.AddAuthenticationCeremonyStorage<TContext, DefaultCookieAuthenticationCeremonyStorage<TContext>>();
     }
 
+    /// <summary>
+    ///     Adds a standard implementation of storage to DI, responsible for storing FIDO metadata.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddDefaultFidoMetadataStorage<TContext>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
@@ -352,6 +463,14 @@ public static class WebAuthnBuilderExtensions
     }
 
     // Non-default
+
+    /// <summary>
+    ///     Adds an implementation of storage to DI, responsible for storing registration ceremony data.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <typeparam name="TRegistrationCeremonyStorageImpl">A class implementing the <see cref="IRegistrationCeremonyStorage{TContext}" /> interface.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddRegistrationCeremonyStorage<TContext, TRegistrationCeremonyStorageImpl>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
@@ -362,6 +481,13 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds an implementation of storage to DI, responsible for storing authentication ceremony data.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <typeparam name="TAuthenticationCeremonyStorageImpl">A class implementing the <see cref="IAuthenticationCeremonyStorage{TContext}" /> interface.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddAuthenticationCeremonyStorage<TContext, TAuthenticationCeremonyStorageImpl>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
@@ -372,6 +498,13 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds an implementation of storage to DI, used for searching in the metadata provided by the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a> during WebAuthn registration and authentication ceremonies.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <typeparam name="TFidoMetadataSearchStorageImpl">A class implementing the <see cref="IFidoMetadataSearchStorage{TContext}" /> interface.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddFidoMetadataSearchStorage<TContext, TFidoMetadataSearchStorageImpl>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
@@ -382,6 +515,13 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds an implementation of storage to DI, used for background ingest of metadata provided by the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <typeparam name="TFidoMetadataIngestStorageImpl">A class implementing the <see cref="IFidoMetadataIngestStorage" /> interface.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddFidoMetadataIngestStorage<TContext, TFidoMetadataIngestStorageImpl>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
@@ -392,6 +532,13 @@ public static class WebAuthnBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    ///     Adds an implementation of storage to DI, used for storing and searching keys during WebAuthn registration and authentication ceremonies.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <typeparam name="TCredentialStorageImpl">A class implementing the <see cref="ICredentialStorage{TContext}" /> interface.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddCredentialStorage<TContext, TCredentialStorageImpl>(
         this IWebAuthnBuilder<TContext> builder)
         where TContext : class, IWebAuthnContext
