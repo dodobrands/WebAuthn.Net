@@ -41,6 +41,7 @@ Our goal is to create an easy-to-use, expandable, production-ready implementatio
     - [MySQL](src/WebAuthn.Net.Storage.MySql)
     - [InMemory](src/WebAuthn.Net.Storage.InMemory) (for sample applications)
 - ✅ [Sample applications](samples)
+- ✅ Exceptionless API (avoid exceptions wherever possible)
 - ✅ Designed with extensibility in mind (almost any library component can be overridden)
 - ✅ Intellisense documentation
 
