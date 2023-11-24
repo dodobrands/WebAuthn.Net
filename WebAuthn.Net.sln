@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{19131E38-A
 		.gitignore = .gitignore
 		.gitattributes = .gitattributes
 		Directory.Build.props = Directory.Build.props
+		NOTICE.md = NOTICE.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAuthn.Net.Storage.MySql", "src\WebAuthn.Net.Storage.MySql\WebAuthn.Net.Storage.MySql.csproj", "{2CF68B25-DDEC-48E8-AA51-6B61EBF81A9C}"
@@ -39,6 +40,14 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAuthn.Net.FidoConformance", "samples\WebAuthn.Net.FidoConformance\WebAuthn.Net.FidoConformance.csproj", "{3405F0F6-95CA-47DB-9C49-885B3536F4A3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAuthn.Net.Sample.Mvc", "samples\WebAuthn.Net.Sample.Mvc\WebAuthn.Net.Sample.Mvc.csproj", "{D2761C95-4ED2-4ED3-890A-BE038DFE6AC0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{0077F420-64BE-4333-8FE0-FA77FE09A4AD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{6762B944-896F-44DE-980A-DB5BFFB0A0AB}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\CI.yml = .github\workflows\CI.yml
+		.github\workflows\Release.yml = .github\workflows\Release.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -95,5 +104,7 @@ Global
 		{9257176A-80EA-4691-B763-69B83164430E} = {19131E38-A34B-4D5C-A917-34BDDEA3805D}
 		{3405F0F6-95CA-47DB-9C49-885B3536F4A3} = {9257176A-80EA-4691-B763-69B83164430E}
 		{D2761C95-4ED2-4ED3-890A-BE038DFE6AC0} = {9257176A-80EA-4691-B763-69B83164430E}
+		{0077F420-64BE-4333-8FE0-FA77FE09A4AD} = {19131E38-A34B-4D5C-A917-34BDDEA3805D}
+		{6762B944-896F-44DE-980A-DB5BFFB0A0AB} = {0077F420-64BE-4333-8FE0-FA77FE09A4AD}
 	EndGlobalSection
 EndGlobal
