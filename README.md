@@ -64,6 +64,7 @@ Any contributions appreciated!
 If you have an idea, feature request, or you find a bug – feel free to open new issue.
 
 There are few tips how to make your contribution even better
+
 - Start with issue.
   Even if you want to write code by yourself to implement some feature or fix a bug,
   please create Issue first and link it in the Pull Request.
@@ -72,7 +73,7 @@ There are few tips how to make your contribution even better
 
 ## Acknowledgements
 
-WebAuthn.Net is built using the following wonderful tools:
+WebAuthn.Net is built using the following wonderful tools
 
 * [.NET](https://github.com/dotnet/runtime)
 * [ASP.NET Core](https://github.com/dotnet/aspnetcore)
