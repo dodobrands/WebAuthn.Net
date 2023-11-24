@@ -8,7 +8,7 @@ Our goal is to create an easy-to-use, expandable, production-ready implementatio
 
 ## Supported features
 
-- ✅ [Passkeys out of the box](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#passkey)
+- ✅ [Passkeys are supported out of the box](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#passkey)
 - ✅ Attestation API & verification (Register and verify credentials/authenticators)
 - ✅ Assertion API & verification (Authenticate users)
 - ✅ 100% completion of the entire [FIDO Conformance Test](https://fidoalliance.org/certification/functional-certification/conformance/), including all optional features
