@@ -114,7 +114,7 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("x5c"), out var x5CCbor))
         {
-            value = X5CDecodeResult.Empty;
+            value = X5CDecodeResult.Empty();
             return true;
         }
 
@@ -145,8 +145,6 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
 
     private class X5CDecodeResult
     {
-        public static readonly X5CDecodeResult Empty = new();
-
         private X5CDecodeResult(byte[][] value)
         {
             HasValue = true;
@@ -166,6 +164,11 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         public static X5CDecodeResult Present(byte[][] value)
         {
             return new(value);
+        }
+
+        public static X5CDecodeResult Empty()
+        {
+            return new();
         }
     }
 }

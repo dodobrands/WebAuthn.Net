@@ -580,7 +580,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         }
     }
 
-    protected static DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset value, uint timeout)
+    protected virtual DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset value, uint timeout)
     {
         var expiresAtMilliseconds = value.ToUnixTimeMilliseconds() + timeout;
         return DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMilliseconds);
