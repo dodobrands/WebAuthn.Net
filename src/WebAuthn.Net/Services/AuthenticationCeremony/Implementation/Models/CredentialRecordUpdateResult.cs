@@ -4,13 +4,13 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Models;
 
 public class CredentialRecordUpdateResult
 {
-    public CredentialRecordUpdateResult(CredentialRecord updatedCredentialRecord, bool uvInitializedUpdated)
+    public CredentialRecordUpdateResult(CredentialRecord updatedCredentialRecord, bool uvInitializedCanBeUpdatedToTrue)
     {
         UpdatedCredentialRecord = updatedCredentialRecord;
-        UvInitializedUpdated = uvInitializedUpdated;
+        UvInitializedCanBeUpdatedToTrue = uvInitializedCanBeUpdatedToTrue;
     }
 
     public CredentialRecord UpdatedCredentialRecord { get; }
 
-    public bool UvInitializedUpdated { get; }
+    public bool UvInitializedCanBeUpdatedToTrue { get; }
 }

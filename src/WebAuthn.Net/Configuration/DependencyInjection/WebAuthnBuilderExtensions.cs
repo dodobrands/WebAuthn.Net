@@ -357,7 +357,7 @@ public static class WebAuthnBuilderExtensions
     /*********************************/
 
     /// <summary>
-    ///     Adds a factory to DI, which will create objects of type <see cref="TContext" /> before performing any operations, so that any WebAuthn operations are carried out in the specified context.
+    ///     Adds a factory to DI, which will create objects of type <typeparamref name="TContext" /> before performing any operations, so that any WebAuthn operations are carried out in the specified context.
     /// </summary>
     /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
     /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>

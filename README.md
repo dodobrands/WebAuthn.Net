@@ -1,6 +1,6 @@
 # WebAuthn.Net
 
-Working implementation of the [WebAuthn Level 3](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/) standard for .NET 6 and 8
+Working implementation of the [WebAuthn Level 3](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/) standard for .NET 6 and .NET 8
 
 ## Purpose
 
@@ -35,7 +35,7 @@ Our goal is to create an easy-to-use, expandable, production-ready implementatio
     - [ES512](https://www.rfc-editor.org/rfc/rfc9053.html#section-2.1)
     - [EdDSA](https://www.rfc-editor.org/rfc/rfc9053.html#section-2.2) (via [libsodium](https://github.com/jedisct1/libsodium), because .NET currently [doesn't support Ed25519](https://github.com/dotnet/runtime/issues/14741))
 - ✅ Processing of each request with a single transaction
-- ✅ Ready-to-use storage implementations:
+- ✅ Ready-to-use storage implementations
     - [Microsoft SQL Server](src/WebAuthn.Net.Storage.SqlServer)
     - [PostgreSQL](src/WebAuthn.Net.Storage.PostgreSql)
     - [MySQL](src/WebAuthn.Net.Storage.MySql)
@@ -54,27 +54,26 @@ Our goal is to create an easy-to-use, expandable, production-ready implementatio
 
 ## Releasing
 
-Create release via [Github New Release](https://github.com/dodopizza/WebAuthn.Net/releases/new).
-Specify tag by semver (example: 1.3.37) and target branch (main by default) then publish.
-Github Actions will trigger on new release and publish NuGet package for a release.
+- Create release via [Github New Release](https://github.com/dodopizza/WebAuthn.Net/releases/new)
+- Specify tag by semver (example: `1.3.37`) and target branch (`main` by default) then publish
+- Github Actions will trigger on new release and publish NuGet package for a release
 
 ## Tips for Contribution
 
 Any contributions appreciated!
 If you have an idea, feature request, or you find a bug – feel free to open new issue.
 
-There are few tips how to make your contribution even better:
+There are few tips how to make your contribution even better
 
 - Start with issue.
   Even if you want to write code by yourself to implement some feature or fix a bug,
   please create Issue first and link it in the Pull Request.
   It allows us to better understand what problem you are trying to solve.
 - When you create a Pull Request make sure triggered GitHub Actions workflow finished successfully.
-- Please use English for everything :)
 
 ## Acknowledgements
 
-WebAuthn.Net is built using the following wonderful tools:
+WebAuthn.Net is built using the following wonderful tools
 
 * [.NET](https://github.com/dotnet/runtime)
 * [ASP.NET Core](https://github.com/dotnet/aspnetcore)
