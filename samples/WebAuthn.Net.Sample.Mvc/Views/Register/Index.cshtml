@@ -63,10 +63,9 @@
                     <div class="form-floating mb-2">
                         <select id="webauthn-params-rkey" class="form-select">
                             <option value="unset">(not set)</option>
-                            <option value="none">None</option>
-                            <option value="direct">Direct</option>
-                            <option value="indirect">Indirect</option>
-                            <option value="enterprise">Enterprise</option>
+                            <option value="discouraged">Discouraged</option>
+                            <option value="preferred">Preferred</option>
+                            <option value="required">Required</option>
                         </select>
                         <label for="webauthn-params-rkey">Resident Key Requirement</label>
                     </div>
@@ -81,6 +80,7 @@
 <script async type="text/javascript">
 (() => {
     // Utils
+    const getRegParamsState = () => JSON.parse(localStorage.getItem("webauthn-registration-params"));
     const elements = {
         registerInput: () => document.getElementById("webauthn-register-name"),
         registerButton: () => document.getElementById("webauthn-register-submit")
@@ -126,6 +126,7 @@
         const url = "/Register/BeginRegisterCeremony";
         const data = {
             username,
+            registrationParameters: getRegParamsState(),
             extensions: {}
         };
         return await makeJsonApiCall({ url, data, method: "POST" });
@@ -193,7 +194,7 @@
     const defaultParams = {
         userVerification: "preferred",
         attachment: "unset",
-        discoverableCredential: "preferred",
+        discoverableCredential: "unset",
         attestation: "none",
         residentKey: "unset",
     };

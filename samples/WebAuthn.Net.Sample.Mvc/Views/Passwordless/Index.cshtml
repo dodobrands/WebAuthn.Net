@@ -4,8 +4,7 @@
 }
 
 <div class="row">
-    <div class="col-md-4"></div>
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card">
             <div class="card-body">
                 <h2 class="card-title">Passwordless Authentication</h2>
@@ -20,108 +19,183 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4"></div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Passwordless Authentication Options</h2>
+                <form id="webauthn-params" class="p-1">
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-params-uv" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="discouraged">Discouraged</option>
+                            <option value="preferred">Preferred</option>
+                            <option value="required">Required</option>
+                        </select>
+                        <label for="webauthn-params-uv">User Verification Requirement</label>
+                    </div>
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-params-attestation" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="none">None</option>
+                            <option value="direct">Direct</option>
+                            <option value="indirect">Indirect</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                        <label for="webauthn-params-attestation">Attestation Conveyance Preference</label>
+                    </div>
+                    <hr>
+                    <button type="submit" id="webauthn-params-submit" class="btn btn-primary">Reset</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script async type="text/javascript">
-const elements = {
-    authenticateInput: () => document.getElementById("webauthn-authenticate-name"),
-    authenticateButton: () => document.getElementById("webauthn-authenticate-submit")
-};
+(() => {
+    const elements = {
+        authenticateInput: () => document.getElementById("webauthn-authenticate-name"),
+        authenticateButton: () => document.getElementById("webauthn-authenticate-submit")
+    };
 
-// Utils
-const coerceToArrayBuffer = (x) => {
-    const fix = x.replace(/-/g, "+").replace(/_/g, "/");
-    return Uint8Array.from(window.atob(fix), c => c.charCodeAt(0));
-};
-const coerceToBase64Url = (x) => {
-    const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
-    return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
-};
-const clearInput = (x) => x.value = "";
-const getValue = (x) => x.value;
+    // Utils
+    const getPasswordlessParamsState = () => JSON.parse(localStorage.getItem("webauthn-passwordless-params"));
+    const coerceToArrayBuffer = (x) => {
+        const fix = x.replace(/-/g, "+").replace(/_/g, "/");
+        return Uint8Array.from(window.atob(fix), c => c.charCodeAt(0));
+    };
+    const coerceToBase64Url = (x) => {
+        const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
+        return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
+    };
+    const clearInput = (x) => x.value = "";
+    const getValue = (x) => x.value;
 
-const makeJsonApiCall = async ({url, data, method}) => {
-    const response = await fetch(url, {
-        method,
-        body: JSON.stringify(data),
-        credentials: "same-origin",
-        headers: {
-            "content-type": "application/json"
+    const makeJsonApiCall = async ({url, data, method}) => {
+        const response = await fetch(url, {
+            method,
+            body: JSON.stringify(data),
+            credentials: "same-origin",
+            headers: {
+                "content-type": "application/json"
+            }
+        });
+
+        if (response.ok) {
+            return await response.json();
         }
+
+        alert(await response.text());
+        return undefined;
+    };
+    const isWebauthnAvailable = () => {
+        const missingWebauthnApis = window.PublicKeyCredential === undefined
+        || typeof window.PublicKeyCredential !== "function"
+        || typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function";
+
+        return window.isSecureContext && !missingWebauthnApis;
+    };
+
+    // API
+    const initiateAuthentication = async ({ username }) => {
+        const url = "/Passwordless/BeginAuthenticationCeremony";
+        const {userVerification, attestation} = getPasswordlessParamsState();
+        const data = {
+            username,
+            userVerification,
+            attestation
+        };
+        return await makeJsonApiCall({ url, data, method: "POST" });
+    };
+    const submitAuthentication = async ({ username, response }) => {
+        const url = "/Passwordless/AuthenticationCeremony";
+        const data = {
+            id: coerceToBase64Url(response.rawId),
+            username,
+            type: response.type,
+            extensions: response.getClientExtensionResults(),
+            response: {
+                userHandle: coerceToBase64Url(response.response.userHandle),
+                authenticatorData: coerceToBase64Url(response.response.authenticatorData),
+                clientDataJSON: coerceToBase64Url(response.response.clientDataJSON),
+                signature: coerceToBase64Url(response.response.signature),
+            }
+        }
+        return await makeJsonApiCall({ url, data, method: "POST" });
+    };
+
+    // DOM Handlers
+    const onAuthenticateButtonHandler = async (e) => {
+        e.preventDefault();
+        const username = getValue(elements.authenticateInput());
+        const initialData = await initiateAuthentication({ username });
+        if (!initialData) return;
+        const { options } = initialData;
+        const publicKey = {
+            ...options,
+            challenge: coerceToArrayBuffer(options.challenge),
+            allowCredentials: (options.allowCredentials ?? []).map(x => ({...x,  id: coerceToArrayBuffer(x.id)}))
+        };
+        const response = await navigator.credentials.get({ publicKey });
+        if (!response) return;
+
+        const attestationResult = await submitAuthentication({ username, response });
+        if (!attestationResult) return;
+        const { successful } = attestationResult;
+        if (!successful) {
+            alert("Failed to register user");
+            return;
+        }
+        location.assign("/Fido/Authenticated");
+    };
+
+    // INIT
+    document.addEventListener("DOMContentLoaded", () => {
+        if (!isWebauthnAvailable()) {
+            alert("Browser doesn't support Webauthn API");
+            return;
+        }
+        elements.authenticateButton().addEventListener("click", onAuthenticateButtonHandler);
     });
+})();
+</script>
 
-    if (response.ok) {
-        return await response.json();
-    }
-
-    alert(await response.text());
-    return undefined;
-};
-const isWebauthnAvailable = () => {
-    const missingWebauthnApis = window.PublicKeyCredential === undefined
-    || typeof window.PublicKeyCredential !== "function"
-    || typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function";
-
-    return window.isSecureContext && !missingWebauthnApis;
-};
-
-// API
-const initiateAuthentication = async ({ username }) => {
-    const url = "/Passwordless/BeginAuthenticationCeremony";
-    const data = {
-        username,
+<script async type="text/javascript">
+(() => {
+    // State
+    const registrationParamsKey = "webauthn-passwordless-params";
+    const defaultParams = {
+        userVerification: "preferred",
+        attestation: "none",
     };
-    return await makeJsonApiCall({ url, data, method: "POST" });
-};
-const submitAuthentication = async ({ username, response }) => {
-    const url = "/Passwordless/AuthenticationCeremony";
-    const data = {
-        id: coerceToBase64Url(response.rawId),
-        username,
-        type: response.type,
-        extensions: response.getClientExtensionResults(),
-        response: {
-            userHandle: coerceToBase64Url(response.response.userHandle),
-            authenticatorData: coerceToBase64Url(response.response.authenticatorData),
-            clientDataJSON: coerceToBase64Url(response.response.clientDataJSON),
-            signature: coerceToBase64Url(response.response.signature),
-        }
-    }
-    return await makeJsonApiCall({ url, data, method: "POST" });
-};
-
-// DOM Handlers
-const onAuthenticateButtonHandler = async (e) => {
-    e.preventDefault();
-    const username = getValue(elements.authenticateInput());
-    const initialData = await initiateAuthentication({ username });
-    if (!initialData) return;
-    const { options } = initialData;
-    const publicKey = {
-        ...options,
-        challenge: coerceToArrayBuffer(options.challenge),
-        allowCredentials: (options.allowCredentials ?? []).map(x => ({...x,  id: coerceToArrayBuffer(x.id)}))
+    const getState = () => {
+        const value = localStorage.getItem(registrationParamsKey);
+        return value ? JSON.parse(value) : undefined;
     };
-    const response = await navigator.credentials.get({ publicKey });
-    if (!response) return;
+    const setState = (x) => localStorage.setItem(registrationParamsKey, JSON.stringify(x));
+    const resetState = () => setState(JSON.parse(JSON.stringify(defaultParams)));
+    const withState = (f) => (e) => f({ state: getState(), event: e });
 
-    const attestationResult = await submitAuthentication({ username, response });
-    if (!attestationResult) return;
-    const { successful } = attestationResult;
-    if (!successful) {
-        alert("Failed to register user");
-        return;
-    }
-    location.assign("/Fido/Authenticated");
-};
+    // DOM
+    const formElements = {
+        userVerification: () => document.getElementById("webauthn-params-uv"),
+        attestation: () => document.getElementById("webauthn-params-attestation"),
+    };
 
-// INIT
-document.addEventListener("DOMContentLoaded", () => {
-    if (!isWebauthnAvailable()) {
-        alert("Browser doesn't support Webauthn API");
-        return;
-    }
-    elements.authenticateButton().addEventListener("click", onAuthenticateButtonHandler);
-});
+    const initializeForm = (state) => Object
+        .keys(formElements)
+        .forEach(key => {
+            const element = formElements[key]();
+            const onChange = ({state, event}) => setState({...state, [key]: event.target.value});
+            element.value = state[key];
+            element.addEventListener("change", withState(onChange));
+        });
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // Ensure state is created
+        !getState() && resetState();
+        initializeForm(getState());
+        document.getElementById("webauthn-params-submit").addEventListener("click", resetState);
+    });
+})();
 </script>
