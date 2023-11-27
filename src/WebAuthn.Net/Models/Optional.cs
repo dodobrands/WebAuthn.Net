@@ -46,7 +46,7 @@ public class Optional<TValue>
     /// <summary>
     ///     Returns a container denoting the guaranteed presence of a return value, which is definitely not <see langword="null" />.
     /// </summary>
-    /// <param name="value">A <see cref="TValue" /> type value not equal to <see langword="null" />.</param>
+    /// <param name="value">A <typeparamref name="TValue" /> type value not equal to <see langword="null" />.</param>
     /// <returns>A container denoting the guaranteed presence of a return value, which is definitely not <see langword="null" />.</returns>
     public static Optional<TValue> Payload(TValue value)
     {

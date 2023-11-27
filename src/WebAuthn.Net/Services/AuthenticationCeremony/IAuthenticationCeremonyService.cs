@@ -15,11 +15,25 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony;
 /// </remarks>
 public interface IAuthenticationCeremonyService
 {
+    /// <summary>
+    ///     Asynchronously initiates the authentication ceremony, generating options in order to execute it.
+    /// </summary>
+    /// <param name="httpContext">The context of the HTTP request in which the WebAuthn operation is being processed.</param>
+    /// <param name="request">A request containing the parameters for generating options for the authentication ceremony.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>The result of initiating the authentication ceremony.</returns>
     Task<BeginAuthenticationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
         BeginAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    ///     Asynchronously completes the authentication ceremony.
+    /// </summary>
+    /// <param name="httpContext">The context of the HTTP request in which the WebAuthn operation is being processed.</param>
+    /// <param name="request">A request containing the parameters for completing the authentication ceremony.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>The result of completing the authentication ceremony.</returns>
     Task<CompleteAuthenticationCeremonyResult> CompleteCeremonyAsync(
         HttpContext httpContext,
         CompleteAuthenticationCeremonyRequest request,

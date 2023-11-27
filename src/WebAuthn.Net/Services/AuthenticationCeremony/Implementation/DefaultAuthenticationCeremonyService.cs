@@ -574,7 +574,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // 27. If all the above steps are successful, continue with the authentication ceremony as appropriate. Otherwise, fail the authentication ceremony.
             var result = CompleteAuthenticationCeremonyResult.Success(
                 recommendedActions,
-                credentialRecordUpdateResult.UvInitializedUpdated);
+                credentialRecordUpdateResult.UvInitializedCanBeUpdatedToTrue);
             await context.CommitAsync(cancellationToken);
             return result;
         }
@@ -615,16 +615,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             attestationClientDataJson = responseClientDataJson;
         }
 
-        var newUvInitialized = old.UvInitialized;
-        var uvInitializedUpdated = false;
-        if (Options.CurrentValue.AuthenticationCeremony.AllowToUpdateUserUserVerifiedFlag)
-        {
-            if (!old.UvInitialized && uvInitialized.HasValue && uvInitialized.Value)
-            {
-                newUvInitialized = true;
-                uvInitializedUpdated = true;
-            }
-        }
+        var uvInitializedCanBeUpdatedToTrue = !old.UvInitialized && uvInitialized.HasValue && uvInitialized.Value;
 
         var updatedCredentialRecord = new CredentialRecord(
             old.Type,
@@ -632,12 +623,12 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             old.PublicKey,
             authDataSignCount,
             old.Transports,
-            newUvInitialized,
+            old.UvInitialized,
             old.BackupEligible,
             currentBs,
             attestationObject,
             attestationClientDataJson);
-        return new(updatedCredentialRecord, uvInitializedUpdated);
+        return new(updatedCredentialRecord, uvInitializedCanBeUpdatedToTrue);
     }
 
     protected virtual async Task<bool> VerifyAttestationObjectAsync(

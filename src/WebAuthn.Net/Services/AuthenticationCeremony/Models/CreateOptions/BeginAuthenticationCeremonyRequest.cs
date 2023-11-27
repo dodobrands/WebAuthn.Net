@@ -7,7 +7,7 @@ using WebAuthn.Net.Models.Protocol.Enums;
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 
 /// <summary>
-///     Options for Assertion Generation
+///     A request containing the parameters for generating options for the authentication ceremony.
 /// </summary>
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-assertion-options">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.5. Options for Assertion Generation (dictionary PublicKeyCredentialRequestOptions)</a>
