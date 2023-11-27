@@ -1,0 +1,86 @@
+@{
+    ViewData["Title"] = "Webauthn.Net Usernameless";
+    ViewData["ShowLogoutButton"] = false;
+}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Usernameless Authentication</h2>
+                <form id="webauthn-authenticate" class="p-1">
+                    <hr>
+                    <button type="submit" id="webauthn-usernameless-submit" class="btn btn-primary">Submit</button>
+                    <button type="button" id="webauthn-usernameless-register" class="btn btn-primary">Register</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+
+    </div>
+</div>
+
+
+<script async type="text/javascript">
+(() => {
+    const elements = {
+        authenticateBtn: () => document.getElementById("webauthn-usernameless-submit"),
+        registerBtn: () => document.getElementById("webauthn-usernameless-register"),
+    }
+
+    // Utils
+    const coerceToArrayBuffer = (x) => {
+        const fix = x.replace(/-/g, "+").replace(/_/g, "/");
+        return Uint8Array.from(window.atob(fix), c => c.charCodeAt(0));
+    };
+    const coerceToBase64Url = (x) => {
+        const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
+        return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
+    };
+    const getValue = (x) => x.value;
+    const makeJsonApiCall = async ({url, data, method}) => {
+        const response = await fetch(url, {
+            method,
+            body: JSON.stringify(data),
+            credentials: "same-origin",
+            headers: {
+                "content-type": "application/json"
+            }
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        alert(await response.text());
+        return undefined;
+    };
+    const isWebauthnAvailable = () => {
+        const missingWebauthnApis = window.PublicKeyCredential === undefined
+        || typeof window.PublicKeyCredential !== "function"
+        || typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function";
+
+        return window.isSecureContext && !missingWebauthnApis;
+    };
+
+    //API
+    
+
+    // INIT
+    document.addEventListener("DOMContentLoaded", () => {
+        if (!isWebauthnAvailable()) {
+            alert("Browser doesn't support Webauthn API");
+            return;
+        }
+        // TODO
+    });
+})();
+</script>
+
+
+<script async type="text/javascript">
+(() => {
+
+})();
+</script>
