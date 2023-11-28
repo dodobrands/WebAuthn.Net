@@ -49,7 +49,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
-    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         PackedAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -70,7 +70,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             {
                 if (attStmt.X5C.Length == 0)
                 {
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
 
                 var currentDate = TimeProvider.GetPreciseUtcDateTime();
@@ -80,19 +80,19 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
                     if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
                     {
                         x5CCert?.Dispose();
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     certificatesToDispose.Add(x5CCert);
                     x5CCertificates.Add(x5CCert);
                     if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                     {
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     if (IsRootCertificate(x5CCert))
                     {
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
                 }
 
@@ -127,7 +127,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual async Task<Result<AttestationStatementVerificationResult>> VerifyPackedWithX5CAsync(
+    protected virtual async Task<Result<VerifiedAttestationStatement>> VerifyPackedWithX5CAsync(
         TContext context,
         PackedAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -139,7 +139,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         cancellationToken.ThrowIfCancellationRequested();
         if (attStmt is null || authenticatorData is null)
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // If x5c is present
@@ -151,20 +151,20 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
         if (!SignatureVerifier.IsValidCertificateSign(attestnCert, attStmt.Alg, dataToVerify, attStmt.Sig))
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 2) Verify that 'attestnCert' meets the requirements in §8.2.1 Packed Attestation Statement Certificate Requirements.
         if (!IsAttestnCertValid(attestnCert, out var aaguid))
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 3) If attestnCert contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
         // verify that the value of this extension matches the 'aaguid' in 'authenticatorData'.
         if (aaguid.HasValue && authenticatorData.AttestedCredentialData.Aaguid != aaguid.Value)
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 4) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether attStmt conveys a Basic or AttCA attestation.
@@ -175,16 +175,16 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             cancellationToken);
         if (attestationTypeResult.HasError)
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 5) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path 'x5c'.
-        var result = new AttestationStatementVerificationResult(
+        var result = new VerifiedAttestationStatement(
             AttestationStatementFormat.Packed,
             attestationTypeResult.Ok.AttestationType,
             trustPath,
             new(attestationTypeResult.Ok.AttestationRootCertificates));
-        return Result<AttestationStatementVerificationResult>.Success(result);
+        return Result<VerifiedAttestationStatement>.Success(result);
     }
 
     protected virtual async Task<Result<FidoPackedAttestationTypeResult>> GetAttestationTypeAsync(
@@ -230,21 +230,21 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual Result<AttestationStatementVerificationResult> VerifyPackedWithoutX5C(
+    protected virtual Result<VerifiedAttestationStatement> VerifyPackedWithoutX5C(
         PackedAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
         byte[] clientDataHash)
     {
         if (attStmt is null || authenticatorData is null)
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // If x5c is not present, self attestation is in use.
         // 1) Validate that 'alg' matches the algorithm of the 'credentialPublicKey' in 'authenticatorData'.
         if (attStmt.Alg != authenticatorData.AttestedCredentialData.CredentialPublicKey.Alg)
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 2) Verify that 'sig' is a valid signature over the concatenation of 'authenticatorData' and 'clientDataHash'
@@ -252,16 +252,16 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
         if (!SignatureVerifier.IsValidCoseKeySign(authenticatorData.AttestedCredentialData.CredentialPublicKey, dataToVerify, attStmt.Sig))
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 3) If successful, return implementation-specific values representing attestation type Self and an empty attestation trust path.
-        var result = new AttestationStatementVerificationResult(
+        var result = new VerifiedAttestationStatement(
             AttestationStatementFormat.Packed,
             AttestationType.Self,
             null,
             null);
-        return Result<AttestationStatementVerificationResult>.Success(result);
+        return Result<VerifiedAttestationStatement>.Success(result);
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]

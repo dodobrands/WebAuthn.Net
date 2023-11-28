@@ -11,7 +11,7 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions
 public interface ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
-    Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         TpmAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,

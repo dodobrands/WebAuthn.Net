@@ -70,10 +70,10 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     ///     representation suitable for further work.
     /// </param>
     /// <param name="clientDataDecoder">Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation for further work.</param>
-    /// <param name="attestationObjectDecoder"></param>
-    /// <param name="authenticatorDataDecoder"></param>
-    /// <param name="attestationStatementDecoder"></param>
-    /// <param name="attestationStatementVerifier"></param>
+    /// <param name="attestationObjectDecoder">Service for decoding the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary representation to a typed format for further processing.</param>
+    /// <param name="authenticatorDataDecoder">Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary representation to a typed format for further processing.</param>
+    /// <param name="attestationStatementDecoder">Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR to a typed format for further processing.</param>
+    /// <param name="attestationStatementVerifier">Service for verifying <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.</param>
     /// <param name="attestationTrustPathValidator"></param>
     /// <param name="signatureVerifier"></param>
     /// <param name="logger"></param>

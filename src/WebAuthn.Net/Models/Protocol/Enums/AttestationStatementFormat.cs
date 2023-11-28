@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 namespace WebAuthn.Net.Models.Protocol.Enums;
 
 /// <summary>
-///     WebAuthn Attestation Statement Format Identifiers
+///     Attestation statement format identifier
 /// </summary>
 /// <remarks>
 ///     <a href="https://www.iana.org/assignments/webauthn/webauthn.xhtml#webauthn-attestation-statement-format-ids">IANA "WebAuthn Attestation Statement Format Identifiers" registry</a>

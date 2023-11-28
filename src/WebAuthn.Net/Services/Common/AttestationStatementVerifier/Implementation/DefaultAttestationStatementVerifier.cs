@@ -62,7 +62,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
     protected IAppleAnonymousAttestationStatementVerifier<TContext> AppleAnonymousVerifier { get; }
     protected ILogger<DefaultAttestationStatementVerifier<TContext>> Logger { get; }
 
-    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAttestationStatementAsync(
+    public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAttestationStatementAsync(
         TContext context,
         AttestationStatementFormat fmt,
         AbstractAttestationStatement attStmt,
@@ -79,7 +79,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     if (attStmt is not PackedAttestationStatement packed)
                     {
                         Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.Packed);
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     return await PackedVerifier.VerifyAsync(context, packed, authenticatorData, clientDataHash, cancellationToken);
@@ -89,7 +89,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     if (attStmt is not TpmAttestationStatement tpm)
                     {
                         Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.Tpm);
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     return await TpmVerifier.VerifyAsync(context, tpm, authenticatorData, clientDataHash, cancellationToken);
@@ -99,7 +99,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     if (attStmt is not AndroidKeyAttestationStatement androidKey)
                     {
                         Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.AndroidKey);
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     return await AndroidKeyVerifier.VerifyAsync(context, androidKey, authenticatorData, clientDataHash, cancellationToken);
@@ -109,7 +109,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     if (attStmt is not AndroidSafetyNetAttestationStatement androidSafetyNet)
                     {
                         Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.AndroidSafetyNet);
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     return await AndroidSafetyNetVerifier.VerifyAsync(context, androidSafetyNet, authenticatorData, clientDataHash, cancellationToken);
@@ -119,7 +119,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     if (attStmt is not FidoU2FAttestationStatement fidoU2F)
                     {
                         Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.FidoU2F);
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     return await FidoU2FVerifier.VerifyAsync(context, fidoU2F, authenticatorData, clientDataHash, cancellationToken);
@@ -129,7 +129,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     if (attStmt is not AppleAnonymousAttestationStatement apple)
                     {
                         Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.AppleAnonymous);
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     return await AppleAnonymousVerifier.VerifyAsync(context, apple, authenticatorData, clientDataHash, cancellationToken);
@@ -139,7 +139,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     if (attStmt is not NoneAttestationStatement none)
                     {
                         Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.None);
-                        return Result<AttestationStatementVerificationResult>.Fail();
+                        return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     return await NoneVerifier.VerifyAsync(context, none, authenticatorData, clientDataHash, cancellationToken);
@@ -147,7 +147,7 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
             default:
                 {
                     Logger.UnknownFmt();
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
         }
     }

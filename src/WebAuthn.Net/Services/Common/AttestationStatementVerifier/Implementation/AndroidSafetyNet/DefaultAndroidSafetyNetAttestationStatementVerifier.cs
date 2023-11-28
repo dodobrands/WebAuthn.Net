@@ -49,7 +49,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     [SuppressMessage("Security", "CA5404:Do not disable token validation checks")]
-    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         AndroidSafetyNetAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -75,12 +75,12 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             // get x5c certificates for JWT validation
             if (!TryGetRawCertificates(jwt, out var trustPath))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (trustPath.Length == 0)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
@@ -90,13 +90,13 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 if (!X509CertificateInMemoryLoader.TryLoad(certBytes, out var certificate))
                 {
                     certificate?.Dispose();
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
 
                 certificatesToDispose.Add(certificate);
                 if (currentDate < certificate.NotBefore || currentDate > certificate.NotAfter)
                 {
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
 
                 // get signing keys
@@ -114,24 +114,24 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 }
                 else
                 {
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
             }
 
             var jwtValidationResult = await JwtValidator.ValidateAsync(jwtString, securityKeys, cancellationToken);
             if (!jwtValidationResult.IsValid)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (jwtValidationResult.SecurityToken is not JwtSecurityToken validatedJwt)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!TryGetRequiredClaims(validatedJwt, out var nonce, out var ctsProfileMatch, out var timestamp))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 3) Verify that the 'nonce' attribute in the payload of response
@@ -139,34 +139,34 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             var dataToVerify = SHA256.HashData(Concat(authenticatorData.Raw, clientDataHash));
             if (!Base64Raw.TryDecode(nonce, out var binaryNonce))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!binaryNonce.AsSpan().SequenceEqual(dataToVerify.AsSpan()))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 4) Verify that the SafetyNet response actually came from the SafetyNet service by following the steps in the SafetyNet online documentation.
             if (ctsProfileMatch.Value != true)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             var attestationCert = certificatesToDispose.First();
             if (attestationCert.GetNameInfo(X509NameType.DnsName, false) is not "attest.android.com")
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (currentDate < timestamp.Value)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (currentDate.Subtract(timestamp.Value) > TimeSpan.FromSeconds(60))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 5) If successful, return implementation-specific values representing attestation type Basic and attestation trust path x5c.
@@ -177,15 +177,15 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 cancellationToken);
             if (acceptableTrustAnchorsResult.HasError)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
-            var result = new AttestationStatementVerificationResult(
+            var result = new VerifiedAttestationStatement(
                 AttestationStatementFormat.AndroidSafetyNet,
                 AttestationType.Basic,
                 trustPath,
                 acceptableTrustAnchorsResult.Ok);
-            return Result<AttestationStatementVerificationResult>.Success(result);
+            return Result<VerifiedAttestationStatement>.Success(result);
         }
         finally
         {
@@ -201,7 +201,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         }
     }
 
-    protected virtual async Task<Result<AcceptableTrustAnchors>> GetAcceptableTrustAnchorsAsync(
+    protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
         X509Certificate2 credCert,
         AttestedAuthenticatorData authenticatorData,
@@ -223,7 +223,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             rootCertificates.AddRange(metadataRoots.Value);
         }
 
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates));
+        return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
     protected virtual async Task<Optional<byte[][]>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(

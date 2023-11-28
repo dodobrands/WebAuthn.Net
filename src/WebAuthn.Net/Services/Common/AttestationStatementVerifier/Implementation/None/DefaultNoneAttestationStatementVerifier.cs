@@ -14,7 +14,7 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultNoneAttestationStatementVerifier<TContext> :
     INoneAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    public Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         NoneAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -23,11 +23,11 @@ public class DefaultNoneAttestationStatementVerifier<TContext> :
     {
         // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-none-attestation
         // §8.7. None Attestation Statement Format
-        var result = new AttestationStatementVerificationResult(
+        var result = new VerifiedAttestationStatement(
             AttestationStatementFormat.None,
             AttestationType.None,
             null,
             null);
-        return Task.FromResult(Result<AttestationStatementVerificationResult>.Success(result));
+        return Task.FromResult(Result<VerifiedAttestationStatement>.Success(result));
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
@@ -19,7 +20,7 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
 
-    public virtual bool IsValid(AttestationStatementVerificationResult verificationResult)
+    public virtual bool IsValid(VerifiedAttestationStatement verificationResult)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (verificationResult is null)
@@ -36,16 +37,21 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
                         return true;
                     }
 
-                    if (verificationResult.AcceptableTrustAnchors is null)
+                    if (verificationResult.AttestationRootCertificates is null)
                     {
+                        if (verificationResult.AttestationTrustPath.Length != 1)
+                        {
+                            return false;
+                        }
+
                         var certificateBytes = verificationResult.AttestationTrustPath.Single();
                         return IsSelfSigned(certificateBytes);
                     }
 
-                    if (verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Count == 1
+                    if (verificationResult.AttestationRootCertificates.Count == 1
                         && verificationResult.AttestationTrustPath.Length == 1)
                     {
-                        var rootCertificate = verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Single();
+                        var rootCertificate = verificationResult.AttestationRootCertificates.Single();
                         var trustPath = verificationResult.AttestationTrustPath.Single();
                         return rootCertificate.AsSpan().SequenceEqual(trustPath.AsSpan());
                     }
@@ -61,25 +67,15 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
                         return false;
                     }
 
-                    if (verificationResult.AcceptableTrustAnchors is null)
+                    if (verificationResult.AttestationRootCertificates is null)
                     {
                         return false;
                     }
 
-                    if (verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Count == 1
-                        && verificationResult.AttestationTrustPath.Length == 1)
-                    {
-                        var rootCertificate = verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.Single();
-                        var trustPath = verificationResult.AttestationTrustPath.Single();
-                        if (rootCertificate.AsSpan().SequenceEqual(trustPath.AsSpan()))
-                        {
-                            return true;
-                        }
-                    }
 
                     return IsValid(
                         verificationResult.AttestationTrustPath,
-                        verificationResult.AcceptableTrustAnchors.AttestationRootCertificates.ToArray(),
+                        verificationResult.AttestationRootCertificates.ToArray(),
                         Options.CurrentValue.X509ChainValidation.OnValidateAttestationTrustPathChain);
                 }
             case AttestationType.None:
@@ -126,11 +122,27 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
         }
     }
 
+    [SuppressMessage("ReSharper", "ConditionalAccessQualifierIsNonNullableAccordingToAPIContract")]
     protected virtual bool IsValid(
         byte[][] attestationTrustPath,
         byte[][] attestationRootCertificates,
         Action<X509Chain> configureChain)
     {
+        if (!(attestationTrustPath?.Length > 0 && attestationRootCertificates?.Length > 0))
+        {
+            return false;
+        }
+
+        if (attestationRootCertificates.Length == 1 && attestationTrustPath.Length == 1)
+        {
+            var rootCertificate = attestationRootCertificates.Single();
+            var trustPath = attestationTrustPath.Single();
+            if (rootCertificate.AsSpan().SequenceEqual(trustPath.AsSpan()))
+            {
+                return true;
+            }
+        }
+
         var isChainOverCertificatesValid = X509TrustChainValidator.IsAttestationTrustPathChainValid(
             attestationRootCertificates,
             attestationTrustPath,
