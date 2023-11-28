@@ -47,7 +47,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
-    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         FidoU2FAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -68,7 +68,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
 
         if (attStmt.X5C.Length != 1)
         {
-            return Result<AttestationStatementVerificationResult>.Fail();
+            return Result<VerifiedAttestationStatement>.Fail();
         }
 
         X509Certificate2? attCert = null;
@@ -79,18 +79,18 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             if (!X509CertificateInMemoryLoader.TryLoad(rawAttCert, out attCert))
             {
                 attCert?.Dispose();
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             if (currentDate < attCert.NotBefore || currentDate > attCert.NotAfter)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!IsValidPublicKeyParameters(attCert, out var attCertEcParameters))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 3) Extract the claimed 'rpIdHash' from 'authenticatorData', and the claimed 'credentialId' and 'credentialPublicKey'
@@ -99,14 +99,14 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             var credentialId = authenticatorData.AttestedCredentialData.CredentialId;
             if (authenticatorData.AttestedCredentialData.CredentialPublicKey is not CoseEc2Key credentialPublicKey)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 4) Convert the COSE_KEY formatted 'credentialPublicKey' (see Section 7 of [RFC9052])
             // to Raw ANSI X9.62 public key format (see ALG_KEY_ECC_X962_RAW in Section 3.6.2 Public Key Representation Formats of [FIDO-Registry]).
             if (!TryConvertCoseKeyToPublicKeyU2F(credentialPublicKey, out var publicKeyU2F))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 5) Let 'verificationData' be the concatenation of
@@ -126,7 +126,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             });
             if (!ecdsa.VerifyData(verificationData, attStmt.Sig, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 7) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether 'attStmt' conveys a Basic or AttCA attestation.
@@ -137,16 +137,16 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                 cancellationToken);
             if (attestationTypeResult.HasError)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 8) If successful, return implementation-specific values representing attestation type Basic, AttCA or uncertainty, and attestation trust path x5c.
-            var result = new AttestationStatementVerificationResult(
+            var result = new VerifiedAttestationStatement(
                 AttestationStatementFormat.FidoU2F,
                 attestationTypeResult.Ok.AttestationType,
                 new[] { rawAttCert },
                 new(attestationTypeResult.Ok.AttestationRootCertificates));
-            return Result<AttestationStatementVerificationResult>.Success(result);
+            return Result<VerifiedAttestationStatement>.Success(result);
         }
         finally
         {

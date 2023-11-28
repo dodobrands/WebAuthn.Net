@@ -9,10 +9,26 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 
+/// <summary>
+///     Service for verifying <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public interface IAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
-    Task<Result<AttestationStatementVerificationResult>> VerifyAttestationStatementAsync(
+    /// <summary>
+    ///     Asynchronously verifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="fmt">
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement-format-identifier">Attestation statement format identifier</a>. Determines how the <paramref name="attStmt" /> will be interpreted.
+    /// </param>
+    /// <param name="attStmt">Typed representation of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="clientDataHash">SHA256 hash of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the verification is successful - the result containing <see cref="VerifiedAttestationStatement" />, otherwise - the result indicating that the validation has failed.</returns>
+    Task<Result<VerifiedAttestationStatement>> VerifyAttestationStatementAsync(
         TContext context,
         AttestationStatementFormat fmt,
         AbstractAttestationStatement attStmt,

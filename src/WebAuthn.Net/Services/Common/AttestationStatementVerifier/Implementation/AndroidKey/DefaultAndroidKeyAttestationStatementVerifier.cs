@@ -57,7 +57,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
-    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         AndroidKeyAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -78,7 +78,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         {
             if (attStmt.X5C.Length == 0)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
@@ -88,14 +88,14 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                 if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
                 {
                     x5CCert?.Dispose();
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
 
                 certificatesToDispose.Add(x5CCert);
                 x5CCertificates.Add(x5CCert);
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
             }
 
@@ -104,35 +104,35 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
             if (!SignatureVerifier.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 3) Verify that the public key in the first certificate in 'x5c' matches the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
             if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 4) Verify that the 'attestationChallenge' field in the attestation certificate extension data is identical to 'clientDataHash'.
             if (!TryGetAttestationExtension(credCert, out var attestationExtension))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!TryGetAttestationChallenge(attestationExtension, out var attestationChallenge))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!attestationChallenge.AsSpan().SequenceEqual(clientDataHash.AsSpan()))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 5) Verify the following using the appropriate authorization list from the attestation certificate extension data:
             if (!IsAuthorizationListDataValid(attestationExtension))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 6) If successful, return implementation-specific values representing attestation type Basic and attestation trust path 'x5c'.
@@ -143,15 +143,15 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                 cancellationToken);
             if (acceptableTrustAnchorsResult.HasError)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
-            var result = new AttestationStatementVerificationResult(
+            var result = new VerifiedAttestationStatement(
                 AttestationStatementFormat.AndroidKey,
                 AttestationType.Basic,
                 attStmt.X5C,
                 acceptableTrustAnchorsResult.Ok);
-            return Result<AttestationStatementVerificationResult>.Success(result);
+            return Result<VerifiedAttestationStatement>.Success(result);
         }
         finally
         {
@@ -162,7 +162,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         }
     }
 
-    protected virtual async Task<Result<AcceptableTrustAnchors>> GetAcceptableTrustAnchorsAsync(
+    protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
         X509Certificate2 credCert,
         AttestedAuthenticatorData authenticatorData,
@@ -184,7 +184,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             rootCertificates.AddRange(metadataRoots.Value);
         }
 
-        return Result<AcceptableTrustAnchors>.Success(new(rootCertificates));
+        return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
     protected virtual async Task<Optional<byte[][]>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(

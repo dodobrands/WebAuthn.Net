@@ -38,7 +38,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     protected ITimeProvider TimeProvider { get; }
     protected IAsn1Deserializer Asn1Deserializer { get; }
 
-    public virtual async Task<Result<AttestationStatementVerificationResult>> VerifyAsync(
+    public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         AppleAnonymousAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,
@@ -59,7 +59,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             if (attStmt.X5C.Length < 2)
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             var x5CCertificates = new List<X509Certificate2>(attStmt.X5C.Length);
@@ -68,14 +68,14 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
                 if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
                 {
                     x5CCert?.Dispose();
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
 
                 certificatesToDispose.Add(x5CCert);
                 x5CCertificates.Add(x5CCert);
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
-                    return Result<AttestationStatementVerificationResult>.Fail();
+                    return Result<VerifiedAttestationStatement>.Fail();
                 }
             }
 
@@ -87,28 +87,28 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             // 4) Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
             if (!TryGetNonce(credCert, out var certificateNonce))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!nonce.AsSpan().SequenceEqual(certificateNonce.AsSpan()))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 5) Verify that the credential public key equals the Subject Public Key of 'credCert'.
             if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert))
             {
-                return Result<AttestationStatementVerificationResult>.Fail();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 6) If successful, return implementation-specific values representing attestation type Anonymization CA and attestation trust path x5c.
             var acceptableTrustAnchors = await GetAcceptableTrustAnchorsAsync(context, authenticatorData, cancellationToken);
-            var result = new AttestationStatementVerificationResult(
+            var result = new VerifiedAttestationStatement(
                 AttestationStatementFormat.AppleAnonymous,
                 AttestationType.AnonCa,
                 attStmt.X5C,
                 acceptableTrustAnchors);
-            return Result<AttestationStatementVerificationResult>.Success(result);
+            return Result<VerifiedAttestationStatement>.Success(result);
         }
         finally
         {
@@ -119,14 +119,14 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         }
     }
 
-    protected virtual Task<AcceptableTrustAnchors> GetAcceptableTrustAnchorsAsync(
+    protected virtual Task<UniqueByteArraysCollection> GetAcceptableTrustAnchorsAsync(
         TContext context,
         AttestedAuthenticatorData authenticatorData,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var rootCertificates = new UniqueByteArraysCollection(GetEmbeddedRootCertificates());
-        var result = new AcceptableTrustAnchors(rootCertificates);
+        var result = new UniqueByteArraysCollection(rootCertificates);
         return Task.FromResult(result);
     }
 

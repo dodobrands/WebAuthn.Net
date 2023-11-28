@@ -12,6 +12,6 @@ public interface IClientDataDecoder
     ///     Decodes clientData from JSON into a typed representation for further work.
     /// </summary>
     /// <param name="jsonText">A string containing clientData serialized into JSON.</param>
-    /// <returns>If decoding was successful, a result containing <see cref="CollectedClientData" />, otherwise, a result indicating that an error occurred during decoding.</returns>
+    /// <returns>If the decoding was successful, the result contains the <see cref="CollectedClientData" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     Result<CollectedClientData> Decode(string jsonText);
 }

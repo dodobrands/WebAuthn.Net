@@ -1,7 +1,7 @@
 ﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 
 /// <summary>
-///     Attestation Types
+///     Attestation type
 /// </summary>
 /// <remarks>
 ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation-types">Web Authentication: An API for accessing Public Key Credentials Level 3 - §6.5.4. Attestation Types</a>
