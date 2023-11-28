@@ -15,6 +15,7 @@ using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Models;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions.Enums;
@@ -44,10 +45,38 @@ using WebAuthn.Net.Storage.Credential.Models;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IAuthenticationCeremonyService" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCeremonyService
     where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAuthenticationCeremonyService{TContext}" />.
+    /// </summary>
+    /// <param name="options">Service for accessing the current value of global options.</param>
+    /// <param name="contextFactory">A factory for creating the context in which the WebAuthn operation is being processed.</param>
+    /// <param name="rpIdProvider">Service that computes rpId at runtime based on data in <see cref="HttpContext" />.</param>
+    /// <param name="rpOriginProvider">Service that computes origin at runtime based on data in <see cref="HttpContext" />.</param>
+    /// <param name="challengeGenerator">Service that generates a challenge for WebAuthn ceremonies.</param>
+    /// <param name="timeProvider">Service providing the current time.</param>
+    /// <param name="publicKeyCredentialRequestOptionsEncoder">Service for encoding <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for JSON serialization.</param>
+    /// <param name="credentialStorage">Credential storage. This is where the credentials are located, providing methods for storing credentials that are created during the registration ceremony, as well as methods for accessing them during the authentication ceremony.</param>
+    /// <param name="ceremonyStorage">Storage for authentication ceremony data. Used for storing options used in the authentication ceremony.</param>
+    /// <param name="authenticationResponseDecoder">
+    ///     Service for decoding <see cref="AuthenticationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization into a typed
+    ///     representation suitable for further work.
+    /// </param>
+    /// <param name="clientDataDecoder">Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation for further work.</param>
+    /// <param name="attestationObjectDecoder"></param>
+    /// <param name="authenticatorDataDecoder"></param>
+    /// <param name="attestationStatementDecoder"></param>
+    /// <param name="attestationStatementVerifier"></param>
+    /// <param name="attestationTrustPathValidator"></param>
+    /// <param name="signatureVerifier"></param>
+    /// <param name="logger"></param>
     public DefaultAuthenticationCeremonyService(
         IOptionsMonitor<WebAuthnOptions> options,
         IWebAuthnContextFactory<TContext> contextFactory,
@@ -777,21 +806,50 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 return null;
             }
 
-            var resultKeysToExclude = new List<PublicKeyCredentialDescriptor>(options.ManuallySpecifiedKeysToInclude.Length);
-            foreach (var existingKey in existingKeys)
+            var resultKeysToInclude = new List<PublicKeyCredentialDescriptor>(options.ManuallySpecifiedKeysToInclude.Length);
+
+            foreach (var manualKey in options.ManuallySpecifiedKeysToInclude)
             {
-                var requestedKeyToExclude = options
-                    .ManuallySpecifiedKeysToInclude
-                    .FirstOrDefault(x => x.Type == existingKey.Type && x.Id.AsSpan().SequenceEqual(existingKey.Id));
-                if (requestedKeyToExclude is not null)
+                var existingKey = existingKeys.FirstOrDefault(x =>
+                    x.Type == manualKey.Type
+                    && x.Id.AsSpan().SequenceEqual(manualKey.Id));
+                if (existingKey is not null)
                 {
-                    resultKeysToExclude.Add(requestedKeyToExclude);
+                    var manualTransports = (manualKey.Transports ?? Array.Empty<AuthenticatorTransport>())
+                        .Select(x => (int) x)
+                        .ToHashSet();
+                    var existingTransports = (existingKey.Transports ?? Array.Empty<AuthenticatorTransport>())
+                        .Select(x => (int) x)
+                        .ToHashSet();
+
+                    switch (existingTransports.Count)
+                    {
+                        case 0 when manualTransports.Count > 0:
+                        case > 0 when manualTransports.Count == 0:
+                            continue;
+                        case > 0 when manualTransports.Count > 0:
+                            {
+                                foreach (var existingTransport in existingTransports)
+                                {
+                                    manualTransports.Remove(existingTransport);
+                                }
+
+                                if (manualTransports.Count > 0)
+                                {
+                                    continue;
+                                }
+
+                                break;
+                            }
+                    }
+
+                    resultKeysToInclude.Add(manualKey);
                 }
             }
 
-            if (resultKeysToExclude.Count > 0)
+            if (resultKeysToInclude.Count > 0)
             {
-                return resultKeysToExclude.ToArray();
+                return resultKeysToInclude.ToArray();
             }
         }
 
