@@ -38,7 +38,6 @@
         const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
         return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
     };
-    const getValue = (x) => x.value;
     const makeJsonApiCall = async ({url, data, method}) => {
         const response = await fetch(url, {
             method,
@@ -64,8 +63,97 @@
         return window.isSecureContext && !missingWebauthnApis;
     };
 
-    //API
-    
+    // API
+    const initiateRegistration = async () => {
+        const url = "/Usernameless/BeginRegisterCeremony";
+        const data = {
+            registrationParameters: {},
+            extensions: {}
+        };
+        return await makeJsonApiCall({ url, data, method: "POST" });
+    };
+    const submitRegistration = async ({ response }) => {
+        const url = "/Usernameless/RegisterCeremony";
+        const data = {
+            id: coerceToBase64Url(response.rawId),
+            type: response.type,
+            response: {
+                attestationObject: coerceToBase64Url(response.response.attestationObject),
+                clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
+            }
+        };
+        return await makeJsonApiCall({ url, data, method: "POST" });
+    };
+    const initiateAuthentication = async () => {
+        const url = "/Usernameless/BeginAuthenticationCeremony";
+        const data = {};
+        return await makeJsonApiCall({ url, data, method: "POST" });
+    };
+    const submitAuthentication = async ({ response }) => {
+        const url = "/Usernameless/AuthenticationCeremony";
+        const data = {
+            id: coerceToBase64Url(response.rawId),
+            type: response.type,
+            extensions: response.getClientExtensionResults(),
+            response: {
+                userHandle: coerceToBase64Url(response.response.userHandle),
+                authenticatorData: coerceToBase64Url(response.response.authenticatorData),
+                clientDataJSON: coerceToBase64Url(response.response.clientDataJSON),
+                signature: coerceToBase64Url(response.response.signature),
+            }
+        }
+        return await makeJsonApiCall({ url, data, method: "POST" });
+    };
+
+    // DOM Handlers
+    const onRegisterButtonHandler = async (e) => {
+        e.preventDefault();
+        const initialData = await initiateRegistration();
+        if (!initialData) return;
+        const { options } = initialData;
+        const publicKey = {
+            ...options,
+            challenge: coerceToArrayBuffer(options.challenge),
+            user: {
+                ...options.user,
+                id: coerceToArrayBuffer(options.user.id),
+            }
+        };
+
+        const response = await navigator.credentials.create({ publicKey });
+        if (!response) return;
+
+        const registrationResult = await submitRegistration({ response });
+        if (!registrationResult) return;
+        const { successful } = registrationResult;
+        if (successful) {
+            alert("User registered!");
+            return;
+        }
+        alert("Failed to register user");
+    };
+    const onAuthenticateButtonHandler = async (e) => {
+        e.preventDefault();
+        const initialData = await initiateAuthentication();
+        if (!initialData) return;
+        const { options } = initialData;
+        const publicKey = {
+            ...options,
+            challenge: coerceToArrayBuffer(options.challenge),
+            allowCredentials: (options.allowCredentials ?? []).map(x => ({...x,  id: coerceToArrayBuffer(x.id)}))
+        };
+        const response = await navigator.credentials.get({ publicKey });
+        if (!response) return;
+
+        const attestationResult = await submitAuthentication({ response });
+        if (!attestationResult) return;
+        const { successful } = attestationResult;
+        if (!successful) {
+            alert("Failed to register user");
+            return;
+        }
+        location.assign("/Fido/Authenticated");
+    };
 
     // INIT
     document.addEventListener("DOMContentLoaded", () => {
@@ -73,14 +161,8 @@
             alert("Browser doesn't support Webauthn API");
             return;
         }
-        // TODO
+        elements.registerBtn().addEventListener("click", onRegisterButtonHandler);
+        elements.authenticateBtn().addEventListener("click", onAuthenticateButtonHandler);
     });
-})();
-</script>
-
-
-<script async type="text/javascript">
-(() => {
-
 })();
 </script>
