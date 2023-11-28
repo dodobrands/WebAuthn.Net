@@ -4,7 +4,7 @@ using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Models;
 namespace WebAuthn.Net.Services.Common.AttestationObjectDecoder;
 
 /// <summary>
-///     Service for decoding the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary representation to a typed format for further processing.
+///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary into a typed representation.
 /// </summary>
 public interface IAttestationObjectDecoder
 {

@@ -56,27 +56,25 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <summary>
     ///     Constructs <see cref="DefaultAuthenticationCeremonyService{TContext}" />.
     /// </summary>
-    /// <param name="options">Service for accessing the current value of global options.</param>
-    /// <param name="contextFactory">A factory for creating the context in which the WebAuthn operation is being processed.</param>
-    /// <param name="rpIdProvider">Service that computes rpId at runtime based on data in <see cref="HttpContext" />.</param>
-    /// <param name="rpOriginProvider">Service that computes origin at runtime based on data in <see cref="HttpContext" />.</param>
-    /// <param name="challengeGenerator">Service that generates a challenge for WebAuthn ceremonies.</param>
-    /// <param name="timeProvider">Service providing the current time.</param>
-    /// <param name="publicKeyCredentialRequestOptionsEncoder">Service for encoding <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for JSON serialization.</param>
+    /// <param name="options">Accessor for getting the current value of global options.</param>
+    /// <param name="contextFactory">Factory for creating a WebAuthn operation context.</param>
+    /// <param name="rpIdProvider">Provider of the rpId value based on the <see cref="HttpContext" />.</param>
+    /// <param name="rpOriginProvider">Provider of the origin value based on the <see cref="HttpContext" />.</param>
+    /// <param name="challengeGenerator">Generator of challenges for WebAuthn ceremonies.</param>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="publicKeyCredentialRequestOptionsEncoder">Encoder for transforming <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for JSON serialization.</param>
     /// <param name="credentialStorage">Credential storage. This is where the credentials are located, providing methods for storing credentials that are created during the registration ceremony, as well as methods for accessing them during the authentication ceremony.</param>
     /// <param name="ceremonyStorage">Storage for authentication ceremony data. Used for storing options used in the authentication ceremony.</param>
-    /// <param name="authenticationResponseDecoder">
-    ///     Service for decoding <see cref="AuthenticationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization into a typed
-    ///     representation suitable for further work.
-    /// </param>
-    /// <param name="clientDataDecoder">Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation for further work.</param>
-    /// <param name="attestationObjectDecoder">Service for decoding the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary representation to a typed format for further processing.</param>
-    /// <param name="authenticatorDataDecoder">Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary representation to a typed format for further processing.</param>
-    /// <param name="attestationStatementDecoder">Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR to a typed format for further processing.</param>
-    /// <param name="attestationStatementVerifier">Service for verifying <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.</param>
-    /// <param name="attestationTrustPathValidator"></param>
-    /// <param name="signatureVerifier"></param>
-    /// <param name="logger"></param>
+    /// <param name="authenticationResponseDecoder">Decoder for <see cref="AuthenticationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization into a typed representation.</param>
+    /// <param name="clientDataDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation.</param>
+    /// <param name="attestationObjectDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary into a typed representation.</param>
+    /// <param name="authenticatorDataDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary into a typed representation.</param>
+    /// <param name="attestationStatementDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR into a typed representation.</param>
+    /// <param name="attestationStatementVerifier">Verifier of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.</param>
+    /// <param name="attestationTrustPathValidator"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> validator. It validates that the attestation statement is trustworthy.</param>
+    /// <param name="signatureValidator">Digital signature verifier.</param>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" />.</exception>
     public DefaultAuthenticationCeremonyService(
         IOptionsMonitor<WebAuthnOptions> options,
         IWebAuthnContextFactory<TContext> contextFactory,
@@ -94,7 +92,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         IAttestationStatementDecoder attestationStatementDecoder,
         IAttestationStatementVerifier<TContext> attestationStatementVerifier,
         IAttestationTrustPathValidator attestationTrustPathValidator,
-        IDigitalSignatureVerifier signatureVerifier,
+        IDigitalSignatureValidator signatureValidator,
         ILogger<DefaultAuthenticationCeremonyService<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -113,7 +111,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         ArgumentNullException.ThrowIfNull(attestationStatementDecoder);
         ArgumentNullException.ThrowIfNull(attestationStatementVerifier);
         ArgumentNullException.ThrowIfNull(attestationTrustPathValidator);
-        ArgumentNullException.ThrowIfNull(signatureVerifier);
+        ArgumentNullException.ThrowIfNull(signatureValidator);
         ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         ContextFactory = contextFactory;
@@ -131,29 +129,101 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         AttestationStatementDecoder = attestationStatementDecoder;
         AttestationStatementVerifier = attestationStatementVerifier;
         AttestationTrustPathValidator = attestationTrustPathValidator;
-        SignatureVerifier = signatureVerifier;
+        SignatureValidator = signatureValidator;
         Logger = logger;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of global options.
+    /// </summary>
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
+
+    /// <summary>
+    ///     Factory for creating a WebAuthn operation context.
+    /// </summary>
     protected IWebAuthnContextFactory<TContext> ContextFactory { get; }
+
+    /// <summary>
+    ///     Provider of the rpId value based on the <see cref="HttpContext" />.
+    /// </summary>
     protected IRelyingPartyIdProvider RpIdProvider { get; }
+
+    /// <summary>
+    ///     Provider of the origin value based on the <see cref="HttpContext" />.
+    /// </summary>
     protected IRelyingPartyOriginProvider RpOriginProvider { get; }
+
+    /// <summary>
+    ///     Generator of challenges for WebAuthn ceremonies.
+    /// </summary>
     protected IChallengeGenerator ChallengeGenerator { get; }
+
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
+    /// <summary>
+    ///     Encoder for transforming <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for JSON serialization.
+    /// </summary>
     protected IPublicKeyCredentialRequestOptionsEncoder PublicKeyCredentialRequestOptionsEncoder { get; }
+
+    /// <summary>
+    ///     Credential storage. This is where the credentials are located, providing methods for storing credentials that are created during the registration ceremony, as well as methods for accessing them during the authentication ceremony.
+    /// </summary>
     protected ICredentialStorage<TContext> CredentialStorage { get; }
+
+    /// <summary>
+    ///     Storage for authentication ceremony data. Used for storing options used in the authentication ceremony.
+    /// </summary>
     protected IAuthenticationCeremonyStorage<TContext> CeremonyStorage { get; }
+
+    /// <summary>
+    ///     Decoder for <see cref="AuthenticationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization into a typed representation.
+    /// </summary>
     protected IAuthenticationResponseDecoder AuthenticationResponseDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation.
+    /// </summary>
     protected IClientDataDecoder ClientDataDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary into a typed representation.
+    /// </summary>
     protected IAttestationObjectDecoder AttestationObjectDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary into a typed representation.
+    /// </summary>
     protected IAuthenticatorDataDecoder AuthenticatorDataDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR into a typed representation.
+    /// </summary>
     protected IAttestationStatementDecoder AttestationStatementDecoder { get; }
+
+    /// <summary>
+    ///     Verifier of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.
+    /// </summary>
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
+
+    /// <summary>
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> validator. It validates that the attestation statement is trustworthy.
+    /// </summary>
     protected IAttestationTrustPathValidator AttestationTrustPathValidator { get; }
-    protected IDigitalSignatureVerifier SignatureVerifier { get; }
+
+    /// <summary>
+    ///     Digital signature validator.
+    /// </summary>
+    protected IDigitalSignatureValidator SignatureValidator { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
     protected ILogger<DefaultAuthenticationCeremonyService<TContext>> Logger { get; }
 
+    /// <inheritdoc />
     public async Task<BeginAuthenticationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
         BeginAuthenticationCeremonyRequest request,
@@ -197,7 +267,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         var timeout = GetTimeout(request);
         var createdAt = TimeProvider.GetRoundUtcDateTime();
         var expiresAt = ComputeExpiresAtUtc(createdAt, timeout);
-        var options = ToPublicKeyCredentialRequestOptions(request, timeout, rpId, challenge, credentialsToInclude);
+        var options = CreatePublicKeyCredentialRequestOptions(request, timeout, rpId, challenge, credentialsToInclude);
         var outputOptions = PublicKeyCredentialRequestOptionsEncoder.Encode(options);
         var authenticationCeremonyOptions = new AuthenticationCeremonyParameters(
             request.UserHandle,
@@ -211,6 +281,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         return result;
     }
 
+    /// <inheritdoc />
     public async Task<CompleteAuthenticationCeremonyResult> CompleteCeremonyAsync(
         HttpContext httpContext,
         CompleteAuthenticationCeremonyRequest request,
@@ -519,7 +590,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
-            if (!SignatureVerifier.IsValidCoseKeySign(credentialRecordPublicKey, dataToVerify, sig))
+            if (!SignatureValidator.IsValidCoseKeySign(credentialRecordPublicKey, dataToVerify, sig))
             {
                 Logger.InvalidSignature();
                 return CompleteAuthenticationCeremonyResult.Fail();
@@ -609,12 +680,23 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         }
     }
 
-    protected virtual DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset value, uint timeout)
+    /// <summary>
+    ///     Computes the expiration date of the authentication ceremony.
+    /// </summary>
+    /// <param name="createdAt">Creation date of the authentication ceremony.</param>
+    /// <param name="timeout">Authentication ceremony timeout in milliseconds.</param>
+    /// <returns>The expiration date of the authentication ceremony, after which it will be considered that its data has been deleted.</returns>
+    protected virtual DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset createdAt, uint timeout)
     {
-        var expiresAtMilliseconds = value.ToUnixTimeMilliseconds() + timeout;
+        var expiresAtMilliseconds = createdAt.ToUnixTimeMilliseconds() + timeout;
         return DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMilliseconds);
     }
 
+    /// <summary>
+    ///     Computes the authentication ceremony timeout in milliseconds.
+    /// </summary>
+    /// <param name="request">A request containing the parameters for generating options for the authentication ceremony.</param>
+    /// <returns>Authentication ceremony timeout in milliseconds.</returns>
     protected virtual uint GetTimeout(BeginAuthenticationCeremonyRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -626,6 +708,19 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         return Options.CurrentValue.AuthenticationCeremony.DefaultTimeout;
     }
 
+    /// <summary>
+    ///     Updates the <see cref="CredentialRecord" />.
+    /// </summary>
+    /// <param name="old">The CredentialRecord value that needs to be updated. </param>
+    /// <param name="authDataSignCount">The updated <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">authData</a>.<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-signcount">signCount</a> value.</param>
+    /// <param name="currentBs">Updated value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-bs">backup state (BS)</a> flag. </param>
+    /// <param name="uvInitialized">
+    ///     Updated value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-uv">user verified (UV)</a> flag. Will be non-null only if
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a> is <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-userverificationrequirement-required">required</a> for the authentication ceremony.
+    /// </param>
+    /// <param name="responseAttestationObject">The raw value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-object">attestationObject</a> obtained during the authentication ceremony.</param>
+    /// <param name="responseClientDataJson">The raw value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a> obtained during the authentication ceremony.</param>
+    /// <returns></returns>
     protected virtual CredentialRecordUpdateResult UpdateCredentialRecord(
         CredentialRecord old,
         uint authDataSignCount,
@@ -660,6 +755,20 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         return new(updatedCredentialRecord, uvInitializedCanBeUpdatedToTrue);
     }
 
+    /// <summary>
+    ///     Verifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-object">attestationObject</a> obtained during the authentication ceremony.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="abstractAuthData">Decoded typed representation of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a>.</param>
+    /// <param name="credentialRecordPublicKey">The public key stored in the CredentialRecord, which is used in the authentication ceremony.</param>
+    /// <param name="credentialRecordId">
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">Credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>, stored in the
+    ///     <see cref="CredentialRecord" />, which is used in the authentication ceremony.
+    /// </param>
+    /// <param name="attestationObject">Decoded typed representation of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-object">attestationObject</a>.</param>
+    /// <param name="hash">SHA256 hash of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns><see langword="true" /> if the verification was successful, otherwise - <see langword="false" />.</returns>
     protected virtual async Task<bool> VerifyAttestationObjectAsync(
         TContext context,
         AbstractAuthenticatorData abstractAuthData,
@@ -736,6 +845,13 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         return true;
     }
 
+
+    /// <summary>
+    ///     Concatenates two ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">The first ReadOnlySpan of bytes.</param>
+    /// <param name="b">The second ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         var result = new byte[a.Length + b.Length];
@@ -744,6 +860,13 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         return result;
     }
 
+    /// <summary>
+    ///     Computes the recommended actions that need to be taken after the authentication ceremony based on <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-backup">credential backup state</a>.
+    /// </summary>
+    /// <param name="currentBe">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">backup eligibility (BE)</a> flag for the credential obtained in the current authentication ceremony.</param>
+    /// <param name="currentBs">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-bs">backup state (BS)</a> flag for the credential obtained in the current authentication ceremony.</param>
+    /// <param name="credentialRecordBackupState">The previous value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">backup eligibility (BE)</a> flag, which was previously saved for the credential used in the authentication ceremony.</param>
+    /// <returns></returns>
     protected virtual CredentialBackupStateRecommendedAction[] ComputeBackupStateRecommendedActions(
         bool currentBe,
         bool currentBs,
@@ -778,6 +901,15 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         return result.ToArray();
     }
 
+    /// <summary>
+    ///     Returns the descriptors of credentials that will be included in the resulting set of <see cref="PublicKeyCredentialRequestOptions.AllowCredentials" /> options of the authentication ceremony.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="rpId">The rpId for which the descriptor set is being formed.</param>
+    /// <param name="userHandle">The unique identifier of the user for whom the descriptor set is being formed.</param>
+    /// <param name="options">The parameters for forming the descriptor set, obtained from the request to create authentication ceremony options.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>An array containing at least one descriptor or <see langword="null" />.</returns>
     protected virtual async Task<PublicKeyCredentialDescriptor[]?> GetCredentialsToIncludeAsync(
         TContext context,
         string rpId,
@@ -856,7 +988,19 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         return null;
     }
 
-    protected virtual PublicKeyCredentialRequestOptions ToPublicKeyCredentialRequestOptions(
+    /// <summary>
+    ///     Creates options with which the authentication ceremony will be performed.
+    /// </summary>
+    /// <param name="request">A request containing the parameters for generating options for the authentication ceremony.</param>
+    /// <param name="timeout">Authentication ceremony timeout in milliseconds.</param>
+    /// <param name="rpId">The rpId on which the authentication ceremony will be performed.</param>
+    /// <param name="challenge">The challenge that will be used in the authentication ceremony.</param>
+    /// <param name="allowCredentials">
+    ///     An array of public key descriptors for the authentication ceremony. If <see langword="null" />, then only <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#discoverable-credential">discoverable credentials</a> will be utilized in this
+    ///     authentication ceremony.
+    /// </param>
+    /// <returns>Options with which the authentication ceremony will be performed.</returns>
+    protected virtual PublicKeyCredentialRequestOptions CreatePublicKeyCredentialRequestOptions(
         BeginAuthenticationCeremonyRequest request,
         uint timeout,
         string rpId,

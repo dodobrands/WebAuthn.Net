@@ -1,7 +1,7 @@
 ﻿namespace WebAuthn.Net.Services.Common.ChallengeGenerator;
 
 /// <summary>
-///     Service that generates a challenge for WebAuthn ceremonies.
+///     Generator of challenges for WebAuthn ceremonies.
 /// </summary>
 public interface IChallengeGenerator
 {

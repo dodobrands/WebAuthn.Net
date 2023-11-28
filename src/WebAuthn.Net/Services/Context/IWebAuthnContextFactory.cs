@@ -7,7 +7,7 @@ using WebAuthn.Net.Models.Enums;
 namespace WebAuthn.Net.Services.Context;
 
 /// <summary>
-///     A factory for creating the context in which the WebAuthn operation is being processed.
+///     Factory for creating a WebAuthn operation context.
 /// </summary>
 /// <typeparam name="TContext">The type of context for a WebAuthn operation.</typeparam>
 public interface IWebAuthnContextFactory<TContext>

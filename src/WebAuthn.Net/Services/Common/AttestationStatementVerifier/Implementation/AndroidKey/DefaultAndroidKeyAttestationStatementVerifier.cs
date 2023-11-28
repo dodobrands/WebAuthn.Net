@@ -35,25 +35,25 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     public DefaultAndroidKeyAttestationStatementVerifier(
         IOptionsMonitor<WebAuthnOptions> options,
         ITimeProvider timeProvider,
-        IDigitalSignatureVerifier signatureVerifier,
+        IDigitalSignatureValidator signatureValidator,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(signatureVerifier);
+        ArgumentNullException.ThrowIfNull(signatureValidator);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         Options = options;
         TimeProvider = timeProvider;
-        SignatureVerifier = signatureVerifier;
+        SignatureValidator = signatureValidator;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
     protected ITimeProvider TimeProvider { get; }
-    protected IDigitalSignatureVerifier SignatureVerifier { get; }
+    protected IDigitalSignatureValidator SignatureValidator { get; }
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
@@ -102,7 +102,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             // 'credCert' must be the first element in the array.
             var credCert = x5CCertificates.First();
             var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
-            if (!SignatureVerifier.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
+            if (!SignatureValidator.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }

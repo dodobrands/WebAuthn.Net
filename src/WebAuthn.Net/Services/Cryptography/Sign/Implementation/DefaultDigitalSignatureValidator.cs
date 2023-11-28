@@ -12,7 +12,7 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 
-public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
+public class DefaultDigitalSignatureValidator : IDigitalSignatureValidator
 {
     public bool IsValidCertificateSign(X509Certificate2 certificate, CoseAlgorithm alg, byte[] dataToVerify, byte[] signature)
     {
