@@ -79,15 +79,35 @@
 
 @section Scripts
 {
-    <script async type="text/javascript">
+<script async type="text/javascript">
 (() => {
-    // Utils
-    const { getState } = createStateMethods({ key: localStateKeys.registrationParamsKey, defaultParams: {} });
-    const { initiateRegistration, submitRegistration } = API.Register;
+    const formElements = {
+        userVerification: () => document.getElementById("webauthn-params-uv"),
+        attachment: () => document.getElementById("webauthn-params-attachment"),
+        discoverableCredential: () => document.getElementById("webauthn-params-discoverable"),
+        attestation: () => document.getElementById("webauthn-params-attestation"),
+        residentKey: () => document.getElementById("webauthn-params-rkey")
+    };
     const elements = {
         registerInput: () => document.getElementById("webauthn-register-name"),
-        registerButton: () => document.getElementById("webauthn-register-submit")
+        registerButton: () => document.getElementById("webauthn-register-submit"),
+        registerOptionsReset: () =>  document.getElementById("webauthn-params-submit"),
     };
+    const defaultParams = {
+        userVerification: "preferred",
+        attachment: "unset",
+        discoverableCredential: "unset",
+        attestation: "none",
+        residentKey: "unset",
+    };
+    const { initiateRegistration, submitRegistration } = API.Register;
+    const {
+        getState,
+        setState,
+        resetState,
+        withState,
+        ensureStateCreated
+    } = createStateMethods({ key: localStateKeys.registrationParamsKey, defaultParams });
 
     // DOM Handlers
     const onRegisterButtonHandler = async (e) => {
@@ -113,54 +133,24 @@
         if (!registrationResult) return;
         const { successful } = registrationResult;
         if (successful) {
-            alert("User registered!");
+            Alerts.registerSuccess();
             clearElementValue(elements.registerInput());
             return;
         }
 
-        alert("Failed to register user");
+        Alerts.failedToRegister();
     };
 
     // INIT
     document.addEventListener("DOMContentLoaded", () => {
         if (!isWebauthnAvailable()) {
-            alert("Browser doesn't support Webauthn API");
+            Alerts.webauthnIsNotAvailable();
             return;
         }
-        elements.registerButton().addEventListener("click", onRegisterButtonHandler);
-    });
-})();
-</script>
-    <script async type="text/javascript">
-(() => {
-    const defaultParams = {
-        userVerification: "preferred",
-        attachment: "unset",
-        discoverableCredential: "unset",
-        attestation: "none",
-        residentKey: "unset",
-    };
-
-    const formElements = {
-        userVerification: () => document.getElementById("webauthn-params-uv"),
-        attachment: () => document.getElementById("webauthn-params-attachment"),
-        discoverableCredential: () => document.getElementById("webauthn-params-discoverable"),
-        attestation: () => document.getElementById("webauthn-params-attestation"),
-        residentKey: () => document.getElementById("webauthn-params-rkey")
-    };
-
-    const {
-        getState,
-        setState,
-        resetState,
-        withState,
-        ensureStateCreated
-    } = createStateMethods({ key: localStateKeys.registrationParamsKey, defaultParams })
-
-    document.addEventListener("DOMContentLoaded", () => {
         ensureStateCreated();
         initializeForm({ state: getState(), setState, withState, formElements });
-        document.getElementById("webauthn-params-submit").addEventListener("click", resetState);
+        elements.registerButton().addEventListener("click", onRegisterButtonHandler);
+        elements.registerOptionsReset().addEventListener("click", resetState);
     });
 })();
 </script>

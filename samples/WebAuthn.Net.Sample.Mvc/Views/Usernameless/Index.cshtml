@@ -22,7 +22,7 @@
 
 @section Scripts
 {
-    <script async type="text/javascript">
+<script async type="text/javascript">
 (() => {
     const { initiateAuthentication, initiateRegistration, submitAuthentication, submitRegistration } = API.Usernameless;
     const elements = {
@@ -51,10 +51,10 @@
         if (!registrationResult) return;
         const { successful } = registrationResult;
         if (successful) {
-            alert("User registered!");
+            Alerts.registerSuccess();
             return;
         }
-        alert("Failed to register user");
+        Alerts.failedToRegister();
     };
     const onAuthenticateButtonHandler = async (e) => {
         e.preventDefault();
@@ -73,7 +73,7 @@
         if (!attestationResult) return;
         const { successful } = attestationResult;
         if (!successful) {
-            alert("Failed to register user");
+            Alerts.failedToAuthenticate();
             return;
         }
         location.assign("/Fido/Authenticated");
@@ -82,7 +82,7 @@
     // INIT
     document.addEventListener("DOMContentLoaded", () => {
         if (!isWebauthnAvailable()) {
-            alert("Browser doesn't support Webauthn API");
+            Alerts.webauthnIsNotAvailable();
             return;
         }
 

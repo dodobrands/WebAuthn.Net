@@ -53,14 +53,29 @@
 
 @section Scripts
 {
-    <script async type="text/javascript">
+<script async type="text/javascript">
 (() => {
+    const formElements = {
+        userVerification: () => document.getElementById("webauthn-params-uv"),
+        attestation: () => document.getElementById("webauthn-params-attestation"),
+    };
     const elements = {
         authenticateInput: () => document.getElementById("webauthn-authenticate-name"),
-        authenticateButton: () => document.getElementById("webauthn-authenticate-submit")
+        authenticateButton: () => document.getElementById("webauthn-authenticate-submit"),
+        authenticateFormReset: () => document.getElementById("webauthn-params-submit")
+    };
+    const defaultParams = {
+        userVerification: "preferred",
+        attestation: "none",
     };
     const { initiateAuthentication, submitAuthentication } = API.Passwordless;
-    const { getState } = createStateMethods({ key: localStateKeys.passwordlessParamsKey });
+    const {
+        getState,
+        setState,
+        withState,
+        resetState,
+        ensureStateCreated
+    } = createStateMethods({ key: localStateKeys.passwordlessParamsKey, defaultParams });
 
     const onAuthenticateButtonHandler = async (e) => {
         e.preventDefault();
@@ -81,7 +96,7 @@
         if (!attestationResult) return;
         const { successful } = attestationResult;
         if (!successful) {
-            alert("Failed to register user");
+            Alerts.failedToAuthenticate();
             return;
         }
         location.assign("/Fido/Authenticated");
@@ -90,39 +105,13 @@
     // INIT
     document.addEventListener("DOMContentLoaded", () => {
         if (!isWebauthnAvailable()) {
-            alert("Browser doesn't support Webauthn API");
+            Alerts.webauthnIsNotAvailable();
             return;
         }
-        elements.authenticateButton().addEventListener("click", onAuthenticateButtonHandler);
-    });
-})();
-</script>
-
-    <script async type="text/javascript">
-(() => {
-    const defaultParams = {
-        userVerification: "preferred",
-        attestation: "none",
-    };
-
-    const {
-        getState,
-        setState,
-        withState,
-        resetState,
-        ensureStateCreated
-    } = createStateMethods({ key: localStateKeys.passwordlessParamsKey, defaultParams });
-
-    const formElements = {
-        userVerification: () => document.getElementById("webauthn-params-uv"),
-        attestation: () => document.getElementById("webauthn-params-attestation"),
-    };
-
-    document.addEventListener("DOMContentLoaded", () => {
-        // Ensure state is created
         ensureStateCreated();
         initializeForm({ state: getState(), setState, withState, formElements });
-        document.getElementById("webauthn-params-submit").addEventListener("click", resetState);
+        elements.authenticateButton().addEventListener("click", onAuthenticateButtonHandler);
+        elements.authenticateFormReset().addEventListener("click", resetState);
     });
 })();
 </script>

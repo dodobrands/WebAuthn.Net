@@ -66,6 +66,13 @@ const isWebauthnAvailable = () => {
     return window.isSecureContext && !missingWebauthnApis;
 };
 
+const Alerts = {
+    failedToAuthenticate: () => alert("Failed to authenticate user, check server logs"),
+    failedToRegister: () => alert("Failed to register user, check server logs"),
+    webauthnIsNotAvailable: () => alert("Browser doesn't support Webauthn API"),
+    registerSuccess: () => alert("User registered!"),
+};
+
 // API
 const API = {
     Register: {
