@@ -2,18 +2,20 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebAuthn.Net.Sample.Mvc.Constants;
 using WebAuthn.Net.Sample.Mvc.Models.Register;
+using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Services.RegistrationCeremony;
 
 namespace WebAuthn.Net.Sample.Mvc.Controllers;
 
 public class RegisterController : Controller
 {
-
     private readonly IRegistrationCeremonyService _registrationCeremony;
+    private readonly UserHandleStore _userHandle;
 
-    public RegisterController(IRegistrationCeremonyService registrationCeremony)
+    public RegisterController(IRegistrationCeremonyService registrationCeremony, UserHandleStore userHandle)
     {
         _registrationCeremony = registrationCeremony;
+        _userHandle = userHandle;
     }
 
     [HttpGet]
@@ -36,9 +38,10 @@ public class RegisterController : Controller
             throw new InvalidDataException();
         }
 
-        var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(), token);
-        HttpContext.Response.Cookies
-            .Append(ExampleConstants.CookieAuthentication.RegistrationSessionId, result.RegistrationCeremonyId);
+        var userId = Guid.NewGuid().ToString();
+        var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(userId), token);
+        HttpContext.Response.Cookies.Append(ExampleConstants.CookieAuthentication.RegistrationSessionId, result.RegistrationCeremonyId);
+        _userHandle.Set(userId, result.Options.User.Name);
         return Json(result);
     }
 

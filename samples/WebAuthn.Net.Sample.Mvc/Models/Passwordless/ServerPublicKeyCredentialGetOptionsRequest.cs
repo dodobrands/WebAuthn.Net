@@ -39,12 +39,12 @@ public class ServerPublicKeyCredentialGetOptionsRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, JsonElement>? Extensions { get; }
 
-    public BeginAuthenticationCeremonyRequest ToBeginCeremonyRequest()
+    public BeginAuthenticationCeremonyRequest ToBeginCeremonyRequest(string userHandle)
     {
         return new(
             null,
             null,
-            WebEncoders.Base64UrlDecode(UserName),
+            WebEncoders.Base64UrlDecode(userHandle),
             16,
             120000,
             AuthenticationCeremonyIncludeCredentials.AllExisting(),

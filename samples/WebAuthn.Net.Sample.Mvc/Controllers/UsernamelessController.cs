@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebAuthn.Net.Sample.Mvc.Constants;
 using WebAuthn.Net.Sample.Mvc.Models.Usernameless;
+using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.RegistrationCeremony;
 
@@ -14,11 +15,13 @@ public class UsernamelessController : Controller
 {
     private readonly IAuthenticationCeremonyService _authenticationCeremony;
     private readonly IRegistrationCeremonyService _registrationCeremony;
+    private readonly UserHandleStore _userHandle;
 
-    public UsernamelessController(IAuthenticationCeremonyService authenticationCeremony, IRegistrationCeremonyService registrationCeremony)
+    public UsernamelessController(IAuthenticationCeremonyService authenticationCeremony, IRegistrationCeremonyService registrationCeremony, UserHandleStore userHandle)
     {
         _authenticationCeremony = authenticationCeremony;
         _registrationCeremony = registrationCeremony;
+        _userHandle = userHandle;
     }
 
     [HttpGet]
@@ -41,9 +44,11 @@ public class UsernamelessController : Controller
             throw new InvalidDataException();
         }
 
-        var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(), token);
+        var id = Guid.NewGuid().ToString();
+        var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(id), token);
         HttpContext.Response.Cookies
             .Append(ExampleConstants.CookieAuthentication.RegistrationSessionId, result.RegistrationCeremonyId);
+        _userHandle.Set(id, result.Options.User.Name);
         return Json(result);
     }
 
@@ -64,7 +69,6 @@ public class UsernamelessController : Controller
 
         var ceremonyModel = request.ToCompleteCeremonyRequest(cookie!);
         var result = await _registrationCeremony.CompleteCeremonyAsync(HttpContext, ceremonyModel, token);
-
         HttpContext.Response.Cookies.Delete(ExampleConstants.CookieAuthentication.RegistrationSessionId);
         return Json(result);
     }
@@ -109,7 +113,7 @@ public class UsernamelessController : Controller
         {
             var claims = new List<Claim>()
             {
-                new (ClaimTypes.Name, "Anonymous (Usernameless)"),
+                new (ClaimTypes.Name, _userHandle.Get(request.Response.UserHandle)),
             };
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new(claimsIdentity), new());

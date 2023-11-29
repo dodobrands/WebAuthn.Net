@@ -126,9 +126,10 @@ const API = {
         },
     },
     Usernameless : {
-        initiateRegistration: async () => {
+        initiateRegistration: async ({ username }) => {
             const url = "/Usernameless/BeginRegisterCeremony";
             const data = {
+                username,
                 registrationParameters: {},
                 extensions: {}
             };

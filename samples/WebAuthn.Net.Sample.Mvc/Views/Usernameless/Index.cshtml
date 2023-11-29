@@ -9,7 +9,11 @@
         <div class="card">
             <div class="card-body">
                 <h2 class="card-title">Usernameless Authentication</h2>
-                <form id="webauthn-authenticate" class="p-1">
+                <form id="webauthn-usernameless" class="p-1">
+                    <div class="form-floating mb-1">
+                        <input type="text" id="webauthn-usernameless-name" class="form-control" placeholder="Username (optional)"/>
+                        <label for="webauthn-usernameless-name">Username (optional)</label>
+                    </div>
                     <hr>
                     <button type="submit" id="webauthn-usernameless-submit" class="btn btn-primary">Submit</button>
                     <button type="button" id="webauthn-usernameless-register" class="btn btn-primary">Register</button>
@@ -22,17 +26,19 @@
 
 @section Scripts
 {
-<script async type="text/javascript">
+    <script async type="text/javascript">
 (() => {
     const { initiateAuthentication, initiateRegistration, submitAuthentication, submitRegistration } = API.Usernameless;
     const elements = {
         authenticateBtn: () => document.getElementById("webauthn-usernameless-submit"),
+        authenticateUsername: () => document.getElementById("webauthn-usernameless-name"),
         registerBtn: () => document.getElementById("webauthn-usernameless-register"),
-    }
+    };
     // DOM Handlers
     const onRegisterButtonHandler = async (e) => {
         e.preventDefault();
-        const initialData = await initiateRegistration();
+        const username = getElementValue(elements.authenticateUsername());
+        const initialData = await initiateRegistration({ username });
         if (!initialData) return;
         const { options } = initialData;
         const publicKey = {
@@ -52,6 +58,7 @@
         const { successful } = registrationResult;
         if (successful) {
             Alerts.registerSuccess();
+            clearElementValue(elements.authenticateUsername());
             return;
         }
         Alerts.failedToRegister();

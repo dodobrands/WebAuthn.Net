@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebAuthn.Net.Sample.Mvc.Constants;
 using WebAuthn.Net.Sample.Mvc.Models.Passwordless;
+using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 
 namespace WebAuthn.Net.Sample.Mvc.Controllers;
@@ -12,10 +13,12 @@ namespace WebAuthn.Net.Sample.Mvc.Controllers;
 public class PasswordlessController : Controller
 {
     private readonly IAuthenticationCeremonyService _authenticationCeremony;
+    private readonly UserHandleStore _userHandle;
 
-    public PasswordlessController(IAuthenticationCeremonyService authenticationCeremony)
+    public PasswordlessController(IAuthenticationCeremonyService authenticationCeremony, UserHandleStore userHandle)
     {
         _authenticationCeremony = authenticationCeremony;
+        _userHandle = userHandle;
     }
 
     // GET
@@ -39,7 +42,8 @@ public class PasswordlessController : Controller
             throw new InvalidDataException();
         }
 
-        var result = await _authenticationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(), token);
+        var userHandle = _userHandle.GetUserHandle(request.UserName);
+        var result = await _authenticationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(userHandle), token);
         HttpContext.Response.Cookies.Append(ExampleConstants.CookieAuthentication.AuthAssertionSessionId, result.AuthenticationCeremonyId);
         return Ok(result);
     }
@@ -66,7 +70,7 @@ public class PasswordlessController : Controller
         {
             var claims = new List<Claim>()
             {
-                new (ClaimTypes.Name, request.Username),
+                new (ClaimTypes.Name, _userHandle.Get(request.Response.UserHandle)),
             };
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new(claimsIdentity), new());

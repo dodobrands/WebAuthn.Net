@@ -37,7 +37,7 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, JsonElement>? Extensions { get; }
 
-    public BeginRegistrationCeremonyRequest ToBeginCeremonyRequest()
+    public BeginRegistrationCeremonyRequest ToBeginCeremonyRequest(string id)
     {
         var criteria = new AuthenticatorSelectionCriteria(
             RegistrationParameters.Attachment.RemapUnsetValue<AuthenticatorAttachment>(),
@@ -50,7 +50,7 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
             null,
             null,
             ExampleConstants.Host.WebAuthnDisplayName,
-            new(UserName, WebEncoders.Base64UrlDecode(UserName), UserName),
+            new(UserName, WebEncoders.Base64UrlDecode(id), UserName),
             16,
             CoseAlgorithms.All,
             120000,

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
 
 namespace WebAuthn.Net.Sample.Mvc;
@@ -22,6 +23,7 @@ public static class Program
                 options.LoginPath = "/Passwordless";
                 options.LogoutPath = "/Fido/Logout";
             });
+        services.AddSingleton<UserHandleStore>();
 
         var app = builder.Build();
 
