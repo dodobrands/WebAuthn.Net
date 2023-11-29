@@ -12,20 +12,33 @@ public class CompleteAuthenticationCeremonyResult
     ///     Constructs <see cref="CompleteAuthenticationCeremonyResult" />.
     /// </summary>
     /// <param name="successful">A flag indicating whether the operation was successful. The other properties are meaningful only if the authentication ceremony was successfully completed.</param>
-    /// <param name="recommendedActions">Actions recommended to be taken following a successful authentication ceremony, depending on the credential backup state.</param>
-    /// <param name="userVerificationFlagMayBeUpdatedToTrue"></param>
+    /// <param name="recommendedActions">Actions recommended to be taken following a successful authentication ceremony, depending on the credential backup state. May be an empty array, but cannot be <see langword="null" />.</param>
+    /// <param name="userVerificationFlagMayBeUpdatedToTrue">
+    ///     <para>
+    ///         A flag referring to the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authn-ceremony-update-credential-record">26.3 step of the authentication ceremony</a>: "If credentialRecord.
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#abstract-opdef-credential-record-uvinitialized">uvInitialized</a> is <see langword="false" />, update it to the value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-uv">UV</a>
+    ///         bit in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flags</a> in authData. This change SHOULD require authorization by an additional <a href="https://pages.nist.gov/800-63-3/sp800-63-3.html#af">authentication factor</a> equivalent to
+    ///         WebAuthn <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a>; if not authorized, skip this step.".
+    ///     </para>
+    ///     <para>
+    ///         If the property contains <see langword="true" />, this means that during the authentication ceremony, it was established that the current stored value of credentialRecord.uvInitialized is <see langword="false" />, but the authenticator's response reported it has become
+    ///         <see langword="true" />. According to the specification: "if not authorized, skip this step", therefore the library does NOT perform the updating of this specific credentialRecord property. If you need this step, implement it yourself.
+    ///     </para>
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="recommendedActions" /> is <see langword="null" /></exception>
     public CompleteAuthenticationCeremonyResult(
         bool successful,
         CredentialBackupStateRecommendedAction[] recommendedActions,
         bool userVerificationFlagMayBeUpdatedToTrue)
     {
+        ArgumentNullException.ThrowIfNull(recommendedActions);
         Successful = successful;
         RecommendedActions = recommendedActions;
         UserVerificationFlagMayBeUpdatedToTrue = userVerificationFlagMayBeUpdatedToTrue;
     }
 
     /// <summary>
-    ///     A flag indicating whether the operation was successful. The other properties are meaningful only if the authentication ceremony was successfully completed.
+    ///     A flag indicating whether the operation was successful. The other properties are meaningful only if the authentication ceremony was successfully completed (if this property contains <see langword="true" />).
     /// </summary>
     public bool Successful { get; }
 
@@ -48,6 +61,23 @@ public class CompleteAuthenticationCeremonyResult
     /// </summary>
     public bool UserVerificationFlagMayBeUpdatedToTrue { get; }
 
+    /// <summary>
+    ///     Creates a <see cref="CompleteAuthenticationCeremonyResult" />, reflecting the successful completion of the authentication ceremony.
+    /// </summary>
+    /// <param name="recommendedActions">Actions recommended to be taken following a successful authentication ceremony, depending on the credential backup state.</param>
+    /// <param name="userVerificationFlagMayBeUpdatedToTrue">
+    ///     <para>
+    ///         A flag referring to the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authn-ceremony-update-credential-record">26.3 step of the authentication ceremony</a>: "If credentialRecord.
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#abstract-opdef-credential-record-uvinitialized">uvInitialized</a> is <see langword="false" />, update it to the value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-uv">UV</a>
+    ///         bit in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flags</a> in authData. This change SHOULD require authorization by an additional <a href="https://pages.nist.gov/800-63-3/sp800-63-3.html#af">authentication factor</a> equivalent to
+    ///         WebAuthn <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a>; if not authorized, skip this step.".
+    ///     </para>
+    ///     <para>
+    ///         If the property contains <see langword="true" />, this means that during the authentication ceremony, it was established that the current stored value of credentialRecord.uvInitialized is <see langword="false" />, but the authenticator's response reported it has become
+    ///         <see langword="true" />. According to the specification: "if not authorized, skip this step", therefore the library does NOT perform the updating of this specific credentialRecord property. If you need this step, implement it yourself.
+    ///     </para>
+    /// </param>
+    /// <returns>Successful result of completing the authentication ceremony.</returns>
     public static CompleteAuthenticationCeremonyResult Success(
         CredentialBackupStateRecommendedAction[] recommendedActions,
         bool userVerificationFlagMayBeUpdatedToTrue)
@@ -55,6 +85,10 @@ public class CompleteAuthenticationCeremonyResult
         return new(true, recommendedActions, userVerificationFlagMayBeUpdatedToTrue);
     }
 
+    /// <summary>
+    ///     Creates a <see cref="CompleteAuthenticationCeremonyResult" />, reflecting the unsuccessful completion of the authentication ceremony.
+    /// </summary>
+    /// <returns>Unsuccessful result of completing the authentication ceremony.</returns>
     public static CompleteAuthenticationCeremonyResult Fail()
     {
         return new(

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Buffers.Binary;
-using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation;
@@ -9,8 +8,12 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.T
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
+/// <summary>
+///     Default implementation of <see cref="ITpmPubAreaDecoder" />.
+/// </summary>
 public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
 {
+    /// <inheritdoc />
     public Result<PubArea> Decode(Span<byte> bytes)
     {
         var buffer = bytes;
@@ -108,6 +111,13 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         return Result<PubArea>.Success(pubArea);
     }
 
+    /// <summary>
+    ///     Decodes the TPMS_ASYM_PARMS from binary representation to a typed format for further processing.
+    /// </summary>
+    /// <param name="buffer">Buffer containing the binary representation of TPMS_ASYM_PARMS.</param>
+    /// <param name="type">Type of asymmetric algorithm with a public and private key, used by the TPM module for generating digital signatures in the process of WebAuthn ceremonies.</param>
+    /// <param name="objectAttributes">Flags that indicate an object's use, its authorization types, and its relationship to other objects. The state of the attributes is determined when the object is created and they are never changed by the TPM.</param>
+    /// <returns>If the decoding was successful, the result contains the <see cref="AbstractPublicParms" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     protected virtual Result<AbstractPublicParms> DecodePublicParms(
         ref Span<byte> buffer,
         TpmAlgPublic type,
@@ -152,6 +162,12 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         }
     }
 
+    /// <summary>
+    ///     Decodes the TPMS_RSA_PARMS from binary representation to a typed format for further processing.
+    /// </summary>
+    /// <param name="buffer">Buffer containing the binary representation of TPMS_RSA_PARMS.</param>
+    /// <param name="objectAttributes">Flags that indicate an object's use, its authorization types, and its relationship to other objects. The state of the attributes is determined when the object is created and they are never changed by the TPM.</param>
+    /// <returns>If the decoding was successful, the result contains the <see cref="RsaParms" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     protected virtual Result<RsaParms> DecodeRsaParms(
         ref Span<byte> buffer,
         ObjectAttributes objectAttributes)
@@ -267,6 +283,12 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         return Result<RsaParms>.Success(rsaDetail);
     }
 
+    /// <summary>
+    ///     Decodes the TPMS_ECC_PARMS from binary representation to a typed format for further processing.
+    /// </summary>
+    /// <param name="buffer">Buffer containing the binary representation of TPMS_ECC_PARMS.</param>
+    /// <param name="objectAttributes">Flags that indicate an object's use, its authorization types, and its relationship to other objects. The state of the attributes is determined when the object is created and they are never changed by the TPM.</param>
+    /// <returns>If the decoding was successful, the result contains the <see cref="EccParms" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     protected virtual Result<EccParms> DecodeEccParms(
         ref Span<byte> buffer,
         ObjectAttributes objectAttributes)
@@ -376,6 +398,12 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         return Result<EccParms>.Success(eccDetail);
     }
 
+    /// <summary>
+    ///     Decodes the TPMU_PUBLIC_ID from binary representation to a typed format for further processing.
+    /// </summary>
+    /// <param name="buffer">Buffer containing the binary representation of TPMU_PUBLIC_ID.</param>
+    /// <param name="type">Type of asymmetric algorithm with a public and private key, used by the TPM module for generating digital signatures in the process of WebAuthn ceremonies.</param>
+    /// <returns>If the decoding was successful, the result contains the <see cref="AbstractUnique" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     protected virtual Result<AbstractUnique> DecodeUnique(
         ref Span<byte> buffer,
         TpmAlgPublic type)
@@ -418,6 +446,11 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         }
     }
 
+    /// <summary>
+    ///     Decodes the TPM2B_PUBLIC_KEY_RSA from binary representation to a typed format for further processing.
+    /// </summary>
+    /// <param name="buffer">Buffer containing the binary representation of TPM2B_PUBLIC_KEY_RSA.</param>
+    /// <returns>If the decoding was successful, the result contains the <see cref="RsaUnique" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     protected virtual Result<RsaUnique> DecodeRsaUnique(ref Span<byte> buffer)
     {
         // 11.2.4.5 TPM2B_PUBLIC_KEY_RSA
@@ -453,6 +486,11 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         return Result<RsaUnique>.Success(rsaUnique);
     }
 
+    /// <summary>
+    ///     Decodes the TPMS_ECC_POINT from binary representation to a typed format for further processing.
+    /// </summary>
+    /// <param name="buffer">Buffer containing the binary representation of TPMS_ECC_POINT.</param>
+    /// <returns>If the decoding was successful, the result contains the <see cref="EccUnique" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     protected virtual Result<EccUnique> DecodeEccUnique(ref Span<byte> buffer)
     {
         // 11.2.5.2 TPMS_ECC_POINT
@@ -520,7 +558,16 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         return Result<EccUnique>.Success(eccUnique);
     }
 
-    [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
+    /// <summary>
+    ///     Attempts to consume the specified number of bytes from the input Span and return them as a separate out parameter.
+    /// </summary>
+    /// <param name="input">Input Span from which it is necessary to consume the specified number of bytes.</param>
+    /// <param name="bytesToConsume">The number of bytes that need to be consumed.</param>
+    /// <param name="consumed">Output Span containing the consumed bytes if the operation was successful. </param>
+    /// <returns>
+    ///     If it returns <see langword="true" />, it means that the specified amount of bytes has been consumed from the input Span and the consumed bytes have been returned as a separate out parameter, simultaneously decreasing the input Span by the number of consumed bytes.
+    ///     Otherwise, it returns <see langword="false" />, leaves the default value in the out parameter, and does not affect the input Span.
+    /// </returns>
     protected static bool TryConsume(ref Span<byte> input, int bytesToConsume, out Span<byte> consumed)
     {
         if (input.Length < bytesToConsume)

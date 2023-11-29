@@ -32,9 +32,23 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
+/// <summary>
+///     Default implementation of <see cref="ITpmAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultTpmAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="tpmPubAreaDecoder"></param>
+    /// <param name="tpmCertInfoDecoder"></param>
+    /// <param name="signatureValidator"></param>
+    /// <param name="tpmManufacturerVerifier"></param>
+    /// <param name="asn1Deserializer"></param>
+    /// <param name="fidoMetadataSearchService"></param>
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
         ITpmPubAreaDecoder tpmPubAreaDecoder,
@@ -60,7 +74,11 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
     protected ITpmPubAreaDecoder TpmPubAreaDecoder { get; }
     protected ITpmCertInfoDecoder TpmCertInfoDecoder { get; }
     protected IDigitalSignatureValidator SignatureValidator { get; }
@@ -68,6 +86,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
+    /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         TpmAttestationStatement attStmt,
