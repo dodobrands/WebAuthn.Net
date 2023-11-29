@@ -3,7 +3,7 @@
 namespace WebAuthn.Net.Services.Providers;
 
 /// <summary>
-///     Service providing the current time.
+///     Current time provider.
 /// </summary>
 public interface ITimeProvider
 {

@@ -4,7 +4,7 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Abstractions;
 namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder;
 
 /// <summary>
-///     Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary representation to a typed format for further processing.
+///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary into a typed representation.
 /// </summary>
 public interface IAuthenticatorDataDecoder
 {

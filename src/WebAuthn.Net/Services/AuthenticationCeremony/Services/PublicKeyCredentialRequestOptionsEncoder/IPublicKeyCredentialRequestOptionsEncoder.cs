@@ -4,7 +4,7 @@ using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.CreateOptions;
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.PublicKeyCredentialRequestOptionsEncoder;
 
 /// <summary>
-///     Service for encoding <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for JSON serialization.
+///     Encoder for transforming <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for JSON serialization.
 /// </summary>
 public interface IPublicKeyCredentialRequestOptionsEncoder
 {

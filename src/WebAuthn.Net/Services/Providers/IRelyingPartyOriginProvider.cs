@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 namespace WebAuthn.Net.Services.Providers;
 
 /// <summary>
-///     Service that computes origin at runtime based on data in <see cref="HttpContext" />.
+///     Provider of the origin value based on the <see cref="HttpContext" />.
 /// </summary>
 public interface IRelyingPartyOriginProvider
 {

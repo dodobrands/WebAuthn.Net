@@ -5,7 +5,7 @@ using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder;
 
 /// <summary>
-///     Service for decoding <see cref="AuthenticationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization into a typed representation suitable for further work.
+///     Decoder for <see cref="AuthenticationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization into a typed representation.
 /// </summary>
 public interface IAuthenticationResponseDecoder
 {

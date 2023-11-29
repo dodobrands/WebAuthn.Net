@@ -67,7 +67,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             },
             optionsCache);
         var safeJsonDeserializer = new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance);
-        var digitalSignatureVerifier = new DefaultDigitalSignatureVerifier();
+        var digitalSignatureVerifier = new DefaultDigitalSignatureValidator();
         var cborDeserializer = new DefaultCborDeserializer(NullLogger<DefaultCborDeserializer>.Instance);
         var asn1Deserializer = new DefaultAsn1Deserializer();
         var tpmManufacturerVerifier = new DefaultTpmManufacturerVerifier();

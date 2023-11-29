@@ -30,22 +30,22 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
 {
     public DefaultPackedAttestationStatementVerifier(
         ITimeProvider timeProvider,
-        IDigitalSignatureVerifier signatureVerifier,
+        IDigitalSignatureValidator signatureValidator,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(signatureVerifier);
+        ArgumentNullException.ThrowIfNull(signatureValidator);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
-        SignatureVerifier = signatureVerifier;
+        SignatureValidator = signatureValidator;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
     protected ITimeProvider TimeProvider { get; }
-    protected IDigitalSignatureVerifier SignatureVerifier { get; }
+    protected IDigitalSignatureValidator SignatureValidator { get; }
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
@@ -149,7 +149,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // The attestation certificate 'attestnCert' MUST be the first element in the array.
         var attestnCert = certificates.First();
         var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
-        if (!SignatureVerifier.IsValidCertificateSign(attestnCert, attStmt.Alg, dataToVerify, attStmt.Sig))
+        if (!SignatureValidator.IsValidCertificateSign(attestnCert, attStmt.Alg, dataToVerify, attStmt.Sig))
         {
             return Result<VerifiedAttestationStatement>.Fail();
         }
@@ -250,7 +250,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 2) Verify that 'sig' is a valid signature over the concatenation of 'authenticatorData' and 'clientDataHash'
         // using the credential public key with 'alg'.
         var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
-        if (!SignatureVerifier.IsValidCoseKeySign(authenticatorData.AttestedCredentialData.CredentialPublicKey, dataToVerify, attStmt.Sig))
+        if (!SignatureValidator.IsValidCoseKeySign(authenticatorData.AttestedCredentialData.CredentialPublicKey, dataToVerify, attStmt.Sig))
         {
             return Result<VerifiedAttestationStatement>.Fail();
         }

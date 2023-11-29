@@ -6,7 +6,7 @@ using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions;
 
 /// <summary>
-///     Service for decoding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR to a typed format for further processing.
+///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR into a typed representation.
 /// </summary>
 public interface IAttestationStatementDecoder
 {
