@@ -74,8 +74,4 @@
       <ProjectReference Include="..\..\src\WebAuthn.Net.Storage.InMemory\WebAuthn.Net.Storage.InMemory.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="wwwroot\" />
-    </ItemGroup>
-
 </Project>

@@ -10,9 +10,10 @@
 
 <body>
     <partial name="_Header"/>
-    <div class="container text-center">
-        @RenderBody()
-    </div>
+<div class="container text-center">
+    @RenderBody()
+</div>
+    <script src="~/js/lib.js" type="text/javascript"></script>
     @await RenderSectionAsync("Scripts", false)
 </body>
 </html>

@@ -4,7 +4,8 @@
 }
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-4"></div>
+    <div class="col-md-4">
         <div class="card">
             <div class="card-body">
                 <h2 class="card-title">Usernameless Authentication</h2>
@@ -16,95 +17,18 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-
-    </div>
+    <div class="col-md-4"></div>
 </div>
 
-
-<script async type="text/javascript">
+@section Scripts
+{
+    <script async type="text/javascript">
 (() => {
+    const { initiateAuthentication, initiateRegistration, submitAuthentication, submitRegistration } = API.Usernameless;
     const elements = {
         authenticateBtn: () => document.getElementById("webauthn-usernameless-submit"),
         registerBtn: () => document.getElementById("webauthn-usernameless-register"),
     }
-
-    // Utils
-    const coerceToArrayBuffer = (x) => {
-        const fix = x.replace(/-/g, "+").replace(/_/g, "/");
-        return Uint8Array.from(window.atob(fix), c => c.charCodeAt(0));
-    };
-    const coerceToBase64Url = (x) => {
-        const str = new Uint8Array(x).reduce((acc, x) => acc += String.fromCharCode(x), "");
-        return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=*$/g, "");
-    };
-    const makeJsonApiCall = async ({url, data, method}) => {
-        const response = await fetch(url, {
-            method,
-            body: JSON.stringify(data),
-            credentials: "same-origin",
-            headers: {
-                "content-type": "application/json"
-            }
-        });
-
-        if (response.ok) {
-            return await response.json();
-        }
-
-        alert(await response.text());
-        return undefined;
-    };
-    const isWebauthnAvailable = () => {
-        const missingWebauthnApis = window.PublicKeyCredential === undefined
-        || typeof window.PublicKeyCredential !== "function"
-        || typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function";
-
-        return window.isSecureContext && !missingWebauthnApis;
-    };
-
-    // API
-    const initiateRegistration = async () => {
-        const url = "/Usernameless/BeginRegisterCeremony";
-        const data = {
-            registrationParameters: {},
-            extensions: {}
-        };
-        return await makeJsonApiCall({ url, data, method: "POST" });
-    };
-    const submitRegistration = async ({ response }) => {
-        const url = "/Usernameless/RegisterCeremony";
-        const data = {
-            id: coerceToBase64Url(response.rawId),
-            type: response.type,
-            response: {
-                attestationObject: coerceToBase64Url(response.response.attestationObject),
-                clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
-            }
-        };
-        return await makeJsonApiCall({ url, data, method: "POST" });
-    };
-    const initiateAuthentication = async () => {
-        const url = "/Usernameless/BeginAuthenticationCeremony";
-        const data = {};
-        return await makeJsonApiCall({ url, data, method: "POST" });
-    };
-    const submitAuthentication = async ({ response }) => {
-        const url = "/Usernameless/AuthenticationCeremony";
-        const data = {
-            id: coerceToBase64Url(response.rawId),
-            type: response.type,
-            extensions: response.getClientExtensionResults(),
-            response: {
-                userHandle: coerceToBase64Url(response.response.userHandle),
-                authenticatorData: coerceToBase64Url(response.response.authenticatorData),
-                clientDataJSON: coerceToBase64Url(response.response.clientDataJSON),
-                signature: coerceToBase64Url(response.response.signature),
-            }
-        }
-        return await makeJsonApiCall({ url, data, method: "POST" });
-    };
-
     // DOM Handlers
     const onRegisterButtonHandler = async (e) => {
         e.preventDefault();
@@ -161,8 +85,11 @@
             alert("Browser doesn't support Webauthn API");
             return;
         }
+
         elements.registerBtn().addEventListener("click", onRegisterButtonHandler);
         elements.authenticateBtn().addEventListener("click", onAuthenticateButtonHandler);
     });
 })();
 </script>
+}
+
