@@ -10,10 +10,23 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.PublicKeyCredentialRequestOptionsEncoder.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IPublicKeyCredentialRequestOptionsEncoder" />.
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredentialRequestOptionsEncoder
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultPublicKeyCredentialRequestOptionsEncoder" />.
+    /// </summary>
+    /// <param name="publicKeyCredentialTypeSerializer">Serializer for the <see cref="PublicKeyCredentialType" /> enum.</param>
+    /// <param name="authenticatorTransportSerializer">Serializer for the <see cref="AuthenticatorTransport" /> enum.</param>
+    /// <param name="userVerificationRequirementSerializer">Serializer for the <see cref="UserVerificationRequirement" /> enum.</param>
+    /// <param name="publicKeyCredentialHintsSerializer">Serializer for the <see cref="PublicKeyCredentialHints" /> enum.</param>
+    /// <param name="attestationConveyancePreferenceSerializer">Serializer for the <see cref="AttestationConveyancePreference" /> enum.</param>
+    /// <param name="attestationStatementFormatSerializer">Serializer for the <see cref="AttestationStatementFormat" /> enum.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPublicKeyCredentialRequestOptionsEncoder(
         IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer,
         IEnumMemberAttributeSerializer<AuthenticatorTransport> authenticatorTransportSerializer,
@@ -36,13 +49,37 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         AttestationStatementFormatSerializer = attestationStatementFormatSerializer;
     }
 
+    /// <summary>
+    ///     Serializer for the <see cref="PublicKeyCredentialType" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorTransport" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticatorTransport> AuthenticatorTransportSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="UserVerificationRequirement" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<UserVerificationRequirement> UserVerificationRequirementSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="PublicKeyCredentialHints" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialHints> PublicKeyCredentialHintsSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AttestationConveyancePreference" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AttestationConveyancePreference> AttestationConveyancePreferenceSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AttestationStatementFormat" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
 
+    /// <inheritdoc />
     public PublicKeyCredentialRequestOptionsJSON Encode(PublicKeyCredentialRequestOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -65,38 +102,49 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         return result;
     }
 
-    protected virtual PublicKeyCredentialDescriptorJSON[]? EncodeAllowCredentials(PublicKeyCredentialDescriptor[]? excludeCredentials)
+    /// <summary>
+    ///     Encodes an array of <see cref="PublicKeyCredentialDescriptor" /> into an array of models suitable for serialization into JSON.
+    /// </summary>
+    /// <param name="allowCredentials">Array of <see cref="PublicKeyCredentialDescriptor" />, which needs to be encoded into models suitable for serialization into JSON.</param>
+    /// <returns>Array of <see cref="PublicKeyCredentialDescriptorJSON" /> or <see langword="null" />.</returns>
+    protected virtual PublicKeyCredentialDescriptorJSON[]? EncodeAllowCredentials(PublicKeyCredentialDescriptor[]? allowCredentials)
     {
-        if (excludeCredentials is null)
+        if (allowCredentials is null)
         {
             return null;
         }
 
-        var result = new PublicKeyCredentialDescriptorJSON[excludeCredentials.Length];
-        for (var i = 0; i < excludeCredentials.Length; i++)
+        var result = new PublicKeyCredentialDescriptorJSON[allowCredentials.Length];
+        for (var i = 0; i < allowCredentials.Length; i++)
         {
-            result[i] = EncodeAllowCredential(excludeCredentials[i]);
+            result[i] = EncodeAllowCredential(allowCredentials[i]);
         }
 
         return result;
     }
 
-    protected virtual PublicKeyCredentialDescriptorJSON EncodeAllowCredential(PublicKeyCredentialDescriptor excludeCredential)
+    /// <summary>
+    ///     Encodes <see cref="PublicKeyCredentialDescriptor" /> into a model suitable for serialization into JSON.
+    /// </summary>
+    /// <param name="allowCredential"><see cref="PublicKeyCredentialDescriptor" />, which needs to be encoded into a model suitable for serialization into JSON.</param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException">Failed to encode <see cref="PublicKeyCredentialDescriptor.Type" /> or one of the <see cref="PublicKeyCredentialDescriptor.Transports" /> elements.</exception>
+    protected virtual PublicKeyCredentialDescriptorJSON EncodeAllowCredential(PublicKeyCredentialDescriptor allowCredential)
     {
-        ArgumentNullException.ThrowIfNull(excludeCredential);
-        var id = Base64Url.Encode(excludeCredential.Id);
-        if (!PublicKeyCredentialTypeSerializer.TrySerialize(excludeCredential.Type, out var type))
+        ArgumentNullException.ThrowIfNull(allowCredential);
+        var id = Base64Url.Encode(allowCredential.Id);
+        if (!PublicKeyCredentialTypeSerializer.TrySerialize(allowCredential.Type, out var type))
         {
             throw new InvalidOperationException("Failed to encode type in PublicKeyCredentialDescriptor");
         }
 
         string[]? transports = null;
-        if (excludeCredential.Transports is not null)
+        if (allowCredential.Transports is not null)
         {
-            transports = new string[excludeCredential.Transports.Length];
-            for (var i = 0; i < excludeCredential.Transports.Length; i++)
+            transports = new string[allowCredential.Transports.Length];
+            for (var i = 0; i < allowCredential.Transports.Length; i++)
             {
-                var transportToEncode = excludeCredential.Transports[i];
+                var transportToEncode = allowCredential.Transports[i];
                 if (!AuthenticatorTransportSerializer.TrySerialize(transportToEncode, out var encodedTransport))
                 {
                     throw new InvalidOperationException("Failed to encode transports in PublicKeyCredentialDescriptor");

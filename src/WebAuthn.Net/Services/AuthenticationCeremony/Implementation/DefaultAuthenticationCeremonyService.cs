@@ -74,7 +74,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <param name="attestationTrustPathValidator"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> validator. It validates that the attestation statement is trustworthy.</param>
     /// <param name="signatureValidator">Digital signature verifier.</param>
     /// <param name="logger">Logger.</param>
-    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAuthenticationCeremonyService(
         IOptionsMonitor<WebAuthnOptions> options,
         IWebAuthnContextFactory<TContext> contextFactory,
