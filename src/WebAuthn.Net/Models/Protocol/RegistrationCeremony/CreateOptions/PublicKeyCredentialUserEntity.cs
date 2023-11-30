@@ -96,7 +96,7 @@ public class PublicKeyCredentialUserEntity
     ///     <para>
     ///         To ensure secure operation, authentication and authorization decisions MUST be made on the basis of this <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-id">id</a> member, not the
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialuserentity-displayname">displayName</a> nor <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialentity-name">name</a> members. See Section 6.1 of
-    ///         <a href="https://www.rfc-editor.org/rfc/rfc8266.html#section-6.1"></a>RFC 8266.
+    ///         <a href="https://www.rfc-editor.org/rfc/rfc8266.html#section-6.1">RFC 8266</a>.
     ///     </para>
     ///     <para>
     ///         The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-handle">user handle</a> MUST NOT contain personally identifying information about the user, such as a username or e-mail address; see

@@ -74,7 +74,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <param name="attestationTrustPathValidator"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> validator. It validates that the attestation statement is trustworthy.</param>
     /// <param name="signatureValidator">Digital signature verifier.</param>
     /// <param name="logger">Logger.</param>
-    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAuthenticationCeremonyService(
         IOptionsMonitor<WebAuthnOptions> options,
         IWebAuthnContextFactory<TContext> contextFactory,
@@ -232,53 +232,53 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        await using var context = await ContextFactory.CreateAsync(
-            httpContext,
-            WebAuthnOperation.BeginAuthenticationCeremony,
-            cancellationToken);
-        var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
-        var rpId = await RpIdProvider.GetAsync(httpContext, cancellationToken);
-        PublicKeyCredentialDescriptor[]? credentialsToInclude = null;
-        if (request.UserHandle is not null && request.AllowCredentials is not null)
+        using (Logger.CreateBeginCeremonyScope())
+        await using (var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.BeginAuthenticationCeremony, cancellationToken))
         {
-            credentialsToInclude = await GetCredentialsToIncludeAsync(
-                context,
-                rpId,
+            var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
+            var rpId = await RpIdProvider.GetAsync(httpContext, cancellationToken);
+            PublicKeyCredentialDescriptor[]? credentialsToInclude = null;
+            if (request.UserHandle is not null && request.AllowCredentials is not null)
+            {
+                credentialsToInclude = await GetCredentialsToIncludeAsync(
+                    context,
+                    rpId,
+                    request.UserHandle,
+                    request.AllowCredentials,
+                    cancellationToken);
+            }
+
+            var defaultOrigin = await RpOriginProvider.GetAsync(httpContext, cancellationToken);
+            var origins = request.Origins is not null
+                ? request.Origins.AllowedOrigins
+                : new[] { defaultOrigin };
+            // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-validating-origin
+            // A web application that does not wish to be embedded in a cross-origin iframe might require topOrigin to exactly equal origin.
+            string[]? topOrigins = null;
+            var allowIframe = false;
+            if (request.TopOrigins is not null)
+            {
+                topOrigins = request.TopOrigins.AllowedOrigins;
+                allowIframe = true;
+            }
+
+            var expectedRpParameters = new AuthenticationCeremonyRpParameters(rpId, origins, allowIframe, topOrigins);
+            var timeout = GetTimeout(request);
+            var createdAt = TimeProvider.GetRoundUtcDateTime();
+            var expiresAt = ComputeExpiresAtUtc(createdAt, timeout);
+            var options = CreatePublicKeyCredentialRequestOptions(request, timeout, rpId, challenge, credentialsToInclude);
+            var outputOptions = PublicKeyCredentialRequestOptionsEncoder.Encode(options);
+            var authenticationCeremonyOptions = new AuthenticationCeremonyParameters(
                 request.UserHandle,
-                request.AllowCredentials,
-                cancellationToken);
+                options,
+                expectedRpParameters,
+                createdAt,
+                expiresAt);
+            var ceremonyId = await CeremonyStorage.SaveAsync(context, authenticationCeremonyOptions, cancellationToken);
+            await context.CommitAsync(cancellationToken);
+            var result = new BeginAuthenticationCeremonyResult(outputOptions, ceremonyId);
+            return result;
         }
-
-        var defaultOrigin = await RpOriginProvider.GetAsync(httpContext, cancellationToken);
-        var origins = request.Origins is not null
-            ? request.Origins.AllowedOrigins
-            : new[] { defaultOrigin };
-        // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-validating-origin
-        // A web application that does not wish to be embedded in a cross-origin iframe might require topOrigin to exactly equal origin.
-        string[]? topOrigins = null;
-        var allowIframe = false;
-        if (request.TopOrigins is not null)
-        {
-            topOrigins = request.TopOrigins.AllowedOrigins;
-            allowIframe = true;
-        }
-
-        var expectedRpParameters = new AuthenticationCeremonyRpParameters(rpId, origins, allowIframe, topOrigins);
-        var timeout = GetTimeout(request);
-        var createdAt = TimeProvider.GetRoundUtcDateTime();
-        var expiresAt = ComputeExpiresAtUtc(createdAt, timeout);
-        var options = CreatePublicKeyCredentialRequestOptions(request, timeout, rpId, challenge, credentialsToInclude);
-        var outputOptions = PublicKeyCredentialRequestOptionsEncoder.Encode(options);
-        var authenticationCeremonyOptions = new AuthenticationCeremonyParameters(
-            request.UserHandle,
-            options,
-            expectedRpParameters,
-            createdAt,
-            expiresAt);
-        var ceremonyId = await CeremonyStorage.SaveAsync(context, authenticationCeremonyOptions, cancellationToken);
-        await context.CommitAsync(cancellationToken);
-        var result = new BeginAuthenticationCeremonyResult(outputOptions, ceremonyId);
-        return result;
     }
 
     /// <inheritdoc />
@@ -290,7 +290,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        using (Logger.BeginCompleteAuthenticationCeremonyScope(request.AuthenticationCeremonyId))
+        using (Logger.CreateCompleteCeremonyScope(request.AuthenticationCeremonyId))
         await using (var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.CompleteAuthenticationCeremony, cancellationToken))
         {
             var authenticationCeremonyOptions = await CeremonyStorage.FindAsync(
@@ -674,7 +674,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // 27. If all the above steps are successful, continue with the authentication ceremony as appropriate. Otherwise, fail the authentication ceremony.
             var result = CompleteAuthenticationCeremonyResult.Success(
                 recommendedActions,
-                credentialRecordUpdateResult.UvInitializedCanBeUpdatedToTrue);
+                credentialRecordUpdateResult.UserVerificationFlagMayBeUpdatedToTrue);
             await context.CommitAsync(cancellationToken);
             return result;
         }
@@ -720,7 +720,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// </param>
     /// <param name="responseAttestationObject">The raw value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-object">attestationObject</a> obtained during the authentication ceremony.</param>
     /// <param name="responseClientDataJson">The raw value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a> obtained during the authentication ceremony.</param>
-    /// <returns></returns>
+    /// <returns>The result of updating the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credentialRecord</a>.</returns>
     protected virtual CredentialRecordUpdateResult UpdateCredentialRecord(
         CredentialRecord old,
         uint authDataSignCount,
@@ -739,7 +739,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             attestationClientDataJson = responseClientDataJson;
         }
 
-        var uvInitializedCanBeUpdatedToTrue = !old.UvInitialized && uvInitialized.HasValue && uvInitialized.Value;
+        var userVerificationFlagMayBeUpdatedToTrue = !old.UvInitialized && uvInitialized.HasValue && uvInitialized.Value;
 
         var updatedCredentialRecord = new CredentialRecord(
             old.Type,
@@ -752,7 +752,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             currentBs,
             attestationObject,
             attestationClientDataJson);
-        return new(updatedCredentialRecord, uvInitializedCanBeUpdatedToTrue);
+        return new(updatedCredentialRecord, userVerificationFlagMayBeUpdatedToTrue);
     }
 
     /// <summary>
@@ -866,7 +866,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <param name="currentBe">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">backup eligibility (BE)</a> flag for the credential obtained in the current authentication ceremony.</param>
     /// <param name="currentBs">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-bs">backup state (BS)</a> flag for the credential obtained in the current authentication ceremony.</param>
     /// <param name="credentialRecordBackupState">The previous value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">backup eligibility (BE)</a> flag, which was previously saved for the credential used in the authentication ceremony.</param>
-    /// <returns></returns>
+    /// <returns>An array of recommended actions to be performed after the authentication ceremony based on the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-backup">credential backup state</a>. Can be an empty array, cannot be <see langword="null" />.</returns>
     protected virtual CredentialBackupStateRecommendedAction[] ComputeBackupStateRecommendedActions(
         bool currentBe,
         bool currentBs,
@@ -1022,162 +1022,288 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     }
 }
 
+/// <summary>
+///     Extension methods for logging the authentication ceremony.
+/// </summary>
 public static partial class DefaultAuthenticationCeremonyServiceLoggingExtensions
 {
-    private static readonly Func<ILogger, string, IDisposable?> BeginCompleteAuthenticationCeremonyScopeDelegate = LoggerMessage.DefineScope<string>(
-        "Completion of registration ceremony with Id: {AuthenticationCeremonyId}");
+    private static readonly Func<ILogger, IDisposable?> CreateBeginCeremonyScopeDelegate = LoggerMessage.DefineScope(
+        "Authentication ceremony start");
 
-    public static IDisposable? BeginCompleteAuthenticationCeremonyScope(
+    private static readonly Func<ILogger, string, IDisposable?> CreateCompleteCeremonyScopeDelegate = LoggerMessage.DefineScope<string>(
+        "Completion of the authentication ceremony: {AuthenticationCeremonyId}");
+
+    /// <summary>
+    ///     Creates a logging scope, within which the start of the authentication ceremony will be handled.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <returns>A logging scope, in the form of an IDisposable object, the Dispose of which signifies the end of the scope's operation.</returns>
+    public static IDisposable? CreateBeginCeremonyScope(
+        this ILogger logger)
+    {
+        return CreateBeginCeremonyScopeDelegate(logger);
+    }
+
+    /// <summary>
+    ///     Creates a logging scope, within which the completion of the authentication ceremony will be handled.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="authenticationCeremonyId">The identifier of the authentication ceremony, for which the completion of the ceremony will be processed.</param>
+    /// <returns>A logging scope, in the form of an IDisposable object, the Dispose of which signifies the end of the scope's operation.</returns>
+    public static IDisposable? CreateCompleteCeremonyScope(
         this ILogger logger,
         string authenticationCeremonyId)
     {
-        return BeginCompleteAuthenticationCeremonyScopeDelegate(logger, authenticationCeremonyId);
+        return CreateCompleteCeremonyScopeDelegate(logger, authenticationCeremonyId);
     }
 
+    /// <summary>
+    ///     Authentication ceremony not found.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Authentication ceremony not found")]
     public static partial void AuthenticationCeremonyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode AuthenticationResponseJSON
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode AuthenticationResponseJSON")]
     public static partial void FailedToDecodeAuthenticationResponseJson(this ILogger logger);
 
+    /// <summary>
+    ///     The received credential.id is not included in the list specified in options.allowCredentials
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The received credential.id is not included in the list specified in options.allowCredentials")]
     public static partial void InvalidCredentialId(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find an existing credential with the specified Id
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find an existing credential with the specified Id")]
     public static partial void CredentialNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     The credential obtained from the storage does not match the parameters of the authentication ceremony
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The credential obtained from the storage does not match the parameters of the authentication ceremony")]
     public static partial void CredentialMismatch(this ILogger logger);
 
+    /// <summary>
+    ///     response.userHandle does not equal the user handle of the user account
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "response.userHandle does not equal the user handle of the user account")]
     public static partial void ResponseUserHandleMismatch(this ILogger logger);
 
+    /// <summary>
+    ///     response.userHandle is not present
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "response.userHandle is not present")]
     public static partial void UserHandleNotPresentInResponse(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode response.AuthenticatorData
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode response.AuthenticatorData")]
     public static partial void FailedToDecodeResponseAuthenticatorData(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode response.clientDataJSON
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode response.clientDataJSON")]
     public static partial void FailedToDecodeResponseClientDataJson(this ILogger logger);
 
+    /// <summary>
+    ///     The 'clientData.type' is incorrect, as it expected 'webauthn.get' but received '{ClientDataType}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="clientDataType">The received 'clientData.type' value.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'clientData.type' is incorrect, as it expected 'webauthn.get' but received '{ClientDataType}'")]
     public static partial void IncorrectClientDataType(this ILogger logger, string clientDataType);
 
+    /// <summary>
+    ///     The challenge in the authentication completion request doesn't match the one generated for this authentication ceremony
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The challenge in the authentication completion request doesn't match the one generated for this authentication ceremony")]
     public static partial void ChallengeMismatch(this ILogger logger);
 
+    /// <summary>
+    ///     Invalid value for origin: '{ClientDataOrigin}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="clientDataOrigin">The origin obtained from clientData.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Invalid value for origin: '{ClientDataOrigin}'")]
     public static partial void InvalidOrigin(this ILogger logger, string clientDataOrigin);
 
+    /// <summary>
+    ///     Invalid value for topOrigin: '{ClientDataTopOrigin}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="clientDataTopOrigin">The topOrigin obtained from clientData.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Invalid value for topOrigin: '{ClientDataTopOrigin}'")]
     public static partial void InvalidTopOrigin(this ILogger logger, string clientDataTopOrigin);
 
+    /// <summary>
+    ///     The 'rpIdHash' in 'authData' does not match the SHA-256 hash of the RP ID expected by the Relying Party
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'rpIdHash' in 'authData' does not match the SHA-256 hash of the RP ID expected by the Relying Party")]
     public static partial void RpIdHashMismatch(this ILogger logger);
 
+    /// <summary>
+    ///     User Present bit in 'authData.flags' isn't set
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "User Present bit in 'authData.flags' isn't set")]
     public static partial void UserPresentBitNotSet(this ILogger logger);
 
+    /// <summary>
+    ///     User Verification bit in 'authData.flags' is required, but not set
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "User Verification bit in 'authData.flags' is required, but not set")]
     public static partial void UserVerificationBitNotSet(this ILogger logger);
 
+    /// <summary>
+    ///     'authData.flags' contains an invalid combination of Backup Eligibility (BE) and Backup State (BS) flags
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "'authData.flags' contains an invalid combination of Backup Eligibility (BE) and Backup State (BS) flags")]
     public static partial void InvalidBeBsFlagsCombination(this ILogger logger);
 
+    /// <summary>
+    ///     Backup Eligible bit in 'authData.flags' is required, but not set
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Backup Eligible bit in 'authData.flags' is required, but not set")]
     public static partial void BackupEligibleBitNotSet(this ILogger logger);
 
+    /// <summary>
+    ///     Backup Eligible bit in 'authData.flags' is set, but it shouldn't be
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Backup Eligible bit in 'authData.flags' is set, but it shouldn't be")]
     public static partial void BackupEligibleBitSet(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to transform the public key of the found credentialRecord into a CoseKey
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to transform the public key of the found credentialRecord into a CoseKey")]
     public static partial void FailedToTransformCredentialPublicKey(this ILogger logger);
 
+    /// <summary>
+    ///     Invalid signature
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Invalid signature")]
     public static partial void InvalidSignature(this ILogger logger);
 
+    /// <summary>
+    ///     The obtained signCount is less than or equal to the one that was saved earlier
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The obtained signCount is less than or equal to the one that was saved earlier")]
     public static partial void AbortBySignCount(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to perform CBOR decoding of the AttestationObject
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to perform CBOR decoding of the AttestationObject")]
     public static partial void AttestationObjectDecodeFailed(this ILogger logger);
 
+    /// <summary>
+    ///     AttestationObject is invalid
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "AttestationObject is invalid")]
     public static partial void AttestationObjectVerificationFailed(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to update user credential record
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,

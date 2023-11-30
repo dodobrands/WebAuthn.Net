@@ -68,7 +68,7 @@ public class PublicKeyCredentialUserEntityJSON
     ///         The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-handle">user handle</a> ought not be a constant value across different <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user accounts</a>, even for
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#non-discoverable-credential">non-discoverable credentials</a>, because some authenticators always create
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#discoverable-credential">discoverable credentials</a>. Thus a constant <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-handle">user handle</a> would prevent a user from using such an
-    ///         authenticator with more than one <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> at the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party"></a>Relying Party.
+    ///         authenticator with more than one <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-account">user account</a> at the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a>.
     ///     </para>
     /// </remarks>
     [JsonPropertyName("id")]

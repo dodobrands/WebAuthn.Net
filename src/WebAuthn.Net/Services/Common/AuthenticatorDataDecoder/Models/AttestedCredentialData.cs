@@ -17,8 +17,8 @@ public class AttestedCredentialData
     /// </summary>
     /// <param name="aaguid">The AAGUID of the authenticator.</param>
     /// <param name="credentialId">
-    ///     A probabilistically-unique <a href="https://infra.spec.whatwg.org/#byte-sequence">byte sequence</a> identifying a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source"></a>public key credential source and its
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion"></a>authentication assertions. At least 16 bytes long. At most 1023 bytes long.
+    ///     A probabilistically-unique <a href="https://infra.spec.whatwg.org/#byte-sequence">byte sequence</a> identifying a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> and its
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertions</a>. At least 16 bytes long. At most 1023 bytes long.
     /// </param>
     /// <param name="credentialPublicKey">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">credential public key</a>.</param>
     /// <exception cref="ArgumentNullException"><paramref name="aaguid" /> is <see langword="null" /></exception>
@@ -62,8 +62,8 @@ public class AttestedCredentialData
     public Guid Aaguid { get; }
 
     /// <summary>
-    ///     A probabilistically-unique <a href="https://infra.spec.whatwg.org/#byte-sequence">byte sequence</a> identifying a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source"></a>public key credential source and its
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion"></a>authentication assertions. At least 16 bytes long. At most 1023 bytes long.
+    ///     A probabilistically-unique <a href="https://infra.spec.whatwg.org/#byte-sequence">byte sequence</a> identifying a <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> and its
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authentication-assertion">authentication assertions</a>. At least 16 bytes long. At most 1023 bytes long.
     /// </summary>
     public byte[] CredentialId { get; }
 

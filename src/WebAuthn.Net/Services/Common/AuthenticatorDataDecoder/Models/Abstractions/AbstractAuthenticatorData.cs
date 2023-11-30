@@ -22,8 +22,8 @@ public abstract class AbstractAuthenticatorData
     public abstract byte[] Raw { get; }
 
     /// <summary>
-    ///     SHA-256 hash of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#rp-id">RP ID</a> the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">credential</a> is <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#scope"></a>
-    ///     scoped to.
+    ///     SHA-256 hash of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#rp-id">RP ID</a> the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">credential</a> is
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#scope">scoped</a> to.
     /// </summary>
     public abstract byte[] RpIdHash { get; }
 

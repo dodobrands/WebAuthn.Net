@@ -10,9 +10,18 @@ using WebAuthn.Net.Services.Serialization.Json;
 
 namespace WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IAttestationObjectDecoder" />.
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAttestationObjectDecoder" />.
+    /// </summary>
+    /// <param name="cborDeserializer">CBOR format deserializer.</param>
+    /// <param name="attestationStatementFormatSerializer">Serializer for the <see cref="AttestationStatementFormat" /> enum.</param>
+    /// <param name="logger">Logger.</param>
     public DefaultAttestationObjectDecoder(
         ICborDeserializer cborDeserializer,
         IEnumMemberAttributeSerializer<AttestationStatementFormat> attestationStatementFormatSerializer,
