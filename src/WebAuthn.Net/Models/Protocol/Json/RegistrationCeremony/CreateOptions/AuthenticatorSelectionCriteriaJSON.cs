@@ -48,7 +48,7 @@ public class AuthenticatorSelectionCriteriaJSON
     ///     This member specifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party's</a> requirements regarding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a> for
     ///     the <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">create()</a> operation. The value SHOULD be a member of
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-userverificationrequirement">UserVerificationRequirement</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore unknown values, treating an
-    ///     unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists"></a>member does not exist.
+    ///     unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>.
     /// </param>
     public AuthenticatorSelectionCriteriaJSON(string? authenticatorAttachment, string? residentKey, bool? requireResidentKey, string? userVerification)
     {
@@ -109,7 +109,7 @@ public class AuthenticatorSelectionCriteriaJSON
     ///         This member specifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party's</a> requirements regarding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#user-verification">user verification</a> for the
     ///         <a href="https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-create">create()</a> operation. The value SHOULD be a member of
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-userverificationrequirement">UserVerificationRequirement</a> but <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">client platforms</a> MUST ignore unknown values, treating an
-    ///         unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists"></a>member does not exist.
+    ///         unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>.
     ///     </para>
     ///     <para>
     ///         See <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-userverificationrequirement">UserVerificationRequirement</a> for the description of

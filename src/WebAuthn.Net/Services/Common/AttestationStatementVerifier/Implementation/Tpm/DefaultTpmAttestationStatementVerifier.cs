@@ -39,16 +39,6 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
-    /// <summary>
-    ///     Constructs <see cref="DefaultTpmAttestationStatementVerifier{TContext}" />.
-    /// </summary>
-    /// <param name="timeProvider">Current time provider.</param>
-    /// <param name="tpmPubAreaDecoder"></param>
-    /// <param name="tpmCertInfoDecoder"></param>
-    /// <param name="signatureValidator"></param>
-    /// <param name="tpmManufacturerVerifier"></param>
-    /// <param name="asn1Deserializer"></param>
-    /// <param name="fidoMetadataSearchService"></param>
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
         ITpmPubAreaDecoder tpmPubAreaDecoder,
@@ -74,11 +64,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
-    /// <summary>
-    ///     Current time provider.
-    /// </summary>
     protected ITimeProvider TimeProvider { get; }
-
     protected ITpmPubAreaDecoder TpmPubAreaDecoder { get; }
     protected ITpmCertInfoDecoder TpmCertInfoDecoder { get; }
     protected IDigitalSignatureValidator SignatureValidator { get; }

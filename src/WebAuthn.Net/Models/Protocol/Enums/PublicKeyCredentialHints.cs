@@ -34,7 +34,7 @@ public enum PublicKeyCredentialHints
     ///     <para>
     ///         For compatibility with older user agents, when this hint is used in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialcreationoptions">PublicKeyCredentialCreationOptions</a>, the
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorselectioncriteria-authenticatorattachment">authenticatorAttachment</a> SHOULD be set to
-    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattachment-cross-platform"></a>cross-platform.
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattachment-cross-platform">cross-platform</a>.
     ///     </para>
     /// </summary>
     [EnumMember(Value = "security-key")]
@@ -47,8 +47,8 @@ public enum PublicKeyCredentialHints
     ///     </para>
     ///     <para>
     ///         For compatibility with older user agents, when this hint is used in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialcreationoptions">PublicKeyCredentialCreationOptions</a>, the
-    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorselectioncriteria-authenticatorattachment">authenticatorAttachment</a> SHOULD be set to <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattachment-platform"></a>
-    ///         platform.
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorselectioncriteria-authenticatorattachment">authenticatorAttachment</a> SHOULD be set to
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattachment-platform">platform</a>.
     ///     </para>
     /// </summary>
     [EnumMember(Value = "client-device")]
@@ -63,7 +63,7 @@ public enum PublicKeyCredentialHints
     ///     <para>
     ///         For compatibility with older user agents, when this hint is used in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictdef-publickeycredentialcreationoptions">PublicKeyCredentialCreationOptions</a>, the
     ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorselectioncriteria-authenticatorattachment">authenticatorAttachment</a> SHOULD be set to
-    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattachment-cross-platform"></a>cross-platform.
+    ///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattachment-cross-platform">cross-platform</a>.
     ///     </para>
     /// </summary>
     [EnumMember(Value = "hybrid")]

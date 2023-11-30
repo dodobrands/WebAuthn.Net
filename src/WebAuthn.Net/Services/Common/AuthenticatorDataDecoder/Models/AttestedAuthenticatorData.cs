@@ -18,7 +18,7 @@ public class AttestedAuthenticatorData : AbstractAuthenticatorData
     /// <param name="raw">Raw <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">authenticator data</a> value.</param>
     /// <param name="rpIdHash">
     ///     SHA-256 hash of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#rp-id">RP ID</a> the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential">credential</a> is
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#scope"></a>scoped to.
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#scope">scoped</a> to.
     /// </param>
     /// <param name="flags"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flags</a>.</param>
     /// <param name="signCount"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#signature-counter">Signature counter</a>, 32-bit unsigned integer.</param>

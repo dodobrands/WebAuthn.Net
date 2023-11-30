@@ -14,7 +14,7 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
 namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 
 /// <summary>
-///     Default implementation of the service for working with the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> structure.
+///     Default implementation of <see cref="IAuthenticatorDataDecoder" />.
 /// </summary>
 public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 {

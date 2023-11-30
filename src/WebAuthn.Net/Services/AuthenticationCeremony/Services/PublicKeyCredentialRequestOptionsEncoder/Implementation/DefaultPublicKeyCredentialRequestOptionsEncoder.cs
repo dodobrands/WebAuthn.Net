@@ -127,8 +127,8 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
     ///     Encodes <see cref="PublicKeyCredentialDescriptor" /> into a model suitable for serialization into JSON.
     /// </summary>
     /// <param name="allowCredential"><see cref="PublicKeyCredentialDescriptor" />, which needs to be encoded into a model suitable for serialization into JSON.</param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException">Failed to encode <see cref="PublicKeyCredentialDescriptor.Type" /> or one of the <see cref="PublicKeyCredentialDescriptor.Transports" /> elements.</exception>
+    /// <returns><see cref="PublicKeyCredentialDescriptorJSON" />, suitable for serialization into JSON</returns>
+    /// <exception cref="InvalidOperationException">Failed to encode <paramref name="allowCredential" />.<see cref="PublicKeyCredentialDescriptor.Type" /> or one of the <paramref name="allowCredential" />.<see cref="PublicKeyCredentialDescriptor.Transports" /> elements.</exception>
     protected virtual PublicKeyCredentialDescriptorJSON EncodeAllowCredential(PublicKeyCredentialDescriptor allowCredential)
     {
         ArgumentNullException.ThrowIfNull(allowCredential);
@@ -157,6 +157,12 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         return new(id, type, transports);
     }
 
+    /// <summary>
+    ///     Encodes the <see cref="UserVerificationRequirement" /> enum into a string.
+    /// </summary>
+    /// <param name="userVerification">The value of the <see cref="UserVerificationRequirement" /> enum that needs to be encoded into a string.</param>
+    /// <returns>String representation of <see cref="UserVerificationRequirement" /> or <see langword="null" />.</returns>
+    /// <exception cref="InvalidOperationException">Failed to encode <paramref name="userVerification" /> into a string.</exception>
     protected virtual string? EncodeUserVerification(UserVerificationRequirement? userVerification)
     {
         if (!userVerification.HasValue)
@@ -172,6 +178,12 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         return encodedUserVerification;
     }
 
+    /// <summary>
+    ///     Encodes an array of <see cref="PublicKeyCredentialHints" /> enums into an array of strings.
+    /// </summary>
+    /// <param name="hints">Array of <see cref="PublicKeyCredentialHints" />, which needs to be encoded into strings.</param>
+    /// <returns>Array of strings or <see langword="null" />.</returns>
+    /// <exception cref="InvalidOperationException">Failed to encode one of the elements in the <paramref name="hints" /> array.</exception>
     protected virtual string[]? EncodeHints(PublicKeyCredentialHints[]? hints)
     {
         if (hints is null)
@@ -193,6 +205,12 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         return result;
     }
 
+    /// <summary>
+    ///     Encodes the <see cref="AttestationConveyancePreference" /> enum into a string.
+    /// </summary>
+    /// <param name="attestation">The value of the <see cref="AttestationConveyancePreference" /> enum that needs to be encoded into a string.</param>
+    /// <returns>String representation of <see cref="AttestationConveyancePreference" /> or <see langword="null" />.</returns>
+    /// <exception cref="InvalidOperationException">Failed to encode <paramref name="attestation" /> into a string.</exception>
     protected virtual string? EncodeAttestation(AttestationConveyancePreference? attestation)
     {
         if (!attestation.HasValue)
@@ -208,6 +226,12 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         return result;
     }
 
+    /// <summary>
+    ///     Encodes an array of <see cref="AttestationStatementFormat" /> enums into an array of strings.
+    /// </summary>
+    /// <param name="attestationFormats">Array of <see cref="AttestationStatementFormat" />, which needs to be encoded into strings.</param>
+    /// <returns>Array of strings or <see langword="null" />.</returns>
+    /// <exception cref="InvalidOperationException">Failed to encode one of the elements in the <paramref name="attestationFormats" /> array.</exception>
     protected virtual string[]? EncodeAttestationFormats(AttestationStatementFormat[]? attestationFormats)
     {
         if (attestationFormats is null)

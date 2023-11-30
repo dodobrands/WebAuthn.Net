@@ -720,7 +720,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// </param>
     /// <param name="responseAttestationObject">The raw value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-object">attestationObject</a> obtained during the authentication ceremony.</param>
     /// <param name="responseClientDataJson">The raw value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a> obtained during the authentication ceremony.</param>
-    /// <returns></returns>
+    /// <returns>The result of updating the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credentialRecord</a>.</returns>
     protected virtual CredentialRecordUpdateResult UpdateCredentialRecord(
         CredentialRecord old,
         uint authDataSignCount,
@@ -866,7 +866,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <param name="currentBe">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">backup eligibility (BE)</a> flag for the credential obtained in the current authentication ceremony.</param>
     /// <param name="currentBs">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-bs">backup state (BS)</a> flag for the credential obtained in the current authentication ceremony.</param>
     /// <param name="credentialRecordBackupState">The previous value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">backup eligibility (BE)</a> flag, which was previously saved for the credential used in the authentication ceremony.</param>
-    /// <returns></returns>
+    /// <returns>An array of recommended actions to be performed after the authentication ceremony based on the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-backup">credential backup state</a>. Can be an empty array, cannot be <see langword="null" />.</returns>
     protected virtual CredentialBackupStateRecommendedAction[] ComputeBackupStateRecommendedActions(
         bool currentBe,
         bool currentBs,

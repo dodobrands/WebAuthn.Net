@@ -8,9 +8,9 @@ namespace WebAuthn.Net.Services.Common.AttestationTrustPathValidator;
 public interface IAttestationTrustPathValidator
 {
     /// <summary>
-    ///     Validates the attestation trust path.
+    ///     Validates the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">attestation trust path</a>.
     /// </summary>
-    /// <param name="verificationResult"></param>
-    /// <returns></returns>
+    /// <param name="verificationResult">Artifact of a successfully verified attestation statement.</param>
+    /// <returns><see langword="true" />, if verificationResult contains a valid attestation trust path, otherwise - <see langword="false" /></returns>
     bool IsValid(VerifiedAttestationStatement verificationResult);
 }
