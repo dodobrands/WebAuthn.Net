@@ -40,7 +40,7 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
 
     /// <inheritdoc />
-    public Result<AuthenticationResponse> Decode(AuthenticationResponseJSON authenticationResponse)
+    public virtual Result<AuthenticationResponse> Decode(AuthenticationResponseJSON authenticationResponse)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (authenticationResponse is null)

@@ -188,13 +188,13 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var noneDecoder = new DefaultNoneAttestationStatementDecoder(NullLogger<DefaultNoneAttestationStatementDecoder>.Instance);
         var appleAnonymousDecoder = new DefaultAppleAnonymousAttestationStatementDecoder(NullLogger<DefaultAppleAnonymousAttestationStatementDecoder>.Instance);
         var attestationStatementDecoder = new DefaultAttestationStatementDecoder(
-            packedDecoder,
-            tpmDecoder,
             androidKeyDecoder,
             androidSafetyNetDecoder,
+            appleAnonymousDecoder,
             fidoU2FDecoder,
             noneDecoder,
-            appleAnonymousDecoder);
+            packedDecoder,
+            tpmDecoder);
         var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
         RegistrationCeremonyService = new(
             Options,

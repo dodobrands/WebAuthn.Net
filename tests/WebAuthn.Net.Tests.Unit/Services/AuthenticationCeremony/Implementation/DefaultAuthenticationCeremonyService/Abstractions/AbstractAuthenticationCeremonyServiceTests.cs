@@ -193,13 +193,13 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var noneDecoder = new DefaultNoneAttestationStatementDecoder(NullLogger<DefaultNoneAttestationStatementDecoder>.Instance);
         var appleAnonymousDecoder = new DefaultAppleAnonymousAttestationStatementDecoder(NullLogger<DefaultAppleAnonymousAttestationStatementDecoder>.Instance);
         var attestationStatementDecoder = new DefaultAttestationStatementDecoder(
-            packedDecoder,
-            tpmDecoder,
             androidKeyDecoder,
             androidSafetyNetDecoder,
+            appleAnonymousDecoder,
             fidoU2FDecoder,
             noneDecoder,
-            appleAnonymousDecoder);
+            packedDecoder,
+            tpmDecoder);
         var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
 
         var publicKeyCredentialRequestOptionsEncoder = new DefaultPublicKeyCredentialRequestOptionsEncoder(

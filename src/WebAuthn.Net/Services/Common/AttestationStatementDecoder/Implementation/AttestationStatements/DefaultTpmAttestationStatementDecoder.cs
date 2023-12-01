@@ -10,52 +10,64 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 
+/// <summary>
+///     Default implementation of <see cref="ITpmAttestationStatementDecoder" />.
+/// </summary>
 public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDecoder
 {
-    private readonly ILogger<DefaultTpmAttestationStatementDecoder> _logger;
-
+    /// <summary>
+    ///     Constructs <see cref="DefaultTpmAttestationStatementDecoder" />.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultTpmAttestationStatementDecoder(ILogger<DefaultTpmAttestationStatementDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
+        Logger = logger;
     }
 
-    public Result<TpmAttestationStatement> Decode(CborMap attStmt)
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultTpmAttestationStatementDecoder> Logger { get; }
+
+    /// <inheritdoc />
+    public virtual Result<TpmAttestationStatement> Decode(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
         if (!TryDecodeAlg(attStmt, out var alg))
         {
-            _logger.TpmDecodeFailureAlg();
+            Logger.TpmDecodeFailureAlg();
             return Result<TpmAttestationStatement>.Fail();
         }
 
         if (!TryDecodeSig(attStmt, out var sig))
         {
-            _logger.TpmDecodeFailureSig();
+            Logger.TpmDecodeFailureSig();
             return Result<TpmAttestationStatement>.Fail();
         }
 
         if (!TryDecodeVer(attStmt, out var ver))
         {
-            _logger.TpmDecodeFailureVer();
+            Logger.TpmDecodeFailureVer();
             return Result<TpmAttestationStatement>.Fail();
         }
 
         if (!TryDecodeX5C(attStmt, out var x5C))
         {
-            _logger.TpmDecodeFailureX5C();
+            Logger.TpmDecodeFailureX5C();
             return Result<TpmAttestationStatement>.Fail();
         }
 
         if (!TryDecodePubArea(attStmt, out var pubArea))
         {
-            _logger.TpmDecodeFailurePubArea();
+            Logger.TpmDecodeFailurePubArea();
             return Result<TpmAttestationStatement>.Fail();
         }
 
         if (!TryDecodeCertInfo(attStmt, out var certInfo))
         {
-            _logger.TpmDecodeFailureCertInfo();
+            Logger.TpmDecodeFailureCertInfo();
             return Result<TpmAttestationStatement>.Fail();
         }
 
@@ -76,21 +88,21 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("alg"), out var algCbor))
         {
-            _logger.TpmAlgKeyNotFound();
+            Logger.TpmAlgKeyNotFound();
             value = null;
             return false;
         }
 
         if (algCbor is not AbstractCborInteger intCborValue)
         {
-            _logger.TpmAlgValueInvalidDataType();
+            Logger.TpmAlgValueInvalidDataType();
             value = null;
             return false;
         }
 
         if (!intCborValue.TryReadAsInt32(out var intAlg))
         {
-            _logger.TpmAlgValueOutOfRange();
+            Logger.TpmAlgValueOutOfRange();
             value = null;
             return false;
         }
@@ -98,7 +110,7 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         var alg = (CoseAlgorithm) intAlg.Value;
         if (!Enum.IsDefined(alg))
         {
-            _logger.TpmAlgValueUnknown(intAlg.Value);
+            Logger.TpmAlgValueUnknown(intAlg.Value);
             value = null;
             return false;
         }
@@ -114,14 +126,14 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("sig"), out var sigCbor))
         {
-            _logger.TpmSigKeyNotFound();
+            Logger.TpmSigKeyNotFound();
             value = null;
             return false;
         }
 
         if (sigCbor is not CborByteString sigCborByteString)
         {
-            _logger.TpmSigValueInvalidDataType();
+            Logger.TpmSigValueInvalidDataType();
             value = null;
             return false;
         }
@@ -137,14 +149,14 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("ver"), out var verCbor))
         {
-            _logger.TpmVerKeyNotFound();
+            Logger.TpmVerKeyNotFound();
             value = null;
             return false;
         }
 
         if (verCbor is not CborTextString verCborTextString)
         {
-            _logger.TpmVerValueInvalidDataType();
+            Logger.TpmVerValueInvalidDataType();
             value = null;
             return false;
         }
@@ -160,14 +172,14 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("x5c"), out var x5CCbor))
         {
-            _logger.TpmX5CKeyNotFound();
+            Logger.TpmX5CKeyNotFound();
             value = null;
             return false;
         }
 
         if (x5CCbor is not CborArray x5CborArray)
         {
-            _logger.TpmX5CValueInvalidDataType();
+            Logger.TpmX5CValueInvalidDataType();
             value = null;
             return false;
         }
@@ -178,7 +190,7 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         {
             if (cborArrayItems[i] is not CborByteString cborArrayItemByteString)
             {
-                _logger.TpmX5CValueInvalidElementDataType();
+                Logger.TpmX5CValueInvalidElementDataType();
                 value = null;
                 return false;
             }
@@ -212,14 +224,14 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString(cborMapKey), out var cborValue))
         {
-            _logger.TpmCantFindCborMapKey(cborMapKey);
+            Logger.TpmCantFindCborMapKey(cborMapKey);
             value = null;
             return false;
         }
 
         if (cborValue is not CborByteString byteStringCborValue)
         {
-            _logger.TpmCborMapKeyInvalidDataType(cborMapKey);
+            Logger.TpmCborMapKeyInvalidDataType(cborMapKey);
             value = null;
             return false;
         }
@@ -229,116 +241,198 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
     }
 }
 
+/// <summary>
+///     Extension methods for logging the TPM attestation statement decoder.
+/// </summary>
 public static partial class DefaultTpmAttestationStatementDecoderLoggingExtensions
 {
+    /// <summary>
+    ///     Failed to decode the 'alg' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'alg' value from 'attStmt'")]
     public static partial void TpmDecodeFailureAlg(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'sig' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'sig' value from 'attStmt'")]
     public static partial void TpmDecodeFailureSig(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'ver' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'ver' value from 'attStmt'")]
     public static partial void TpmDecodeFailureVer(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'x5c' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'x5c' value from 'attStmt'")]
     public static partial void TpmDecodeFailureX5C(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'pubArea' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'pubArea' value from 'attStmt'")]
     public static partial void TpmDecodeFailurePubArea(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'certInfo' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'certInfo' value from 'attStmt'")]
     public static partial void TpmDecodeFailureCertInfo(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the 'alg' key in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find the 'alg' key in 'attStmt'")]
     public static partial void TpmAlgKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     The 'alg' value in the 'attStmt' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'alg' value in the 'attStmt' map contains an invalid data type")]
     public static partial void TpmAlgValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     The 'alg' value in the 'attStmt' map is out of range
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'alg' value in the 'attStmt' map is out of range")]
     public static partial void TpmAlgValueOutOfRange(this ILogger logger);
 
+    /// <summary>
+    ///     The 'attStmt' contains an unknown 'alg': {UnknownAlg}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="unknownAlg">Unknown 'alg' value.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'attStmt' contains an unknown 'alg': {UnknownAlg}")]
     public static partial void TpmAlgValueUnknown(this ILogger logger, int unknownAlg);
 
+    /// <summary>
+    ///     Failed to find the 'sig' key in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find the 'sig' key in 'attStmt'")]
     public static partial void TpmSigKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the 'ver' key in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find the 'ver' key in 'attStmt'")]
     public static partial void TpmVerKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     The 'sig' value in the 'attStmt' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'sig' value in the 'attStmt' map contains an invalid data type")]
     public static partial void TpmSigValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     The 'ver' value in the 'attStmt' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'ver' value in the 'attStmt' map contains an invalid data type")]
     public static partial void TpmVerValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the 'x5c' key in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find the 'x5c' key in 'attStmt'")]
     public static partial void TpmX5CKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     The 'x5c' value in the 'attStmt' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'x5c' value in the 'attStmt' map contains an invalid data type")]
     public static partial void TpmX5CValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type")]
     public static partial void TpmX5CValueInvalidElementDataType(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the key '{CborMapKey}' in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="cborMapKey"></param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find the key '{CborMapKey}' in 'attStmt'")]
     public static partial void TpmCantFindCborMapKey(this ILogger logger, string cborMapKey);
 
+    /// <summary>
+    ///     An invalid data type is used for the '{CborMapKey}' value in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="cborMapKey">The key that failed to be found in <see cref="CborMap" />. </param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
