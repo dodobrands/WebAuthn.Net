@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation;
+﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
 
 public class AikCertSubjectAlternativeName
 {

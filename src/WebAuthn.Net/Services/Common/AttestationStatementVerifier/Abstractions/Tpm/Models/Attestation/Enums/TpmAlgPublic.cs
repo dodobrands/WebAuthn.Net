@@ -1,4 +1,4 @@
-﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums;
+﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
 ///     <para>TPMI_ALG_PUBLIC, based on TPM_ALG_ID (UINT16) - TPM_ALG_!ALG.o</para>

@@ -3,8 +3,8 @@ using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 

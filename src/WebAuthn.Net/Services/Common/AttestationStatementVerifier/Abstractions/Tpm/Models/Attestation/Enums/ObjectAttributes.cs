@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums;
+namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
 ///     TPMA_OBJECT (UINT32) - Object Attributes

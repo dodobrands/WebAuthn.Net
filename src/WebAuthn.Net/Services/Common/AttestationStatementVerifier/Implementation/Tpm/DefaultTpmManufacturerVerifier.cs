@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Manufacturer;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Constants;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Manufacturer;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
