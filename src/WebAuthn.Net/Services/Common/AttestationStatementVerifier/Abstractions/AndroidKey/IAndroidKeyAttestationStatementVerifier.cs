@@ -9,17 +9,19 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidKey;
 
 /// <summary>
-/// Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
 /// </summary>
 /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public interface IAndroidKeyAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
     /// <summary>
-    /// Asynchronously verifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+    ///     Asynchronously verifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
-    /// <param name="attStmt">Decoded <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.</param>
+    /// <param name="attStmt">
+    ///     Decoded <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+    /// </param>
     /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
     /// <param name="clientDataHash">SHA256 hash of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a>.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
