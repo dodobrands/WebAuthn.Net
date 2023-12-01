@@ -7,23 +7,34 @@ using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 
+/// <summary>
+///     Default implementation of <see cref="INoneAttestationStatementDecoder" />.
+/// </summary>
 public class DefaultNoneAttestationStatementDecoder : INoneAttestationStatementDecoder
 {
-    private readonly ILogger<DefaultNoneAttestationStatementDecoder> _logger;
-
+    /// <summary>
+    ///     Constructs <see cref="DefaultNoneAttestationStatementDecoder" />.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     public DefaultNoneAttestationStatementDecoder(ILogger<DefaultNoneAttestationStatementDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
+        Logger = logger;
     }
 
-    public Result<NoneAttestationStatement> Decode(CborMap attStmt)
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultNoneAttestationStatementDecoder> Logger { get; }
+
+    /// <inheritdoc />
+    public virtual Result<NoneAttestationStatement> Decode(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
         var dict = attStmt.RawValue;
         if (dict.Count > 0)
         {
-            _logger.NoneNonEmptyMap();
+            Logger.NoneNonEmptyMap();
             return Result<NoneAttestationStatement>.Fail();
         }
 
@@ -31,8 +42,15 @@ public class DefaultNoneAttestationStatementDecoder : INoneAttestationStatementD
     }
 }
 
+/// <summary>
+///     Extension methods for logging the None attestation statement decoder.
+/// </summary>
 public static partial class DefaultNoneAttestationStatementDecoderLoggingExtensions
 {
+    /// <summary>
+    ///     The 'attStmt' for the 'none' type should consist of an empty CBOR map
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,

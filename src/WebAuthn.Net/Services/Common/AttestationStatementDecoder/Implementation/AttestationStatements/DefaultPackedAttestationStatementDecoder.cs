@@ -10,34 +10,46 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 
+/// <summary>
+///     Default implementation of <see cref="IPackedAttestationStatementDecoder" />.
+/// </summary>
 public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatementDecoder
 {
-    private readonly ILogger<DefaultPackedAttestationStatementDecoder> _logger;
-
+    /// <summary>
+    ///     Constructs <see cref="DefaultPackedAttestationStatementDecoder" />.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPackedAttestationStatementDecoder(ILogger<DefaultPackedAttestationStatementDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
+        Logger = logger;
     }
 
-    public Result<PackedAttestationStatement> Decode(CborMap attStmt)
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultPackedAttestationStatementDecoder> Logger { get; }
+
+    /// <inheritdoc />
+    public virtual Result<PackedAttestationStatement> Decode(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
         if (!TryDecodeAlg(attStmt, out var alg))
         {
-            _logger.PackedDecodeFailureAlg();
+            Logger.PackedDecodeFailureAlg();
             return Result<PackedAttestationStatement>.Fail();
         }
 
         if (!TryDecodeSig(attStmt, out var sig))
         {
-            _logger.PackedDecodeFailureSig();
+            Logger.PackedDecodeFailureSig();
             return Result<PackedAttestationStatement>.Fail();
         }
 
         if (!TryDecodeX5C(attStmt, out var x5CResult))
         {
-            _logger.PackedDecodeFailureX5C();
+            Logger.PackedDecodeFailureX5C();
             return Result<PackedAttestationStatement>.Fail();
         }
 
@@ -53,21 +65,21 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("alg"), out var algCbor))
         {
-            _logger.PackedAlgKeyNotFound();
+            Logger.PackedAlgKeyNotFound();
             value = null;
             return false;
         }
 
         if (algCbor is not AbstractCborInteger intCborValue)
         {
-            _logger.PackedAlgValueInvalidDataType();
+            Logger.PackedAlgValueInvalidDataType();
             value = null;
             return false;
         }
 
         if (!intCborValue.TryReadAsInt32(out var intAlg))
         {
-            _logger.PackedAlgValueOutOfRange();
+            Logger.PackedAlgValueOutOfRange();
             value = null;
             return false;
         }
@@ -75,7 +87,7 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         var alg = (CoseAlgorithm) intAlg.Value;
         if (!Enum.IsDefined(alg))
         {
-            _logger.PackedAlgValueUnknown(intAlg.Value);
+            Logger.PackedAlgValueUnknown(intAlg.Value);
             value = null;
             return false;
         }
@@ -91,14 +103,14 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         var dict = attStmt.RawValue;
         if (!dict.TryGetValue(new CborTextString("sig"), out var sigCbor))
         {
-            _logger.PackedSigKeyNotFound();
+            Logger.PackedSigKeyNotFound();
             value = null;
             return false;
         }
 
         if (sigCbor is not CborByteString sigCborByteString)
         {
-            _logger.PackedSigValueInvalidDataType();
+            Logger.PackedSigValueInvalidDataType();
             value = null;
             return false;
         }
@@ -120,7 +132,7 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
 
         if (x5CCbor is not CborArray x5CborArray)
         {
-            _logger.PackedX5CValueInvalidDataType();
+            Logger.PackedX5CValueInvalidDataType();
             value = null;
             return false;
         }
@@ -131,7 +143,7 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         {
             if (cborArrayItems[i] is not CborByteString cborArrayItemByteString)
             {
-                _logger.PackedX5CValueInvalidElementDataType();
+                Logger.PackedX5CValueInvalidElementDataType();
                 value = null;
                 return false;
             }
@@ -173,68 +185,116 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
     }
 }
 
+/// <summary>
+///     Extension methods for logging the Packed attestation statement decoder.
+/// </summary>
 public static partial class DefaultPackedAttestationStatementDecoderLoggingExtensions
 {
+    /// <summary>
+    ///     Failed to decode the 'alg' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'alg' value from 'attStmt'")]
     public static partial void PackedDecodeFailureAlg(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'sig' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'sig' value from 'attStmt'")]
     public static partial void PackedDecodeFailureSig(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'x5c' value from 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'x5c' value from 'attStmt'")]
     public static partial void PackedDecodeFailureX5C(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the 'alg' key in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find the 'alg' key in 'attStmt'")]
     public static partial void PackedAlgKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     The 'alg' value in the 'attStmt' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'alg' value in the 'attStmt' map contains an invalid data type")]
     public static partial void PackedAlgValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     The 'alg' value in the 'attStmt' map is out of range
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'alg' value in the 'attStmt' map is out of range")]
     public static partial void PackedAlgValueOutOfRange(this ILogger logger);
 
+    /// <summary>
+    ///     The 'attStmt' contains an unknown 'alg': {UnknownAlg}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="unknownAlg">Unknown 'alg' value.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'attStmt' contains an unknown 'alg': {UnknownAlg}")]
     public static partial void PackedAlgValueUnknown(this ILogger logger, int unknownAlg);
 
+    /// <summary>
+    ///     Failed to find the 'sig' key in 'attStmt'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to find the 'sig' key in 'attStmt'")]
     public static partial void PackedSigKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     The 'sig' value in the 'attStmt' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'sig' value in the 'attStmt' map contains an invalid data type")]
     public static partial void PackedSigValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     The 'x5c' value in the 'attStmt' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'x5c' value in the 'attStmt' map contains an invalid data type")]
     public static partial void PackedX5CValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,

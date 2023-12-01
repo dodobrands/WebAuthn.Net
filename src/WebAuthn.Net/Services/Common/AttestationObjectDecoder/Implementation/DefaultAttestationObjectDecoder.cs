@@ -35,11 +35,23 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         Logger = logger;
     }
 
+    /// <summary>
+    ///     CBOR format deserializer.
+    /// </summary>
     protected ICborDeserializer CborDeserializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AttestationStatementFormat" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
     protected ILogger<DefaultAttestationObjectDecoder> Logger { get; }
 
-    public Result<AttestationObject> Decode(byte[] attestationObject)
+    /// <inheritdoc />
+    public virtual Result<AttestationObject> Decode(byte[] attestationObject)
     {
         var mapResult = TryRead(attestationObject);
         if (mapResult.HasError)
@@ -72,8 +84,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         return Result<AttestationObject>.Success(result);
     }
 
-
-    protected virtual Result<CborMap> TryRead(byte[] attestationObject)
+    private Result<CborMap> TryRead(byte[] attestationObject)
     {
         var attestationObjectCborDeserialize = CborDeserializer.Deserialize(attestationObject);
         if (attestationObjectCborDeserialize.HasError)
@@ -92,7 +103,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         return Result<CborMap>.Success(attestationObjectCborMap);
     }
 
-    protected virtual bool TryDecodeAttestationStatementFormat(
+    private bool TryDecodeAttestationStatementFormat(
         CborMap attestationObjectCborMap,
         [NotNullWhen(true)] out AttestationStatementFormat? value)
     {
@@ -123,11 +134,10 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeAttestationStatement(
+    private bool TryDecodeAttestationStatement(
         CborMap attestationObjectCborMap,
         [NotNullWhen(true)] out CborMap? value)
     {
-        ArgumentNullException.ThrowIfNull(attestationObjectCborMap);
         var dict = attestationObjectCborMap.RawValue;
         if (!dict.TryGetValue(new CborTextString("attStmt"), out var attStmtCbor))
         {
@@ -147,93 +157,148 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeAuthData(
-        CborMap attStmt,
-        [NotNullWhen(true)] out byte[]? decodedValue)
+    private bool TryDecodeAuthData(
+        CborMap attestationObjectCborMap,
+        out byte[]? value)
     {
-        ArgumentNullException.ThrowIfNull(attStmt);
-        var dict = attStmt.RawValue;
-        if (!dict.TryGetValue(new CborTextString("authData"), out var sigCbor))
+        var dict = attestationObjectCborMap.RawValue;
+        if (!dict.TryGetValue(new CborTextString("authData"), out var authDataCbor))
         {
             Logger.AttObjAuthDataKeyNotFound();
-            decodedValue = null;
+            value = null;
             return false;
         }
 
-        if (sigCbor is not CborByteString sigCborByteString)
+        if (authDataCbor is not CborByteString authDataCborByteString)
         {
             Logger.AttObjAuthDataValueInvalidDataType();
-            decodedValue = null;
+            value = null;
             return false;
         }
 
-        decodedValue = sigCborByteString.RawValue;
+        value = authDataCborByteString.RawValue;
         return true;
     }
 }
 
+/// <summary>
+///     Extension methods for logging the attestation object decoder.
+/// </summary>
 public static partial class DefaultAttestationObjectDecoderLoggingExtensions
 {
+    /// <summary>
+    ///     Error attempting to read the byte representation of 'attestationObject' as a CBOR map
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Error attempting to read the byte representation of 'attestationObject' as a CBOR map")]
     public static partial void AttObjReadFailure(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode 'attestationObject' from CBOR
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to decode 'attestationObject' from CBOR")]
     public static partial void AttObjDecodeFailure(this ILogger logger);
 
+    /// <summary>
+    ///     The 'attestationObject' must be represented as a CBOR map
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The 'attestationObject' must be represented as a CBOR map")]
     public static partial void AttObjMustBeCborMap(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'fmt' value from 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'fmt' value from 'attestationObject'")]
     public static partial void AttObjDecodeFailureFmt(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'attStmt' value from 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'attStmt' value from 'attestationObject'")]
     public static partial void AttObjDecodeFailureAttStmt(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode the 'authData' value from 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to decode the 'authData' value from 'attestationObject'")]
     public static partial void AttObjDecodeFailureAuthData(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the 'fmt' key in 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to find the 'fmt' key in 'attestationObject'")]
     public static partial void AttObjFmtKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the 'attStmt' key in 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to find the 'attStmt' key in 'attestationObject'")]
     public static partial void AttObjAttStmtKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to find the 'authData' key in 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to find the 'authData' key in 'attestationObject'")]
     public static partial void AttObjAuthDataKeyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     The 'fmt' value in the 'attestationObject' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The 'fmt' value in the 'attestationObject' map contains an invalid data type")]
     public static partial void AttObjFmtValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     The 'attStmt' value in the 'attestationObject' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The 'attStmt' value in the 'attestationObject' map contains an invalid data type")]
     public static partial void AttObjAttStmtValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     The 'authData' value in the 'attestationObject' map contains an invalid data type
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The 'authData' value in the 'attestationObject' map contains an invalid data type")]
     public static partial void AttObjAuthDataValueInvalidDataType(this ILogger logger);
 
+    /// <summary>
+    ///     The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: {UnknownFmt}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="unknownFmt">Value of the unknown fmt.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: {UnknownFmt}")]
