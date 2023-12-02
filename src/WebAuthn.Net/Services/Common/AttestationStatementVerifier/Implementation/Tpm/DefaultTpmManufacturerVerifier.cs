@@ -8,18 +8,18 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
 {
-    public virtual Result<byte[][]> IsValid(string tpmManufacturer)
+    public virtual Result<UniqueByteArraysCollection?> IsValid(string tpmManufacturer)
     {
         return tpmManufacturer switch
         {
-            TpmManufacturers.AMD => Result<byte[][]>.Success(TpmRoots.AMD),
-            TpmManufacturers.Atmel => Result<byte[][]>.Success(TpmRoots.Atmel),
-            TpmManufacturers.Infineon => Result<byte[][]>.Success(TpmRoots.Infineon),
-            TpmManufacturers.Intel => Result<byte[][]>.Success(TpmRoots.Intel),
-            TpmManufacturers.Microsoft => Result<byte[][]>.Success(TpmRoots.Microsoft),
-            TpmManufacturers.Nationz => Result<byte[][]>.Success(TpmRoots.Nationz),
-            TpmManufacturers.NuvotonTechnology => Result<byte[][]>.Success(TpmRoots.NuvotonTechnology),
-            TpmManufacturers.STMicroelectronics => Result<byte[][]>.Success(TpmRoots.STMicroelectronics),
+            TpmManufacturers.AMD => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.AMD)),
+            TpmManufacturers.Atmel => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Atmel)),
+            TpmManufacturers.Infineon => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Infineon)),
+            TpmManufacturers.Intel => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Intel)),
+            TpmManufacturers.Microsoft => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Microsoft)),
+            TpmManufacturers.Nationz => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Nationz)),
+            TpmManufacturers.NuvotonTechnology => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.NuvotonTechnology)),
+            TpmManufacturers.STMicroelectronics => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.STMicroelectronics)),
             TpmManufacturers.AntGroup
                 or TpmManufacturers.Broadcom
                 or TpmManufacturers.Cisco
@@ -37,8 +37,8 @@ public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
                 or TpmManufacturers.Sinosun
                 or TpmManufacturers.SMSC
                 or TpmManufacturers.TexasInstruments
-                or TpmManufacturers.Winbond => Result<byte[][]>.Success(TpmRoots.Microsoft),
-            _ => Result<byte[][]>.Fail()
+                or TpmManufacturers.Winbond => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Microsoft)),
+            _ => Result<UniqueByteArraysCollection?>.Fail()
         };
     }
 }

@@ -280,7 +280,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
         X509Certificate2 aikCert,
-        byte[][]? manufacturerRootCertificates,
+        UniqueByteArraysCollection? manufacturerRootCertificates,
         AttestedAuthenticatorData authenticatorData,
         CancellationToken cancellationToken)
     {
@@ -288,7 +288,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         cancellationToken.ThrowIfCancellationRequested();
 
         var rootCertificates = new UniqueByteArraysCollection();
-        if (manufacturerRootCertificates is not null && manufacturerRootCertificates.Length > 0)
+        if (manufacturerRootCertificates is not null && manufacturerRootCertificates.Count > 0)
         {
             rootCertificates.AddRange(manufacturerRootCertificates);
         }
@@ -330,7 +330,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsTpmAttestationStatementCertificateRequirementsSatisfied(
         X509Certificate2 aikCert,
-        out byte[][]? manufacturerRootCertificates)
+        out UniqueByteArraysCollection? manufacturerRootCertificates)
     {
         if (aikCert is null)
         {
