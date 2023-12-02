@@ -9,17 +9,17 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 
 /// <summary>
-///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">Attestation statement</a> verifier, in <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">"tpm" format</a>.
+///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">TPM attestation statement</a>.
 /// </summary>
 /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public interface ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
     /// <summary>
-    ///     Asynchronously verifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">"tpm" format</a>.
+    ///     Asynchronously verifies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">TPM attestation statement</a>.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
-    /// <param name="attStmt"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">Attestation statement</a> in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">"tpm" format</a>.</param>
+    /// <param name="attStmt">Decoded <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">TPM attestation statement</a>.</param>
     /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
     /// <param name="clientDataHash">SHA256 hash of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a>.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
