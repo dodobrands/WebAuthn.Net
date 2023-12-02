@@ -364,7 +364,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
 
         var manufacturerVerification = TpmManufacturerVerifier.IsValid(san.TpmManufacturer);
-        if (!manufacturerVerification.HasError)
+        if (manufacturerVerification.HasError)
         {
             manufacturerRootCertificates = null;
             return false;
