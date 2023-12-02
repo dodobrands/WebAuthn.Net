@@ -8,7 +8,6 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions
 public interface ITpmManufacturerVerifier
 {
     /// <summary>
-    ///
     /// </summary>
     /// <param name="tpmManufacturer"></param>
     /// <returns></returns>

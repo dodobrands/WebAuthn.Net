@@ -84,7 +84,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 
             // build root certificates chain that avoid expired certificates
             var fidoRootCertificates = GetFidoMetadataRootCertificates();
-            if (fidoRootCertificates.Length == 0)
+            if (fidoRootCertificates.Count == 0)
             {
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
@@ -257,8 +257,8 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         return false;
     }
 
-    protected virtual byte[][] GetFidoMetadataRootCertificates()
+    protected virtual UniqueByteArraysCollection GetFidoMetadataRootCertificates()
     {
-        return FidoMetadataRoots.GlobalSign;
+        return new(FidoMetadataRoots.GlobalSign);
     }
 }

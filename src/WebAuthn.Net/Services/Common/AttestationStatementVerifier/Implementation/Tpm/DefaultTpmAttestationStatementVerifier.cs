@@ -238,7 +238,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
 
             // 9) If 'aikCert' contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
             // verify that the value of this extension matches the 'aaguid' in 'authenticatorData'.
-            var aaguidResult = TryGetAaguid(aikCert.Extensions);
+            var aaguidResult = GetAaguidIfExists(aikCert);
             if (aaguidResult.HasError)
             {
                 return Result<VerifiedAttestationStatement>.Fail();
@@ -298,33 +298,39 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
 
-        if (metadataRoots.HasValue)
+        if (metadataRoots is not null)
         {
-            rootCertificates.AddRange(metadataRoots.Value);
+            rootCertificates.AddRange(metadataRoots);
         }
 
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
-    protected virtual async Task<Optional<byte[][]>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+    protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
-        if (!metadataResult.HasValue)
+        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
+        if (metadata is null)
         {
-            return Optional<byte[][]>.Empty();
+            return null;
         }
 
-        var metadata = metadataResult.Value;
         if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
         {
-            return Optional<byte[][]>.Payload(metadata.RootCertificates);
+            var result = new UniqueByteArraysCollection();
+            // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
+            if (metadata.RootCertificates?.Length > 0)
+            {
+                result.AddRange(metadata.RootCertificates);
+            }
+
+            return result;
         }
 
-        return Optional<byte[][]>.Empty();
+        return null;
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
@@ -518,13 +524,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
-        if (!rootDeserializeResult.Ok.HasValue)
+        if (rootDeserializeResult.Ok is null)
         {
             values = null;
             return false;
         }
 
-        var asnRoot = rootDeserializeResult.Ok.Value;
+        var asnRoot = rootDeserializeResult.Ok;
         byte[] tpmSpecSanRawSequence;
         // Certificate or serialNumber?
         if (asnRoot is AbstractAsn1Enumerable rootEnumerable)
@@ -595,13 +601,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
-        if (!sanDeserializeResult.Ok.HasValue)
+        if (sanDeserializeResult.Ok is null)
         {
             values = null;
             return false;
         }
 
-        if (sanDeserializeResult.Ok.Value is not AbstractAsn1Enumerable tpmSpecSanSequence)
+        if (sanDeserializeResult.Ok is not AbstractAsn1Enumerable tpmSpecSanSequence)
         {
             values = null;
             return false;
@@ -686,51 +692,54 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return false;
     }
 
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual Result<Optional<Guid>> TryGetAaguid(X509ExtensionCollection extensions)
+    protected virtual Result<Guid?> GetAaguidIfExists(X509Certificate2 aikCert)
     {
-        if (extensions is null)
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (aikCert is null)
         {
-            return Result<Optional<Guid>>.Fail();
+            return Result<Guid?>.Fail();
         }
 
-        // If aikCert contains an extension with OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid)
-        // verify that the value of this extension matches the aaguid in authenticatorData.
-        var extension = extensions.FirstOrDefault(static x => x.Oid?.Value is "1.3.6.1.4.1.45724.1.1.4"); // id-fido-gen-ce-aaguid
+        // If the related attestation root certificate is used for multiple authenticator models,
+        // the Extension OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid) MUST be present,
+        // containing the AAGUID as a 16-byte OCTET STRING. The extension MUST NOT be marked as critical.
+        // Note that an X.509 Extension encodes the DER-encoding of the value in an OCTET STRING.
+        // Thus, the AAGUID MUST be wrapped in two OCTET STRINGS to be valid.
+        var extension = aikCert.Extensions.FirstOrDefault(static x => x.Oid?.Value is "1.3.6.1.4.1.45724.1.1.4"); // id-fido-gen-ce-aaguid
         if (extension is not null)
         {
             if (extension.Critical)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
             var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.BER);
             if (deserializeResult.HasError)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
-            if (!deserializeResult.Ok.HasValue)
+            if (deserializeResult.Ok is null)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
-            if (deserializeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
+            if (deserializeResult.Ok is not Asn1OctetString aaguidOctetString)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
             if (aaguidOctetString.Value.Length != 16)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
             var hexAaguid = Convert.ToHexString(aaguidOctetString.Value);
             var typedAaguid = new Guid(hexAaguid);
-            return Result<Optional<Guid>>.Success(Optional<Guid>.Payload(typedAaguid));
+            return Result<Guid?>.Success(typedAaguid);
         }
 
-        return Result<Optional<Guid>>.Success(Optional<Guid>.Empty());
+        return Result<Guid?>.Success(null);
     }
 
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)

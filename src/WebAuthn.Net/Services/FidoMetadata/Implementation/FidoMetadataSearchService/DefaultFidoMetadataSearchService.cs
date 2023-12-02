@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
@@ -30,7 +29,7 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     protected IFidoMetadataSearchStorage<TContext> MetadataSearchStorage { get; }
     protected ITimeProvider TimeProvider { get; }
 
-    public virtual async Task<Optional<FidoMetadataResult>> FindMetadataByAaguidAsync(
+    public virtual async Task<FidoMetadataResult?> FindMetadataByAaguidAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken)
@@ -39,28 +38,28 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         var entry = await MetadataSearchStorage.FindByAaguidAsync(context, aaguid, cancellationToken);
         if (entry is null)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         if (!CanTrustMetadata(entry))
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         if (entry.MetadataStatement is null)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         if (entry.MetadataStatement.Aaguid != aaguid)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         return HandleMetadataStatement(entry.MetadataStatement);
     }
 
-    public virtual async Task<Optional<FidoMetadataResult>> FindMetadataBySubjectKeyIdentifierAsync(
+    public virtual async Task<FidoMetadataResult?> FindMetadataBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
         CancellationToken cancellationToken)
@@ -69,44 +68,45 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         var entry = await MetadataSearchStorage.FindBySubjectKeyIdentifierAsync(context, subjectKeyIdentifier, cancellationToken);
         if (entry is null)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         if (!CanTrustMetadata(entry))
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         if (entry.MetadataStatement is null)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         if (entry.AttestationCertificateKeyIdentifiers is null)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         if (!entry.AttestationCertificateKeyIdentifiers.Any(x => x.AsSpan().SequenceEqual(subjectKeyIdentifier.AsSpan())))
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         return HandleMetadataStatement(entry.MetadataStatement);
     }
 
-    protected virtual Optional<FidoMetadataResult> HandleMetadataStatement(MetadataStatement metadataStatement)
+
+    protected virtual FidoMetadataResult? HandleMetadataStatement(MetadataStatement metadataStatement)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (metadataStatement is null)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         if (!(metadataStatement.AttestationRootCertificates?.Length > 0))
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         var allowedRootCertificates = new List<byte[]>(metadataStatement.AttestationRootCertificates.Length);
@@ -129,11 +129,11 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
 
         if (allowedRootCertificates.Count == 0)
         {
-            return Optional<FidoMetadataResult>.Empty();
+            return null;
         }
 
         var result = new FidoMetadataResult(allowedRootCertificates.ToArray(), metadataStatement.AttestationTypes);
-        return Optional<FidoMetadataResult>.Payload(result);
+        return result;
     }
 
 

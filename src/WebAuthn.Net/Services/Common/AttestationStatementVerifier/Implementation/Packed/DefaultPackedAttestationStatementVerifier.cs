@@ -195,16 +195,15 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     {
         ArgumentNullException.ThrowIfNull(authenticatorData);
         cancellationToken.ThrowIfCancellationRequested();
-        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
+        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
             context,
             authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
-        if (!metadataResult.HasValue)
+        if (metadata is null)
         {
             return Result<FidoPackedAttestationTypeResult>.Fail();
         }
 
-        var metadata = metadataResult.Value;
         if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
         {
             var rootCertificates = new UniqueByteArraysCollection();
@@ -265,7 +264,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     }
 
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool IsAttestnCertValid(X509Certificate2 attestnCert, [NotNullWhen(true)] out Optional<Guid>? aaguid)
+    protected virtual bool IsAttestnCertValid(X509Certificate2 attestnCert, out Guid? aaguid)
     {
         // §8.2.1 Packed Attestation Statement Certificate Requirements.
         // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation-cert-requirements
@@ -298,8 +297,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // the Extension OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid) MUST be present,
         // containing the AAGUID as a 16-byte OCTET STRING.
         // The extension MUST NOT be marked as critical.
-        var extensions = attestnCert.Extensions;
-        var aaguidResult = TryGetAaguid(extensions);
+        var aaguidResult = GetAaguidIfExists(attestnCert);
         if (aaguidResult.HasError)
         {
             aaguid = null;
@@ -307,7 +305,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         }
 
         // 4 - The Basic Constraints extension MUST have the CA component set to false.
-        if (!IsBasicExtensionsCaComponentFalse(extensions))
+        if (!IsBasicExtensionsCaComponentFalse(attestnCert))
         {
             aaguid = null;
             return false;
@@ -397,12 +395,12 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return true;
     }
 
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual Result<Optional<Guid>> TryGetAaguid(X509ExtensionCollection extensions)
+    protected virtual Result<Guid?> GetAaguidIfExists(X509Certificate2 attestnCert)
     {
-        if (extensions is null)
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (attestnCert is null)
         {
-            return Result<Optional<Guid>>.Fail();
+            return Result<Guid?>.Fail();
         }
 
         // If the related attestation root certificate is used for multiple authenticator models,
@@ -410,47 +408,53 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // containing the AAGUID as a 16-byte OCTET STRING. The extension MUST NOT be marked as critical.
         // Note that an X.509 Extension encodes the DER-encoding of the value in an OCTET STRING.
         // Thus, the AAGUID MUST be wrapped in two OCTET STRINGS to be valid.
-        var extension = extensions.FirstOrDefault(static x => x.Oid?.Value is "1.3.6.1.4.1.45724.1.1.4"); // id-fido-gen-ce-aaguid
+        var extension = attestnCert.Extensions.FirstOrDefault(static x => x.Oid?.Value is "1.3.6.1.4.1.45724.1.1.4"); // id-fido-gen-ce-aaguid
         if (extension is not null)
         {
             if (extension.Critical)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
             var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.BER);
             if (deserializeResult.HasError)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
-            if (!deserializeResult.Ok.HasValue)
+            if (deserializeResult.Ok is null)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
-            if (deserializeResult.Ok.Value is not Asn1OctetString aaguidOctetString)
+            if (deserializeResult.Ok is not Asn1OctetString aaguidOctetString)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
             if (aaguidOctetString.Value.Length != 16)
             {
-                return Result<Optional<Guid>>.Fail();
+                return Result<Guid?>.Fail();
             }
 
             var hexAaguid = Convert.ToHexString(aaguidOctetString.Value);
             var typedAaguid = new Guid(hexAaguid);
-            return Result<Optional<Guid>>.Success(Optional<Guid>.Payload(typedAaguid));
+            return Result<Guid?>.Success(typedAaguid);
         }
 
-        return Result<Optional<Guid>>.Success(Optional<Guid>.Empty());
+        return Result<Guid?>.Success(null);
     }
 
-    protected virtual bool IsBasicExtensionsCaComponentFalse(X509ExtensionCollection extensions)
+    protected virtual bool IsBasicExtensionsCaComponentFalse(X509Certificate2 attestnCert)
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (attestnCert is null)
+        {
+            return false;
+        }
+
         // The Basic Constraints extension MUST have the CA component set to false.
-        var extension = extensions.FirstOrDefault(static e => e.Oid?.Value is "2.5.29.19");
+        var extension = attestnCert.Extensions.FirstOrDefault(static e => e.Oid?.Value is "2.5.29.19");
         if (extension is X509BasicConstraintsExtension basicExtension)
         {
             var isCaCert = basicExtension.CertificateAuthority;
