@@ -364,7 +364,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
 
         var manufacturerVerification = TpmManufacturerVerifier.IsValid(san.TpmManufacturer);
-        if (!manufacturerVerification.IsValid)
+        if (!manufacturerVerification.HasError)
         {
             manufacturerRootCertificates = null;
             return false;
@@ -388,7 +388,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // 6) An Authority Information Access (AIA) extension with entry id-ad-ocsp and a CRL Distribution Point extension [RFC5280]
         // are both OPTIONAL as the status of many attestation certificates is available through metadata services.
         // See, for example, the FIDO Metadata Service [FIDOMetadataService].
-        manufacturerRootCertificates = manufacturerVerification.RootCerts;
+        manufacturerRootCertificates = manufacturerVerification.Ok;
         return true;
     }
 

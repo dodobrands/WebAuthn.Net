@@ -1,8 +1,8 @@
-﻿using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Manufacturer;
+﻿using WebAuthn.Net.Models;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 
 public interface ITpmManufacturerVerifier
 {
-    TpmManufacturerVerificationResult IsValid(string tpmManufacturer);
+    Result<byte[][]> IsValid(string tpmManufacturer);
 }
