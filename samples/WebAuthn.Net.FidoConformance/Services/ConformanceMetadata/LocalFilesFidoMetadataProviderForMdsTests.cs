@@ -141,9 +141,9 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
         return result.ToArray();
     }
 
-    protected override byte[][] GetFidoMetadataRootCertificates()
+    protected override UniqueByteArraysCollection GetFidoMetadataRootCertificates()
     {
-        return GetRootCertificates();
+        return new(GetRootCertificates());
     }
 
     private static byte[][] GetRootCertificates()

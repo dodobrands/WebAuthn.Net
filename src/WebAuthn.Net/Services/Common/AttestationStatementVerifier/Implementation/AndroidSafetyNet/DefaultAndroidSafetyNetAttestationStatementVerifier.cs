@@ -218,38 +218,44 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
 
-        if (metadataRoots.HasValue)
+        if (metadataRoots is not null)
         {
-            rootCertificates.AddRange(metadataRoots.Value);
+            rootCertificates.AddRange(metadataRoots);
         }
 
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
-    protected virtual async Task<Optional<byte[][]>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+    protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
-        if (!metadataResult.HasValue)
+        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
+        if (metadata is null)
         {
-            return Optional<byte[][]>.Empty();
+            return null;
         }
 
-        var metadata = metadataResult.Value;
         if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL))
         {
-            return Optional<byte[][]>.Payload(metadata.RootCertificates);
+            var result = new UniqueByteArraysCollection();
+            // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
+            if (metadata.RootCertificates?.Length > 0)
+            {
+                result.AddRange(metadata.RootCertificates);
+            }
+
+            return result;
         }
 
-        return Optional<byte[][]>.Empty();
+        return null;
     }
 
-    protected virtual byte[][] GetEmbeddedRootCertificates()
+    protected virtual UniqueByteArraysCollection GetEmbeddedRootCertificates()
     {
-        return AndroidSafetyNetRoots.Certificates;
+        return new(AndroidSafetyNetRoots.Certificates);
     }
 
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)

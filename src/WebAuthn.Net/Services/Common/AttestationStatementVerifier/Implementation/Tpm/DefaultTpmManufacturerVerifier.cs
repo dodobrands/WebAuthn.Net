@@ -1,25 +1,25 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Constants;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Manufacturer;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
 {
-    public virtual TpmManufacturerVerificationResult IsValid(string tpmManufacturer)
+    public virtual Result<UniqueByteArraysCollection?> IsValid(string tpmManufacturer)
     {
         return tpmManufacturer switch
         {
-            TpmManufacturers.AMD => new(true, TpmRoots.AMD),
-            TpmManufacturers.Atmel => new(true, TpmRoots.Atmel),
-            TpmManufacturers.Infineon => new(true, TpmRoots.Infineon),
-            TpmManufacturers.Intel => new(true, TpmRoots.Intel),
-            TpmManufacturers.Microsoft => new(true, TpmRoots.Microsoft),
-            TpmManufacturers.Nationz => new(true, TpmRoots.Nationz),
-            TpmManufacturers.NuvotonTechnology => new(true, TpmRoots.NuvotonTechnology),
-            TpmManufacturers.STMicroelectronics => new(true, TpmRoots.STMicroelectronics),
+            TpmManufacturers.AMD => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.AMD)),
+            TpmManufacturers.Atmel => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Atmel)),
+            TpmManufacturers.Infineon => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Infineon)),
+            TpmManufacturers.Intel => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Intel)),
+            TpmManufacturers.Microsoft => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Microsoft)),
+            TpmManufacturers.Nationz => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Nationz)),
+            TpmManufacturers.NuvotonTechnology => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.NuvotonTechnology)),
+            TpmManufacturers.STMicroelectronics => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.STMicroelectronics)),
             TpmManufacturers.AntGroup
                 or TpmManufacturers.Broadcom
                 or TpmManufacturers.Cisco
@@ -37,8 +37,8 @@ public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
                 or TpmManufacturers.Sinosun
                 or TpmManufacturers.SMSC
                 or TpmManufacturers.TexasInstruments
-                or TpmManufacturers.Winbond => new(true, TpmRoots.Microsoft),
-            _ => new(false, null)
+                or TpmManufacturers.Winbond => Result<UniqueByteArraysCollection?>.Success(new(TpmRoots.Microsoft)),
+            _ => Result<UniqueByteArraysCollection?>.Fail()
         };
     }
 }

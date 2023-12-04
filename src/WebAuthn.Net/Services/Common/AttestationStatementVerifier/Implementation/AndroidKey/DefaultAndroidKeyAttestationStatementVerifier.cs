@@ -179,38 +179,44 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
 
-        if (metadataRoots.HasValue)
+        if (metadataRoots is not null)
         {
-            rootCertificates.AddRange(metadataRoots.Value);
+            rootCertificates.AddRange(metadataRoots);
         }
 
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
-    protected virtual async Task<Optional<byte[][]>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+    protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
-        if (!metadataResult.HasValue)
+        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
+        if (metadata is null)
         {
-            return Optional<byte[][]>.Empty();
+            return null;
         }
 
-        var metadata = metadataResult.Value;
         if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL))
         {
-            return Optional<byte[][]>.Payload(metadata.RootCertificates);
+            var result = new UniqueByteArraysCollection();
+            // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
+            if (metadata.RootCertificates?.Length > 0)
+            {
+                result.AddRange(metadata.RootCertificates);
+            }
+
+            return result;
         }
 
-        return Optional<byte[][]>.Empty();
+        return null;
     }
 
-    protected virtual byte[][] GetEmbeddedRootCertificates()
+    protected virtual UniqueByteArraysCollection GetEmbeddedRootCertificates()
     {
-        return AndroidKeyRoots.Certificates;
+        return new(AndroidKeyRoots.Certificates);
     }
 
     protected virtual bool IsAuthorizationListDataValid(Asn1Sequence keyDescription)
@@ -506,7 +512,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                     return false;
                 }
 
-                if (!deserializeResult.Ok.HasValue)
+                if (deserializeResult.Ok is null)
                 {
                     asn1AttestationExtension = null;
                     return false;
@@ -516,7 +522,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                 // KeyDescription ::= SEQUENCE {
                 //   ...
                 // }
-                if (deserializeResult.Ok.Value is not Asn1Sequence keyDescriptionAsn1)
+                if (deserializeResult.Ok is not Asn1Sequence keyDescriptionAsn1)
                 {
                     asn1AttestationExtension = null;
                     return false;

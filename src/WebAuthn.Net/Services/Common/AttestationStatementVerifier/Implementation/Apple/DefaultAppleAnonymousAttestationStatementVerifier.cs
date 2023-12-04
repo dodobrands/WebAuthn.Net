@@ -125,14 +125,14 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var rootCertificates = new UniqueByteArraysCollection(GetEmbeddedRootCertificates());
-        var result = new UniqueByteArraysCollection(rootCertificates);
+        var result = new UniqueByteArraysCollection();
+        result.AddRange(GetEmbeddedRootCertificates());
         return Task.FromResult(result);
     }
 
-    protected virtual byte[][] GetEmbeddedRootCertificates()
+    protected virtual UniqueByteArraysCollection GetEmbeddedRootCertificates()
     {
-        return AppleRoots.Certificates;
+        return new(AppleRoots.Certificates);
     }
 
     protected virtual bool TryGetNonce(X509Certificate2 credCert, [NotNullWhen(true)] out byte[]? certificateNonce)
@@ -150,7 +150,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             return false;
         }
 
-        if (!deserializeResult.Ok.HasValue)
+        if (deserializeResult.Ok is null)
         {
             certificateNonce = null;
             return false;
@@ -159,7 +159,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         // Certificate SEQUENCE (1 elem)
         // //   tbsCertificate TBSCertificate [?] [1] (1 elem)
         // //     serialNumber CertificateSerialNumber [?] OCTET STRING (32 byte) 2A2C4080A1705F7408A8FE78D211FF68871AEE73EF59EF8EE3C4DF3915A30484
-        var root = deserializeResult.Ok.Value;
+        var root = deserializeResult.Ok;
         if (root is not Asn1Sequence certificate)
         {
             certificateNonce = null;
@@ -195,13 +195,13 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             return false;
         }
 
-        if (!tbsCertificateResult.Ok.HasValue)
+        if (tbsCertificateResult.Ok is null)
         {
             certificateNonce = null;
             return false;
         }
 
-        if (tbsCertificateResult.Ok.Value is not Asn1OctetString serialNumber)
+        if (tbsCertificateResult.Ok is not Asn1OctetString serialNumber)
         {
             certificateNonce = null;
             return false;

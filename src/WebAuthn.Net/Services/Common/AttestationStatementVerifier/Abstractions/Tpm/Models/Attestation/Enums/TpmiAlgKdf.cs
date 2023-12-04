@@ -1,4 +1,4 @@
-namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Models.Attestation.Enums;
+namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
 ///     TPMI_ALG_KDF, based on TPM_ALG_ID (UINT16) - TPM_ALG_!ALG.HM, +TPM_ALG_NULL
