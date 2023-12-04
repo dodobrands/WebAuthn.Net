@@ -460,3 +460,5 @@ samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Jwt/*
 !samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/Jwt/.gitkeep
 samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/JwtRoot/*.*
 !samples/WebAuthn.Net.FidoConformance/ConformanceMetadata/JwtRoot/.gitkeep
+
+samples/WebAuthn.Net.Sample.Mvc/out/
