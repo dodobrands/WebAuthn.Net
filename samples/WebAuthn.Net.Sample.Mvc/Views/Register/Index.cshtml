@@ -69,6 +69,74 @@
                         </select>
                         <label for="webauthn-params-rkey">Resident Key Requirement</label>
                     </div>
+                    <div class="accordion" id="allowed-algo">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#allowed-algo-body">
+                                    Allowed Algorithms
+                                </button>
+                            </h2>
+                            <div id="allowed-algo-body" class="accordion-collapse collapse" data-bs-parent="#allowed-algo">
+                                <div class="accordion-body">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS1" value="-65535">
+                                        <label class="form-check-label" for="allowed-algo-RS1">RSASSA-PKCS1-v1_5 using SHA-1</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS512" value="-259">
+                                        <label class="form-check-label" for="allowed-algo-RS512">RSASSA-PKCS1-v1_5 using SHA-512</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS384" value="-258">
+                                        <label class="form-check-label" for="allowed-algo-RS384">allowed-algo-RS512-PKCS1-v1_5 using SHA-384</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS256" value="-257">
+                                        <label class="form-check-label" for="allowed-algo-RS256">RSASSA-PKCS1-v1_5 using SHA-256</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-PS512" value="-39">
+                                        <label class="form-check-label" for="allowed-algo-PS512">RSASSA-PSS w/ SHA-512</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-PS384" value="-38">
+                                        <label class="form-check-label" for="allowed-algo-PS384">RSASSA-PSS w/ SHA-384</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-PS256" value="-37">
+                                        <label class="form-check-label" for="allowed-algo-PS256">RSASSA-PSS w/ SHA-256</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-ES512" value="-36">
+                                        <label class="form-check-label" for="allowed-algo-ES512">ECDSA w/ SHA-512</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-ES384" value="-35">
+                                        <label class="form-check-label" for="allowed-algo-ES384">ECDSA w/ SHA-384</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-ES256" value="-7">
+                                        <label class="form-check-label" for="allowed-algo-ES256">ECDSA w/ SHA-256</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-EdDSA" value="-8">
+                                        <label class="form-check-label" for="allowed-algo-EdDSA">EdDSA</label>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <hr>
                     <button type="submit" id="webauthn-params-submit" class="btn btn-primary">Reset</button>
                 </form>
@@ -79,8 +147,24 @@
 
 @section Scripts
 {
-<script async type="text/javascript">
+    <script async type="text/javascript">
 (() => {
+    const checkboxElements = [
+        () => document.getElementById("allowed-algo-RS1"),
+        () => document.getElementById("allowed-algo-RS512"),
+        () => document.getElementById("allowed-algo-RS384"),
+        () => document.getElementById("allowed-algo-RS256"),
+
+        () => document.getElementById("allowed-algo-PS512"),
+        () => document.getElementById("allowed-algo-PS384"),
+        () => document.getElementById("allowed-algo-PS256"),
+
+        () => document.getElementById("allowed-algo-ES512"),
+        () => document.getElementById("allowed-algo-ES384"),
+        () => document.getElementById("allowed-algo-ES256"),
+
+        () => document.getElementById("allowed-algo-EdDSA"),
+    ];
     const formElements = {
         userVerification: () => document.getElementById("webauthn-params-uv"),
         attachment: () => document.getElementById("webauthn-params-attachment"),
@@ -99,6 +183,19 @@
         discoverableCredential: "unset",
         attestation: "none",
         residentKey: "unset",
+        pubKeyCredParams: [
+             -65535,
+            -259,
+            -258,
+            -257,
+            -39,
+            -38,
+            -37,
+            -36,
+            -35,
+            -8,
+            -7
+        ],
     };
     const { initiateRegistration, submitRegistration } = API.Register;
     const {
@@ -149,6 +246,7 @@
         }
         ensureStateCreated();
         initializeForm({ state: getState(), setState, withState, formElements });
+        initializeCheckboxArray({ withState, setState, initialValues: getState()["pubKeyCredParams"], stateKey: "pubKeyCredParams", checkboxElements });
         elements.registerButton().addEventListener("click", onRegisterButtonHandler);
         elements.registerOptionsReset().addEventListener("click", resetState);
     });

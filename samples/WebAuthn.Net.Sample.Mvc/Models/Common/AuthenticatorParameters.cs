@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Sample.Mvc.Models.Common;
 
@@ -29,13 +30,14 @@ internal static class AuthenticatorParametersHelpers
 public class AuthenticatorParameters
 {
     [JsonConstructor]
-    public AuthenticatorParameters(string userVerification, string attachment, string discoverableCredential, string attestation, string residentKey)
+    public AuthenticatorParameters(string userVerification, string attachment, string discoverableCredential, string attestation, string residentKey, CoseAlgorithm[] coseAlgorithms)
     {
         UserVerification = userVerification;
         Attachment = attachment;
         DiscoverableCredential = discoverableCredential;
         Attestation = attestation;
         ResidentKey = residentKey;
+        CoseAlgorithms = coseAlgorithms;
     }
 
     [JsonPropertyName("userVerification")]
@@ -58,5 +60,9 @@ public class AuthenticatorParameters
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [Required]
     public string ResidentKey { get; }
+    [JsonPropertyName("pubKeyCredParams")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [Required]
+    public CoseAlgorithm[] CoseAlgorithms { get; }
     public bool ResidentKeyIsRequired => ResidentKey.Equals("unset", StringComparison.Ordinal);
 }

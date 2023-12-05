@@ -52,7 +52,7 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
             ExampleConstants.Host.WebAuthnDisplayName,
             new(UserName, WebEncoders.Base64UrlDecode(id), UserName),
             16,
-            CoseAlgorithms.All,
+            RegistrationParameters.CoseAlgorithms,
             120000,
             RegistrationCeremonyExcludeCredentials.AllExisting(),
             criteria,

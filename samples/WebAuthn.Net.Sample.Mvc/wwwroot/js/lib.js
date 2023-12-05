@@ -12,7 +12,16 @@ const createStateMethods = ({key, defaultParams}) => {
     const setState = (x) => localStorage.setItem(key, JSON.stringify(x));
     const resetState = () => setState(JSON.parse(JSON.stringify(defaultParams)));
     const withState = (f) => (e) => f({ state: getState(), event: e });
-    const ensureStateCreated = () => !getState() && resetState();
+    const ensureStateCreated = () => {
+        const state = getState();
+        if (state) {
+            const stateKeys = Object.keys(state);
+            const initialStateKeys = Object.keys(defaultParams);
+            // Ensure all keys in place!
+            if (initialStateKeys.filter(x => !stateKeys.includes(x)).length === 0) return;
+        }
+        resetState();
+    };
     return ({ getState, setState, resetState, withState, ensureStateCreated });
 };
 
@@ -40,6 +49,28 @@ const initializeForm = ({ state, setState, withState, formElements }) => Object
         element.value = state[key];
         element.addEventListener("change", withState(onChange));
     });
+
+const initializeCheckboxArray = ({ initialValues, setState, withState, checkboxElements, stateKey }) =>
+    checkboxElements
+        .forEach(f => {
+            const element = f();
+            const elementValueAsNumber = (x) => Number(x.value);
+            const onChange = ({state, event}) => {
+                const checkboxesState = state[stateKey];
+                const value = elementValueAsNumber(event.target);
+                const appendValue = () =>
+                    !checkboxesState.includes(value) && setState({...state, [stateKey]: [...checkboxesState, value]});
+                const removeValue = () =>
+                    setState({...state, [stateKey]: checkboxesState.filter(x => x !== value)});
+
+                event.target.checked ? appendValue() : removeValue();
+            };
+
+            const isChecked = initialValues.includes(elementValueAsNumber(element));
+            isChecked && element.setAttribute("checked", true);
+            element.addEventListener("change", withState(onChange));
+        });
+
 
 const makeJsonApiCall = async ({url, data, method}) => {
     const response = await fetch(url, {
