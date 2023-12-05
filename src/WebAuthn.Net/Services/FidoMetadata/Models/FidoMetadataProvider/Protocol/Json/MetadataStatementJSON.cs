@@ -611,7 +611,7 @@ public class MetadataStatementJSON
     ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> in section "Key Protection Types" e.g. "secure_element". Each value MUST NOT be empty.
     /// </summary>
     /// <remarks>
-    ///     The keyProtection specified here denotes the effective security of the attestation key and Uauth private key and the effective trustworthiness of the attested attributes in the “sign assertion”. Effective security means that key extraction or injecting malicious attested
+    ///     The keyProtection specified here denotes the effective security of the attestation key and Uauth private key and the effective trustworthiness of the attested attributes in the "sign assertion". Effective security means that key extraction or injecting malicious attested
     ///     attributes is only possible if the specified protection method is compromised. For example, if keyProtection=TEE is stated, it shall be impossible to extract the attestation key or the Uauth private key or to inject any malicious attested attributes without breaking the TEE.
     /// </remarks>
     [JsonPropertyName("keyProtection")]
