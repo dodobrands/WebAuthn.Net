@@ -32,7 +32,6 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 ///     Default implementation of <see cref="IAndroidKeyAttestationStatementVerifier{TContext}" />.
 /// </summary>
 /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     : IAndroidKeyAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {

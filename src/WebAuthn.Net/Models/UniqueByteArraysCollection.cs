@@ -69,7 +69,7 @@ public class UniqueByteArraysCollection : IReadOnlyCollection<byte[]>
     ///     Adds all arrays of bytes from the specified enumeration to the collection only if arrays similar in length and content were not previously added to it. Otherwise, such arrays will not be added to the collection, but will be skipped and in such a situation the method will
     ///     finish without errors.
     /// </summary>
-    /// <param name="newItems">An enumeration containing arrays of bytes that need to be added to the collection. The enumeration, as well as its elements, should not be &lt;see langword="null" /&gt;.</param>
+    /// <param name="newItems">An enumeration containing arrays of bytes that need to be added to the collection. The enumeration, as well as its elements, should not be <see langword="null" />.</param>
     public void AddRange(IEnumerable<byte[]> newItems)
     {
         ArgumentNullException.ThrowIfNull(newItems);

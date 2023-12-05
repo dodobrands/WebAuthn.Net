@@ -9,7 +9,7 @@ using WebAuthn.Net.Services.Static;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey.Constants;
 
 /// <summary>
-///     Built-in root certificates for the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+///     Embedded root certificates for the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
 /// </summary>
 public static class AndroidKeyRoots
 {

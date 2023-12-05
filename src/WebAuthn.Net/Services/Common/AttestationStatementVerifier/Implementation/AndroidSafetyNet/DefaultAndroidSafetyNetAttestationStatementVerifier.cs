@@ -27,10 +27,20 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidSafetyNet;
 
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
+/// <summary>
+///     Default implementation of <see cref="IAndroidSafetyNetAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     : IAndroidSafetyNetAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAndroidSafetyNetAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
+    /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAndroidSafetyNetAttestationStatementVerifier(
         ITimeProvider timeProvider,
         ISafeJsonSerializer safeJsonSerializer,
@@ -44,10 +54,22 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
+    /// <summary>
+    ///     Safe (exceptionless) JSON serializer.
+    /// </summary>
     protected ISafeJsonSerializer SafeJsonSerializer { get; }
+
+    /// <summary>
+    ///     A service for searching in the data provided by the FIDO Metadata Service.
+    /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
+    /// <inheritdoc />
     [SuppressMessage("Security", "CA5404:Do not disable token validation checks")]
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
@@ -201,9 +223,17 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         }
     }
 
+    /// <summary>
+    ///     Returns a collection of valid root X509v3 certificates.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="attestationCert">The leaf certificate from the certificate chain of the JWS message of the Android SafetyNet attestation statement.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process.</returns>
     protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
-        X509Certificate2 credCert,
+        X509Certificate2 attestationCert,
         AttestedAuthenticatorData authenticatorData,
         CancellationToken cancellationToken)
     {
@@ -226,6 +256,13 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
+    /// <summary>
+    ///     Returns a collection of valid root certificates from the Fido Metadata Service.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the Fido Metadata Service contains root certificates for the specified <paramref name="aaguid" /> - then <see cref="UniqueByteArraysCollection" />, otherwise - <see langword="null" />.</returns>
     protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
@@ -253,11 +290,21 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         return null;
     }
 
+    /// <summary>
+    ///     Returns a collection of root certificates embedded in the library.
+    /// </summary>
+    /// <returns>An instance of <see cref="UniqueByteArraysCollection" />. It may return an empty collection, but it never returns <see langword="null" />.</returns>
     protected virtual UniqueByteArraysCollection GetEmbeddedRootCertificates()
     {
         return new(AndroidSafetyNetRoots.Certificates);
     }
 
+    /// <summary>
+    ///     Concatenates two ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">The first ReadOnlySpan of bytes.</param>
+    /// <param name="b">The second ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         var result = new byte[a.Length + b.Length];
@@ -266,6 +313,14 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         return result;
     }
 
+    /// <summary>
+    ///     Returns X509v3 certificates from the header of the JWS token of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.
+    /// </summary>
+    /// <param name="jwt">
+    ///     JWT (JWS) token of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.
+    /// </param>
+    /// <param name="rawCertificates">Output parameter. If the method returns <see langword="true" /> - contains X509v3 certificates in the order they appear in the JWS token header, if the method return <see langword="false" />, contains <see langword="null" />.</param>
+    /// <returns>If the extraction of certificates from the header was successful, returns <see langword="true" />, otherwise, returns <see langword="false" />. </returns>
     protected virtual bool TryGetRawCertificates(JwtSecurityToken jwt, [NotNullWhen(true)] out byte[][]? rawCertificates)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -305,6 +360,12 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             }
 
             if (!Base64Raw.TryDecode(base64Certificate, out var rawCert))
+            {
+                rawCertificates = null;
+                return false;
+            }
+
+            if (rawCert.Length == 0)
             {
                 rawCertificates = null;
                 return false;
@@ -355,6 +416,17 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         return false;
     }
 
+    /// <summary>
+    ///     Extracts the required claims from the validated JWT (JWS) token of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.
+    /// </summary>
+    /// <param name="validatedJwt">The validated JWS (JWT) token of Android SafetyNet attestation statement.</param>
+    /// <param name="nonce">Output parameter that contains a value only if the method returns true. The single-use token that the calling app passes to the API.</param>
+    /// <param name="ctsProfileMatch">
+    ///     Output parameter that contains a value only if the method returns true. A stricter verdict of device integrity. If the value of ctsProfileMatch is <see langword="true" />, then the profile of the device running your app matches the profile of a
+    ///     device that has passed Android compatibility testing and has been approved as a Google-certified Android device.
+    /// </param>
+    /// <param name="timestamp">Output parameter that contains a value only if the method returns true. The time when the JWS response message was generated by Google's servers.</param>
+    /// <returns>If all claims are found and extracted - returns <see langword="true" />, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool TryGetRequiredClaims(
         JwtSecurityToken validatedJwt,
