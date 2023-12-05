@@ -1,10 +1,8 @@
 ﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
 
 /// <summary>
-///     TPMS_CERTIFY_INFO
-///     <para>
-///         The attested data for TPM2_Certify().
-///     </para>
+///     <para>10.12.3 TPMS_CERTIFY_INFO</para>
+///     <para>The attested data for TPM2_Certify().</para>
 /// </summary>
 /// <remarks>
 ///     <para>
@@ -13,7 +11,6 @@
 ///     <para>
 ///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
 ///     </para>
-///     <para>10.12.3 TPMS_CERTIFY_INFO</para>
 /// </remarks>
 public class Certify
 {

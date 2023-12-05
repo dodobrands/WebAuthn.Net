@@ -1,7 +1,7 @@
 ﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
-///     <para>TPMI_ALG_PUBLIC, based on TPM_ALG_ID (UINT16) - TPM_ALG_!ALG.o</para>
+///     <para>12.2.2 TPMI_ALG_PUBLIC, based on TPM_ALG_ID (UINT16) - TPM_ALG_!ALG.o</para>
 ///     <para>Type of asymmetric algorithm with a public and private key, used by the TPM module for generating digital signatures in the process of WebAuthn ceremonies.</para>
 /// </summary>
 /// <remarks>
@@ -11,7 +11,6 @@
 ///     <para>
 ///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
 ///     </para>
-///     <para>12.2.2 TPMI_ALG_PUBLIC</para>
 /// </remarks>
 public enum TpmAlgPublic : ushort
 {
