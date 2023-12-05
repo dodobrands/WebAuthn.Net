@@ -28,35 +28,68 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey;
 
+/// <summary>
+///     Default implementation of <see cref="IAndroidKeyAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     : IAndroidKeyAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAndroidKeyAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="options">Accessor for getting the current value of global options.</param>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="signatureVerifier">Digital signature verifier.</param>
+    /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
+    /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAndroidKeyAttestationStatementVerifier(
         IOptionsMonitor<WebAuthnOptions> options,
         ITimeProvider timeProvider,
-        IDigitalSignatureValidator signatureValidator,
+        IDigitalSignatureVerifier signatureVerifier,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(signatureValidator);
+        ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         Options = options;
         TimeProvider = timeProvider;
-        SignatureValidator = signatureValidator;
+        SignatureVerifier = signatureVerifier;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of global options.
+    /// </summary>
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
+
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
-    protected IDigitalSignatureValidator SignatureValidator { get; }
+
+    /// <summary>
+    ///     Digital signature verifier.
+    /// </summary>
+    protected IDigitalSignatureVerifier SignatureVerifier { get; }
+
+    /// <summary>
+    ///     ASN.1 format deserializer.
+    /// </summary>
     protected IAsn1Deserializer Asn1Deserializer { get; }
+
+    /// <summary>
+    ///     A service for searching in the data provided by the FIDO Metadata Service.
+    /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
+    /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         AndroidKeyAttestationStatement attStmt,
@@ -102,7 +135,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             // 'credCert' must be the first element in the array.
             var credCert = x5CCertificates.First();
             var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
-            if (!SignatureValidator.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
+            if (!SignatureVerifier.IsValidCertificateSign(credCert, attStmt.Alg, dataToVerify, attStmt.Sig))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }
@@ -114,12 +147,12 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             }
 
             // 4) Verify that the 'attestationChallenge' field in the attestation certificate extension data is identical to 'clientDataHash'.
-            if (!TryGetAttestationExtension(credCert, out var attestationExtension))
+            if (!TryGetKeyDescriptionAttestationExtension(credCert, out var keyDescription))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
-            if (!TryGetAttestationChallenge(attestationExtension, out var attestationChallenge))
+            if (!TryGetAttestationChallenge(keyDescription, out var attestationChallenge))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }
@@ -130,7 +163,7 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
             }
 
             // 5) Verify the following using the appropriate authorization list from the attestation certificate extension data:
-            if (!IsAuthorizationListDataValid(attestationExtension))
+            if (!VerifyAuthorizationLists(keyDescription))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }
@@ -162,6 +195,14 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         }
     }
 
+    /// <summary>
+    ///     Returns a collection of valid root X509v3 certificates.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="credCert">X509v3 certificate containing extension data of the Android Key attestation statement</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process.</returns>
     protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
         X509Certificate2 credCert,
@@ -187,6 +228,13 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
+    /// <summary>
+    ///     Returns a collection of valid root certificates from the Fido Metadata Service.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the Fido Metadata Service contains root certificates for the specified <paramref name="aaguid" /> - then <see cref="UniqueByteArraysCollection" />, otherwise - <see langword="null" />.</returns>
     protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
@@ -214,12 +262,21 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         return null;
     }
 
+    /// <summary>
+    ///     Returns a collection of root certificates embedded in the library.
+    /// </summary>
+    /// <returns>An instance of <see cref="UniqueByteArraysCollection" />. It may return an empty collection, but it never returns <see langword="null" />.</returns>
     protected virtual UniqueByteArraysCollection GetEmbeddedRootCertificates()
     {
         return new(AndroidKeyRoots.Certificates);
     }
 
-    protected virtual bool IsAuthorizationListDataValid(Asn1Sequence keyDescription)
+    /// <summary>
+    ///     Verifies that the appropriate authorization lists contain correct data.
+    /// </summary>
+    /// <param name="keyDescription">The KeyDescription containing AuthorizationLists.</param>
+    /// <returns>If <paramref name="keyDescription" /> contains correct data in its AuthorizationLists - <see langword="true" />, otherwise - <see langword="false" />.</returns>
+    protected virtual bool VerifyAuthorizationLists(Asn1Sequence keyDescription)
     {
         ArgumentNullException.ThrowIfNull(keyDescription);
         // https://source.android.com/docs/security/features/keystore/attestation#schema
@@ -342,6 +399,12 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         }
     }
 
+    /// <summary>
+    ///     Verifies "origin" and "purpose" in AuthorizationList
+    /// </summary>
+    /// <param name="purpose">The "purpose" value obtained from AuthorizationList.</param>
+    /// <param name="origin">The "origin" value obtained from AuthorizationList.</param>
+    /// <returns>If both values are correct - <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsOriginAndPurposeCorrect(BigInteger purpose, BigInteger origin)
     {
         // https://android.googlesource.com/platform/hardware/libhardware/+/refs/heads/main/include_all/hardware/keymaster_defs.h
@@ -353,6 +416,12 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         return purpose == kmPurposeSign && origin == kmOriginGenerated;
     }
 
+    /// <summary>
+    ///     Extracts the "purpose" value from AuthorizationList.
+    /// </summary>
+    /// <param name="authorizationList">The AuthorizationList from which the "purpose" needs to be extracted.</param>
+    /// <param name="value">Output parameter. If a valid "purpose" exists in the AuthorizationList, it will return a <see cref="BigInteger" />, otherwise - <see langword="null" />.</param>
+    /// <returns>If there is a valid "purpose" in the <paramref name="authorizationList" />, then <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool TryGetPurposeFromAuthorizationList(Asn1Sequence authorizationList, [NotNullWhen(true)] out BigInteger? value)
     {
         ArgumentNullException.ThrowIfNull(authorizationList);
@@ -400,6 +469,12 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         return false;
     }
 
+    /// <summary>
+    ///     Extracts the "origin" value from the AuthorizationList.
+    /// </summary>
+    /// <param name="authorizationList">The AuthorizationList from which the "origin" needs to be extracted.</param>
+    /// <param name="value">Output parameter. If a valid "origin" is present in the AuthorizationList, it will return <see cref="BigInteger" />, otherwise - <see langword="null" />.</param>
+    /// <returns>If there is a valid "origin" in the <paramref name="authorizationList" />, then <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool TryGetOriginFromAuthorizationList(Asn1Sequence authorizationList, [NotNullWhen(true)] out BigInteger? value)
     {
         ArgumentNullException.ThrowIfNull(authorizationList);
@@ -440,6 +515,11 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         return false;
     }
 
+    /// <summary>
+    ///     Verifies the presence of the "allApplications" tag in the AuthorizationList.
+    /// </summary>
+    /// <param name="authorizationList">The AuthorizationList to be verified.</param>
+    /// <returns>If the <paramref name="authorizationList" /> contains the "allApplications" tag - <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsAllApplicationsPresent(Asn1Sequence authorizationList)
     {
         ArgumentNullException.ThrowIfNull(authorizationList);
@@ -456,16 +536,22 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         return false;
     }
 
+    /// <summary>
+    ///     Extracts the "attestationChallenge" value from KeyDescription.
+    /// </summary>
+    /// <param name="keyDescription">The KeyDescription from which the "attestationChallenge" needs to be extracted.</param>
+    /// <param name="attestationChallenge">Output parameter. If a valid "attestationChallenge" is present in the <paramref name="keyDescription" />, it will return a byte array, otherwise - <see langword="null" />.</param>
+    /// <returns></returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool TryGetAttestationChallenge(Asn1Sequence asn1AttestationExtension, [NotNullWhen(true)] out byte[]? attestationChallenge)
+    protected virtual bool TryGetAttestationChallenge(Asn1Sequence keyDescription, [NotNullWhen(true)] out byte[]? attestationChallenge)
     {
-        if (asn1AttestationExtension is null)
+        if (keyDescription is null)
         {
             attestationChallenge = null;
             return false;
         }
 
-        var keyDescriptionElements = asn1AttestationExtension.Items;
+        var keyDescriptionElements = keyDescription.Items;
         if (keyDescriptionElements.Length < 5)
         {
             attestationChallenge = null;
@@ -494,7 +580,13 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         return true;
     }
 
-    protected virtual bool TryGetAttestationExtension(X509Certificate2 credCert, [NotNullWhen(true)] out Asn1Sequence? asn1AttestationExtension)
+    /// <summary>
+    ///     Extracts the KeyDescription extension from the X509v3 certificate.
+    /// </summary>
+    /// <param name="credCert">X509v3 certificate containing extension data of the Android Key attestation statement</param>
+    /// <param name="keyDescription">Output parameter. If a valid "KeyDescription" is present in the <paramref name="credCert" />, it will return an <see cref="Asn1Sequence" />, otherwise - <see langword="null" />.</param>
+    /// <returns></returns>
+    protected virtual bool TryGetKeyDescriptionAttestationExtension(X509Certificate2 credCert, [NotNullWhen(true)] out Asn1Sequence? keyDescription)
     {
         ArgumentNullException.ThrowIfNull(credCert);
         // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-key-attstn-cert-requirements
@@ -508,13 +600,13 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                 var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.DER);
                 if (deserializeResult.HasError)
                 {
-                    asn1AttestationExtension = null;
+                    keyDescription = null;
                     return false;
                 }
 
                 if (deserializeResult.Ok is null)
                 {
-                    asn1AttestationExtension = null;
+                    keyDescription = null;
                     return false;
                 }
 
@@ -524,19 +616,25 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                 // }
                 if (deserializeResult.Ok is not Asn1Sequence keyDescriptionAsn1)
                 {
-                    asn1AttestationExtension = null;
+                    keyDescription = null;
                     return false;
                 }
 
-                asn1AttestationExtension = keyDescriptionAsn1;
+                keyDescription = keyDescriptionAsn1;
                 return true;
             }
         }
 
-        asn1AttestationExtension = null;
+        keyDescription = null;
         return false;
     }
 
+    /// <summary>
+    ///     Concatenates two ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">The first ReadOnlySpan of bytes.</param>
+    /// <param name="b">The second ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         var result = new byte[a.Length + b.Length];

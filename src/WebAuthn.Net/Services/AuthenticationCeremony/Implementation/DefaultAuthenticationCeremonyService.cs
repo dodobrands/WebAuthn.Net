@@ -72,7 +72,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <param name="attestationStatementDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR into a typed representation.</param>
     /// <param name="attestationStatementVerifier">Verifier of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.</param>
     /// <param name="attestationTrustPathValidator"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> validator. It validates that the attestation statement is trustworthy.</param>
-    /// <param name="signatureValidator">Digital signature verifier.</param>
+    /// <param name="signatureVerifier">Digital signature verifier.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAuthenticationCeremonyService(
@@ -92,7 +92,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         IAttestationStatementDecoder attestationStatementDecoder,
         IAttestationStatementVerifier<TContext> attestationStatementVerifier,
         IAttestationTrustPathValidator attestationTrustPathValidator,
-        IDigitalSignatureValidator signatureValidator,
+        IDigitalSignatureVerifier signatureVerifier,
         ILogger<DefaultAuthenticationCeremonyService<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -111,7 +111,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         ArgumentNullException.ThrowIfNull(attestationStatementDecoder);
         ArgumentNullException.ThrowIfNull(attestationStatementVerifier);
         ArgumentNullException.ThrowIfNull(attestationTrustPathValidator);
-        ArgumentNullException.ThrowIfNull(signatureValidator);
+        ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         ContextFactory = contextFactory;
@@ -129,7 +129,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         AttestationStatementDecoder = attestationStatementDecoder;
         AttestationStatementVerifier = attestationStatementVerifier;
         AttestationTrustPathValidator = attestationTrustPathValidator;
-        SignatureValidator = signatureValidator;
+        SignatureVerifier = signatureVerifier;
         Logger = logger;
     }
 
@@ -214,9 +214,9 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     protected IAttestationTrustPathValidator AttestationTrustPathValidator { get; }
 
     /// <summary>
-    ///     Digital signature validator.
+    ///     Digital signature verifier.
     /// </summary>
-    protected IDigitalSignatureValidator SignatureValidator { get; }
+    protected IDigitalSignatureVerifier SignatureVerifier { get; }
 
     /// <summary>
     ///     Logger.
@@ -590,7 +590,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 return CompleteAuthenticationCeremonyResult.Fail();
             }
 
-            if (!SignatureValidator.IsValidCoseKeySign(credentialRecordPublicKey, dataToVerify, sig))
+            if (!SignatureVerifier.IsValidCoseKeySign(credentialRecordPublicKey, dataToVerify, sig))
             {
                 Logger.InvalidSignature();
                 return CompleteAuthenticationCeremonyResult.Fail();

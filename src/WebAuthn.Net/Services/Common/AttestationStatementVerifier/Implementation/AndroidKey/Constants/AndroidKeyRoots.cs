@@ -8,9 +8,19 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey.Constants;
 
+/// <summary>
+///     Built-in root certificates for the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+/// </summary>
 public static class AndroidKeyRoots
 {
+    /// <summary>
+    ///     Root CA certificates for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+    /// </summary>
     public static readonly byte[][] Certificates = GetRootCertificates();
+
+    /// <summary>
+    ///     Root CA RSA keys for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+    /// </summary>
     public static readonly byte[][] RootRsaKeys = GetRootRsaKeys();
 
     private static byte[][] GetRootCertificates()

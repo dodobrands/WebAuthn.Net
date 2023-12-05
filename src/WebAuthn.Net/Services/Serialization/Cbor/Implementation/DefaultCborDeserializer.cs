@@ -10,16 +10,23 @@ using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="ICborDeserializer" />.
+/// </summary>
 public class DefaultCborDeserializer : ICborDeserializer
 {
-    private readonly ILogger<DefaultCborDeserializer> _logger;
-
     public DefaultCborDeserializer(ILogger<DefaultCborDeserializer> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
+        Logger = logger;
     }
 
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultCborDeserializer> Logger { get; }
+
+    /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public Result<CborRoot> Deserialize(byte[] input)
     {
@@ -55,7 +62,7 @@ public class DefaultCborDeserializer : ICborDeserializer
         {
             case CborReaderState.Undefined:
                 {
-                    _logger.CborReaderUndefined();
+                    Logger.CborReaderUndefined();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.UnsignedInteger:
@@ -72,12 +79,12 @@ public class DefaultCborDeserializer : ICborDeserializer
                 }
             case CborReaderState.StartIndefiniteLengthByteString:
                 {
-                    _logger.CborReaderStartIndefiniteLengthByteString();
+                    Logger.CborReaderStartIndefiniteLengthByteString();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.EndIndefiniteLengthByteString:
                 {
-                    _logger.CborReaderEndIndefiniteLengthByteString();
+                    Logger.CborReaderEndIndefiniteLengthByteString();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.TextString:
@@ -86,12 +93,12 @@ public class DefaultCborDeserializer : ICborDeserializer
                 }
             case CborReaderState.StartIndefiniteLengthTextString:
                 {
-                    _logger.CborReaderStartIndefiniteLengthTextString();
+                    Logger.CborReaderStartIndefiniteLengthTextString();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.EndIndefiniteLengthTextString:
                 {
-                    _logger.CborReaderEndIndefiniteLengthTextString();
+                    Logger.CborReaderEndIndefiniteLengthTextString();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.StartArray:
@@ -100,7 +107,7 @@ public class DefaultCborDeserializer : ICborDeserializer
                 }
             case CborReaderState.EndArray:
                 {
-                    _logger.CborReaderEndArray();
+                    Logger.CborReaderEndArray();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.StartMap:
@@ -109,12 +116,12 @@ public class DefaultCborDeserializer : ICborDeserializer
                 }
             case CborReaderState.EndMap:
                 {
-                    _logger.CborReaderEndMap();
+                    Logger.CborReaderEndMap();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.Tag:
                 {
-                    _logger.CborReaderTag();
+                    Logger.CborReaderTag();
                     return Result<AbstractCborObject>.Fail();
                 }
             case CborReaderState.SimpleValue:
@@ -143,12 +150,12 @@ public class DefaultCborDeserializer : ICborDeserializer
                 }
             case CborReaderState.Finished:
                 {
-                    _logger.CborReaderFinished();
+                    Logger.CborReaderFinished();
                     return Result<AbstractCborObject>.Fail();
                 }
             default:
                 {
-                    _logger.CborReaderUnhandledState();
+                    Logger.CborReaderUnhandledState();
                     return Result<AbstractCborObject>.Fail();
                 }
         }
@@ -195,7 +202,7 @@ public class DefaultCborDeserializer : ICborDeserializer
         var count = reader.ReadStartArray();
         if (!count.HasValue)
         {
-            _logger.ArrayIndefiniteLength();
+            Logger.ArrayIndefiniteLength();
             return Result<CborArray>.Fail();
         }
 
@@ -226,7 +233,7 @@ public class DefaultCborDeserializer : ICborDeserializer
         var count = reader.ReadStartMap();
         if (!count.HasValue)
         {
-            _logger.MapIndefiniteLength();
+            Logger.MapIndefiniteLength();
             return Result<CborMap>.Fail();
         }
 
@@ -273,7 +280,7 @@ public class DefaultCborDeserializer : ICborDeserializer
                 return Result<AbstractCborObject>.Success(CborUndefined.Instance);
             default:
                 {
-                    _logger.UnsupportedSimpleValue();
+                    Logger.UnsupportedSimpleValue();
                     return Result<AbstractCborObject>.Fail();
                 }
         }

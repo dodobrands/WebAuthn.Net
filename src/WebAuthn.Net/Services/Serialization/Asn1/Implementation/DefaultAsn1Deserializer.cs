@@ -7,8 +7,12 @@ using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
 
 namespace WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IAsn1Deserializer" />.
+/// </summary>
 public class DefaultAsn1Deserializer : IAsn1Deserializer
 {
+    /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public virtual Result<AbstractAsn1Element?> Deserialize(byte[] input, AsnEncodingRules encodingRules)
     {

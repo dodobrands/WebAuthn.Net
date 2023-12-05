@@ -42,7 +42,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         ITimeProvider timeProvider,
         ITpmPubAreaDecoder tpmPubAreaDecoder,
         ITpmCertInfoDecoder tpmCertInfoDecoder,
-        IDigitalSignatureValidator signatureValidator,
+        IDigitalSignatureVerifier signatureVerifier,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
@@ -50,14 +50,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(tpmPubAreaDecoder);
         ArgumentNullException.ThrowIfNull(tpmCertInfoDecoder);
-        ArgumentNullException.ThrowIfNull(signatureValidator);
+        ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
         TpmPubAreaDecoder = tpmPubAreaDecoder;
         TpmCertInfoDecoder = tpmCertInfoDecoder;
-        SignatureValidator = signatureValidator;
+        SignatureVerifier = signatureVerifier;
         TpmManufacturerVerifier = tpmManufacturerVerifier;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
@@ -66,7 +66,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     protected ITimeProvider TimeProvider { get; }
     protected ITpmPubAreaDecoder TpmPubAreaDecoder { get; }
     protected ITpmCertInfoDecoder TpmCertInfoDecoder { get; }
-    protected IDigitalSignatureValidator SignatureValidator { get; }
+    protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ITpmManufacturerVerifier TpmManufacturerVerifier { get; }
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
@@ -224,7 +224,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             // These fields MAY be used as an input to risk engines.
 
             // 7) Verify the 'sig' is a valid signature over 'certInfo' using the attestation public key in 'aikCert' with the algorithm specified in 'alg'.
-            if (!SignatureValidator.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
+            if (!SignatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }

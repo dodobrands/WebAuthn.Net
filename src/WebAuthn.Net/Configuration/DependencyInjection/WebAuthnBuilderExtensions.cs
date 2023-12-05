@@ -214,7 +214,7 @@ public static class WebAuthnBuilderExtensions
         where TContext : class, IWebAuthnContext
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.TryAddSingleton<IDigitalSignatureValidator, DefaultDigitalSignatureValidator>();
+        builder.Services.TryAddSingleton<IDigitalSignatureVerifier, DefaultDigitalSignatureVerifier>();
         return builder;
     }
 
