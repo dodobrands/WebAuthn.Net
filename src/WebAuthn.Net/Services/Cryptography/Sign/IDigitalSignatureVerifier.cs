@@ -5,9 +5,9 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 namespace WebAuthn.Net.Services.Cryptography.Sign;
 
 /// <summary>
-///     Digital signature validator.
+///     Digital signature verifier.
 /// </summary>
-public interface IDigitalSignatureValidator
+public interface IDigitalSignatureVerifier
 {
     /// <summary>
     ///     Validates the digital signature for the specified data using the public key from the X509v3 certificate according to the specified algorithm.

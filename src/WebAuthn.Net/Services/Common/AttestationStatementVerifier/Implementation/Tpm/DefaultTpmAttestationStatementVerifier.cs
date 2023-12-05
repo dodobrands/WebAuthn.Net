@@ -15,7 +15,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.Attestatio
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums.Extensions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
@@ -43,7 +42,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         ITimeProvider timeProvider,
         ITpmPubAreaDecoder tpmPubAreaDecoder,
         ITpmCertInfoDecoder tpmCertInfoDecoder,
-        IDigitalSignatureValidator signatureValidator,
+        IDigitalSignatureVerifier signatureVerifier,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
@@ -51,14 +50,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(tpmPubAreaDecoder);
         ArgumentNullException.ThrowIfNull(tpmCertInfoDecoder);
-        ArgumentNullException.ThrowIfNull(signatureValidator);
+        ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
         TimeProvider = timeProvider;
         TpmPubAreaDecoder = tpmPubAreaDecoder;
         TpmCertInfoDecoder = tpmCertInfoDecoder;
-        SignatureValidator = signatureValidator;
+        SignatureVerifier = signatureVerifier;
         TpmManufacturerVerifier = tpmManufacturerVerifier;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
@@ -67,7 +66,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     protected ITimeProvider TimeProvider { get; }
     protected ITpmPubAreaDecoder TpmPubAreaDecoder { get; }
     protected ITpmCertInfoDecoder TpmCertInfoDecoder { get; }
-    protected IDigitalSignatureValidator SignatureValidator { get; }
+    protected IDigitalSignatureVerifier SignatureVerifier { get; }
     protected ITpmManufacturerVerifier TpmManufacturerVerifier { get; }
     protected IAsn1Deserializer Asn1Deserializer { get; }
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
@@ -178,7 +177,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
-        if (!certInfo.Attested.Certify.Name.Digest.HashAlg.TryComputeHash(attStmt.PubArea, out var pubAreaHash))
+        if (!TryComputeHash(certInfo.Attested.Certify.Name.Digest.HashAlg, attStmt.PubArea, out var pubAreaHash))
         {
             return Result<VerifiedAttestationStatement>.Fail();
         }
@@ -225,7 +224,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             // These fields MAY be used as an input to risk engines.
 
             // 7) Verify the 'sig' is a valid signature over 'certInfo' using the attestation public key in 'aikCert' with the algorithm specified in 'alg'.
-            if (!SignatureValidator.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
+            if (!SignatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }
@@ -799,7 +798,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
                         return false;
                     }
 
-                    if (!tpmCurve.CurveId.TryToEcCurve(out var ecCurve))
+                    if (!TryToEcCurve(tpmCurve.CurveId, out var ecCurve))
                     {
                         algorithm = null;
                         return false;
@@ -821,6 +820,80 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             default:
                 {
                     algorithm = null;
+                    return false;
+                }
+        }
+    }
+
+
+    /// <summary>
+    ///     Calculates a hash for the passed value using the algorithm contained in the <paramref name="tpmAlg" />.
+    /// </summary>
+    /// <param name="tpmAlg">The algorithm that will be used to calculate the hash.</param>
+    /// <param name="message">The message for which a hash needs to be calculated.</param>
+    /// <param name="hash">The output parameter containing the calculated hash if the method returned <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns>If it's possible to calculate a hash for this particular algorithm - <see langword="true" /> (as well as the hash value itself in the output parameter <paramref name="hash" />), otherwise - <see langword="false" />.</returns>
+    [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms")]
+    protected virtual bool TryComputeHash(TpmAlgIdHash tpmAlg, byte[] message, [NotNullWhen(true)] out byte[]? hash)
+    {
+        switch (tpmAlg)
+        {
+            case TpmAlgIdHash.Sha1:
+                {
+                    hash = SHA1.HashData(message);
+                    return true;
+                }
+            case TpmAlgIdHash.Sha256:
+                {
+                    hash = SHA256.HashData(message);
+                    return true;
+                }
+            case TpmAlgIdHash.Sha384:
+                {
+                    hash = SHA384.HashData(message);
+                    return true;
+                }
+            case TpmAlgIdHash.Sha512:
+                {
+                    hash = SHA512.HashData(message);
+                    return true;
+                }
+            default:
+                {
+                    hash = null;
+                    return false;
+                }
+        }
+    }
+
+    /// <summary>
+    ///     Converts the elliptic curve specified in the <paramref name="tpmiEccCurve" /> from enum to a typed value, suitable for further use in digital signature computations using built-in .NET types.
+    /// </summary>
+    /// <param name="tpmiEccCurve">An enum containing the name of the elliptic curve that should be converted to a built-in .NET type.</param>
+    /// <param name="crv">The output parameter containing the value of the elliptic curve, represented by a built-in .NET type, if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns>If such an elliptic curve is described using the ECCurve type - <see langword="true" />, otherwise - <see langword="false" />.</returns>
+    protected virtual bool TryToEcCurve(TpmiEccCurve tpmiEccCurve, [NotNullWhen(true)] out ECCurve? crv)
+    {
+        switch (tpmiEccCurve)
+        {
+            case TpmiEccCurve.TpmEccNistP256:
+                {
+                    crv = ECCurve.NamedCurves.nistP256;
+                    return true;
+                }
+            case TpmiEccCurve.TpmEccNistP384:
+                {
+                    crv = ECCurve.NamedCurves.nistP384;
+                    return true;
+                }
+            case TpmiEccCurve.TpmEccNistP521:
+                {
+                    crv = ECCurve.NamedCurves.nistP521;
+                    return true;
+                }
+            default:
+                {
+                    crv = null;
                     return false;
                 }
         }

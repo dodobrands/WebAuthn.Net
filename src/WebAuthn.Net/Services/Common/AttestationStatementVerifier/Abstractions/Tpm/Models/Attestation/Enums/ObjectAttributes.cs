@@ -3,7 +3,7 @@
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
-///     TPMA_OBJECT (UINT32) - Object Attributes
+///     <para>8.3 TPMA_OBJECT (UINT32) - Object Attributes</para>
 ///     <para>
 ///         This attribute structure indicates an object's use, its authorization types, and its relationship to other objects.
 ///         The state of the attributes is determined when the object is created and they are never changed by the TPM.
@@ -16,7 +16,6 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions
 ///     <para>
 ///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
 ///     </para>
-///     <para>8.3 TPMA_OBJECT (Object Attributes)</para>
 /// </remarks>
 [Flags]
 public enum ObjectAttributes : uint
