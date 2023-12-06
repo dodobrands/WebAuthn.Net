@@ -53,6 +53,8 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestServic
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.Metrics;
+using WebAuthn.Net.Services.Metrics.Implementation;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Providers.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony;
@@ -200,6 +202,10 @@ public static class WebAuthnBuilderExtensions
         // -- ChallengeGenerator --
         builder.Services.TryAddSingleton<IClientDataDecoder, DefaultClientDataDecoder>();
         // ------------------------
+
+        // -- Metrics Service --
+        builder.Services.TryAddSingleton<IWebauthnMetricsService, WebauthnMetricsService>();
+        // ---------------------
 
         return builder;
     }
