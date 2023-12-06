@@ -33,6 +33,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestServic
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.Metrics.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
@@ -213,7 +214,8 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             attestationStatementDecoder,
             attestationStatementVerifier,
             attestationTrustPathValidator,
-            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
+            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance,
+            new WebauthnMetricsService());
     }
 
     [TearDown]

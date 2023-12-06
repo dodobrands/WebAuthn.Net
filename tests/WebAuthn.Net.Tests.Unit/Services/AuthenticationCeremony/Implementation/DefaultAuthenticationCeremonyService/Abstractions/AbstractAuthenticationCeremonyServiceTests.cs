@@ -35,6 +35,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestServic
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.Metrics.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
@@ -213,6 +214,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
 
+        var metricsService = new WebauthnMetricsService();
+
         RegistrationCeremonyService = new(
             Options,
             ContextFactory,
@@ -230,7 +233,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             attestationStatementDecoder,
             attestationStatementVerifier,
             attestationTrustPathValidator,
-            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
+            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance,
+            metricsService);
         AuthenticationCeremonyService = new(
             Options,
             ContextFactory,
@@ -249,7 +253,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             attestationStatementVerifier,
             attestationTrustPathValidator,
             digitalSignatureVerifier,
-            NullLogger<DefaultAuthenticationCeremonyService<FakeWebAuthnContext>>.Instance);
+            NullLogger<DefaultAuthenticationCeremonyService<FakeWebAuthnContext>>.Instance,
+            metricsService);
     }
 
     [TearDown]
