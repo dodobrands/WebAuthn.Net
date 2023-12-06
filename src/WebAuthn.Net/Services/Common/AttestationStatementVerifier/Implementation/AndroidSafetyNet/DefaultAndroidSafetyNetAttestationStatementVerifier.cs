@@ -300,20 +300,6 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     }
 
     /// <summary>
-    ///     Concatenates two ReadOnlySpan of bytes into one array.
-    /// </summary>
-    /// <param name="a">The first ReadOnlySpan of bytes.</param>
-    /// <param name="b">The second ReadOnlySpan of bytes.</param>
-    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
-    protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
-    {
-        var result = new byte[a.Length + b.Length];
-        a.CopyTo(result);
-        b.CopyTo(result.AsSpan(a.Length));
-        return result;
-    }
-
-    /// <summary>
     ///     Returns X509v3 certificates from the header of the JWS token of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.
     /// </summary>
     /// <param name="jwt">
@@ -476,5 +462,20 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
         ctsProfileMatch = null;
         timestamp = null;
         return false;
+    }
+
+
+    /// <summary>
+    ///     Concatenates two ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">The first ReadOnlySpan of bytes.</param>
+    /// <param name="b">The second ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
+    protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        var result = new byte[a.Length + b.Length];
+        a.CopyTo(result);
+        b.CopyTo(result.AsSpan(a.Length));
+        return result;
     }
 }
