@@ -4,99 +4,26 @@
 }
 
 <div class="row">
-    <div class="col-md-4"></div>
-    <div class="col-md-4">
+    <div class="col-md-3"></div>
+    <div class="col-md-6 mb-2">
         <div class="card">
             <div class="card-body">
                 <h2 class="card-title">Usernameless Authentication</h2>
+                <hr>
                 <form id="webauthn-usernameless" class="p-1">
-                    <div class="form-floating mb-1">
-                        <input type="text" id="webauthn-usernameless-name" class="form-control" placeholder="Username (optional)"/>
-                        <label for="webauthn-usernameless-name">Username (optional)</label>
-                    </div>
-                    <hr>
                     <button type="submit" id="webauthn-usernameless-submit" class="btn btn-primary">Submit</button>
-                    <button type="button" id="webauthn-usernameless-register" class="btn btn-primary">Register</button>
                 </form>
             </div>
         </div>
     </div>
     <div class="col-md-4"></div>
 </div>
+<hr>
+<partial name="_RegisterRow" />
 
 @section Scripts
 {
-    <script async type="text/javascript">
-(() => {
-    const { initiateAuthentication, initiateRegistration, submitAuthentication, submitRegistration } = API.Usernameless;
-    const elements = {
-        authenticateBtn: () => document.getElementById("webauthn-usernameless-submit"),
-        authenticateUsername: () => document.getElementById("webauthn-usernameless-name"),
-        registerBtn: () => document.getElementById("webauthn-usernameless-register"),
-    };
-    // DOM Handlers
-    const onRegisterButtonHandler = async (e) => {
-        e.preventDefault();
-        const username = getElementValue(elements.authenticateUsername());
-        const initialData = await initiateRegistration({ username });
-        if (!initialData) return;
-        const { options } = initialData;
-        const publicKey = {
-            ...options,
-            challenge: coerceToArrayBuffer(options.challenge),
-            user: {
-                ...options.user,
-                id: coerceToArrayBuffer(options.user.id),
-            }
-        };
-
-        const response = await navigator.credentials.create({ publicKey });
-        if (!response) return;
-
-        const registrationResult = await submitRegistration({ response });
-        if (!registrationResult) return;
-        const { successful } = registrationResult;
-        if (successful) {
-            Alerts.registerSuccess();
-            clearElementValue(elements.authenticateUsername());
-            return;
-        }
-        Alerts.failedToRegister();
-    };
-    const onAuthenticateButtonHandler = async (e) => {
-        e.preventDefault();
-        const initialData = await initiateAuthentication();
-        if (!initialData) return;
-        const { options } = initialData;
-        const publicKey = {
-            ...options,
-            challenge: coerceToArrayBuffer(options.challenge),
-            allowCredentials: (options.allowCredentials ?? []).map(x => ({...x,  id: coerceToArrayBuffer(x.id)}))
-        };
-        const response = await navigator.credentials.get({ publicKey });
-        if (!response) return;
-
-        const attestationResult = await submitAuthentication({ response });
-        if (!attestationResult) return;
-        const { successful } = attestationResult;
-        if (!successful) {
-            Alerts.failedToAuthenticate();
-            return;
-        }
-        location.assign("/Fido/Authenticated");
-    };
-
-    // INIT
-    document.addEventListener("DOMContentLoaded", () => {
-        if (!isWebauthnAvailable()) {
-            Alerts.webauthnIsNotAvailable();
-            return;
-        }
-
-        elements.registerBtn().addEventListener("click", onRegisterButtonHandler);
-        elements.authenticateBtn().addEventListener("click", onAuthenticateButtonHandler);
-    });
-})();
-</script>
+    <script defer type="text/javascript" src="~/js/views/usernameless.js"></script>
+    <script defer type="text/javascript" src="~/js/views/register.js"></script>
 }
 

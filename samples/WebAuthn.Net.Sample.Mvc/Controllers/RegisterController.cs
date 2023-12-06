@@ -18,14 +18,6 @@ public class RegisterController : Controller
         _userHandle = userHandle;
     }
 
-    [HttpGet]
-    [AllowAnonymous]
-    public IActionResult Index(CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        return View();
-    }
-
     [HttpPost]
     [AllowAnonymous]
     public async Task<IActionResult> BeginRegisterCeremony([FromBody] ServerPublicKeyCredentialCreationOptionsRequest request, CancellationToken token)

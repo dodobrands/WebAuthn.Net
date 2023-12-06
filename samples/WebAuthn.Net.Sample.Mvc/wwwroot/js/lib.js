@@ -157,27 +157,6 @@ const API = {
         },
     },
     Usernameless : {
-        initiateRegistration: async ({ username }) => {
-            const url = "/Usernameless/BeginRegisterCeremony";
-            const data = {
-                username,
-                registrationParameters: {},
-                extensions: {}
-            };
-            return await makeJsonApiCall({ url, data, method: "POST" });
-        },
-        submitRegistration: async ({ response }) => {
-            const url = "/Usernameless/RegisterCeremony";
-            const data = {
-                id: coerceToBase64Url(response.rawId),
-                type: response.type,
-                response: {
-                    attestationObject: coerceToBase64Url(response.response.attestationObject),
-                    clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
-                }
-            };
-            return await makeJsonApiCall({ url, data, method: "POST" });
-        },
         initiateAuthentication: async () => {
             const url = "/Usernameless/BeginAuthenticationCeremony";
             const data = {};

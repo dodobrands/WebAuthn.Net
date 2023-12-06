@@ -1,4 +1,7 @@
-
+@{
+    var userName = Context.User.Identity?.Name;
+    var showLogoutButton = !string.IsNullOrWhiteSpace(userName);
+}
 <header class="mb-5">
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
@@ -7,32 +10,21 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                @if (ViewData["ShowLogoutButton"] is false)
-                {
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-                        <li class="nav-item p-1">
-                            <a class="nav-link" href="/Register">Register</a>
-                        </li>
-                        <li class="nav-item p-1">
-                            <a class="nav-link" href="/Passwordless">Passwordless Example</a>
-                        </li>
-                        <li class="nav-item p-1">
-                            <a class="nav-link" href="/Usernameless">Usernameless Example</a>
-                        </li>
-                    </ul>
-                }
-                else
-                {
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item p-1">
-                            <a class="nav-link active" href="/Fido/Authenticated">Secure page</a>
-                        </li>
-                    </ul>
-                    <div class="d-flex" role="search">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item p-1">
+                        <a class="nav-link" href="/Passwordless">Passwordless Example</a>
+                    </li>
+                    <li class="nav-item p-1">
+                        <a class="nav-link" href="/Usernameless">Usernameless Example</a>
+                    </li>
+                </ul>
+                <div class="d-flex" role="search">
+                    @if (showLogoutButton)
+                    {
+                        <span class="navbar-text me-2">Authenticated as: @userName</span>
                         <a class="btn btn-primary" role="button" href="/Fido/Logout">Logout</a>
-                    </div>
-                }
+                    }
+                </div>
             </div>
         </div>
     </nav>

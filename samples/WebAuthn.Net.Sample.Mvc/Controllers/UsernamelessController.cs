@@ -7,20 +7,17 @@ using WebAuthn.Net.Sample.Mvc.Constants;
 using WebAuthn.Net.Sample.Mvc.Models.Usernameless;
 using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Services.AuthenticationCeremony;
-using WebAuthn.Net.Services.RegistrationCeremony;
 
 namespace WebAuthn.Net.Sample.Mvc.Controllers;
 
 public class UsernamelessController : Controller
 {
     private readonly IAuthenticationCeremonyService _authenticationCeremony;
-    private readonly IRegistrationCeremonyService _registrationCeremony;
     private readonly UserHandleStore _userHandle;
 
-    public UsernamelessController(IAuthenticationCeremonyService authenticationCeremony, IRegistrationCeremonyService registrationCeremony, UserHandleStore userHandle)
+    public UsernamelessController(IAuthenticationCeremonyService authenticationCeremony, UserHandleStore userHandle)
     {
         _authenticationCeremony = authenticationCeremony;
-        _registrationCeremony = registrationCeremony;
         _userHandle = userHandle;
     }
 
@@ -30,47 +27,6 @@ public class UsernamelessController : Controller
     {
         token.ThrowIfCancellationRequested();
         return View();
-    }
-
-    [HttpPost]
-    [AllowAnonymous]
-    public async Task<IActionResult> BeginRegisterCeremony([FromBody] RegisterPublicKeyCredentialCreationOptionsRequest request, CancellationToken token)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        token.ThrowIfCancellationRequested();
-
-        if (!ModelState.IsValid)
-        {
-            throw new InvalidDataException();
-        }
-
-        var id = Guid.NewGuid().ToString();
-        var result = await _registrationCeremony.BeginCeremonyAsync(HttpContext, request.ToBeginCeremonyRequest(id), token);
-        HttpContext.Response.Cookies
-            .Append(ExampleConstants.CookieAuthentication.RegistrationSessionId, result.RegistrationCeremonyId);
-        _userHandle.Set(id, result.Options.User.Name);
-        return Json(result);
-    }
-
-    [HttpPost]
-    [AllowAnonymous]
-    public async Task<IActionResult> RegisterCeremony([FromBody] RegisterPublicKeyCredential request, CancellationToken token)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        token.ThrowIfCancellationRequested();
-
-        if (!ModelState.IsValid)
-        {
-            throw new InvalidDataException();
-        }
-
-        if (!HttpContext.Request.Cookies.TryGetValue(ExampleConstants.CookieAuthentication.RegistrationSessionId, out var cookie))
-            throw new UnauthorizedAccessException();
-
-        var ceremonyModel = request.ToCompleteCeremonyRequest(cookie!);
-        var result = await _registrationCeremony.CompleteCeremonyAsync(HttpContext, ceremonyModel, token);
-        HttpContext.Response.Cookies.Delete(ExampleConstants.CookieAuthentication.RegistrationSessionId);
-        return Json(result);
     }
 
     [HttpPost]

@@ -1,9 +1,0 @@
-@{
-    var userName = Context.User.Identity?.Name ?? "Unknown user";
-    ViewData["Title"] = $"Webauthn.Net as ({userName})";
-    ViewData["ShowLogoutButton"] = true;
-}
-
-<div class="row">
-    <h1>Authenticated as @userName!</h1>
-</div>

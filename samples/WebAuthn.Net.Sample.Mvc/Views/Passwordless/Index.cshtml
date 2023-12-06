@@ -23,96 +23,38 @@
         <div class="card">
             <div class="card-body">
                 <h2 class="card-title">Passwordless Authentication Options</h2>
-                <form id="webauthn-params" class="p-1">
+                <form id="webauthn-passwordless-params" class="p-1">
                     <div class="form-floating mb-2">
-                        <select id="webauthn-params-uv" class="form-select">
+                        <select id="webauthn-passwordless-params-uv" class="form-select">
                             <option value="unset">(not set)</option>
                             <option value="discouraged">Discouraged</option>
                             <option value="preferred">Preferred</option>
                             <option value="required">Required</option>
                         </select>
-                        <label for="webauthn-params-uv">User Verification Requirement</label>
+                        <label for="webauthn-passwordless-params-uv">User Verification Requirement</label>
                     </div>
                     <div class="form-floating mb-2">
-                        <select id="webauthn-params-attestation" class="form-select">
+                        <select id="webauthn-passwordless-params-attestation" class="form-select">
                             <option value="unset">(not set)</option>
                             <option value="none">None</option>
                             <option value="direct">Direct</option>
                             <option value="indirect">Indirect</option>
                             <option value="enterprise">Enterprise</option>
                         </select>
-                        <label for="webauthn-params-attestation">Attestation Conveyance Preference</label>
+                        <label for="webauthn-passwordless-params-attestation">Attestation Conveyance Preference</label>
                     </div>
                     <hr>
-                    <button type="submit" id="webauthn-params-submit" class="btn btn-primary">Reset</button>
+                    <button type="submit" id="webauthn-passwordless-params-submit" class="btn btn-primary">Reset</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+<hr>
+<partial name="_RegisterRow" />
 
 @section Scripts
 {
-<script async type="text/javascript">
-(() => {
-    const formElements = {
-        userVerification: () => document.getElementById("webauthn-params-uv"),
-        attestation: () => document.getElementById("webauthn-params-attestation"),
-    };
-    const elements = {
-        authenticateInput: () => document.getElementById("webauthn-authenticate-name"),
-        authenticateButton: () => document.getElementById("webauthn-authenticate-submit"),
-        authenticateFormReset: () => document.getElementById("webauthn-params-submit")
-    };
-    const defaultParams = {
-        userVerification: "preferred",
-        attestation: "none",
-    };
-    const { initiateAuthentication, submitAuthentication } = API.Passwordless;
-    const {
-        getState,
-        setState,
-        withState,
-        resetState,
-        ensureStateCreated
-    } = createStateMethods({ key: localStateKeys.passwordlessParamsKey, defaultParams });
-
-    const onAuthenticateButtonHandler = async (e) => {
-        e.preventDefault();
-        const username = getElementValue(elements.authenticateInput());
-        const { userVerification, attestation } = getState();
-        const initialData = await initiateAuthentication({ username, attestation, userVerification });
-        if (!initialData) return;
-        const { options } = initialData;
-        const publicKey = {
-            ...options,
-            challenge: coerceToArrayBuffer(options.challenge),
-            allowCredentials: (options.allowCredentials ?? []).map(x => ({...x,  id: coerceToArrayBuffer(x.id)}))
-        };
-        const response = await navigator.credentials.get({ publicKey });
-        if (!response) return;
-
-        const attestationResult = await submitAuthentication({ username, response });
-        if (!attestationResult) return;
-        const { successful } = attestationResult;
-        if (!successful) {
-            Alerts.failedToAuthenticate();
-            return;
-        }
-        location.assign("/Fido/Authenticated");
-    };
-
-    // INIT
-    document.addEventListener("DOMContentLoaded", () => {
-        if (!isWebauthnAvailable()) {
-            Alerts.webauthnIsNotAvailable();
-            return;
-        }
-        ensureStateCreated();
-        initializeForm({ state: getState(), setState, withState, formElements });
-        elements.authenticateButton().addEventListener("click", onAuthenticateButtonHandler);
-        elements.authenticateFormReset().addEventListener("click", resetState);
-    });
-})();
-</script>
+    <script defer type="text/javascript" src="~/js/views/passwordless.js"></script>
+    <script defer type="text/javascript" src="~/js/views/register.js"></script>
 }
