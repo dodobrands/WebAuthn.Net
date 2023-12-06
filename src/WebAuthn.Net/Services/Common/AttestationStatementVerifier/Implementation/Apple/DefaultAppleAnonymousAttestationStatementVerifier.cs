@@ -23,10 +23,20 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Apple;
 
+/// <summary>
+///     Default implementation of <see cref="IAppleAnonymousAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     : IAppleAnonymousAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAppleAnonymousAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAppleAnonymousAttestationStatementVerifier(ITimeProvider timeProvider, IAsn1Deserializer asn1Deserializer)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -35,9 +45,17 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         Asn1Deserializer = asn1Deserializer;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
+    /// <summary>
+    ///     ASN.1 format deserializer.
+    /// </summary>
     protected IAsn1Deserializer Asn1Deserializer { get; }
 
+    /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         AppleAnonymousAttestationStatement attStmt,
@@ -102,7 +120,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             }
 
             // 6) If successful, return implementation-specific values representing attestation type Anonymization CA and attestation trust path x5c.
-            var acceptableTrustAnchors = await GetAcceptableTrustAnchorsAsync(context, authenticatorData, cancellationToken);
+            var acceptableTrustAnchors = await GetAcceptableTrustAnchorsAsync(context, credCert, authenticatorData, cancellationToken);
             var result = new VerifiedAttestationStatement(
                 AttestationStatementFormat.AppleAnonymous,
                 AttestationType.AnonCa,
@@ -119,8 +137,18 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         }
     }
 
+
+    /// <summary>
+    ///     Returns a collection of valid root X509v3 certificates.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="credCert">X509v3 certificate for the credential public key, which includes "nonce" as a certificate extension.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process.</returns>
     protected virtual Task<UniqueByteArraysCollection> GetAcceptableTrustAnchorsAsync(
         TContext context,
+        X509Certificate2 credCert,
         AttestedAuthenticatorData authenticatorData,
         CancellationToken cancellationToken)
     {
@@ -130,20 +158,39 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         return Task.FromResult(result);
     }
 
+    /// <summary>
+    ///     Returns a collection of root certificates embedded in the library.
+    /// </summary>
+    /// <returns>An instance of <see cref="UniqueByteArraysCollection" />. It may return an empty collection, but it never returns <see langword="null" />.</returns>
     protected virtual UniqueByteArraysCollection GetEmbeddedRootCertificates()
     {
         return new(AppleRoots.Certificates);
     }
 
+    /// <summary>
+    ///     Returns the "nonce" value if it is present and properly encoded in the certificate.
+    /// </summary>
+    /// <param name="credCert">X509v3 certificate for the credential public key, which includes "nonce" as a certificate extension.</param>
+    /// <param name="certificateNonce">Output parameter. If the method returns <see langword="true" /> - contains the "nonce", otherwise - <see langword="null" />.</param>
+    /// <returns>If the nonce value is successfully retrieved from the certificate - <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool TryGetNonce(X509Certificate2 credCert, [NotNullWhen(true)] out byte[]? certificateNonce)
     {
-        if (!TryGetExtensionData(credCert, out var extensionData))
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (credCert is null)
         {
             certificateNonce = null;
             return false;
         }
 
-        var deserializeResult = Asn1Deserializer.Deserialize(extensionData, AsnEncodingRules.DER);
+        // Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
+        var extensionData = credCert.Extensions.FirstOrDefault(x => x.Oid?.Value == "1.2.840.113635.100.8.2");
+        if (extensionData is null)
+        {
+            certificateNonce = null;
+            return false;
+        }
+
+        var deserializeResult = Asn1Deserializer.Deserialize(extensionData.RawData, AsnEncodingRules.DER);
         if (deserializeResult.HasError)
         {
             certificateNonce = null;
@@ -211,29 +258,12 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         return true;
     }
 
-    [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    protected virtual bool TryGetExtensionData(X509Certificate2 credCert, [NotNullWhen(true)] out byte[]? extensionData)
-    {
-        if (credCert is null)
-        {
-            extensionData = null;
-            return false;
-        }
-
-        // Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
-        foreach (var extension in credCert.Extensions)
-        {
-            if (extension.Oid?.Value == "1.2.840.113635.100.8.2")
-            {
-                extensionData = extension.RawData;
-                return true;
-            }
-        }
-
-        extensionData = null;
-        return false;
-    }
-
+    /// <summary>
+    ///     Concatenates two ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">The first ReadOnlySpan of bytes.</param>
+    /// <param name="b">The second ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         var result = new byte[a.Length + b.Length];
