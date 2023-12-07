@@ -7,16 +7,50 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Constants;
 
+/// <summary>
+///     Embedded root certificates for the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">TPM attestation statement</a>.
+/// </summary>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public static class TpmRoots
 {
+    /// <summary>
+    ///     Advanced Micro Devices, Inc.
+    /// </summary>
     public static readonly byte[][] AMD = GetRoots("AMD");
+
+    /// <summary>
+    ///     Atmel
+    /// </summary>
     public static readonly byte[][] Atmel = GetRoots("Atmel");
+
+    /// <summary>
+    ///     Infineon
+    /// </summary>
     public static readonly byte[][] Infineon = GetRoots("Infineon");
+
+    /// <summary>
+    ///     Intel
+    /// </summary>
     public static readonly byte[][] Intel = GetRoots("Intel");
+
+    /// <summary>
+    ///     Microsoft
+    /// </summary>
     public static readonly byte[][] Microsoft = GetRoots("Microsoft");
+
+    /// <summary>
+    ///     Nations Technologies Inc
+    /// </summary>
     public static readonly byte[][] Nationz = GetRoots("Nationz");
+
+    /// <summary>
+    ///     Nuvoton Technology
+    /// </summary>
     public static readonly byte[][] NuvotonTechnology = GetRoots("NuvotonTechnology");
+
+    /// <summary>
+    ///     STMicroelectronics International NV
+    /// </summary>
     public static readonly byte[][] STMicroelectronics = GetRoots("STMicroelectronics");
 
     private static byte[][] GetRoots(string vendor)

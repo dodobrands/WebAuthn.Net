@@ -54,7 +54,7 @@ public class VerificationMethodDescriptor
     public BiometricAccuracyDescriptor? BaDesc { get; }
 
     /// <summary>
-    ///     May optionally be used in case of method USER_VERIFY_PATTERN_INTERNAL or USER_VERIFY_PATTERN_EXTERNALю
+    ///     May optionally be used in case of method USER_VERIFY_PATTERN_INTERNAL or USER_VERIFY_PATTERN_EXTERNAL.
     /// </summary>
     public PatternAccuracyDescriptor? PaDesc { get; }
 }

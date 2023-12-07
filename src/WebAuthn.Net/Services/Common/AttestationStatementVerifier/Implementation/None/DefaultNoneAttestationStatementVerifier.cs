@@ -11,10 +11,15 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.None;
 
+/// <summary>
+///     Default implementation of <see cref="INoneAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultNoneAttestationStatementVerifier<TContext> :
     INoneAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
-    public Task<Result<VerifiedAttestationStatement>> VerifyAsync(
+    /// <inheritdoc />
+    public virtual Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         NoneAttestationStatement attStmt,
         AttestedAuthenticatorData authenticatorData,

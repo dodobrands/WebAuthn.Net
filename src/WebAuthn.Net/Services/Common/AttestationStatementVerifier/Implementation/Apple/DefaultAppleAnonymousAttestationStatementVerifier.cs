@@ -27,7 +27,6 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 ///     Default implementation of <see cref="IAppleAnonymousAttestationStatementVerifier{TContext}" />.
 /// </summary>
 /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     : IAppleAnonymousAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
@@ -261,8 +260,8 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     /// <summary>
     ///     Concatenates two ReadOnlySpan of bytes into one array.
     /// </summary>
-    /// <param name="a">The first ReadOnlySpan of bytes.</param>
-    /// <param name="b">The second ReadOnlySpan of bytes.</param>
+    /// <param name="a">First ReadOnlySpan of bytes.</param>
+    /// <param name="b">Second ReadOnlySpan of bytes.</param>
     /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {

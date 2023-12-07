@@ -25,9 +25,21 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Packed;
 
+/// <summary>
+///     Default implementation of <see cref="IPackedAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultPackedAttestationStatementVerifier<TContext> :
     IPackedAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultPackedAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="signatureVerifier">Digital signature verifier.</param>
+    /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
+    /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPackedAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
@@ -44,11 +56,27 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
+    /// <summary>
+    ///     Digital signature verifier.
+    /// </summary>
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
+
+    /// <summary>
+    ///     ASN.1 format deserializer.
+    /// </summary>
     protected IAsn1Deserializer Asn1Deserializer { get; }
+
+    /// <summary>
+    ///     A service for searching in the data provided by the FIDO Metadata Service.
+    /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
+    /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         PackedAttestationStatement attStmt,
@@ -120,12 +148,28 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return noX5CResult;
     }
 
+    /// <summary>
+    ///     Checks whether the provided certificate is a Root CA.
+    /// </summary>
+    /// <param name="cert">x509v3 certificate to be checked</param>
+    /// <returns>If the certificate is a Root CA, returns <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsRootCertificate(X509Certificate2 cert)
     {
         ArgumentNullException.ThrowIfNull(cert);
         return cert.SubjectName.RawData.AsSpan().SequenceEqual(cert.IssuerName.RawData.AsSpan());
     }
 
+    /// <summary>
+    ///     Performs verification steps according to the WebAuthn specification for the case when x5c is specified.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="attStmt">Decoded <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation">Packed attestation statement</a>.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="clientDataHash">SHA256 hash of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a>.</param>
+    /// <param name="certificates"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> as a readonly collection of <see cref="X509Certificate2" />.</param>
+    /// <param name="trustPath">Raw <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">attestation trust path</a> as an array of byte arrays containing x509v3 certificates.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the verification is successful - the result containing <see cref="VerifiedAttestationStatement" />, otherwise - the result indicating that the validation has failed.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual async Task<Result<VerifiedAttestationStatement>> VerifyPackedWithX5CAsync(
         TContext context,
@@ -187,6 +231,17 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return Result<VerifiedAttestationStatement>.Success(result);
     }
 
+    /// <summary>
+    ///     Returns the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation-types">attestation type</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation">Packed attestation statement</a>.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="attestnCert">Attestation certificate in the x509v3 format.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>
+    ///     If the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation-types">attestation type</a> was successfully determined and a list of Root CA certificates was obtained, the result contains a <see cref="FidoPackedAttestationTypeResult" />. Otherwise,
+    ///     the result indicates that an error occurred during the execution of this operation.
+    /// </returns>
     protected virtual async Task<Result<FidoPackedAttestationTypeResult>> GetAttestationTypeAsync(
         TContext context,
         X509Certificate2 attestnCert,
@@ -228,6 +283,13 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return Result<FidoPackedAttestationTypeResult>.Fail();
     }
 
+    /// <summary>
+    ///     Performs verification steps according to the WebAuthn specification for the case when x5c is not specified.
+    /// </summary>
+    /// <param name="attStmt">Decoded <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation">Packed attestation statement</a>.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="clientDataHash">SHA256 hash of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a>.</param>
+    /// <returns>If the verification is successful - the result containing <see cref="VerifiedAttestationStatement" />, otherwise - the result indicating that the validation has failed.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual Result<VerifiedAttestationStatement> VerifyPackedWithoutX5C(
         PackedAttestationStatement attStmt,
@@ -263,6 +325,15 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return Result<VerifiedAttestationStatement>.Success(result);
     }
 
+    /// <summary>
+    ///     Validates the attestation certificate and, in case of success, returns the aaguid if it was encoded in the certificate (or <see langword="null" />, if it was not).
+    /// </summary>
+    /// <param name="attestnCert">Attestation certificate in the x509v3 format.</param>
+    /// <param name="aaguid">Output parameter. The AAGUID of the authenticator. Can be <see langword="null" />.</param>
+    /// <returns>
+    ///     If the attestation certificate is valid - returns <see langword="true" />, as well as the AAGUID of the authenticator in the out parameter <paramref name="aaguid" /> (if it's encoded as an extension of the attestation certificate, and in case the certificate doesn't
+    ///     have the corresponding extension, it may return <see langword="null" /> which is a normal behavior). Otherwise - returns <see langword="false" />.
+    /// </returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsAttestnCertValid(X509Certificate2 attestnCert, out Guid? aaguid)
     {
@@ -318,6 +389,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return true;
     }
 
+    /// <summary>
+    ///     Validates the correctness of the subject in the attestation certificate.
+    /// </summary>
+    /// <param name="subjectName">Subject from the attestation certificate.</param>
+    /// <returns>If the subject is correct - <see langword="true" />, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsValidSubject(X500DistinguishedName subjectName)
     {
@@ -395,6 +471,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return true;
     }
 
+    /// <summary>
+    ///     Retrieves the aaguid from the certificate if it is present.
+    /// </summary>
+    /// <param name="attestnCert">Attestation certificate in the x509v3 format.</param>
+    /// <returns>If the certificate has an aaguid - the result will contain a <see cref="Guid" />, if the certificate doesn't have an aaguid, the result will contain <see langword="null" />. Otherwise, it will indicate that an error occurred during the retrieval of the aaguid.</returns>
     protected virtual Result<Guid?> GetAaguidIfExists(X509Certificate2 attestnCert)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -445,6 +526,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return Result<Guid?>.Success(null);
     }
 
+    /// <summary>
+    ///     Validates that the Basic Constraints extension has the CA component set to false.
+    /// </summary>
+    /// <param name="attestnCert">Attestation certificate in the x509v3 format.</param>
+    /// <returns><see langword="true" /> if the Basic Constraints extension has the CA component set to false, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsBasicExtensionsCaComponentFalse(X509Certificate2 attestnCert)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -465,6 +551,12 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         return false;
     }
 
+    /// <summary>
+    ///     Concatenates two ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">First ReadOnlySpan of bytes.</param>
+    /// <param name="b">Second ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         var result = new byte[a.Length + b.Length];

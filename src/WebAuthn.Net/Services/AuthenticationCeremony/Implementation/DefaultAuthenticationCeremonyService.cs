@@ -886,8 +886,8 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <summary>
     ///     Concatenates two ReadOnlySpan of bytes into one array.
     /// </summary>
-    /// <param name="a">The first ReadOnlySpan of bytes.</param>
-    /// <param name="b">The second ReadOnlySpan of bytes.</param>
+    /// <param name="a">First ReadOnlySpan of bytes.</param>
+    /// <param name="b">Second ReadOnlySpan of bytes.</param>
     /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {

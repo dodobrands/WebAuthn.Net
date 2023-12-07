@@ -18,6 +18,12 @@ namespace WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 /// </summary>
 public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAuthenticatorDataDecoder" />.
+    /// </summary>
+    /// <param name="coseKeyDeserializer"></param>
+    /// <param name="cborDeserializer"></param>
+    /// <param name="logger"></param>
     public DefaultAuthenticatorDataDecoder(
         ICoseKeyDeserializer coseKeyDeserializer,
         ICborDeserializer cborDeserializer,

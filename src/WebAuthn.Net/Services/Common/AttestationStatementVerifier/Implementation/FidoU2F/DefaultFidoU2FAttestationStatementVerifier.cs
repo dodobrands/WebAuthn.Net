@@ -26,10 +26,20 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F;
 
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
+/// <summary>
+///     Default implementation of <see cref="IFidoU2FAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     : IFidoU2FAttestationStatementVerifier<TContext> where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultFidoU2FAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
+    /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoU2FAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IAsn1Deserializer asn1Deserializer,
@@ -43,10 +53,22 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
+    /// <summary>
+    ///     ASN.1 format deserializer.
+    /// </summary>
     protected IAsn1Deserializer Asn1Deserializer { get; }
+
+    /// <summary>
+    ///     A service for searching in the data provided by the FIDO Metadata Service.
+    /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
+    /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
         FidoU2FAttestationStatement attStmt,
@@ -154,6 +176,17 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         }
     }
 
+    /// <summary>
+    ///     Returns the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation-types">attestation type</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-fido-u2f-attestation">FIDO U2F attestation statement</a>.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>
+    ///     If the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation-types">attestation type</a> was successfully determined and a list of Root CA certificates was obtained, the result contains a <see cref="FidoU2FAttestationTypeResult" />. Otherwise, the
+    ///     result indicates that an error occurred during the execution of this operation.
+    /// </returns>
     protected virtual async Task<Result<FidoU2FAttestationTypeResult>> GetAttestationTypeAsync(
         TContext context,
         X509Certificate2 attCert,
@@ -162,7 +195,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     {
         ArgumentNullException.ThrowIfNull(authenticatorData);
         cancellationToken.ThrowIfCancellationRequested();
-        var metadataResult = await TryGetFidoMetadataAsync(context, attCert, authenticatorData, cancellationToken);
+        var metadataResult = await FindFidoMetadataAsync(context, attCert, authenticatorData, cancellationToken);
         if (metadataResult.HasError)
         {
             return Result<FidoU2FAttestationTypeResult>.Fail();
@@ -186,7 +219,15 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return Result<FidoU2FAttestationTypeResult>.Fail();
     }
 
-    protected virtual async Task<Result<FidoMetadataResult>> TryGetFidoMetadataAsync(
+    /// <summary>
+    ///     Searches for data in the FIDO Metadata Service.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If data was found, the result contains a <see cref="FidoMetadataResult" />. Otherwise, the result indicates that the data was not found or an error occurred during the process.</returns>
+    protected virtual async Task<Result<FidoMetadataResult>> FindFidoMetadataAsync(
         TContext context,
         X509Certificate2 attCert,
         AttestedAuthenticatorData authenticatorData,
@@ -257,6 +298,14 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return Result<FidoMetadataResult>.Fail();
     }
 
+    /// <summary>
+    ///     Retrieves the certificate's subject key identifier (SKI) if it is present.
+    /// </summary>
+    /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
+    /// <returns>
+    ///     If the certificate has a subject key identifier - the result will contain a byte array, if the certificate does not have a subject key identifier, the result will contain <see langword="null" />. Otherwise, it will indicate that an error occurred during the retrieval of
+    ///     the subject key identifier.
+    /// </returns>
     protected virtual Result<byte[]?> GetSubjectKeyIdentifierIfExists(X509Certificate2 attCert)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -279,6 +328,11 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return Result<byte[]?>.Success(null);
     }
 
+    /// <summary>
+    ///     Retrieves the aaguid from the certificate if it is present.
+    /// </summary>
+    /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
+    /// <returns>If the certificate has an aaguid - the result will contain a <see cref="Guid" />, if the certificate doesn't have an aaguid, the result will contain <see langword="null" />. Otherwise, it will indicate that an error occurred during the retrieval of the aaguid.</returns>
     protected virtual Result<Guid?> GetAaguidIfExists(X509Certificate2 attCert)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -329,6 +383,12 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return Result<Guid?>.Success(null);
     }
 
+    /// <summary>
+    ///     Verifies the public key parameters and returns its out parameter ><paramref name="attCertEcParameters" /> as the .NET built-in type <see cref="ECParameters" />, if they contain correct values.
+    /// </summary>
+    /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
+    /// <param name="attCertEcParameters">Output parameter. If the method returns true, it contains public key parameters; otherwise - <see langword="null" />.</param>
+    /// <returns>If the public key parameters are correct - returns <see langword="true" />, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsValidPublicKeyParameters(X509Certificate2 attCert, [NotNullWhen(true)] out ECParameters? attCertEcParameters)
     {
@@ -357,6 +417,12 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return true;
     }
 
+    /// <summary>
+    ///     Converts the public key from COSE format to Raw ANSI X9.62 public key format.
+    /// </summary>
+    /// <param name="credentialPublicKey">Public key in COSE format.</param>
+    /// <param name="publicKeyU2F">Output parameter. If conversion was successful - contains a key in Raw ANSI X9.62 format as a byte array, otherwise - <see langword="null" />.</param>
+    /// <returns>If the conversion was successful - returns <see langword="true" />, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool TryConvertCoseKeyToPublicKeyU2F(CoseEc2Key credentialPublicKey, [NotNullWhen(true)] out byte[]? publicKeyU2F)
     {
@@ -389,6 +455,13 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return true;
     }
 
+    /// <summary>
+    ///     Concatenates three ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">First ReadOnlySpan of bytes.</param>
+    /// <param name="b">Second ReadOnlySpan of bytes.</param>
+    /// <param name="c">Third ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b, ReadOnlySpan<byte> c)
     {
         var result = new byte[a.Length + b.Length + c.Length];
@@ -398,6 +471,15 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         return result;
     }
 
+    /// <summary>
+    ///     Concatenates five ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">First ReadOnlySpan of bytes.</param>
+    /// <param name="b">Second ReadOnlySpan of bytes.</param>
+    /// <param name="c">Third ReadOnlySpan of bytes.</param>
+    /// <param name="d">Fourth ReadOnlySpan of bytes.</param>
+    /// <param name="e">Fifth ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
     protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b, ReadOnlySpan<byte> c, ReadOnlySpan<byte> d, ReadOnlySpan<byte> e)
     {
         var result = new byte[a.Length + b.Length + c.Length + d.Length + e.Length];
