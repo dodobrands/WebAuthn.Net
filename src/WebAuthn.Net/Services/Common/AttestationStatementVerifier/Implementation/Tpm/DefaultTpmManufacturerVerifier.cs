@@ -5,9 +5,13 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.T
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
+/// <summary>
+///     Default implementation of <see cref="ITpmManufacturerVerifier" />.
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
 {
+    /// <inheritdoc />
     public virtual Result<UniqueByteArraysCollection?> IsValid(string tpmManufacturer)
     {
         return tpmManufacturer switch

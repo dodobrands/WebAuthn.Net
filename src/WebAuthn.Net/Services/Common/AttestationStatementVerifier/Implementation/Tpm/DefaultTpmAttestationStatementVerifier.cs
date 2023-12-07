@@ -38,6 +38,21 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultTpmAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="tpmPubAreaDecoder">
+    ///     Decoder of the TPMT_PUBLIC structure, defined in the <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (section 12.2.4)</a>, from binary into a typed representation.
+    /// </param>
+    /// <param name="tpmCertInfoDecoder">
+    ///     Decoder of the TPMS_ATTEST structure over which the above signature was computed, as specified in <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (section 10.12.12)</a>.
+    /// </param>
+    /// <param name="signatureVerifier">Digital signature verifier.</param>
+    /// <param name="tpmManufacturerVerifier">Verifier of TPM module manufacturer.</param>
+    /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
+    /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
         ITpmPubAreaDecoder tpmPubAreaDecoder,
@@ -63,12 +78,39 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         FidoMetadataSearchService = fidoMetadataSearchService;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
+    /// <summary>
+    ///     Decoder of the TPMT_PUBLIC structure, defined in the <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (section 12.2.4)</a>, from binary into a typed representation.
+    /// </summary>
     protected ITpmPubAreaDecoder TpmPubAreaDecoder { get; }
+
+    /// <summary>
+    ///     Decoder of the TPMS_ATTEST structure over which the above signature was computed, as specified in <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (section 10.12.12)</a>.
+    /// </summary>
     protected ITpmCertInfoDecoder TpmCertInfoDecoder { get; }
+
+    /// <summary>
+    ///     Digital signature verifier.
+    /// </summary>
     protected IDigitalSignatureVerifier SignatureVerifier { get; }
+
+    /// <summary>
+    ///     Verifier of TPM module manufacturer.
+    /// </summary>
     protected ITpmManufacturerVerifier TpmManufacturerVerifier { get; }
+
+    /// <summary>
+    ///     ASN.1 format deserializer.
+    /// </summary>
     protected IAsn1Deserializer Asn1Deserializer { get; }
+
+    /// <summary>
+    ///     A service for searching in the data provided by the FIDO Metadata Service.
+    /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
     /// <inheritdoc />
@@ -106,7 +148,12 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return await ValidateCertInfoAsync(context, attStmt, authenticatorData, attToBeSigned, cancellationToken);
     }
 
-
+    /// <summary>
+    ///     Verifies that the public key specified by the 'parameters' and 'unique' fields of 'pubArea' is identical to the 'credentialPublicKey' in the 'attestedCredentialData' in 'authenticatorData'.
+    /// </summary>
+    /// <param name="pubArea">Decoded 'pubArea' (structure used by the TPM to represent the credential public key).</param>
+    /// <param name="authDataKey"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">Credential public key</a> from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> in COSE format.</param>
+    /// <returns><see langword="true" /> if the keys are identical, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool PubAreaKeySameAsAttestedCredentialData(PubArea pubArea, AbstractCoseKey authDataKey)
     {
@@ -129,6 +176,15 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return matches;
     }
 
+    /// <summary>
+    ///     Validates that the certInfo is valid.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="attStmt">Decoded <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">TPM attestation statement</a>.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="attToBeSigned">The result of concatenating 'authenticatorData' and 'clientDataHash' to form 'attToBeSigned'.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the verification is successful - the result containing <see cref="VerifiedAttestationStatement" />, otherwise - the result indicating that the validation has failed.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual async Task<Result<VerifiedAttestationStatement>> ValidateCertInfoAsync(
         TContext context,
@@ -276,6 +332,15 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
     }
 
+    /// <summary>
+    ///     Returns a collection of valid root X509v3 certificates.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="aikCert">The AIK certificate used for the attestation, in X.509 encoding.</param>
+    /// <param name="manufacturerRootCertificates">Root CA x509v3 certificates of the specific TPM module manufacturer. May be null.</param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process.</returns>
     protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
         X509Certificate2 aikCert,
@@ -305,6 +370,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
+    /// <summary>
+    ///     Returns a collection of valid root certificates from the Fido Metadata Service.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>If the Fido Metadata Service contains root certificates for the specified <paramref name="aaguid" /> - then <see cref="UniqueByteArraysCollection" />, otherwise - <see langword="null" />.</returns>
     protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
@@ -332,6 +404,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return null;
     }
 
+    /// <summary>
+    ///     Verifies that the AIK certificate used for the attestation satisfies the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-cert-requirements">TPM attestation statement certificate requirements (section 8.3.1 of the WebAuthn specification)</a>, and also in
+    ///     case of success may return a collection of Root CA X509v3 certificates of the TPM module manufacturer in the out parameter.
+    /// </summary>
+    /// <param name="aikCert">The AIK certificate used for the attestation, in X.509 encoding.</param>
+    /// <param name="manufacturerRootCertificates">An output parameter that may contain a collection of Root CA X509v3 certificates of the TPM module manufacturer in case of successful verification. May be null.</param>
+    /// <returns><see langword="true" /> if the AIK certificate was successfully verified, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool IsTpmAttestationStatementCertificateRequirementsSatisfied(
         X509Certificate2 aikCert,
@@ -397,6 +476,12 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return true;
     }
 
+    /// <summary>
+    ///     Extracts and decodes the subject alternative name (SAN) certificate extension from the AIK certificate used for attestation.
+    /// </summary>
+    /// <param name="aikCert">The AIK certificate used for the attestation, in X.509 encoding.</param>
+    /// <param name="san">Output parameter. If the method returns <see langword="true" />, then it must not be <see langword="null" /> and should contain the decoded Subject Alternative Name (SAN) certificate extension.</param>
+    /// <returns><see langword="true" /> if succeeded in extracting and decoding the subject alternative name (SAN) certificate extension from the AIK certificate used for attestation, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool TryGetAikCertSubjectAlternativeName(
         X509Certificate2 aikCert,
@@ -447,6 +532,12 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return true;
     }
 
+    /// <summary>
+    ///     Decodes subject alternative name (SAN) certificate extension from ASN.1 format into a typed representation.
+    /// </summary>
+    /// <param name="extension">Subject alternative name (SAN) certificate extension in ASN.1 format.</param>
+    /// <param name="values">Output parameter. If the method returns <see langword="true" /> - it must not be <see langword="null" /> and should contain decoded values as a dictionary.</param>
+    /// <returns><see langword="true" /> if the subject alternative name was successfully decoded, otherwise - <see langword="false" />.</returns>
     protected virtual bool TryParseSanExtensionValues(byte[] extension, [NotNullWhen(true)] out Dictionary<string, string>? values)
     {
         // https://trustedcomputinggroup.org/resource/http-trustedcomputinggroup-org-wp-content-uploads-tcg-ek-credential-profile-v-2-5-r2_published-pdf/
@@ -650,6 +741,11 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return true;
     }
 
+    /// <summary>
+    ///     Verifies that the aikCert has an extended key usage extension and it contains OID 2.23.133.8.3.
+    /// </summary>
+    /// <param name="extensions">Extensions of the aikCert.</param>
+    /// <returns><see langword="true" /> if the aikCert contains an extended key usage extension and it includes the OID 2.23.133.8.3, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool AikCertExtendedKeyUsageExists(X509ExtensionCollection extensions)
     {
@@ -677,6 +773,11 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return false;
     }
 
+    /// <summary>
+    ///     Verifies that the aikCert has a basic constraints extension and its CA component is set to false.
+    /// </summary>
+    /// <param name="extensions">Extensions of the aikCert.</param>
+    /// <returns><see langword="true" /> if the aikCert has a basic constraints extension and its CA component is set to false, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsBasicExtensionsCaComponentFalse(X509ExtensionCollection extensions)
     {
         // The Basic Constraints extension MUST have the CA component set to false.
@@ -691,6 +792,11 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return false;
     }
 
+    /// <summary>
+    ///     Retrieves the aaguid from the certificate if it is present.
+    /// </summary>
+    /// <param name="aikCert">The AIK certificate used for the attestation, in X.509 encoding.</param>
+    /// <returns>If the certificate has an aaguid - the result will contain a <see cref="Guid" />, if the certificate doesn't have an aaguid, the result will contain <see langword="null" />. Otherwise, it will indicate that an error occurred during the retrieval of the aaguid.</returns>
     protected virtual Result<Guid?> GetAaguidIfExists(X509Certificate2 aikCert)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -741,14 +847,12 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         return Result<Guid?>.Success(null);
     }
 
-    protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
-    {
-        var result = new byte[a.Length + b.Length];
-        a.CopyTo(result);
-        b.CopyTo(result.AsSpan(a.Length));
-        return result;
-    }
-
+    /// <summary>
+    ///     If possible, converts the values contained in pubArea into the built-in .NET type <see cref="AsymmetricAlgorithm" />.
+    /// </summary>
+    /// <param name="pubArea">Decoded 'pubArea' (structure used by the TPM to represent the credential public key).</param>
+    /// <param name="algorithm">Output parameter. If the conversion is successful and the method returns <see langword="true" />, it must not be null and should contain an instance of <see cref="AsymmetricAlgorithm" /> with data from <paramref name="pubArea" />.</param>
+    /// <returns><see langword="true" /> if the conversion of <paramref name="pubArea" /> into <see cref="AsymmetricAlgorithm" /> was successful, otherwise - <see langword="false" />.</returns>
     protected virtual bool TryToAsymmetricAlgorithm(PubArea pubArea, [NotNullWhen(true)] out AsymmetricAlgorithm? algorithm)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -825,7 +929,6 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
     }
 
-
     /// <summary>
     ///     Calculates a hash for the passed value using the algorithm contained in the <paramref name="tpmAlg" />.
     /// </summary>
@@ -897,5 +1000,19 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
                     return false;
                 }
         }
+    }
+
+    /// <summary>
+    ///     Concatenates two ReadOnlySpan of bytes into one array.
+    /// </summary>
+    /// <param name="a">First ReadOnlySpan of bytes.</param>
+    /// <param name="b">Second ReadOnlySpan of bytes.</param>
+    /// <returns>An array of bytes, filled with the content of the passed ReadOnlySpans.</returns>
+    protected virtual byte[] Concat(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        var result = new byte[a.Length + b.Length];
+        a.CopyTo(result);
+        b.CopyTo(result.AsSpan(a.Length));
+        return result;
     }
 }

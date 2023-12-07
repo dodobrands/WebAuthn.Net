@@ -10,16 +10,28 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationTrustPathValidator.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IAttestationTrustPathValidator" />.
+/// </summary>
 public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidator
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAttestationTrustPathValidator" />.
+    /// </summary>
+    /// <param name="options">Accessor for getting the current value of global options.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAttestationTrustPathValidator(IOptionsMonitor<WebAuthnOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         Options = options;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of global options.
+    /// </summary>
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
 
+    /// <inheritdoc />
     public virtual bool IsValid(VerifiedAttestationStatement verificationResult)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -75,8 +87,7 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
 
                     return IsValid(
                         verificationResult.AttestationTrustPath,
-                        verificationResult.AttestationRootCertificates.ToArray(),
-                        Options.CurrentValue.X509ChainValidation.OnValidateAttestationTrustPathChain);
+                        verificationResult.AttestationRootCertificates.ToArray());
                 }
             case AttestationType.None:
                 {
@@ -89,6 +100,11 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
         }
     }
 
+    /// <summary>
+    ///     Verifies that the certificate is self-signed.
+    /// </summary>
+    /// <param name="certificateBytes">x509v3 certificate.</param>
+    /// <returns><see langword="true" /> if the certificate is self-signed, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsSelfSigned(byte[] certificateBytes)
     {
         const string authorityKeyIdentifier = "2.5.29.35";
@@ -122,11 +138,16 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
         }
     }
 
+    /// <summary>
+    ///     Validates the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">attestation trust path</a>
+    /// </summary>
+    /// <param name="attestationTrustPath"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a>, containing a certificate chain that needs to be validated.</param>
+    /// <param name="attestationRootCertificates">Root CA certificates, one of which should fit for the verification of the certificate chain specified in the <paramref name="attestationTrustPath" /></param>
+    /// <returns><see langword="true" /> if the certificate chain from <paramref name="attestationTrustPath" /> is successfully validated by one of the Root CA certificates specified in <paramref name="attestationRootCertificates" />, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionalAccessQualifierIsNonNullableAccordingToAPIContract")]
     protected virtual bool IsValid(
         byte[][] attestationTrustPath,
-        byte[][] attestationRootCertificates,
-        Action<X509Chain> configureChain)
+        byte[][] attestationRootCertificates)
     {
         if (!(attestationTrustPath?.Length > 0 && attestationRootCertificates?.Length > 0))
         {
@@ -146,7 +167,7 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
         var isChainOverCertificatesValid = X509TrustChainValidator.IsAttestationTrustPathChainValid(
             attestationRootCertificates,
             attestationTrustPath,
-            configureChain);
+            Options.CurrentValue.X509ChainValidation.OnValidateAttestationTrustPathChain);
         var isValid = isChainOverCertificatesValid;
         return isValid;
     }
