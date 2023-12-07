@@ -8,8 +8,12 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
+/// <summary>
+///     Default implementation of <see cref="ITpmCertInfoDecoder" />.
+/// </summary>
 public class DefaultTpmCertInfoDecoder : ITpmCertInfoDecoder
 {
+    /// <inheritdoc />
     public virtual Result<CertInfo> Decode(Span<byte> bytes)
     {
         var buffer = bytes;
@@ -242,6 +246,11 @@ public class DefaultTpmCertInfoDecoder : ITpmCertInfoDecoder
         return Result<CertInfo>.Success(certInfo);
     }
 
+    /// <summary>
+    ///     Decodes TPM2B_NAME from binary representation to a typed format for further processing.
+    /// </summary>
+    /// <param name="buffer">Buffer containing the binary representation of TPM2B_NAME.</param>
+    /// <returns>If the decoding was successful, the result contains the <see cref="Tpm2BName" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
     public virtual Result<Tpm2BName> DecodeTpm2BName(ref Span<byte> buffer)
     {
         // 10.5.3 TPM2B_NAME
@@ -320,6 +329,16 @@ public class DefaultTpmCertInfoDecoder : ITpmCertInfoDecoder
         return Result<Tpm2BName>.Success(digestResult);
     }
 
+    /// <summary>
+    ///     Attempts to consume the specified number of bytes from the input Span and return them as a separate out parameter.
+    /// </summary>
+    /// <param name="input">Input Span from which it is necessary to consume the specified number of bytes.</param>
+    /// <param name="bytesToConsume">The number of bytes that need to be consumed.</param>
+    /// <param name="consumed">Output Span containing the consumed bytes if the operation was successful. </param>
+    /// <returns>
+    ///     If it returns <see langword="true" />, it means that the specified amount of bytes has been consumed from the input Span and the consumed bytes have been returned as a separate out parameter, simultaneously decreasing the input Span by the number of consumed bytes.
+    ///     Otherwise, it returns <see langword="false" />, leaves the default value in the out parameter, and does not affect the input Span.
+    /// </returns>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     protected static bool TryConsume(ref Span<byte> input, int bytesToConsume, out Span<byte> consumed)
     {

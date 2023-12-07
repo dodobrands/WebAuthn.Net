@@ -21,10 +21,32 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IAttestationStatementVerifier{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAttestationStatementVerifier<TContext> : IAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAttestationStatementVerifier{TContext}" />.
+    /// </summary>
+    /// <param name="packedVerifier">Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation">Packed attestation statement</a>.</param>
+    /// <param name="tpmVerifier">Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">TPM attestation statement</a>.</param>
+    /// <param name="androidKeyVerifier">
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+    /// </param>
+    /// <param name="androidSafetyNetVerifier">
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.
+    /// </param>
+    /// <param name="fidoU2FVerifier">Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-fido-u2f-attestation">FIDO U2F attestation statement</a>.</param>
+    /// <param name="noneVerifier">Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-none-attestation">None attestation statement</a>.</param>
+    /// <param name="appleAnonymousVerifier">
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-apple-anonymous-attestation">Apple Anonymous attestation statement</a>.
+    /// </param>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAttestationStatementVerifier(
         IPackedAttestationStatementVerifier<TContext> packedVerifier,
         ITpmAttestationStatementVerifier<TContext> tpmVerifier,
@@ -53,15 +75,47 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
         Logger = logger;
     }
 
+    /// <summary>
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation">Packed attestation statement</a>.
+    /// </summary>
     protected IPackedAttestationStatementVerifier<TContext> PackedVerifier { get; }
+
+    /// <summary>
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation">TPM attestation statement</a>.
+    /// </summary>
     protected ITpmAttestationStatementVerifier<TContext> TpmVerifier { get; }
+
+    /// <summary>
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation">Android Key attestation statement</a>.
+    /// </summary>
     protected IAndroidKeyAttestationStatementVerifier<TContext> AndroidKeyVerifier { get; }
+
+    /// <summary>
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.
+    /// </summary>
     protected IAndroidSafetyNetAttestationStatementVerifier<TContext> AndroidSafetyNetVerifier { get; }
+
+    /// <summary>
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-fido-u2f-attestation">FIDO U2F attestation statement</a>.
+    /// </summary>
     protected IFidoU2FAttestationStatementVerifier<TContext> FidoU2FVerifier { get; }
+
+    /// <summary>
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-none-attestation">None attestation statement</a>.
+    /// </summary>
     protected INoneAttestationStatementVerifier<TContext> NoneVerifier { get; }
+
+    /// <summary>
+    ///     Verifier of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-apple-anonymous-attestation">Apple Anonymous attestation statement</a>.
+    /// </summary>
     protected IAppleAnonymousAttestationStatementVerifier<TContext> AppleAnonymousVerifier { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
     protected ILogger<DefaultAttestationStatementVerifier<TContext>> Logger { get; }
 
+    /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAttestationStatementAsync(
         TContext context,
         AttestationStatementFormat fmt,
@@ -153,14 +207,29 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
     }
 }
 
+/// <summary>
+///     Extensions for logging the attestation statement verifier.
+/// </summary>
 public static partial class DefaultAttestationStatementVerifierLoggingExtensions
 {
+    /// <summary>
+    ///     The 'attStmtVerificationRequest.AttStmt' type: {AttStmtType} does not match 'fmt': {Fmt}.
+    /// </summary>
+    /// <param name="logger">Logger</param>
+    /// <param name="attStmtType">The .NET type into which the attestation statement was serialized</param>
+    /// <param name="fmt">
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement-format-identifier">Attestation statement format identifier</a>.
+    /// </param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'attStmtVerificationRequest.AttStmt' type: {AttStmtType} does not match 'fmt': {Fmt}.")]
     public static partial void AttStmtVerifierInvalidAttestationStatement(this ILogger logger, string attStmtType, AttestationStatementFormat fmt);
 
+    /// <summary>
+    ///     Unknown 'fmt'
+    /// </summary>
+    /// <param name="logger">Logger</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
