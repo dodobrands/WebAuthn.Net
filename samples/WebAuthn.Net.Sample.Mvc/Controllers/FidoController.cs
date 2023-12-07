@@ -8,13 +8,6 @@ namespace WebAuthn.Net.Sample.Mvc.Controllers;
 public class FidoController : Controller
 {
     [HttpGet]
-    public IActionResult Authenticated(CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        return View();
-    }
-
-    [HttpGet]
     public async Task<IActionResult> Logout(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();

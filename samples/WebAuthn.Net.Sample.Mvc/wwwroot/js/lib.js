@@ -108,7 +108,7 @@ const Alerts = {
 const API = {
     Register: {
         initiateRegistration: async ({username, registrationParameters}) => {
-            const url = "/Register/BeginRegisterCeremony";
+            const url = "/register/beginregisterceremony";
             const data = {
                 username,
                 registrationParameters,
@@ -117,7 +117,7 @@ const API = {
             return await makeJsonApiCall({ url, data, method: "POST" });
         },
         submitRegistration: async ({ response }) => {
-            const url = "/Register/RegisterCeremony";
+            const url = "/register/registerceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
                 type: response.type,
@@ -131,7 +131,7 @@ const API = {
     },
     Passwordless: {
         initiateAuthentication: async ({ username, userVerification, attestation }) => {
-            const url = "/Passwordless/BeginAuthenticationCeremony";
+            const url = "/passwordless/beginauthenticationceremony";
             const data = {
                 username,
                 userVerification,
@@ -140,7 +140,7 @@ const API = {
             return await makeJsonApiCall({ url, data, method: "POST" });
         },
         submitAuthentication: async ({ username, response }) => {
-            const url = "/Passwordless/AuthenticationCeremony";
+            const url = "/passwordless/authenticationceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
                 username,
@@ -158,12 +158,12 @@ const API = {
     },
     Usernameless : {
         initiateAuthentication: async () => {
-            const url = "/Usernameless/BeginAuthenticationCeremony";
+            const url = "/usernameless/beginauthenticationceremony";
             const data = {};
             return await makeJsonApiCall({ url, data, method: "POST" });
         },
         submitAuthentication: async ({ response }) => {
-            const url = "/Usernameless/AuthenticationCeremony";
+            const url = "/usernameless/authenticationceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
                 type: response.type,
