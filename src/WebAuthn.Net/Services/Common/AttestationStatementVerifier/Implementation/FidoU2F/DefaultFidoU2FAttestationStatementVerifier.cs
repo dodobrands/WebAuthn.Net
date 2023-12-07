@@ -224,7 +224,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
-    /// <param name="authenticatorData"></param>
+    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>If data was found, the result contains a <see cref="FidoMetadataResult" />. Otherwise, the result indicates that the data was not found or an error occurred during the process.</returns>
     protected virtual async Task<Result<FidoMetadataResult>> FindFidoMetadataAsync(
