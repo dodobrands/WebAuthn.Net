@@ -1,8 +1,9 @@
 ﻿@{
     ViewData["Title"] = "Webauthn Passwordless";
-    ViewData["ShowLogoutButton"] = false;
 }
 
+<partial name="_RegisterRow" />
+<hr>
 <div class="row">
     <div class="col-md-6 mb-2">
         <div class="card">
@@ -14,7 +15,7 @@
                         <label for="webauthn-authenticate-name">Username</label>
                     </div>
                     <hr>
-                    <button type="submit" id="webauthn-authenticate-submit" class="btn btn-primary">Submit</button>
+                    <button type="submit" id="webauthn-authenticate-submit" class="btn btn-primary">Sign In</button>
                 </form>
             </div>
         </div>
@@ -50,8 +51,6 @@
         </div>
     </div>
 </div>
-<hr>
-<partial name="_RegisterRow" />
 
 @section Scripts
 {
