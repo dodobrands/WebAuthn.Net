@@ -60,16 +60,18 @@ public class UsernamelessController : Controller
         }
 
         if (!HttpContext.Request.Cookies.TryGetValue(ExampleConstants.CookieAuthentication.AuthAssertionSessionId, out var cookie))
+        {
             throw new UnauthorizedAccessException();
+        }
 
         var result = await _authenticationCeremony
             .CompleteCeremonyAsync(HttpContext, request.ToCompleteCeremonyRequest(cookie!), token);
 
         if (result.Successful)
         {
-            var claims = new List<Claim>()
+            var claims = new List<Claim>
             {
-                new (ClaimTypes.Name, _userHandle.Get(request.Response.UserHandle)),
+                new(ClaimTypes.Name, _userHandle.Get(request.Response.UserHandle))
             };
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new(claimsIdentity), new());

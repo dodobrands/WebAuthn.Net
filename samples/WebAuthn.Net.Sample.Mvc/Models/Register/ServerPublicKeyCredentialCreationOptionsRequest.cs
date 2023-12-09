@@ -46,7 +46,7 @@ public class ServerPublicKeyCredentialCreationOptionsRequest
             RegistrationParameters.UserVerification.RemapUnsetValue<UserVerificationRequirement>()
         );
 
-        return new (
+        return new(
             null,
             null,
             ExampleConstants.Host.WebAuthnDisplayName,

@@ -6,7 +6,6 @@ namespace WebAuthn.Net.Sample.Mvc.Models.Usernameless;
 
 public class AttestationServerPKeyOptionsRequest
 {
-
     [JsonConstructor]
     public AttestationServerPKeyOptionsRequest(Dictionary<string, JsonElement>? extensions)
     {

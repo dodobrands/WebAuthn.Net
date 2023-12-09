@@ -33,7 +33,18 @@ public class DefaultRegistrationCeremonyServiceAppleAnonymousTests : AbstractReg
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
-                new[] { CoseAlgorithm.ES256, CoseAlgorithm.ES384, CoseAlgorithm.ES512, CoseAlgorithm.RS256, CoseAlgorithm.RS384, CoseAlgorithm.RS512, CoseAlgorithm.PS256, CoseAlgorithm.PS384, CoseAlgorithm.PS512 },
+                new[]
+                {
+                    CoseAlgorithm.ES256,
+                    CoseAlgorithm.ES384,
+                    CoseAlgorithm.ES512,
+                    CoseAlgorithm.RS256,
+                    CoseAlgorithm.RS384,
+                    CoseAlgorithm.RS512,
+                    CoseAlgorithm.PS256,
+                    CoseAlgorithm.PS384,
+                    CoseAlgorithm.PS512
+                },
                 60000,
                 RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),

@@ -11,7 +11,7 @@ const createStateMethods = ({key, defaultParams}) => {
     };
     const setState = (x) => localStorage.setItem(key, JSON.stringify(x));
     const resetState = () => setState(JSON.parse(JSON.stringify(defaultParams)));
-    const withState = (f) => (e) => f({ state: getState(), event: e });
+    const withState = (f) => (e) => f({state: getState(), event: e});
     const ensureStateCreated = () => {
         const state = getState();
         if (state) {
@@ -22,7 +22,7 @@ const createStateMethods = ({key, defaultParams}) => {
         }
         resetState();
     };
-    return ({ getState, setState, resetState, withState, ensureStateCreated });
+    return ({getState, setState, resetState, withState, ensureStateCreated});
 };
 
 // Utils
@@ -41,7 +41,7 @@ const coerceToBase64Url = (x) => {
 const clearElementValue = (x) => x.value = "";
 const getElementValue = (x) => x.value ?? "";
 
-const initializeForm = ({ state, setState, withState, formElements }) => Object
+const initializeForm = ({state, setState, withState, formElements}) => Object
     .keys(formElements)
     .forEach(key => {
         const element = formElements[key]();
@@ -50,7 +50,7 @@ const initializeForm = ({ state, setState, withState, formElements }) => Object
         element.addEventListener("change", withState(onChange));
     });
 
-const initializeCheckboxArray = ({ initialValues, setState, withState, checkboxElements, stateKey }) =>
+const initializeCheckboxArray = ({initialValues, setState, withState, checkboxElements, stateKey}) =>
     checkboxElements
         .forEach(f => {
             const element = f();
@@ -114,9 +114,9 @@ const API = {
                 registrationParameters,
                 extensions: {}
             };
-            return await makeJsonApiCall({ url, data, method: "POST" });
+            return await makeJsonApiCall({url, data, method: "POST"});
         },
-        submitRegistration: async ({ response }) => {
+        submitRegistration: async ({response}) => {
             const url = "/register/registerceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
@@ -126,20 +126,20 @@ const API = {
                     clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
                 }
             };
-            return await makeJsonApiCall({ url, data, method: "POST" });
+            return await makeJsonApiCall({url, data, method: "POST"});
         },
     },
     Passwordless: {
-        initiateAuthentication: async ({ username, userVerification, attestation }) => {
+        initiateAuthentication: async ({username, userVerification, attestation}) => {
             const url = "/passwordless/beginauthenticationceremony";
             const data = {
                 username,
                 userVerification,
                 attestation
             };
-            return await makeJsonApiCall({ url, data, method: "POST" });
+            return await makeJsonApiCall({url, data, method: "POST"});
         },
-        submitAuthentication: async ({ username, response }) => {
+        submitAuthentication: async ({username, response}) => {
             const url = "/passwordless/authenticationceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
@@ -153,16 +153,16 @@ const API = {
                     signature: coerceToBase64Url(response.response.signature),
                 }
             }
-            return await makeJsonApiCall({ url, data, method: "POST" });
+            return await makeJsonApiCall({url, data, method: "POST"});
         },
     },
-    Usernameless : {
+    Usernameless: {
         initiateAuthentication: async () => {
             const url = "/usernameless/beginauthenticationceremony";
             const data = {};
-            return await makeJsonApiCall({ url, data, method: "POST" });
+            return await makeJsonApiCall({url, data, method: "POST"});
         },
-        submitAuthentication: async ({ response }) => {
+        submitAuthentication: async ({response}) => {
             const url = "/usernameless/authenticationceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
@@ -175,7 +175,7 @@ const API = {
                     signature: coerceToBase64Url(response.response.signature),
                 }
             }
-            return await makeJsonApiCall({ url, data, method: "POST" });
+            return await makeJsonApiCall({url, data, method: "POST"});
         }
     }
 }

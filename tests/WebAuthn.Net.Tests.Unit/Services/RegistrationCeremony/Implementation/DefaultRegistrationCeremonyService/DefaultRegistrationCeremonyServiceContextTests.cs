@@ -42,7 +42,11 @@ public class DefaultRegistrationCeremonyServiceContextTests : AbstractRegistrati
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
-                new[] { CoseAlgorithm.ES256, CoseAlgorithm.RS256 },
+                new[]
+                {
+                    CoseAlgorithm.ES256,
+                    CoseAlgorithm.RS256
+                },
                 60000,
                 RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),
@@ -69,7 +73,11 @@ public class DefaultRegistrationCeremonyServiceContextTests : AbstractRegistrati
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
-                new[] { CoseAlgorithm.ES256, CoseAlgorithm.RS256 },
+                new[]
+                {
+                    CoseAlgorithm.ES256,
+                    CoseAlgorithm.RS256
+                },
                 60000,
                 RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),

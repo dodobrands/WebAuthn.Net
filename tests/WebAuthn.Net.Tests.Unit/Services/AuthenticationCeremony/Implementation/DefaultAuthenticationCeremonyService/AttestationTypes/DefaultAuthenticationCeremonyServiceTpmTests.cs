@@ -38,7 +38,12 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
-                new[] { CoseAlgorithm.ES256, CoseAlgorithm.ES384, CoseAlgorithm.ES512 },
+                new[]
+                {
+                    CoseAlgorithm.ES256,
+                    CoseAlgorithm.ES384,
+                    CoseAlgorithm.ES512
+                },
                 60000,
                 RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),
@@ -83,7 +88,12 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
                 "Test Host",
                 new("testuser", userId, "Test User"),
                 32,
-                new[] { CoseAlgorithm.RS256, CoseAlgorithm.RS384, CoseAlgorithm.RS512 },
+                new[]
+                {
+                    CoseAlgorithm.RS256,
+                    CoseAlgorithm.RS384,
+                    CoseAlgorithm.RS512
+                },
                 60000,
                 RegistrationCeremonyExcludeCredentials.AllExisting(),
                 new(AuthenticatorAttachment.Platform, null, null, UserVerificationRequirement.Required),

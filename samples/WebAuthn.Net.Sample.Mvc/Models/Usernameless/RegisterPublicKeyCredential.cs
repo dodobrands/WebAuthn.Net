@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
+using WebAuthn.Net.Sample.Mvc.Models.Register;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 
 namespace WebAuthn.Net.Sample.Mvc.Models.Usernameless;
@@ -12,7 +13,7 @@ public class RegisterPublicKeyCredential
     public RegisterPublicKeyCredential(
         string id,
         string type,
-        Register.ServerAuthenticatorAttestationResponse response,
+        ServerAuthenticatorAttestationResponse response,
         Dictionary<string, JsonElement>? getClientExtensionResults)
     {
         Id = id;
@@ -34,7 +35,7 @@ public class RegisterPublicKeyCredential
     [JsonPropertyName("response")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [Required]
-    public Register.ServerAuthenticatorAttestationResponse Response { get; }
+    public ServerAuthenticatorAttestationResponse Response { get; }
 
     [JsonPropertyName("getClientExtensionResults")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -58,7 +59,7 @@ public class RegisterPublicKeyCredential
             Type);
     }
 
-    private static AuthenticatorAttestationResponseJSON ParseResponse(Register.ServerAuthenticatorAttestationResponse input)
+    private static AuthenticatorAttestationResponseJSON ParseResponse(ServerAuthenticatorAttestationResponse input)
     {
         return new(
             input.ClientDataJson,

@@ -5,8 +5,8 @@ namespace WebAuthn.Net.Services.Metrics.Implementation;
 
 public class WebauthnMetricsService : IWebauthnMetricsService
 {
-    private readonly Meter _meter = new("WebAuthn.Net", "1.0.0");
     private readonly AuthenticationCeremonyCounters _authenticationCeremonyCounters;
+    private readonly Meter _meter = new("WebAuthn.Net", "1.0.0");
     private readonly RegistrationCeremonyCounters _registrationCeremonyCounters;
 
     public WebauthnMetricsService()

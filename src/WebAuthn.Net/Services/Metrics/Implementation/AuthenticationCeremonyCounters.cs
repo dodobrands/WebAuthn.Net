@@ -7,8 +7,8 @@ namespace WebAuthn.Net.Services.Metrics.Implementation;
 public class AuthenticationCeremonyCounters : IIncrementMetricsCounter<AuthenticationCeremonyCounter>
 {
     private readonly Counter<int> _beginAuthenticationCeremonyCounter;
-    private readonly Counter<int> _failedAuthenticationCeremonyCounter;
     private readonly Counter<int> _completeAuthenticationCeremonyCounter;
+    private readonly Counter<int> _failedAuthenticationCeremonyCounter;
 
     public AuthenticationCeremonyCounters(Counter<int> beginAuthenticationCeremonyCounter, Counter<int> failedAuthenticationCeremonyCounter, Counter<int> completeAuthenticationCeremonyCounter)
     {

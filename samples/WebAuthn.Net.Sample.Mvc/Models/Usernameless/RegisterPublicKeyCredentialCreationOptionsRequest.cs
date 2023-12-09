@@ -1,11 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.WebUtilities;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Sample.Mvc.Constants;
-using WebAuthn.Net.Sample.Mvc.Models.Common;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 
 namespace WebAuthn.Net.Sample.Mvc.Models.Usernameless;
@@ -35,7 +33,7 @@ public class RegisterPublicKeyCredentialCreationOptionsRequest
             null
         );
 
-        return new (
+        return new(
             null,
             null,
             ExampleConstants.Host.WebAuthnDisplayName,

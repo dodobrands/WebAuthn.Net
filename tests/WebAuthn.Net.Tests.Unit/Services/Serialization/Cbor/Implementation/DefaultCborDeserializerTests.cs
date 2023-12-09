@@ -32,7 +32,11 @@ public class DefaultCborDeserializerTests
     public void DefaultCborDeserializer_DecodesWithError_WhenMalformedDataOnInput()
     {
         var decoder = new DefaultCborDeserializer(NullLogger<DefaultCborDeserializer>.Instance);
-        var decodeResult = decoder.Deserialize(new byte[] { 0xf8, 0x18 });
+        var decodeResult = decoder.Deserialize(new byte[]
+        {
+            0xf8,
+            0x18
+        });
         Assert.That(decodeResult.HasError, Is.True);
     }
 

@@ -10,7 +10,6 @@ namespace WebAuthn.Net.Sample.Mvc.Models.Passwordless;
 
 public class ServerPublicKeyCredentialGetOptionsRequest
 {
-
     [JsonConstructor]
     public ServerPublicKeyCredentialGetOptionsRequest(string userName, Dictionary<string, JsonElement>? extensions, string attestation, string userVerification)
     {

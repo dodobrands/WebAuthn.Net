@@ -25,7 +25,7 @@
     const elements = {
         registerInput: () => document.getElementById("webauthn-register-name"),
         registerButton: () => document.getElementById("webauthn-register-submit"),
-        registerOptionsReset: () =>  document.getElementById("webauthn-params-submit"),
+        registerOptionsReset: () => document.getElementById("webauthn-params-submit"),
     };
     const defaultParams = {
         userVerification: "preferred",
@@ -47,23 +47,23 @@
             -7
         ],
     };
-    const { initiateRegistration, submitRegistration } = API.Register;
+    const {initiateRegistration, submitRegistration} = API.Register;
     const {
         getState,
         setState,
         resetState,
         withState,
         ensureStateCreated
-    } = createStateMethods({ key: localStateKeys.registrationParamsKey, defaultParams });
+    } = createStateMethods({key: localStateKeys.registrationParamsKey, defaultParams});
 
     // DOM Handlers
     const onRegisterButtonHandler = async (e) => {
         e.preventDefault();
         const registrationParameters = getState();
         const username = getElementValue(elements.registerInput());
-        const initialData = await initiateRegistration({ registrationParameters, username });
+        const initialData = await initiateRegistration({registrationParameters, username});
         if (!initialData) return;
-        const { options } = initialData;
+        const {options} = initialData;
         const publicKey = {
             ...options,
             challenge: coerceToArrayBuffer(options.challenge),
@@ -73,12 +73,12 @@
             }
         };
 
-        const response = await navigator.credentials.create({ publicKey });
+        const response = await navigator.credentials.create({publicKey});
         if (!response) return;
 
-        const registrationResult = await submitRegistration({ response });
+        const registrationResult = await submitRegistration({response});
         if (!registrationResult) return;
-        const { successful } = registrationResult;
+        const {successful} = registrationResult;
         if (successful) {
             Alerts.registerSuccess();
             clearElementValue(elements.registerInput());
@@ -95,8 +95,14 @@
             return;
         }
         ensureStateCreated();
-        initializeForm({ state: getState(), setState, withState, formElements });
-        initializeCheckboxArray({ withState, setState, initialValues: getState()["pubKeyCredParams"], stateKey: "pubKeyCredParams", checkboxElements });
+        initializeForm({state: getState(), setState, withState, formElements});
+        initializeCheckboxArray({
+            withState,
+            setState,
+            initialValues: getState()["pubKeyCredParams"],
+            stateKey: "pubKeyCredParams",
+            checkboxElements
+        });
         elements.registerButton().addEventListener("click", onRegisterButtonHandler);
         elements.registerOptionsReset().addEventListener("click", resetState);
     });

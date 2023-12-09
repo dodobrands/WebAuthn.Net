@@ -50,7 +50,9 @@ public class RegisterController : Controller
         }
 
         if (!HttpContext.Request.Cookies.TryGetValue(ExampleConstants.CookieAuthentication.RegistrationSessionId, out var cookie))
+        {
             throw new UnauthorizedAccessException();
+        }
 
         var ceremonyModel = request.ToCompleteCeremonyRequest(cookie!);
         var result = await _registrationCeremony.CompleteCeremonyAsync(HttpContext, ceremonyModel, token);
