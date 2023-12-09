@@ -5,8 +5,12 @@ using Microsoft.AspNetCore.Http;
 
 namespace WebAuthn.Net.Services.Providers.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IRelyingPartyIdProvider" />.
+/// </summary>
 public class DefaultRelyingPartyIdProvider : IRelyingPartyIdProvider
 {
+    /// <inheritdoc />
     public Task<string> GetAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(httpContext);

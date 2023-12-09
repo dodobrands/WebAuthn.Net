@@ -138,6 +138,13 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
         }
     }
 
+    /// <summary>
+    ///     Verifies the digital signature for a key in EC2 format.
+    /// </summary>
+    /// <param name="coseKey">Public key in EC2 format.</param>
+    /// <param name="dataToVerify">The data, the signature of which will be validated.</param>
+    /// <param name="signature">The signature to be validated.</param>
+    /// <returns>If the parameters and the signature are correct - <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsValidCoseKeySignEc2(AbstractCoseKey coseKey, byte[] dataToVerify, byte[] signature)
     {
         if (coseKey is not CoseEc2Key coseEc2Key)
@@ -178,6 +185,13 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
         return ecdsa.VerifyData(dataToVerify, signature, hashAlgorithmName.Value, DSASignatureFormat.Rfc3279DerSequence);
     }
 
+    /// <summary>
+    ///     Verifies the digital signature for a key in RSA format.
+    /// </summary>
+    /// <param name="coseKey">Public key in RSA format.</param>
+    /// <param name="dataToVerify">The data, the signature of which will be validated.</param>
+    /// <param name="signature">The signature to be validated.</param>
+    /// <returns>If the parameters and the signature are correct - <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsValidCoseKeySignRsa(AbstractCoseKey coseKey, byte[] dataToVerify, byte[] signature)
     {
         if (coseKey is not CoseRsaKey coseRsaKey)
@@ -203,6 +217,13 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
         return rsa.VerifyData(dataToVerify, signature, hashAlgorithmName.Value, padding);
     }
 
+    /// <summary>
+    ///     Verifies the digital signature for a key in OKP format.
+    /// </summary>
+    /// <param name="coseKey">Public key in OKP format.</param>
+    /// <param name="dataToVerify">The data, the signature of which will be validated.</param>
+    /// <param name="signature">The signature to be validated.</param>
+    /// <returns>If the parameters and the signature are correct - <see langword="true" />, otherwise - <see langword="false" />.</returns>
     protected virtual bool IsValidCoseKeySignOkp(AbstractCoseKey coseKey, byte[] dataToVerify, byte[] signature)
     {
         if (coseKey is not CoseOkpKey coseOkpKey)

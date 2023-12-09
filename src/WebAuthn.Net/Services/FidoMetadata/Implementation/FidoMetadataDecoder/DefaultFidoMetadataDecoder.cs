@@ -11,9 +11,25 @@ using Version = WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Ve
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 
+/// <summary>
+///     Default implementation of <see cref="IFidoMetadataDecoder" />.
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultFidoMetadataDecoder" />
+    /// </summary>
+    /// <param name="userVerificationMethodSerializer">Serializer for the <see cref="UserVerificationMethod" /> enum.</param>
+    /// <param name="protocolFamilySerializer">Serializer for the <see cref="ProtocolFamily" /> enum.</param>
+    /// <param name="authenticationAlgorithmSerializer">Serializer for the <see cref="AuthenticationAlgorithm" /> enum.</param>
+    /// <param name="publicKeyRepresentationFormatSerializer">Serializer for the <see cref="PublicKeyRepresentationFormat" /> enum.</param>
+    /// <param name="authenticatorAttestationTypeSerializer">Serializer for the <see cref="AuthenticatorAttestationType" /> enum.</param>
+    /// <param name="keyProtectionTypeSerializer">Serializer for the <see cref="KeyProtectionType" /> enum.</param>
+    /// <param name="matcherProtectionTypeSerializer">Serializer for the <see cref="MatcherProtectionType" /> enum.</param>
+    /// <param name="authenticatorAttachmentHintSerializer">Serializer for the <see cref="AuthenticatorAttachmentHint" /> enum.</param>
+    /// <param name="transactionConfirmationDisplayTypeSerializer">Serializer for the <see cref="TransactionConfirmationDisplayType" /> enum.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataDecoder(
         IEnumMemberAttributeSerializer<UserVerificationMethod> userVerificationMethodSerializer,
         IEnumMemberAttributeSerializer<ProtocolFamily> protocolFamilySerializer,
@@ -45,16 +61,52 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         TransactionConfirmationDisplayTypeSerializer = transactionConfirmationDisplayTypeSerializer;
     }
 
+    /// <summary>
+    ///     Serializer for the <see cref="UserVerificationMethodSerializer" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<UserVerificationMethod> UserVerificationMethodSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="ProtocolFamily" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<ProtocolFamily> ProtocolFamilySerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticationAlgorithm" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticationAlgorithm> AuthenticationAlgorithmSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="PublicKeyRepresentationFormat" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyRepresentationFormat> PublicKeyRepresentationFormatSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorAttestationType" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticatorAttestationType> AuthenticatorAttestationTypeSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="KeyProtectionType" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<KeyProtectionType> KeyProtectionTypeSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="MatcherProtectionType" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<MatcherProtectionType> MatcherProtectionTypeSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorAttachmentHint" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticatorAttachmentHint> AuthenticatorAttachmentHintSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="TransactionConfirmationDisplayType" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType> TransactionConfirmationDisplayTypeSerializer { get; }
 
+    /// <inheritdoc />
     public virtual Result<MetadataBlobPayload> Decode(MetadataBLOBPayloadJSON json)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -81,7 +133,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return Result<MetadataBlobPayload>.Success(result);
     }
 
-    protected virtual bool TryDecodeEntries(MetadataBLOBPayloadEntryJSON[] entries, [NotNullWhen(true)] out MetadataBlobPayloadEntry[]? result)
+    private bool TryDecodeEntries(MetadataBLOBPayloadEntryJSON[] entries, [NotNullWhen(true)] out MetadataBlobPayloadEntry[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (entries is null)
@@ -106,7 +158,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeEntry(MetadataBLOBPayloadEntryJSON entry, [NotNullWhen(true)] out MetadataBlobPayloadEntry? result)
+    private bool TryDecodeEntry(MetadataBLOBPayloadEntryJSON entry, [NotNullWhen(true)] out MetadataBlobPayloadEntry? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (entry is null)
@@ -182,7 +234,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeMetadataStatement(MetadataStatementJSON metadataStatement, [NotNullWhen(true)] out MetadataStatement? result)
+    private bool TryDecodeMetadataStatement(MetadataStatementJSON metadataStatement, [NotNullWhen(true)] out MetadataStatement? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (metadataStatement is null)
@@ -340,7 +392,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeUpv(VersionJSON[] upv, [NotNullWhen(true)] out Version[]? result)
+    private static bool TryDecodeUpv(VersionJSON[] upv, [NotNullWhen(true)] out Version[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (upv is null)
@@ -364,7 +416,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeVersion(VersionJSON version, [NotNullWhen(true)] out Version? result)
+    private static bool TryDecodeVersion(VersionJSON version, [NotNullWhen(true)] out Version? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (version is null)
@@ -377,22 +429,22 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeAuthenticationAlgorithms(string[] authenticationAlgorithms, [NotNullWhen(true)] out AuthenticationAlgorithm[]? result)
+    private bool TryDecodeAuthenticationAlgorithms(string[] authenticationAlgorithms, [NotNullWhen(true)] out AuthenticationAlgorithm[]? result)
     {
         return TryDecodeEnumMemberArray(authenticationAlgorithms, AuthenticationAlgorithmSerializer, out result);
     }
 
-    protected virtual bool TryDecodePublicKeyAlgAndEncodings(string[] authenticationAlgorithms, [NotNullWhen(true)] out PublicKeyRepresentationFormat[]? result)
+    private bool TryDecodePublicKeyAlgAndEncodings(string[] authenticationAlgorithms, [NotNullWhen(true)] out PublicKeyRepresentationFormat[]? result)
     {
         return TryDecodeEnumMemberArray(authenticationAlgorithms, PublicKeyRepresentationFormatSerializer, out result);
     }
 
-    protected virtual bool TryDecodeAttestationTypes(string[] attestationTypes, [NotNullWhen(true)] out AuthenticatorAttestationType[]? result)
+    private bool TryDecodeAttestationTypes(string[] attestationTypes, [NotNullWhen(true)] out AuthenticatorAttestationType[]? result)
     {
         return TryDecodeEnumMemberArray(attestationTypes, AuthenticatorAttestationTypeSerializer, out result);
     }
 
-    protected virtual bool TryDecodeUserVerificationDetails(VerificationMethodDescriptorJSON[][] userVerificationDetails, [NotNullWhen(true)] out VerificationMethodDescriptor[][]? result)
+    private bool TryDecodeUserVerificationDetails(VerificationMethodDescriptorJSON[][] userVerificationDetails, [NotNullWhen(true)] out VerificationMethodDescriptor[][]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (userVerificationDetails is null)
@@ -416,7 +468,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeUserVerificationDetailsInner(VerificationMethodDescriptorJSON[] userVerificationDetails, [NotNullWhen(true)] out VerificationMethodDescriptor[]? result)
+    private bool TryDecodeUserVerificationDetailsInner(VerificationMethodDescriptorJSON[] userVerificationDetails, [NotNullWhen(true)] out VerificationMethodDescriptor[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (userVerificationDetails is null)
@@ -440,7 +492,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeUserVerificationDetailsSingle(VerificationMethodDescriptorJSON userVerificationDetails, [NotNullWhen(true)] out VerificationMethodDescriptor? result)
+    private bool TryDecodeUserVerificationDetailsSingle(VerificationMethodDescriptorJSON userVerificationDetails, [NotNullWhen(true)] out VerificationMethodDescriptor? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (userVerificationDetails is null)
@@ -486,7 +538,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeCaDesc(CodeAccuracyDescriptorJSON caDesc, [NotNullWhen(true)] out CodeAccuracyDescriptor? result)
+    private static bool TryDecodeCaDesc(CodeAccuracyDescriptorJSON caDesc, [NotNullWhen(true)] out CodeAccuracyDescriptor? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (caDesc is null)
@@ -503,7 +555,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeBaDesc(BiometricAccuracyDescriptorJSON baDesc, [NotNullWhen(true)] out BiometricAccuracyDescriptor? result)
+    private static bool TryDecodeBaDesc(BiometricAccuracyDescriptorJSON baDesc, [NotNullWhen(true)] out BiometricAccuracyDescriptor? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (baDesc is null)
@@ -521,7 +573,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodePaDesc(PatternAccuracyDescriptorJSON paDesc, [NotNullWhen(true)] out PatternAccuracyDescriptor? result)
+    private static bool TryDecodePaDesc(PatternAccuracyDescriptorJSON paDesc, [NotNullWhen(true)] out PatternAccuracyDescriptor? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (paDesc is null)
@@ -537,27 +589,27 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeKeyProtection(string[] keyProtection, [NotNullWhen(true)] out KeyProtectionType[]? result)
+    private bool TryDecodeKeyProtection(string[] keyProtection, [NotNullWhen(true)] out KeyProtectionType[]? result)
     {
         return TryDecodeEnumMemberArray(keyProtection, KeyProtectionTypeSerializer, out result);
     }
 
-    protected virtual bool TryDecodeMatcherProtection(string[] matcherProtection, [NotNullWhen(true)] out MatcherProtectionType[]? result)
+    private bool TryDecodeMatcherProtection(string[] matcherProtection, [NotNullWhen(true)] out MatcherProtectionType[]? result)
     {
         return TryDecodeEnumMemberArray(matcherProtection, MatcherProtectionTypeSerializer, out result);
     }
 
-    protected virtual bool TryDecodeAttachmentHint(string[] attachmentHint, [NotNullWhen(true)] out AuthenticatorAttachmentHint[]? result)
+    private bool TryDecodeAttachmentHint(string[] attachmentHint, [NotNullWhen(true)] out AuthenticatorAttachmentHint[]? result)
     {
         return TryDecodeEnumMemberArray(attachmentHint, AuthenticatorAttachmentHintSerializer, out result);
     }
 
-    protected virtual bool TryDecodeTcDisplay(string[] tcDisplay, [NotNullWhen(true)] out TransactionConfirmationDisplayType[]? result)
+    private bool TryDecodeTcDisplay(string[] tcDisplay, [NotNullWhen(true)] out TransactionConfirmationDisplayType[]? result)
     {
         return TryDecodeEnumMemberArray(tcDisplay, TransactionConfirmationDisplayTypeSerializer, out result);
     }
 
-    protected virtual bool TryDecodeTcDisplayPngCharacteristics(DisplayPNGCharacteristicsDescriptorJSON[] tcDisplayPngCharacteristics, [NotNullWhen(true)] out DisplayPngCharacteristicsDescriptor[]? result)
+    private static bool TryDecodeTcDisplayPngCharacteristics(DisplayPNGCharacteristicsDescriptorJSON[] tcDisplayPngCharacteristics, [NotNullWhen(true)] out DisplayPngCharacteristicsDescriptor[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (tcDisplayPngCharacteristics is null)
@@ -581,7 +633,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeDisplayPngCharacteristicsDescriptor(DisplayPNGCharacteristicsDescriptorJSON tcDisplayPngCharacteristics, [NotNullWhen(true)] out DisplayPngCharacteristicsDescriptor? result)
+    private static bool TryDecodeDisplayPngCharacteristicsDescriptor(DisplayPNGCharacteristicsDescriptorJSON tcDisplayPngCharacteristics, [NotNullWhen(true)] out DisplayPngCharacteristicsDescriptor? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (tcDisplayPngCharacteristics is null)
@@ -609,7 +661,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodePlte(RgbPaletteEntryJSON[] plte, [NotNullWhen(true)] out RgbPaletteEntry[]? result)
+    private static bool TryDecodePlte(RgbPaletteEntryJSON[] plte, [NotNullWhen(true)] out RgbPaletteEntry[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (plte is null)
@@ -633,7 +685,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeRgbPaletteEntry(RgbPaletteEntryJSON plte, [NotNullWhen(true)] out RgbPaletteEntry? result)
+    private static bool TryDecodeRgbPaletteEntry(RgbPaletteEntryJSON plte, [NotNullWhen(true)] out RgbPaletteEntry? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (plte is null)
@@ -649,7 +701,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeAttestationRootCertificates(string[] attestationRootCertificates, [NotNullWhen(true)] out byte[][]? result)
+    private static bool TryDecodeAttestationRootCertificates(string[] attestationRootCertificates, [NotNullWhen(true)] out byte[][]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (attestationRootCertificates is null)
@@ -673,7 +725,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeEcdaaTrustAnchors(EcdaaTrustAnchorJSON[] ecdaaTrustAnchors, [NotNullWhen(true)] out EcdaaTrustAnchor[]? result)
+    private static bool TryDecodeEcdaaTrustAnchors(EcdaaTrustAnchorJSON[] ecdaaTrustAnchors, [NotNullWhen(true)] out EcdaaTrustAnchor[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (ecdaaTrustAnchors is null)
@@ -697,7 +749,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeEcdaaTrustAnchor(EcdaaTrustAnchorJSON ecdaaTrustAnchor, [NotNullWhen(true)] out EcdaaTrustAnchor? result)
+    private static bool TryDecodeEcdaaTrustAnchor(EcdaaTrustAnchorJSON ecdaaTrustAnchor, [NotNullWhen(true)] out EcdaaTrustAnchor? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (ecdaaTrustAnchor is null)
@@ -726,7 +778,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeSupportedExtensions(ExtensionDescriptorJSON[] supportedExtensions, [NotNullWhen(true)] out ExtensionDescriptor[]? result)
+    private static bool TryDecodeSupportedExtensions(ExtensionDescriptorJSON[] supportedExtensions, [NotNullWhen(true)] out ExtensionDescriptor[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (supportedExtensions is null)
@@ -750,7 +802,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeSupportedExtension(ExtensionDescriptorJSON supportedExtension, [NotNullWhen(true)] out ExtensionDescriptor? result)
+    private static bool TryDecodeSupportedExtension(ExtensionDescriptorJSON supportedExtension, [NotNullWhen(true)] out ExtensionDescriptor? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (supportedExtension is null)
@@ -763,7 +815,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeAuthenticatorGetInfo(AuthenticatorGetInfoJSON authenticatorGetInfo, [NotNullWhen(true)] out AuthenticatorGetInfo? result)
+    private static bool TryDecodeAuthenticatorGetInfo(AuthenticatorGetInfoJSON authenticatorGetInfo, [NotNullWhen(true)] out AuthenticatorGetInfo? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (authenticatorGetInfo is null)
@@ -788,7 +840,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeBiometricStatusReports(BiometricStatusReportJSON[] biometricStatusReports, [NotNullWhen(true)] out BiometricStatusReport[]? result)
+    private bool TryDecodeBiometricStatusReports(BiometricStatusReportJSON[] biometricStatusReports, [NotNullWhen(true)] out BiometricStatusReport[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (biometricStatusReports is null)
@@ -812,7 +864,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeBiometricStatusReport(BiometricStatusReportJSON biometricStatusReport, [NotNullWhen(true)] out BiometricStatusReport? result)
+    private bool TryDecodeBiometricStatusReport(BiometricStatusReportJSON biometricStatusReport, [NotNullWhen(true)] out BiometricStatusReport? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (biometricStatusReport is null)
@@ -845,7 +897,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeStatusReports(StatusReportJSON[] statusReports, [NotNullWhen(true)] out StatusReport[]? result)
+    private static bool TryDecodeStatusReports(StatusReportJSON[] statusReports, [NotNullWhen(true)] out StatusReport[]? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (statusReports is null)
@@ -869,7 +921,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeStatusReport(StatusReportJSON statusReport, [NotNullWhen(true)] out StatusReport? result)
+    private static bool TryDecodeStatusReport(StatusReportJSON statusReport, [NotNullWhen(true)] out StatusReport? result)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (statusReport is null)
@@ -916,7 +968,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    protected virtual bool TryDecodeIso8601Date(string input, [NotNullWhen(true)] out DateTimeOffset? result)
+    private static bool TryDecodeIso8601Date(string input, [NotNullWhen(true)] out DateTimeOffset? result)
     {
         if (DateTimeOffset.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
         {
@@ -928,7 +980,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return false;
     }
 
-    protected virtual bool TryDecodeEnumMemberArray<TEnum>(
+    private static bool TryDecodeEnumMemberArray<TEnum>(
         string[] input,
         IEnumMemberAttributeSerializer<TEnum> mapper,
         [NotNullWhen(true)] out TEnum[]? result)
