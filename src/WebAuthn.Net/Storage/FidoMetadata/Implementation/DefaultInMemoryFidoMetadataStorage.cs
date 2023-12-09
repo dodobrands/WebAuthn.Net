@@ -7,13 +7,21 @@ using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 
 namespace WebAuthn.Net.Storage.FidoMetadata.Implementation;
 
+/// <summary>
+///     The default in-memory implementation of storage for metadata obtained from the FIDO Metadata Service.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultInMemoryFidoMetadataStorage<TContext> :
     IFidoMetadataSearchStorage<TContext>,
     IFidoMetadataIngestStorage
     where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     The current valid blob with metadata.
+    /// </summary>
     protected MetadataBlobPayload? Blob { get; set; }
 
+    /// <inheritdoc />
     public Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -21,6 +29,7 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> :
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
         TContext context,
         Guid aaguid,
@@ -37,6 +46,7 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> :
         return Task.FromResult(entry);
     }
 
+    /// <inheritdoc />
     public Task<MetadataBlobPayloadEntry?> FindBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,

@@ -7,8 +7,17 @@ using WebAuthn.Net.Configuration.Options;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataHttpClient;
 
+/// <summary>
+///     Default implementation of <see cref="IFidoMetadataHttpClient" />.
+/// </summary>
 public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultFidoMetadataHttpClient" />
+    /// </summary>
+    /// <param name="httpClient">An HTTP client for downloading the blob with metadata.</param>
+    /// <param name="options">Accessor for getting the current value of global options.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataHttpClient(
         HttpClient httpClient,
         IOptionsMonitor<WebAuthnOptions> options)
@@ -19,9 +28,17 @@ public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
         Options = options;
     }
 
+    /// <summary>
+    ///     An HTTP client for downloading the blob with metadata.
+    /// </summary>
     protected HttpClient HttpClient { get; }
+
+    /// <summary>
+    ///     Accessor for getting the current value of global options.
+    /// </summary>
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
 
+    /// <inheritdoc />
     public async Task<string> DownloadMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
