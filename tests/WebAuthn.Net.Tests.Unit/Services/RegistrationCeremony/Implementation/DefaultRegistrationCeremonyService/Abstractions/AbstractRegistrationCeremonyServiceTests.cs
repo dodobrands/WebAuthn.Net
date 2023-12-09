@@ -197,6 +197,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             packedDecoder,
             tpmDecoder);
         var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
+        RegistrationCounters = new();
         RegistrationCeremonyService = new(
             Options,
             ContextFactory,
@@ -214,8 +215,8 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             attestationStatementDecoder,
             attestationStatementVerifier,
             attestationTrustPathValidator,
-            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance,
-            new WebauthnMetricsService());
+            RegistrationCounters,
+            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
     }
 
     [TearDown]
@@ -237,4 +238,5 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected FakeRegistrationCeremonyStorage RegistrationCeremonyStorage { get; set; } = null!;
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
     protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
+    protected DefaultRegistrationCeremonyCounters RegistrationCounters { get; set; } = null!;
 }

@@ -8,6 +8,6 @@ public class HomeController : Controller
     [HttpGet]
     public IActionResult Index()
     {
-        return RedirectToActionPermanent("Index", "Passwordless");
+        return RedirectToAction("Index", "Passwordless");
     }
 }

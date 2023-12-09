@@ -3,7 +3,7 @@
         "WebAuthn.Net.Sample.Mvc": {
             "commandName": "Project",
             "dotnetRunMessages": true,
-            "launchBrowser": false,
+            "launchBrowser": true,
             "applicationUrl": "https://localhost:5001",
             "environmentVariables": {
                 "ASPNETCORE_ENVIRONMENT": "Development"

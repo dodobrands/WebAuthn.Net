@@ -203,8 +203,9 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<IClientDataDecoder, DefaultClientDataDecoder>();
         // ------------------------
 
-        // -- Metrics Service --
-        builder.Services.TryAddSingleton<IWebauthnMetricsService, WebauthnMetricsService>();
+        // -- Metrics --
+        builder.Services.TryAddSingleton<IAuthenticationCeremonyCounters, DefaultAuthenticationCeremonyCounters>();
+        builder.Services.TryAddSingleton<IRegistrationCeremonyCounters, DefaultRegistrationCeremonyCounters>();
         // ---------------------
 
         return builder;

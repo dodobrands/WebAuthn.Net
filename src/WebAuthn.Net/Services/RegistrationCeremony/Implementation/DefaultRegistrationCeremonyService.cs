@@ -28,7 +28,6 @@ using WebAuthn.Net.Services.Common.ChallengeGenerator;
 using WebAuthn.Net.Services.Common.ClientDataDecoder;
 using WebAuthn.Net.Services.Context;
 using WebAuthn.Net.Services.Metrics;
-using WebAuthn.Net.Services.Metrics.Models;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
@@ -66,8 +65,8 @@ public class DefaultRegistrationCeremonyService<TContext>
         IAttestationStatementDecoder attestationStatementDecoder,
         IAttestationStatementVerifier<TContext> attestationStatementVerifier,
         IAttestationTrustPathValidator attestationTrustPathValidator,
-        ILogger<DefaultRegistrationCeremonyService<TContext>> logger,
-        IWebauthnMetricsService metricsService)
+        IRegistrationCeremonyCounters counters,
+        ILogger<DefaultRegistrationCeremonyService<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(contextFactory);
@@ -85,8 +84,8 @@ public class DefaultRegistrationCeremonyService<TContext>
         ArgumentNullException.ThrowIfNull(attestationStatementDecoder);
         ArgumentNullException.ThrowIfNull(attestationStatementVerifier);
         ArgumentNullException.ThrowIfNull(attestationTrustPathValidator);
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
-        ArgumentNullException.ThrowIfNull(metricsService);
         Options = options;
         ContextFactory = contextFactory;
         RpIdProvider = rpIdProvider;
@@ -103,8 +102,8 @@ public class DefaultRegistrationCeremonyService<TContext>
         AttestationStatementDecoder = attestationStatementDecoder;
         AttestationStatementVerifier = attestationStatementVerifier;
         AttestationTrustPathValidator = attestationTrustPathValidator;
+        Counters = counters;
         Logger = logger;
-        _Metrics = metricsService.RegistrationCeremony();
     }
 
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
@@ -124,8 +123,7 @@ public class DefaultRegistrationCeremonyService<TContext>
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
     protected IAttestationTrustPathValidator AttestationTrustPathValidator { get; }
     protected ILogger<DefaultRegistrationCeremonyService<TContext>> Logger { get; }
-
-    protected IIncrementMetricsCounter<RegistrationCeremonyCounter> _Metrics { get; }
+    protected IRegistrationCeremonyCounters Counters { get; }
 
     public virtual async Task<BeginRegistrationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
@@ -135,6 +133,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
+        Counters.IncrementBeginCeremonyStart();
         await using var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.BeginRegistrationCeremony, cancellationToken);
         var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
         var rpId = await RpIdProvider.GetAsync(httpContext, cancellationToken);
@@ -172,7 +171,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         var ceremonyId = await CeremonyStorage.SaveAsync(context, registrationCeremony, cancellationToken);
         await context.CommitAsync(cancellationToken);
         var result = new BeginRegistrationCeremonyResult(outputOptions, ceremonyId);
-        _Metrics.Increment(RegistrationCeremonyCounter.Begin);
+        Counters.IncrementBeginCeremonyEnd(true);
         return result;
     }
 
@@ -184,6 +183,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
+        Counters.IncrementCompleteCeremonyStart();
         using (Logger.BeginCompleteRegistrationCeremonyScope(request.RegistrationCeremonyId))
         await using (var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.CompleteRegistrationCeremony, cancellationToken))
         {
@@ -194,7 +194,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (registrationCeremonyOptions is null)
             {
                 Logger.RegistrationCeremonyNotFound();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -212,7 +212,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (credentialResult.HasError)
             {
                 Logger.FailedToDecodeRegistrationResponseJson();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -238,7 +238,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (clientDataResult.HasError)
             {
                 Logger.FailedToDecodeClientData();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -249,7 +249,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (C.Type is not "webauthn.create")
             {
                 Logger.IncorrectClientDataType(C.Type);
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -257,7 +257,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (!string.Equals(C.Challenge, Base64Url.Encode(options.Challenge), StringComparison.Ordinal))
             {
                 Logger.ChallengeMismatch();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -266,7 +266,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (allowedOrigin is null)
             {
                 Logger.InvalidOrigin(C.Origin);
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -280,7 +280,7 @@ public class DefaultRegistrationCeremonyService<TContext>
                     if (!string.Equals(allowedOrigin, C.TopOrigin, StringComparison.Ordinal))
                     {
                         Logger.InvalidTopOrigin(C.TopOrigin);
-                        _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                        Counters.IncrementCompleteCeremonyEnd(false);
                         return CompleteRegistrationCeremonyResult.Fail();
                     }
                 }
@@ -289,7 +289,7 @@ public class DefaultRegistrationCeremonyService<TContext>
                     if (!registrationCeremonyOptions.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
                     {
                         Logger.InvalidTopOrigin(C.TopOrigin);
-                        _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                        Counters.IncrementCompleteCeremonyEnd(false);
                         return CompleteRegistrationCeremonyResult.Fail();
                     }
                 }
@@ -305,7 +305,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attestationObjectResult.HasError)
             {
                 Logger.AttestationObjectDecodeFailed();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -315,7 +315,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attestationObjectResult.Ok.AuthData is null)
             {
                 Logger.NullAuthDataForRegistration();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -323,7 +323,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (authDataResult.HasError)
             {
                 Logger.FailedToDecodeAuthData();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -332,7 +332,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (authDataResult.Ok is not AttestedAuthenticatorData authData)
             {
                 Logger.AttestedCredentialDataIsNull();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -340,7 +340,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attStmtResult.HasError)
             {
                 Logger.FailedToDecodeAttStmt();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -352,7 +352,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (!authDataRpIdHash.AsSpan().SequenceEqual(expectedRpIdHash.AsSpan()))
             {
                 Logger.RpIdHashMismatch();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -360,7 +360,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if ((authData.Flags & AuthenticatorDataFlags.UserPresent) is not AuthenticatorDataFlags.UserPresent)
             {
                 Logger.UserPresentBitNotSet();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -370,7 +370,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (userVerificationRequired && !uvInitialized)
             {
                 Logger.UserVerificationBitNotSet();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -387,7 +387,7 @@ public class DefaultRegistrationCeremonyService<TContext>
                 // |  1 |  0 | The credential is a multi-device credential and is not currently backed up.
                 // |  1 |  1 | The credential is a multi-device credential and is currently backed up.
                 Logger.InvalidBeBsFlagsCombination();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -403,7 +403,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (!expectedAlgorithms.Contains(authData.AttestedCredentialData.CredentialPublicKey.Alg))
             {
                 Logger.AuthDataAlgDoesntMatchPubKeyCredParams();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
             // 20. Verify that the values of the client extension outputs in 'clientExtensionResults' and the authenticator extension outputs in the extensions
@@ -433,7 +433,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attStmtVerificationResult.HasError)
             {
                 Logger.InvalidAttStmt();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -449,7 +449,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attStmtVerification.AttestationType == AttestationType.None && !Options.CurrentValue.AttestationTypes.None.IsAcceptable)
             {
                 Logger.NoneAttestationDisallowed();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -457,7 +457,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (attStmtVerification.AttestationType == AttestationType.Self && !Options.CurrentValue.AttestationTypes.Self.IsAcceptable)
             {
                 Logger.SelfAttestationDisallowed();
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -467,7 +467,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (!AttestationTrustPathValidator.IsValid(attStmtVerification))
             {
                 // TODO Logs?
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -475,7 +475,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (authData.AttestedCredentialData.CredentialId.Length > 1023)
             {
                 // TODO Logs?
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -497,7 +497,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (!credentialIdNotRegisteredForAnyUser)
             {
                 // TODO Logs?
-                _Metrics.Increment(RegistrationCeremonyCounter.Failed);
+                Counters.IncrementCompleteCeremonyEnd(false);
                 return CompleteRegistrationCeremonyResult.Fail();
             }
 
@@ -507,8 +507,9 @@ public class DefaultRegistrationCeremonyService<TContext>
             // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-credential-backup
             // When the BE flag is set to 0
             var requiringAdditionalAuthenticators = !currentBe;
-            _Metrics.Increment(RegistrationCeremonyCounter.Complete);
-            return CompleteRegistrationCeremonyResult.Success(requiringAdditionalAuthenticators);
+            var result = CompleteRegistrationCeremonyResult.Success(requiringAdditionalAuthenticators);
+            Counters.IncrementCompleteCeremonyEnd(true);
+            return result;
         }
     }
 

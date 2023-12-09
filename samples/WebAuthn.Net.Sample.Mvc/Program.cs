@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using OpenTelemetry.Metrics;
+using WebAuthn.Net.OpenTelemetry.Extensions;
 using WebAuthn.Net.Sample.Mvc.Services;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
 
@@ -25,6 +27,13 @@ public static class Program
             });
         services.AddSingleton<UserHandleStore>();
         services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
+        services.AddOpenTelemetry()
+            .WithMetrics(metrics =>
+            {
+                metrics.AddWebAuthn();
+                metrics.AddPrometheusExporter();
+            });
+
 
         var app = builder.Build();
 
@@ -41,8 +50,11 @@ public static class Program
 
         app.UseAuthentication();
         app.UseAuthorization();
-
-        app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapDefaultControllerRoute();
+        });
+        app.UseOpenTelemetryPrometheusScrapingEndpoint();
         app.Run();
     }
 }

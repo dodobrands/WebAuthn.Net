@@ -214,7 +214,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
 
-        var metricsService = new WebauthnMetricsService();
+        RegistrationCounters = new();
+        AuthenticationCounters = new();
 
         RegistrationCeremonyService = new(
             Options,
@@ -233,8 +234,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             attestationStatementDecoder,
             attestationStatementVerifier,
             attestationTrustPathValidator,
-            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance,
-            metricsService);
+            RegistrationCounters,
+            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
         AuthenticationCeremonyService = new(
             Options,
             ContextFactory,
@@ -253,8 +254,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             attestationStatementVerifier,
             attestationTrustPathValidator,
             digitalSignatureVerifier,
-            NullLogger<DefaultAuthenticationCeremonyService<FakeWebAuthnContext>>.Instance,
-            metricsService);
+            AuthenticationCounters,
+            NullLogger<DefaultAuthenticationCeremonyService<FakeWebAuthnContext>>.Instance);
     }
 
     [TearDown]
@@ -279,4 +280,6 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
     protected FakeCredentialStorage CredentialStorage { get; set; } = null!;
     protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
+    protected DefaultRegistrationCeremonyCounters RegistrationCounters { get; set; } = null!;
+    protected DefaultAuthenticationCeremonyCounters AuthenticationCounters { get; set; } = null!;
 }
