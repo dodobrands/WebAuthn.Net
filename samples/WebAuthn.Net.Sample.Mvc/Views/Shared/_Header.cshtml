@@ -1,6 +1,9 @@
+@using WebAuthn.Net.Sample.Mvc.Utils
 @{
     var userName = Context.User.Identity?.Name;
     var showLogoutButton = !string.IsNullOrWhiteSpace(userName);
+    var passwordlessActive = Url.ActiveClassIfMatched("Passwordless", "Index");
+    var usernamelessActive = Url.ActiveClassIfMatched("Usernameless", "Index");
 }
 <header class="mb-5">
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -12,10 +15,14 @@
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item p-1">
-                        <a class="nav-link" asp-controller="Passwordless" asp-action="Index">Passwordless Example</a>
+                        <a class="nav-link @passwordlessActive" asp-controller="Passwordless" asp-action="Index">
+                            Passwordless
+                        </a>
                     </li>
                     <li class="nav-item p-1">
-                        <a class="nav-link" asp-controller="Usernameless" asp-action="Index">Usernameless Example</a>
+                        <a class="nav-link @usernamelessActive" asp-controller="Usernameless" asp-action="Index">
+                            Usernameless
+                        </a>
                     </li>
                 </ul>
                 <div class="d-flex" role="search">

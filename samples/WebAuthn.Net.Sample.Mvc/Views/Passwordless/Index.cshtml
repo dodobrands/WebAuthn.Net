@@ -10,12 +10,13 @@
             <div class="card-body">
                 <h2 class="card-title">Passwordless Authentication</h2>
                 <form id="webauthn-authenticate" class="p-1">
-                    <div class="form-floating mb-1">
+                    <div class="form-floating mb-2">
                         <input type="text" id="webauthn-authenticate-name" placeholder="Username" class="form-control mb-1"/>
                         <label for="webauthn-authenticate-name">Username</label>
                     </div>
-                    <hr>
-                    <button type="submit" id="webauthn-authenticate-submit" class="btn btn-primary">Sign In</button>
+                    <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto">
+                        <button type="submit" id="webauthn-authenticate-submit" class="btn btn-primary">Sign In</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -44,8 +45,9 @@
                         </select>
                         <label for="webauthn-passwordless-params-attestation">Attestation Conveyance Preference</label>
                     </div>
-                    <hr>
-                    <button type="submit" id="webauthn-passwordless-params-submit" class="btn btn-primary">Reset</button>
+                    <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto">
+                        <button type="submit" id="webauthn-passwordless-params-submit" class="btn btn-secondary">Reset</button>
+                    </div>
                 </form>
             </div>
         </div>
