@@ -32,6 +32,7 @@ public class PasswordlessController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> BeginAuthenticationCeremony([FromBody] ServerPublicKeyCredentialGetOptionsRequest request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -50,6 +51,7 @@ public class PasswordlessController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> AuthenticationCeremony([FromBody] ServerPublicKeyCredential request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);

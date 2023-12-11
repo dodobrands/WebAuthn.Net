@@ -26,6 +26,7 @@
         registerInput: () => document.getElementById("webauthn-register-name"),
         registerButton: () => document.getElementById("webauthn-register-submit"),
         registerOptionsReset: () => document.getElementById("webauthn-params-submit"),
+        csrfElement: () => document.getElementById("webauthn-register-request-token")
     };
     const defaultParams = {
         userVerification: "preferred",
@@ -61,7 +62,8 @@
         e.preventDefault();
         const registrationParameters = getState();
         const username = getElementValue(elements.registerInput());
-        const initialData = await initiateRegistration({registrationParameters, username});
+        const csrf = getElementValue(elements.csrfElement());
+        const initialData = await initiateRegistration({registrationParameters, username, csrf});
         if (!initialData) return;
         const {options} = initialData;
         const publicKey = {
@@ -76,7 +78,7 @@
         const response = await navigator.credentials.create({publicKey});
         if (!response) return;
 
-        const registrationResult = await submitRegistration({response});
+        const registrationResult = await submitRegistration({response, csrf});
         if (!registrationResult) return;
         const {successful} = registrationResult;
         if (successful) {

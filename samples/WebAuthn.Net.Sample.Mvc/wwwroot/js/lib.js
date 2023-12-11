@@ -72,12 +72,13 @@ const initializeCheckboxArray = ({initialValues, setState, withState, checkboxEl
         });
 
 
-const makeJsonApiCall = async ({url, data, method}) => {
+const makeJsonApiCall = async ({ url, data, method, csrf }) => {
     const response = await fetch(url, {
         method,
         body: JSON.stringify(data),
         credentials: "same-origin",
         headers: {
+            "RequestVerificationToken": csrf ?? "",
             "content-type": "application/json"
         }
     });
@@ -107,16 +108,16 @@ const Alerts = {
 // API
 const API = {
     Register: {
-        initiateRegistration: async ({username, registrationParameters}) => {
+        initiateRegistration: async ({username, registrationParameters, csrf}) => {
             const url = "/register/beginregisterceremony";
             const data = {
                 username,
                 registrationParameters,
                 extensions: {}
             };
-            return await makeJsonApiCall({url, data, method: "POST"});
+            return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
-        submitRegistration: async ({response}) => {
+        submitRegistration: async ({response, csrf}) => {
             const url = "/register/registerceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
@@ -126,20 +127,20 @@ const API = {
                     clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
                 }
             };
-            return await makeJsonApiCall({url, data, method: "POST"});
+            return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
     },
     Passwordless: {
-        initiateAuthentication: async ({username, userVerification, attestation}) => {
+        initiateAuthentication: async ({username, userVerification, attestation, csrf}) => {
             const url = "/passwordless/beginauthenticationceremony";
             const data = {
                 username,
                 userVerification,
                 attestation
             };
-            return await makeJsonApiCall({url, data, method: "POST"});
+            return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
-        submitAuthentication: async ({username, response}) => {
+        submitAuthentication: async ({username, response, csrf}) => {
             const url = "/passwordless/authenticationceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
@@ -153,16 +154,16 @@ const API = {
                     signature: coerceToBase64Url(response.response.signature),
                 }
             }
-            return await makeJsonApiCall({url, data, method: "POST"});
+            return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
     },
     Usernameless: {
-        initiateAuthentication: async () => {
+        initiateAuthentication: async ({csrf}) => {
             const url = "/usernameless/beginauthenticationceremony";
             const data = {};
-            return await makeJsonApiCall({url, data, method: "POST"});
+            return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
-        submitAuthentication: async ({response}) => {
+        submitAuthentication: async ({response, csrf}) => {
             const url = "/usernameless/authenticationceremony";
             const data = {
                 id: coerceToBase64Url(response.rawId),
@@ -175,7 +176,7 @@ const API = {
                     signature: coerceToBase64Url(response.response.signature),
                 }
             }
-            return await makeJsonApiCall({url, data, method: "POST"});
+            return await makeJsonApiCall({url, data, method: "POST", csrf});
         }
     }
 }
