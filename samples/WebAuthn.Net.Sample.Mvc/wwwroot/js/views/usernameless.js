@@ -8,7 +8,7 @@
     const onAuthenticateButtonHandler = async (e) => {
         e.preventDefault();
         const csrf = getElementValue(elements.csrfElement());
-        const initialData = await initiateAuthentication({ csrf });
+        const initialData = await initiateAuthentication({csrf});
         if (!initialData) return;
         const {options} = initialData;
         const publicKey = {

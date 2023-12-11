@@ -72,7 +72,7 @@ const initializeCheckboxArray = ({initialValues, setState, withState, checkboxEl
         });
 
 
-const makeJsonApiCall = async ({ url, data, method, csrf }) => {
+const makeJsonApiCall = async ({url, data, method, csrf}) => {
     const response = await fetch(url, {
         method,
         body: JSON.stringify(data),

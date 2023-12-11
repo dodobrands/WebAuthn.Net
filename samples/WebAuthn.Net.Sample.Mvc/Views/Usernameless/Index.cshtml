@@ -1,4 +1,5 @@
-@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
 @{
     ViewData["Title"] = "Webauthn.Net Usernameless";
     ViewData["Flow"] = "usernameless";
@@ -13,7 +14,7 @@
             <div class="card-body">
                 <h2 class="card-title">Usernameless Authentication</h2>
                 <form id="webauthn-usernameless" class="p-1">
-                    <input id="webauthn-usernameless-request-token" type="hidden" value="@requestToken" />
+                    <input id="webauthn-usernameless-request-token" type="hidden" value="@requestToken"/>
                     <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto mt-3">
                         <button type="submit" id="webauthn-usernameless-submit" class="btn btn-primary">Sign In</button>
                     </div>
