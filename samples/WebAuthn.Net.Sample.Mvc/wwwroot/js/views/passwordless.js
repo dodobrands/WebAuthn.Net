@@ -26,6 +26,13 @@
         e.preventDefault();
         const username = getElementValue(elements.authenticateInput());
         const csrf = getElementValue(elements.csrfElement());
+
+        if (!isValidString(username)) {
+            Alerts.usernameInputEmpty();
+            clearElementValue(elements.registerInput());
+            return;
+        }
+
         const {userVerification, attestation} = getState();
         const initialData = await initiateAuthentication({username, attestation, userVerification, csrf});
         if (!initialData) return;

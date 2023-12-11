@@ -63,6 +63,13 @@
         const registrationParameters = getState();
         const username = getElementValue(elements.registerInput());
         const csrf = getElementValue(elements.csrfElement());
+
+        if (!isValidString(username)) {
+            Alerts.usernameInputEmpty();
+            clearElementValue(elements.registerInput());
+            return;
+        }
+
         const initialData = await initiateRegistration({registrationParameters, username, csrf});
         if (!initialData) return;
         const {options} = initialData;

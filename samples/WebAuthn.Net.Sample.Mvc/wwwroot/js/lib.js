@@ -40,6 +40,7 @@ const coerceToBase64Url = (x) => {
 };
 const clearElementValue = (x) => x.value = "";
 const getElementValue = (x) => x.value ?? "";
+const isValidString = (x) => typeof x === "string" && x.trim().length > 0;
 
 const initializeForm = ({state, setState, withState, formElements}) => Object
     .keys(formElements)
@@ -103,6 +104,7 @@ const Alerts = {
     failedToRegister: () => alert("Failed to register user, check server logs"),
     webauthnIsNotAvailable: () => alert("Browser doesn't support Webauthn API"),
     registerSuccess: () => alert("User registered!"),
+    usernameInputEmpty: () => alert("Username input is empty")
 };
 
 // API
