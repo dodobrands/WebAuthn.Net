@@ -6,8 +6,19 @@ using Microsoft.Extensions.Options;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
 
+/// <summary>
+///     A service for background ingestion of metadata from the FIDO Metadata Service and their periodic update.
+/// </summary>
 public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDisposable
 {
+    /// <summary>
+    ///     Constructs <see cref="FidoMetadataBackgroundIngestHostedService" />.
+    /// </summary>
+    /// <param name="options">An accessor for obtaining the current value of options that set the parameters for the background ingest.</param>
+    /// <param name="metadataIngestService">The ingestion service for metadata obtained from the FIDO Metadata Service, designed to store data from the retrieved blob.</param>
+    /// <param name="provider">Provider of metadata from FIDO Metadata Service.</param>
+    /// <param name="decoder">Decoder for data received from the FIDO Metadata Service's blob.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public FidoMetadataBackgroundIngestHostedService(
         IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> options,
         IFidoMetadataIngestService metadataIngestService,
@@ -18,26 +29,50 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         ArgumentNullException.ThrowIfNull(metadataIngestService);
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(decoder);
+        Options = options;
         MetadataIngestService = metadataIngestService;
         Provider = provider;
         Decoder = decoder;
-        Options = options;
     }
 
+    /// <summary>
+    ///     A background task that performs periodic updating of FIDO metadata.
+    /// </summary>
     protected Task? PeriodicBackgroundUpdateTask { get; set; }
+
+    /// <summary>
+    ///     Cancellation token for the execution of a background task.
+    /// </summary>
     protected CancellationTokenSource? StoppingCts { get; set; }
-    protected IFidoMetadataIngestService MetadataIngestService { get; }
-    protected IFidoMetadataProvider Provider { get; }
-    protected IFidoMetadataDecoder Decoder { get; }
+
+    /// <summary>
+    ///     An accessor for obtaining the current value of options that set the parameters for the background ingest.
+    /// </summary>
     protected IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> Options { get; }
 
+    /// <summary>
+    ///     The ingestion service for metadata obtained from the FIDO Metadata Service, designed to store data from the retrieved blob.
+    /// </summary>
+    protected IFidoMetadataIngestService MetadataIngestService { get; }
+
+    /// <summary>
+    ///     Provider of metadata from FIDO Metadata Service.
+    /// </summary>
+    protected IFidoMetadataProvider Provider { get; }
+
+    /// <summary>
+    ///     Decoder for data received from the FIDO Metadata Service's blob.
+    /// </summary>
+    protected IFidoMetadataDecoder Decoder { get; }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-
+    /// <inheritdoc />
     public virtual async Task StartAsync(CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
@@ -49,6 +84,7 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         await StartBackgroundIngestAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual async Task StopAsync(CancellationToken cancellationToken)
     {
         // Stop called without start
@@ -69,6 +105,11 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         }
     }
 
+    /// <summary>
+    ///     Starts an asynchronous task that performs metadata update in the background.
+    /// </summary>
+    /// <param name="cancellationToken">Indicates that the start process has been aborted.</param>
+    /// <returns>An asynchronous task that performs metadata update in the background.</returns>
     protected virtual Task StartBackgroundIngestAsync(CancellationToken cancellationToken)
     {
         // Create linked token to allow cancelling executing task from provided token
@@ -87,6 +128,10 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    ///     Asynchronously downloads and ingests metadata in an infinite loop at an interval specified in the <see cref="Options" />, until the <paramref name="stoppingToken" /> triggers.
+    /// </summary>
+    /// <param name="stoppingToken">Cancellation token for an asynchronous operation.</param>
     protected virtual async Task BackgroundIngestAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -96,6 +141,11 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         }
     }
 
+    /// <summary>
+    ///     Asynchronously downloads and ingests metadata from the FIDO Metadata Service
+    /// </summary>
+    /// <param name="stoppingToken">Cancellation token for an asynchronous operation.</param>
+    /// <exception cref="InvalidOperationException">Failed to download or decode the data. Only triggers if the corresponding flag is set in the <see cref="Options" />.</exception>
     protected virtual async Task DownloadAndUpsertMetadataAsync(CancellationToken stoppingToken)
     {
         stoppingToken.ThrowIfCancellationRequested();
@@ -125,6 +175,10 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         await MetadataIngestService.UpsertAsync(decodeResult.Ok, stoppingToken);
     }
 
+    /// <summary>
+    ///     Releases all resources currently used by this <see cref="FidoMetadataBackgroundIngestHostedService" /> instance.
+    /// </summary>
+    /// <param name="disposing"><see langword="true" /> if this method is being invoked by the <see cref="Dispose()" /> method, otherwise <see langword="false" />.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (disposing)

@@ -20,9 +20,20 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 
+/// <summary>
+///     Default implementation of <see cref="IFidoMetadataProvider" />.
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultFidoMetadataProvider" />.
+    /// </summary>
+    /// <param name="options">Accessor for getting the current value of global options.</param>
+    /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
+    /// <param name="metadataHttpClient">An HTTP client for retrieving blob with metadata from the FIDO Metadata Service.</param>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataProvider(
         IOptionsMonitor<WebAuthnOptions> options,
         ISafeJsonSerializer safeJsonSerializer,
@@ -39,12 +50,27 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         TimeProvider = timeProvider;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of global options.
+    /// </summary>
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
+
+    /// <summary>
+    ///     Safe (exceptionless) JSON serializer.
+    /// </summary>
     protected ISafeJsonSerializer SafeJsonSerializer { get; }
+
+    /// <summary>
+    ///     An HTTP client for retrieving blob with metadata from the FIDO Metadata Service.
+    /// </summary>
     protected IFidoMetadataHttpClient MetadataHttpClient { get; }
+
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
 
-    [SuppressMessage("Security", "CA5404:Do not disable token validation checks")]
+    /// <inheritdoc />
     public virtual async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -83,7 +109,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             }
 
             // build root certificates chain that avoid expired certificates
-            var fidoRootCertificates = GetFidoMetadataRootCertificates();
+            var fidoRootCertificates = GetEmbeddedFidoRootCertificates();
             if (fidoRootCertificates.Count == 0)
             {
                 return Result<MetadataBLOBPayloadJSON>.Fail();
@@ -168,6 +194,13 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         }
     }
 
+    /// <summary>
+    ///     Returns X509v3 certificates from the JWS (JWT) token header of a blob obtained from the FIDO Metadata Service.
+    /// </summary>
+    /// <param name="jwt">JWS (JWT) token of a blob obtained from the FIDO Metadata Service.</param>
+    /// <param name="rawCertificates">Output parameter. If the method returns <see langword="true" /> - contains X509v3 certificates in the order they appear in the JWS token header, if the method return <see langword="false" />, contains <see langword="null" />.</param>
+    /// <returns>If the extraction of certificates from the header was successful, returns <see langword="true" />, otherwise, returns <see langword="false" />. </returns>
+    // ReSharper disable once VirtualMemberNeverOverridden.Global
     protected virtual bool TryGetRawCertificates(JsonWebToken jwt, [NotNullWhen(true)] out byte[][]? rawCertificates)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -257,7 +290,11 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         return false;
     }
 
-    protected virtual UniqueByteArraysCollection GetFidoMetadataRootCertificates()
+    /// <summary>
+    ///     Returns a collection of FIDO root certificates embedded in the library for validating certificate chains that sign the blobs obtained from the FIDO Metadata Service.
+    /// </summary>
+    /// <returns>An instance of <see cref="UniqueByteArraysCollection" />. It may return an empty collection, but it never returns <see langword="null" />.</returns>
+    protected virtual UniqueByteArraysCollection GetEmbeddedFidoRootCertificates()
     {
         return new(FidoMetadataRoots.GlobalSign);
     }

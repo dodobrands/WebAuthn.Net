@@ -6,8 +6,14 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 
+/// <summary>
+///     Embedded root certificates for FIDO Metadata Service, used for validation of a certificate chain obtained from a blob downloaded from FIDO MDS.
+/// </summary>
 public static class FidoMetadataRoots
 {
+    /// <summary>
+    ///     Root CA certificates for FIDO Metadata Service blobs (<a href="https://fidoalliance.org/metadata/">FIDO uses GlobalSign</a>).
+    /// </summary>
     public static readonly byte[][] GlobalSign = GetRoots();
 
     private static byte[][] GetRoots()

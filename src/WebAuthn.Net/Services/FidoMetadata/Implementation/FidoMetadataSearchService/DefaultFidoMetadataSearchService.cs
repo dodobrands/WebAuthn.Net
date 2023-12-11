@@ -13,9 +13,19 @@ using WebAuthn.Net.Storage.FidoMetadata;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
 
+/// <summary>
+///     Default implementation of <see cref="IFidoMetadataSearchService{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchService<TContext>
     where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultFidoMetadataSearchService{TContext}" />.
+    /// </summary>
+    /// <param name="metadataSearchStorage">The storage intended for searching in metadata obtained from the FIDO Metadata Service.</param>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataSearchService(
         IFidoMetadataSearchStorage<TContext> metadataSearchStorage,
         ITimeProvider timeProvider)
@@ -26,9 +36,17 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         TimeProvider = timeProvider;
     }
 
+    /// <summary>
+    ///     The storage intended for searching in metadata obtained from the FIDO Metadata Service.
+    /// </summary>
     protected IFidoMetadataSearchStorage<TContext> MetadataSearchStorage { get; }
+
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
 
+    /// <inheritdoc />
     public virtual async Task<FidoMetadataResult?> FindMetadataByAaguidAsync(
         TContext context,
         Guid aaguid,
@@ -59,6 +77,7 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         return HandleMetadataStatement(entry.MetadataStatement);
     }
 
+    /// <inheritdoc />
     public virtual async Task<FidoMetadataResult?> FindMetadataBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
@@ -94,7 +113,46 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         return HandleMetadataStatement(entry.MetadataStatement);
     }
 
+    /// <summary>
+    ///     Verifies if the metadata can be trusted.
+    /// </summary>
+    /// <param name="blobEntry"></param>
+    /// <returns></returns>
+    protected virtual bool CanTrustMetadata(MetadataBlobPayloadEntry blobEntry)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (blobEntry is null)
+        {
+            return false;
+        }
 
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (blobEntry.StatusReports is null || blobEntry.StatusReports.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var statusReport in blobEntry.StatusReports)
+        {
+            if (statusReport.Status == AuthenticatorStatus.REVOKED
+                || statusReport.Status == AuthenticatorStatus.USER_VERIFICATION_BYPASS
+                || statusReport.Status == AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE
+                || statusReport.Status == AuthenticatorStatus.USER_KEY_REMOTE_COMPROMISE
+                || statusReport.Status == AuthenticatorStatus.USER_KEY_PHYSICAL_COMPROMISE
+                || statusReport.Status == AuthenticatorStatus.UPDATE_AVAILABLE)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Handles the found Metadata Statement, validating its compliance with rules and preparing the corresponding <see cref="FidoMetadataResult" /> in case of success.
+    /// </summary>
+    /// <param name="metadataStatement">The found <see cref="MetadataStatement" />.</param>
+    /// <returns>An instance of <see cref="FidoMetadataResult" /> if the <see cref="MetadataStatement" /> complies with rules, otherwise - <see langword="null" />.</returns>
     protected virtual FidoMetadataResult? HandleMetadataStatement(MetadataStatement metadataStatement)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -134,36 +192,5 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
 
         var result = new FidoMetadataResult(allowedRootCertificates.ToArray(), metadataStatement.AttestationTypes);
         return result;
-    }
-
-
-    protected virtual bool CanTrustMetadata(MetadataBlobPayloadEntry blobEntry)
-    {
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (blobEntry is null)
-        {
-            return false;
-        }
-
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (blobEntry.StatusReports is null || blobEntry.StatusReports.Length == 0)
-        {
-            return false;
-        }
-
-        foreach (var statusReport in blobEntry.StatusReports)
-        {
-            if (statusReport.Status == AuthenticatorStatus.REVOKED
-                || statusReport.Status == AuthenticatorStatus.USER_VERIFICATION_BYPASS
-                || statusReport.Status == AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE
-                || statusReport.Status == AuthenticatorStatus.USER_KEY_REMOTE_COMPROMISE
-                || statusReport.Status == AuthenticatorStatus.USER_KEY_PHYSICAL_COMPROMISE
-                || statusReport.Status == AuthenticatorStatus.UPDATE_AVAILABLE)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
