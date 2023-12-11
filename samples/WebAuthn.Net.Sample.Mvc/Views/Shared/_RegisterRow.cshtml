@@ -1,9 +1,15 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+
 <div class="row">
     <div class="col-md-6 mb-2">
         <div class="card">
             <div class="card-body">
                 <h2 class="card-title">Register</h2>
                 <form id="webauthn-register" class="p-1">
+                    <input id="webauthn-register-request-token" type="hidden" value="@requestToken" />
                     <div class="form-floating mb-3">
                         <input type="text" id="webauthn-register-name" class="form-control" placeholder="Username"/>
                         <label for="webauthn-register-name">Username</label>

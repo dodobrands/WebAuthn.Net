@@ -20,6 +20,7 @@ public class RegisterController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> BeginRegisterCeremony([FromBody] ServerPublicKeyCredentialCreationOptionsRequest request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -39,6 +40,7 @@ public class RegisterController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> RegisterCeremony([FromBody] ServerPublicKeyCredential request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);

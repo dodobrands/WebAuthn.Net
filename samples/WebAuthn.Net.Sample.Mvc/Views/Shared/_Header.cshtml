@@ -1,7 +1,5 @@
 @using WebAuthn.Net.Sample.Mvc.Utils
 @{
-    var userName = Context.User.Identity?.Name;
-    var showLogoutButton = !string.IsNullOrWhiteSpace(userName);
     var passwordlessActive = Url.ActiveClassIfMatched("Passwordless", "Index");
     var usernamelessActive = Url.ActiveClassIfMatched("Usernameless", "Index");
 }
@@ -25,13 +23,6 @@
                         </a>
                     </li>
                 </ul>
-                <div class="d-flex" role="search">
-                    @if (showLogoutButton)
-                    {
-                        <span class="navbar-text me-2">Authenticated as: @userName</span>
-                        <a class="btn btn-primary" role="button" asp-controller="Fido" asp-action="Logout">Logout</a>
-                    }
-                </div>
             </div>
         </div>
     </nav>

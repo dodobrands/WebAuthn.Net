@@ -1,5 +1,8 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     ViewData["Title"] = "Webauthn.Net Usernameless";
+    ViewData["Flow"] = "usernameless";
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
 }
 
 <partial name="_RegisterRow"/>
@@ -10,6 +13,7 @@
             <div class="card-body">
                 <h2 class="card-title">Usernameless Authentication</h2>
                 <form id="webauthn-usernameless" class="p-1">
+                    <input id="webauthn-usernameless-request-token" type="hidden" value="@requestToken" />
                     <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto mt-3">
                         <button type="submit" id="webauthn-usernameless-submit" class="btn btn-primary">Sign In</button>
                     </div>
@@ -18,6 +22,7 @@
         </div>
     </div>
 </div>
+<partial name="_LogoutRow"/>
 
 @section Scripts
 {

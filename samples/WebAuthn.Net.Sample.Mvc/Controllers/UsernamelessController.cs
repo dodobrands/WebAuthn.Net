@@ -31,6 +31,7 @@ public class UsernamelessController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> BeginAuthenticationCeremony([FromBody] AttestationServerPKeyOptionsRequest request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -49,6 +50,7 @@ public class UsernamelessController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> AuthenticationCeremony([FromBody] AttestationPKeyCredential request, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);

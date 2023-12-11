@@ -2,11 +2,13 @@
     const {initiateAuthentication, submitAuthentication} = API.Usernameless;
     const elements = {
         authenticateBtn: () => document.getElementById("webauthn-usernameless-submit"),
+        csrfElement: () => document.getElementById("webauthn-usernameless-request-token")
     };
     // DOM Handlers
     const onAuthenticateButtonHandler = async (e) => {
         e.preventDefault();
-        const initialData = await initiateAuthentication();
+        const csrf = getElementValue(elements.csrfElement());
+        const initialData = await initiateAuthentication({ csrf });
         if (!initialData) return;
         const {options} = initialData;
         const publicKey = {
@@ -17,7 +19,7 @@
         const response = await navigator.credentials.get({publicKey});
         if (!response) return;
 
-        const attestationResult = await submitAuthentication({response});
+        const attestationResult = await submitAuthentication({csrf, response});
         if (!attestationResult) return;
         const {successful} = attestationResult;
         if (!successful) {

@@ -1,0 +1,37 @@
+@{
+    var userName = Context.User.Identity?.Name;
+    var showLogoutButton = !string.IsNullOrWhiteSpace(userName);
+    var returnUrl = Url.Action("Index", "Home");
+    if (ViewData.TryGetValue("Flow", out var flow) && flow is string flowStr)
+    {
+        if (flowStr == "passwordless")
+        {
+            returnUrl = Url.Action("Index", "Passwordless");
+        }
+
+        if (flowStr == "usernameless")
+        {
+            returnUrl = Url.Action("Index", "Usernameless");
+        }
+    }
+}
+
+@if (showLogoutButton)
+{
+    <hr/>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Authenticated as: @userName</h2>
+                    <form id="webauthn-usernameless" class="p-1" asp-controller="Account" asp-action="Logout" asp-route-returnUrl="@returnUrl" method="post">
+                        <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto mt-3">
+                            <button class="btn btn-primary" type="submit">Logout</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+

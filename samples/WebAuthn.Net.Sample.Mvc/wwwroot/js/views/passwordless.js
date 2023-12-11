@@ -6,7 +6,8 @@
     const elements = {
         authenticateInput: () => document.getElementById("webauthn-authenticate-name"),
         authenticateButton: () => document.getElementById("webauthn-authenticate-submit"),
-        authenticateFormReset: () => document.getElementById("webauthn-passwordless-params-submit")
+        authenticateFormReset: () => document.getElementById("webauthn-passwordless-params-submit"),
+        csrfElement: () => document.getElementById("webauthn-authenticate-request-token")
     };
     const defaultParams = {
         userVerification: "preferred",
@@ -24,8 +25,9 @@
     const onAuthenticateButtonHandler = async (e) => {
         e.preventDefault();
         const username = getElementValue(elements.authenticateInput());
+        const csrf = getElementValue(elements.csrfElement());
         const {userVerification, attestation} = getState();
-        const initialData = await initiateAuthentication({username, attestation, userVerification});
+        const initialData = await initiateAuthentication({username, attestation, userVerification, csrf});
         if (!initialData) return;
         const {options} = initialData;
         const publicKey = {
@@ -36,7 +38,7 @@
         const response = await navigator.credentials.get({publicKey});
         if (!response) return;
 
-        const attestationResult = await submitAuthentication({username, response});
+        const attestationResult = await submitAuthentication({username, response, csrf});
         if (!attestationResult) return;
         const {successful} = attestationResult;
         if (!successful) {
