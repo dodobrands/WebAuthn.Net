@@ -9,7 +9,7 @@ public static class RazorHelpers
     /// Adds active class if controller and action is matched with link
     /// <see href="https://stackoverflow.com/a/72787049"/>
     /// </summary>
-    public static string ActiveClassIfMatched(this IUrlHelper urlHelper, string controller, string action)
+    public static string ActiveClassIfMatched(this IUrlHelper urlHelper, string controller)
     {
         ArgumentNullException.ThrowIfNull(urlHelper);
         var result = "active";
