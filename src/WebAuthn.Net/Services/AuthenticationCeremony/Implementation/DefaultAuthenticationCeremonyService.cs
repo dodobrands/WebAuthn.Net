@@ -65,7 +65,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <param name="timeProvider">Current time provider.</param>
     /// <param name="publicKeyCredentialRequestOptionsEncoder">Encoder for transforming <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for JSON serialization.</param>
     /// <param name="credentialStorage">Credential storage. This is where the credentials are located, providing methods for storing credentials that are created during the registration ceremony, as well as methods for accessing them during the authentication ceremony.</param>
-    /// <param name="ceremonyStorage">Storage for authentication ceremony data. Used for storing options used in the authentication ceremony.</param>
+    /// <param name="ceremonyStorage">Storage for authentication ceremony data.</param>
     /// <param name="authenticationResponseDecoder">Decoder for <see cref="AuthenticationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization into a typed representation.</param>
     /// <param name="clientDataDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation.</param>
     /// <param name="attestationObjectDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary into a typed representation.</param>
@@ -179,7 +179,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     protected ICredentialStorage<TContext> CredentialStorage { get; }
 
     /// <summary>
-    ///     Storage for authentication ceremony data. Used for storing options used in the authentication ceremony.
+    ///     Storage for authentication ceremony data.
     /// </summary>
     protected IAuthenticationCeremonyStorage<TContext> CeremonyStorage { get; }
 
@@ -276,7 +276,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var expectedRpParameters = new AuthenticationCeremonyRpParameters(rpId, origins, allowIframe, topOrigins);
             var timeout = GetTimeout(request);
             var createdAt = TimeProvider.GetRoundUtcDateTime();
-            var expiresAt = ComputeExpiresAtUtc(createdAt, timeout);
+            var expiresAt = GetExpiresAtUtc(createdAt, timeout);
             var options = CreatePublicKeyCredentialRequestOptions(request, timeout, rpId, challenge, credentialsToInclude);
             var outputOptions = PublicKeyCredentialRequestOptionsEncoder.Encode(options);
             var authenticationCeremonyOptions = new AuthenticationCeremonyParameters(
@@ -723,12 +723,12 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     }
 
     /// <summary>
-    ///     Computes the expiration date of the authentication ceremony.
+    ///     Computes the expiration date of the authentication ceremony's lifetime.
     /// </summary>
     /// <param name="createdAt">Creation date of the authentication ceremony.</param>
     /// <param name="timeout">Authentication ceremony timeout in milliseconds.</param>
-    /// <returns>The expiration date of the authentication ceremony, after which it will be considered that its data has been deleted.</returns>
-    protected virtual DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset createdAt, uint timeout)
+    /// <returns>Expiration date of the authentication ceremony's lifetime, after which its data is expected to be deleted.</returns>
+    protected virtual DateTimeOffset GetExpiresAtUtc(DateTimeOffset createdAt, uint timeout)
     {
         var expiresAtMilliseconds = createdAt.ToUnixTimeMilliseconds() + timeout;
         return DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMilliseconds);

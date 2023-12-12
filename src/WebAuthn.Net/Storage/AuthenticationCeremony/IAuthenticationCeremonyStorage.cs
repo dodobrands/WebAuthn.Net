@@ -6,7 +6,7 @@ using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
 namespace WebAuthn.Net.Storage.AuthenticationCeremony;
 
 /// <summary>
-///     Storage for authentication ceremony data. Used for storing options used in the authentication ceremony.
+///     Storage for authentication ceremony data.
 /// </summary>
 /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public interface IAuthenticationCeremonyStorage<TContext>
@@ -16,7 +16,7 @@ public interface IAuthenticationCeremonyStorage<TContext>
     ///     Saves the parameters of the specified authentication ceremony and returns the unique identifier of the saved record.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
-    /// <param name="authenticationCeremony">Parameters of the authentication ceremony.</param>
+    /// <param name="authenticationCeremony">Authentication ceremony parameters.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>Unique identifier of the saved authentication ceremony parameters.</returns>
     Task<string> SaveAsync(

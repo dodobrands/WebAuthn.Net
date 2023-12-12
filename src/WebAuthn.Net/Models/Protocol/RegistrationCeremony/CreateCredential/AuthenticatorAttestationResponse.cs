@@ -6,7 +6,7 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 namespace WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 
 /// <summary>
-///     Information About Public Key Credential
+///     Information about Public Key Credential
 /// </summary>
 /// <remarks>
 ///     <para>

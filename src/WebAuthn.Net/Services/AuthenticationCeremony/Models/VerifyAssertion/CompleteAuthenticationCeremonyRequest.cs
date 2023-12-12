@@ -12,7 +12,7 @@ public class CompleteAuthenticationCeremonyRequest
     ///     Constructs <see cref="CompleteAuthenticationCeremonyRequest" />.
     /// </summary>
     /// <param name="authenticationCeremonyId">Unique identifier of the authentication ceremony.</param>
-    /// <param name="response">The result of executing the authentication ceremony, serialized into JSON according to the rules described in the specification.</param>
+    /// <param name="response">The result of performing the authentication ceremony serialized into a model suitable for JSON serialization in accordance with the rules described in the specification.</param>
     /// <exception cref="ArgumentNullException"><paramref name="authenticationCeremonyId" /> is <see langword="null" /></exception>
     /// <exception cref="ArgumentException"><paramref name="authenticationCeremonyId" /> is empty</exception>
     /// <exception cref="ArgumentNullException"><paramref name="response" /> is <see langword="null" /></exception>
@@ -38,7 +38,7 @@ public class CompleteAuthenticationCeremonyRequest
     public string AuthenticationCeremonyId { get; }
 
     /// <summary>
-    ///     The result of executing the authentication ceremony, serialized into JSON according to the rules described in the specification.
+    ///     The result of performing the authentication ceremony serialized into a model suitable for JSON serialization in accordance with the rules described in the specification.
     /// </summary>
     public AuthenticationResponseJSON Response { get; }
 }

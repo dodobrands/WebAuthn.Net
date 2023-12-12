@@ -12,6 +12,6 @@ public interface IPublicKeyCredentialRequestOptionsEncoder
     ///     Converts <see cref="PublicKeyCredentialRequestOptions" /> into a model suitable for serialization into JSON.
     /// </summary>
     /// <param name="options"><see cref="PublicKeyCredentialRequestOptions" /> that need to be converted into a model suitable for serialization into JSON.</param>
-    /// <returns>A model suitable for serialization into JSON.</returns>
+    /// <returns>Model suitable for serialization into JSON.</returns>
     PublicKeyCredentialRequestOptionsJSON Encode(PublicKeyCredentialRequestOptions options);
 }

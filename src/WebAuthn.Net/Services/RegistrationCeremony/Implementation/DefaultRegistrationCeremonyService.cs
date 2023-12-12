@@ -14,6 +14,7 @@ using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder;
@@ -34,6 +35,7 @@ using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder;
 using WebAuthn.Net.Services.Serialization.Cose.Models;
+using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 using WebAuthn.Net.Services.Static;
 using WebAuthn.Net.Storage.Credential;
@@ -43,11 +45,37 @@ using WebAuthn.Net.Storage.RegistrationCeremony.Models;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IRegistrationCeremonyService" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultRegistrationCeremonyService<TContext>
     : IRegistrationCeremonyService
     where TContext : class, IWebAuthnContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultRegistrationCeremonyService{TContext}" />.
+    /// </summary>
+    /// <param name="options">Accessor for getting the current value of global options.</param>
+    /// <param name="contextFactory">Factory for creating a WebAuthn operation context.</param>
+    /// <param name="rpIdProvider">Provider of the rpId value based on the <see cref="HttpContext" />.</param>
+    /// <param name="rpOriginProvider">Provider of the origin value based on the <see cref="HttpContext" />.</param>
+    /// <param name="challengeGenerator">Generator of challenges for WebAuthn ceremonies.</param>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="publicKeyCredentialCreationOptionsEncoder">Encoder for transforming <see cref="PublicKeyCredentialCreationOptions" /> into a model suitable for JSON serialization.</param>
+    /// <param name="credentialStorage">Credential storage. This is where the credentials are located, providing methods for storing credentials that are created during the registration ceremony, as well as methods for accessing them during the authentication ceremony.</param>
+    /// <param name="ceremonyStorage">Storage for registration ceremony data.</param>
+    /// <param name="registrationResponseDecoder">Decoder for <see cref="RegistrationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization to a typed representation.</param>
+    /// <param name="clientDataDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation.</param>
+    /// <param name="attestationObjectDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary into a typed representation.</param>
+    /// <param name="authenticatorDataDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary into a typed representation.</param>
+    /// <param name="attestationStatementDecoder">Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR into a typed representation.</param>
+    /// <param name="attestationStatementVerifier">Verifier of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.</param>
+    /// <param name="attestationTrustPathValidator"><a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> validator. It validates that the attestation statement is trustworthy.</param>
+    /// <param name="counters">Counters for registration ceremony metrics.</param>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultRegistrationCeremonyService(
         IOptionsMonitor<WebAuthnOptions> options,
         IWebAuthnContextFactory<TContext> contextFactory,
@@ -106,25 +134,97 @@ public class DefaultRegistrationCeremonyService<TContext>
         Logger = logger;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of global options.
+    /// </summary>
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
+
+    /// <summary>
+    ///     Factory for creating a WebAuthn operation context.
+    /// </summary>
     protected IWebAuthnContextFactory<TContext> ContextFactory { get; }
+
+    /// <summary>
+    ///     Provider of the rpId value based on the <see cref="HttpContext" />.
+    /// </summary>
     protected IRelyingPartyIdProvider RpIdProvider { get; }
+
+    /// <summary>
+    ///     Provider of the origin value based on the <see cref="HttpContext" />.
+    /// </summary>
     protected IRelyingPartyOriginProvider RpOriginProvider { get; }
+
+    /// <summary>
+    ///     Generator of challenges for WebAuthn ceremonies.
+    /// </summary>
     protected IChallengeGenerator ChallengeGenerator { get; }
+
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
+
+    /// <summary>
+    ///     Encoder for transforming <see cref="PublicKeyCredentialCreationOptions" /> into a model suitable for JSON serialization.
+    /// </summary>
     protected IPublicKeyCredentialCreationOptionsEncoder PublicKeyCredentialCreationOptionsEncoder { get; }
+
+    /// <summary>
+    ///     Credential storage. This is where the credentials are located, providing methods for storing credentials that are created during the registration ceremony, as well as methods for accessing them during the authentication ceremony.
+    /// </summary>
     protected ICredentialStorage<TContext> CredentialStorage { get; }
+
+    /// <summary>
+    ///     Storage for registration ceremony data.
+    /// </summary>
     protected IRegistrationCeremonyStorage<TContext> CeremonyStorage { get; }
+
+    /// <summary>
+    ///     Decoder for <see cref="RegistrationResponseJSON" /> (<a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#iface-pkcredential">PublicKeyCredential</a>) from a model suitable for JSON serialization to a typed representation.
+    /// </summary>
     protected IRegistrationResponseDecoder RegistrationResponseDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dictionary-client-data">clientData</a> from JSON into a typed representation.
+    /// </summary>
     protected IClientDataDecoder ClientDataDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#fig-attStructs">attestationObject</a> from binary into a typed representation.
+    /// </summary>
     protected IAttestationObjectDecoder AttestationObjectDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from binary into a typed representation.
+    /// </summary>
     protected IAuthenticatorDataDecoder AuthenticatorDataDecoder { get; }
+
+    /// <summary>
+    ///     Decoder for <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> from CBOR into a typed representation.
+    /// </summary>
     protected IAttestationStatementDecoder AttestationStatementDecoder { get; }
+
+    /// <summary>
+    ///     Verifier of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a>.
+    /// </summary>
     protected IAttestationStatementVerifier<TContext> AttestationStatementVerifier { get; }
+
+    /// <summary>
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">Attestation trust path</a> validator. It validates that the attestation statement is trustworthy.
+    /// </summary>
     protected IAttestationTrustPathValidator AttestationTrustPathValidator { get; }
-    protected ILogger<DefaultRegistrationCeremonyService<TContext>> Logger { get; }
+
+    /// <summary>
+    ///     Counters for registration ceremony metrics.
+    /// </summary>
     protected IRegistrationCeremonyCounters Counters { get; }
 
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultRegistrationCeremonyService<TContext>> Logger { get; }
+
+    /// <inheritdoc />
     public virtual async Task<BeginRegistrationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
         BeginRegistrationCeremonyRequest request,
@@ -160,8 +260,8 @@ public class DefaultRegistrationCeremonyService<TContext>
         var expectedRpParameters = new RegistrationCeremonyRpParameters(rpId, origins, allowIframe, topOrigins);
         var timeout = GetTimeout(request);
         var createdAt = TimeProvider.GetRoundUtcDateTime();
-        var expiresAt = ComputeExpiresAtUtc(createdAt, timeout);
-        var options = ToPublicKeyCredentialCreationOptions(request, timeout, rpId, challenge, credentialsToExclude);
+        var expiresAt = GetExpiresAtUtc(createdAt, timeout);
+        var options = CreatePublicKeyCredentialCreationOptions(request, timeout, rpId, challenge, credentialsToExclude);
         var outputOptions = PublicKeyCredentialCreationOptionsEncoder.Encode(options);
         var registrationCeremony = new RegistrationCeremonyParameters(
             options,
@@ -175,6 +275,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         return result;
     }
 
+    /// <inheritdoc />
     public virtual async Task<CompleteRegistrationCeremonyResult> CompleteCeremonyAsync(
         HttpContext httpContext,
         CompleteRegistrationCeremonyRequest request,
@@ -481,7 +582,7 @@ public class DefaultRegistrationCeremonyService<TContext>
 
             // 27. If the attestation statement 'attStmt' verified successfully and is found to be trustworthy,
             // then create and store a new credential record in the user account that was denoted in options.user
-            var credentialRecord = ToCredentialRecord(
+            var credentialRecord = CreateCredentialRecord(
                 credential,
                 authData,
                 uvInitialized,
@@ -513,12 +614,23 @@ public class DefaultRegistrationCeremonyService<TContext>
         }
     }
 
-    protected static DateTimeOffset ComputeExpiresAtUtc(DateTimeOffset value, uint timeout)
+    /// <summary>
+    ///     Computes the expiration date of the registration ceremony's lifetime.
+    /// </summary>
+    /// <param name="createdAt">Creation date of the registration ceremony.</param>
+    /// <param name="timeout">Registration ceremony timeout in milliseconds</param>
+    /// <returns>Expiration date of the registration ceremony's lifetime, after which its data is expected to be deleted.</returns>
+    protected static DateTimeOffset GetExpiresAtUtc(DateTimeOffset createdAt, uint timeout)
     {
-        var expiresAtMilliseconds = value.ToUnixTimeMilliseconds() + timeout;
+        var expiresAtMilliseconds = createdAt.ToUnixTimeMilliseconds() + timeout;
         return DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMilliseconds);
     }
 
+    /// <summary>
+    ///     Computes the registration ceremony timeout in milliseconds.
+    /// </summary>
+    /// <param name="request">Request containing parameters for generating the registration ceremony options.</param>
+    /// <returns>Registration ceremony timeout in milliseconds.</returns>
     protected virtual uint GetTimeout(BeginRegistrationCeremonyRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -530,6 +642,15 @@ public class DefaultRegistrationCeremonyService<TContext>
         return Options.CurrentValue.RegistrationCeremony.DefaultTimeout;
     }
 
+    /// <summary>
+    ///     Returns the descriptors of credentials that will be included in the resulting set of <see cref="PublicKeyCredentialCreationOptions.ExcludeCredentials" /> options of the registration ceremony.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="rpId">The rpId for which the descriptor set is being formed.</param>
+    /// <param name="userHandle">The unique identifier of the user for whom the descriptor set is being formed.</param>
+    /// <param name="options">Parameters for forming a set of descriptors, obtained from the request to create registration ceremony options.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>An array containing at least one descriptor or <see langword="null" />.</returns>
     protected virtual async Task<PublicKeyCredentialDescriptor[]?> GetCredentialsToExcludeAsync(
         TContext context,
         string rpId,
@@ -579,7 +700,19 @@ public class DefaultRegistrationCeremonyService<TContext>
         return null;
     }
 
-    protected virtual PublicKeyCredentialCreationOptions ToPublicKeyCredentialCreationOptions(
+    /// <summary>
+    ///     Creates options with which the registration ceremony will be performed.
+    /// </summary>
+    /// <param name="request">Request containing parameters for generating the registration ceremony options.</param>
+    /// <param name="timeout">Registration ceremony timeout in milliseconds.</param>
+    /// <param name="rpId">rpId on which the registration ceremony will be performed.</param>
+    /// <param name="challenge">Challenge that will be used in the registration ceremony.</param>
+    /// <param name="excludeCredentials">
+    ///     Array of public key descriptors for the registration ceremony. If <see langword="null" />, the mechanism that ensures that a new credential is not created on an authenticator that already contains a credential mapped to this user account will not
+    ///     work.
+    /// </param>
+    /// <returns>Options with which the registration ceremony will be performed.</returns>
+    protected virtual PublicKeyCredentialCreationOptions CreatePublicKeyCredentialCreationOptions(
         BeginRegistrationCeremonyRequest request,
         uint timeout,
         string rpId,
@@ -608,7 +741,21 @@ public class DefaultRegistrationCeremonyService<TContext>
         return publicKeyOptions;
     }
 
-    protected virtual CredentialRecord ToCredentialRecord(
+    /// <summary>
+    ///     Creates a <see cref="CredentialRecord" />, which is the final artifact of the registration ceremony.
+    /// </summary>
+    /// <param name="credential">PublicKeyCredential. The response received from the authenticator during the registration ceremony.</param>
+    /// <param name="authData">Authenticator Data (which has attestedCredentialData).</param>
+    /// <param name="uvInitialized">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-uv">user verified (UV)</a> flag in authData.</param>
+    /// <param name="backupEligible">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">backup eligibility (BE)</a> flag in authData.</param>
+    /// <param name="backupState">The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-bs">backup state (BS)</a> flag in authData.</param>
+    /// <param name="response">Information about Public Key Credential</param>
+    /// <returns>Instance of <see cref="CredentialRecord" />.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="credential" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="authData" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="response" /> is <see langword="null" /></exception>
+    /// <exception cref="InvalidOperationException">The type of <see cref="AttestedCredentialData.CredentialPublicKey" /> does not match <see cref="AbstractCoseKey.Kty" /></exception>
+    protected virtual CredentialRecord CreateCredentialRecord(
         RegistrationResponse credential,
         AttestedAuthenticatorData authData,
         bool uvInitialized,
@@ -686,11 +833,20 @@ public class DefaultRegistrationCeremonyService<TContext>
     }
 }
 
+/// <summary>
+///     Extension method for logging the registration ceremony.
+/// </summary>
 public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
 {
     private static readonly Func<ILogger, string, IDisposable?> BeginCompleteRegistrationCeremonyScopeDelegate = LoggerMessage.DefineScope<string>(
         "Completion of registration ceremony with Id: {RegistrationCeremonyId}");
 
+    /// <summary>
+    ///     Creates a logging scope, within which the start of the registration ceremony will be handled.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="registrationCeremonyId">Unique identifier of the registration ceremony.</param>
+    /// <returns>A logging scope, in the form of an IDisposable object, the Dispose of which signifies the end of the scope's operation.</returns>
     public static IDisposable? BeginCompleteRegistrationCeremonyScope(
         this ILogger logger,
         string registrationCeremonyId)
@@ -698,120 +854,203 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
         return BeginCompleteRegistrationCeremonyScopeDelegate(logger, registrationCeremonyId);
     }
 
+    /// <summary>
+    ///     Registration ceremony not found.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Registration ceremony not found")]
     public static partial void RegistrationCeremonyNotFound(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode RegistrationResponseJSON
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode RegistrationResponseJSON")]
     public static partial void FailedToDecodeRegistrationResponseJson(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode 'clientData'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode 'clientData'")]
     public static partial void FailedToDecodeClientData(this ILogger logger);
 
+    /// <summary>
+    ///     The 'clientData.type' is incorrect, as it expected 'webauthn.create' but received '{ClientDataType}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="clientDataType">The received 'clientData.type' value.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'clientData.type' is incorrect, as it expected 'webauthn.create' but received '{ClientDataType}'")]
     public static partial void IncorrectClientDataType(this ILogger logger, string clientDataType);
 
+    /// <summary>
+    ///     The challenge in the registration completion request doesn't match the one generated for this registration ceremony
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The challenge in the registration completion request doesn't match the one generated for this registration ceremony")]
     public static partial void ChallengeMismatch(this ILogger logger);
 
+    /// <summary>
+    ///     Invalid value for origin: '{ClientDataOrigin}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="clientDataOrigin">The origin obtained from clientData.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Invalid value for origin: '{ClientDataOrigin}'")]
     public static partial void InvalidOrigin(this ILogger logger, string clientDataOrigin);
 
+    /// <summary>
+    ///     Invalid value for topOrigin: '{ClientDataTopOrigin}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="clientDataTopOrigin">The topOrigin obtained from clientData.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Invalid value for topOrigin: '{ClientDataTopOrigin}'")]
     public static partial void InvalidTopOrigin(this ILogger logger, string clientDataTopOrigin);
 
+    /// <summary>
+    ///     Failed to perform CBOR decoding of the AttestationObject
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to perform CBOR decoding of the AttestationObject")]
     public static partial void AttestationObjectDecodeFailed(this ILogger logger);
 
+    /// <summary>
+    ///     'authData' must be present in the attestationObject for the registration ceremony, but it is null
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "'authData' must be present in the attestationObject for the registration ceremony, but it is null")]
     public static partial void NullAuthDataForRegistration(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode 'authData' from 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode 'authData' from 'attestationObject'")]
     public static partial void FailedToDecodeAuthData(this ILogger logger);
 
+    /// <summary>
+    ///     Failed to decode 'attStmt' from 'attestationObject'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "Failed to decode 'attStmt' from 'attestationObject'")]
     public static partial void FailedToDecodeAttStmt(this ILogger logger);
 
+    /// <summary>
+    ///     The 'rpIdHash' in 'authData' does not match the SHA-256 hash of the RP ID expected by the Relying Party
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "The 'rpIdHash' in 'authData' does not match the SHA-256 hash of the RP ID expected by the Relying Party")]
     public static partial void RpIdHashMismatch(this ILogger logger);
 
+    /// <summary>
+    ///     User Present bit in 'authData.flags' isn't set
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "User Present bit in 'authData.flags' isn't set")]
     public static partial void UserPresentBitNotSet(this ILogger logger);
 
+    /// <summary>
+    ///     User Verification bit in 'authData.flags' is required, but not set
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "User Verification bit in 'authData.flags' is required, but not set")]
     public static partial void UserVerificationBitNotSet(this ILogger logger);
 
+    /// <summary>
+    ///     'authData.flags' contains an invalid combination of Backup Eligibility (BE) and Backup State (BS) flags
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "'authData.flags' contains an invalid combination of Backup Eligibility (BE) and Backup State (BS) flags")]
     public static partial void InvalidBeBsFlagsCombination(this ILogger logger);
 
+    /// <summary>
+    ///     'attestedCredentialData' is required for the registration ceremony, but it is null
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "'attestedCredentialData' is required for the registration ceremony, but it is null")]
     public static partial void AttestedCredentialDataIsNull(this ILogger logger);
 
+    /// <summary>
+    ///     'alg' parameter in authData doesn't match with any in 'options.pubKeyCredParams'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "'alg' parameter in authData doesn't match with any in 'options.pubKeyCredParams'")]
     public static partial void AuthDataAlgDoesntMatchPubKeyCredParams(this ILogger logger);
 
+    /// <summary>
+    ///     'attStmt' is invalid, failing to convey a valid attestation signature using 'fmt''s verification procedure with given 'authData' and 'hash'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "'attStmt' is invalid, failing to convey a valid attestation signature using 'fmt''s verification procedure with given 'authData' and 'hash'")]
     public static partial void InvalidAttStmt(this ILogger logger);
 
+    /// <summary>
+    ///     A 'None' attestation has been provided, but the Relying Party policy does not permit 'None' attestations
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
         Message = "A 'None' attestation has been provided, but the Relying Party policy does not permit 'None' attestations")]
     public static partial void NoneAttestationDisallowed(this ILogger logger);
 
+    /// <summary>
+    ///     A 'Self' attestation has been provided, but the Relying Party policy does not permit 'Self' attestations
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         EventId = default,
         Level = LogLevel.Warning,
