@@ -15,6 +15,10 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 /// </summary>
 public class DefaultCborDeserializer : ICborDeserializer
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultCborDeserializer" />.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     public DefaultCborDeserializer(ILogger<DefaultCborDeserializer> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
@@ -28,7 +32,7 @@ public class DefaultCborDeserializer : ICborDeserializer
 
     /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    public Result<CborRoot> Deserialize(byte[] input)
+    public virtual Result<CborRoot> Deserialize(byte[] input)
     {
         try
         {
@@ -123,30 +127,6 @@ public class DefaultCborDeserializer : ICborDeserializer
                 {
                     Logger.CborReaderTag();
                     return Result<AbstractCborObject>.Fail();
-                }
-            case CborReaderState.SimpleValue:
-                {
-                    return ReadSimpleValue(reader);
-                }
-            case CborReaderState.HalfPrecisionFloat:
-                {
-                    return Transform(ReadHalfPrecisionFloat(reader));
-                }
-            case CborReaderState.SinglePrecisionFloat:
-                {
-                    return Transform(ReadSinglePrecisionFloat(reader));
-                }
-            case CborReaderState.DoublePrecisionFloat:
-                {
-                    return Transform(ReadDoublePrecisionFloat(reader));
-                }
-            case CborReaderState.Null:
-                {
-                    return Transform(ReadNull(reader));
-                }
-            case CborReaderState.Boolean:
-                {
-                    return Transform(ReadBoolean(reader));
                 }
             case CborReaderState.Finished:
                 {
@@ -264,126 +244,125 @@ public class DefaultCborDeserializer : ICborDeserializer
         var result = new CborMap(accumulator);
         return Result<CborMap>.Success(result);
     }
-
-    private Result<AbstractCborObject> ReadSimpleValue(CborReader reader)
-    {
-        var simpleValue = reader.ReadSimpleValue();
-        switch (simpleValue)
-        {
-            case CborSimpleValue.False:
-                return Result<AbstractCborObject>.Success(CborBoolean.False);
-            case CborSimpleValue.True:
-                return Result<AbstractCborObject>.Success(CborBoolean.True);
-            case CborSimpleValue.Null:
-                return Result<AbstractCborObject>.Success(CborNull.Instance);
-            case CborSimpleValue.Undefined:
-                return Result<AbstractCborObject>.Success(CborUndefined.Instance);
-            default:
-                {
-                    Logger.UnsupportedSimpleValue();
-                    return Result<AbstractCborObject>.Fail();
-                }
-        }
-    }
-
-    private static Result<CborHalfPrecisionFloat> ReadHalfPrecisionFloat(CborReader reader)
-    {
-        var value = reader.ReadHalf();
-        var result = new CborHalfPrecisionFloat(value);
-        return Result<CborHalfPrecisionFloat>.Success(result);
-    }
-
-    private static Result<CborSinglePrecisionFloat> ReadSinglePrecisionFloat(CborReader reader)
-    {
-        var value = reader.ReadSingle();
-        var result = new CborSinglePrecisionFloat(value);
-        return Result<CborSinglePrecisionFloat>.Success(result);
-    }
-
-    private static Result<CborDoublePrecisionFloat> ReadDoublePrecisionFloat(CborReader reader)
-    {
-        var value = reader.ReadDouble();
-        var result = new CborDoublePrecisionFloat(value);
-        return Result<CborDoublePrecisionFloat>.Success(result);
-    }
-
-    private static Result<CborNull> ReadNull(CborReader reader)
-    {
-        reader.ReadNull();
-        var result = CborNull.Instance;
-        return Result<CborNull>.Success(result);
-    }
-
-    private static Result<CborBoolean> ReadBoolean(CborReader reader)
-    {
-        var value = reader.ReadBoolean();
-        var result = value ? CborBoolean.True : CborBoolean.False;
-        return Result<CborBoolean>.Success(result);
-    }
 }
 
+/// <summary>
+///     Extension method for logging of the CBOR deserializer.
+/// </summary>
 public static partial class DefaultCborDeserializerLoggingExtensions
 {
+    /// <summary>
+    ///     The CborReader is in an 'Undefined' state, unable to perform reading
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The CborReader is in an 'Undefined' state, unable to perform reading")]
     public static partial void CborReaderUndefined(this ILogger logger);
 
+    /// <summary>
+    ///     Attempt to start reading a CBOR byte string with indefinite length, while all items must have a definite length
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Attempt to start reading a CBOR byte string with indefinite length, while all items must have a definite length")]
     public static partial void CborReaderStartIndefiniteLengthByteString(this ILogger logger);
 
+    /// <summary>
+    ///     Attempt to end reading a CBOR byte string with indefinite length, while all items must have a definite length
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Attempt to end reading a CBOR byte string with indefinite length, while all items must have a definite length")]
     public static partial void CborReaderEndIndefiniteLengthByteString(this ILogger logger);
 
+    /// <summary>
+    ///     Attempt to start reading a CBOR text string with indefinite length, while all items must have a definite length
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Attempt to start reading a CBOR text string with indefinite length, while all items must have a definite length")]
     public static partial void CborReaderStartIndefiniteLengthTextString(this ILogger logger);
 
+    /// <summary>
+    ///     Attempt to end reading a CBOR text string with indefinite length, while all items must have a definite length
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Attempt to end reading a CBOR text string with indefinite length, while all items must have a definite length")]
     public static partial void CborReaderEndIndefiniteLengthTextString(this ILogger logger);
 
+    /// <summary>
+    ///     The CborReader is in an 'EndArray' state, unable to perform reading
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The CborReader is in an 'EndArray' state, unable to perform reading")]
     public static partial void CborReaderEndArray(this ILogger logger);
 
+    /// <summary>
+    ///     The CborReader is in an 'EndMap' state, unable to perform reading
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The CborReader is in an 'EndMap' state, unable to perform reading")]
     public static partial void CborReaderEndMap(this ILogger logger);
 
+    /// <summary>
+    ///     According to the specification, the use of tags is forbidden
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "According to the specification, the use of tags is forbidden")]
     public static partial void CborReaderTag(this ILogger logger);
 
+    /// <summary>
+    ///     The CborReader is in an 'Finished' state, unable to perform reading
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The CborReader is in an 'Finished' state, unable to perform reading")]
     public static partial void CborReaderFinished(this ILogger logger);
 
+    /// <summary>
+    ///     Unhandled state encountered
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Unhandled state encountered")]
     public static partial void CborReaderUnhandledState(this ILogger logger);
 
+    /// <summary>
+    ///     An array with indefinite length was detected, and all items must have a definite length
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "An array with indefinite length was detected, and all items must have a definite length")]
     public static partial void ArrayIndefiniteLength(this ILogger logger);
 
+    /// <summary>
+    ///     A map with indefinite length was detected, and all items must have a definite length
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "A map with indefinite length was detected, and all items must have a definite length")]
     public static partial void MapIndefiniteLength(this ILogger logger);
 
+    /// <summary>
+    ///     Attempt to read unsupported CBOR simple value
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Attempt to read unsupported CBOR simple value")]

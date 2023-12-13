@@ -10,11 +10,26 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IPublicKeyCredentialCreationOptionsEncoder" />.
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public class DefaultPublicKeyCredentialCreationOptionsEncoder
     : IPublicKeyCredentialCreationOptionsEncoder
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultPublicKeyCredentialCreationOptionsEncoder" />.
+    /// </summary>
+    /// <param name="publicKeyCredentialTypeSerializer">Serializer for the <see cref="PublicKeyCredentialType" /> enum.</param>
+    /// <param name="authenticatorTransportSerializer">Serializer for the <see cref="AuthenticatorTransport" /> enum.</param>
+    /// <param name="authenticatorAttachmentSerializer">Serializer for the <see cref="AuthenticatorAttachment" /> enum.</param>
+    /// <param name="residentKeyRequirementSerializer">Serializer for the <see cref="ResidentKeyRequirement" /> enum.</param>
+    /// <param name="userVerificationRequirementSerializer">Serializer for the <see cref="UserVerificationRequirement" /> enum.</param>
+    /// <param name="publicKeyCredentialHintsSerializer">Serializer for the <see cref="PublicKeyCredentialHints" /> enum.</param>
+    /// <param name="attestationConveyancePreferenceSerializer">Serializer for the <see cref="AttestationConveyancePreference" /> enum.</param>
+    /// <param name="attestationStatementFormatSerializer">Serializer for the <see cref="AttestationStatementFormat" /> enum.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPublicKeyCredentialCreationOptionsEncoder(
         IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer,
         IEnumMemberAttributeSerializer<AuthenticatorTransport> authenticatorTransportSerializer,
@@ -43,16 +58,48 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         AttestationStatementFormatSerializer = attestationStatementFormatSerializer;
     }
 
+    /// <summary>
+    ///     Serializer for the <see cref="PublicKeyCredentialType" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorTransport" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticatorTransport> AuthenticatorTransportSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorAttachment" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticatorAttachment> AuthenticatorAttachmentSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="ResidentKeyRequirement" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<ResidentKeyRequirement> ResidentKeyRequirementSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="UserVerificationRequirement" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<UserVerificationRequirement> UserVerificationRequirementSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="PublicKeyCredentialHints" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialHints> PublicKeyCredentialHintsSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AttestationConveyancePreference" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AttestationConveyancePreference> AttestationConveyancePreferenceSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AttestationStatementFormat" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
 
-    public PublicKeyCredentialCreationOptionsJSON Encode(PublicKeyCredentialCreationOptions options)
+    /// <inheritdoc />
+    public virtual PublicKeyCredentialCreationOptionsJSON Encode(PublicKeyCredentialCreationOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         var rp = EncodeRp(options.Rp);
@@ -79,20 +126,20 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return result;
     }
 
-    protected virtual PublicKeyCredentialRpEntityJSON EncodeRp(PublicKeyCredentialRpEntity rp)
+    private static PublicKeyCredentialRpEntityJSON EncodeRp(PublicKeyCredentialRpEntity rp)
     {
         ArgumentNullException.ThrowIfNull(rp);
         return new(rp.Name, rp.Id);
     }
 
-    protected virtual PublicKeyCredentialUserEntityJSON EncodeUser(PublicKeyCredentialUserEntity user)
+    private static PublicKeyCredentialUserEntityJSON EncodeUser(PublicKeyCredentialUserEntity user)
     {
         ArgumentNullException.ThrowIfNull(user);
         var id = Base64Url.Encode(user.Id);
         return new(id, user.Name, user.DisplayName);
     }
 
-    protected virtual PublicKeyCredentialParametersJSON[] EncodePubKeyCredParams(PublicKeyCredentialParameters[] pubKeyCredParams)
+    private PublicKeyCredentialParametersJSON[] EncodePubKeyCredParams(PublicKeyCredentialParameters[] pubKeyCredParams)
     {
         ArgumentNullException.ThrowIfNull(pubKeyCredParams);
         var result = new PublicKeyCredentialParametersJSON[pubKeyCredParams.Length];
@@ -104,7 +151,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return result;
     }
 
-    protected virtual PublicKeyCredentialParametersJSON EncodePubKeyCredParam(PublicKeyCredentialParameters pubKeyCredParam)
+    private PublicKeyCredentialParametersJSON EncodePubKeyCredParam(PublicKeyCredentialParameters pubKeyCredParam)
     {
         ArgumentNullException.ThrowIfNull(pubKeyCredParam);
         if (!PublicKeyCredentialTypeSerializer.TrySerialize(pubKeyCredParam.Type, out var type))
@@ -116,7 +163,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return new(type, alg);
     }
 
-    protected virtual PublicKeyCredentialDescriptorJSON[]? EncodeExcludeCredentials(PublicKeyCredentialDescriptor[]? excludeCredentials)
+    private PublicKeyCredentialDescriptorJSON[]? EncodeExcludeCredentials(PublicKeyCredentialDescriptor[]? excludeCredentials)
     {
         if (excludeCredentials is null)
         {
@@ -132,7 +179,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return result;
     }
 
-    protected virtual PublicKeyCredentialDescriptorJSON EncodeExcludeCredential(PublicKeyCredentialDescriptor excludeCredential)
+    private PublicKeyCredentialDescriptorJSON EncodeExcludeCredential(PublicKeyCredentialDescriptor excludeCredential)
     {
         ArgumentNullException.ThrowIfNull(excludeCredential);
         var id = Base64Url.Encode(excludeCredential.Id);
@@ -160,7 +207,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return new(id, type, transports);
     }
 
-    protected virtual AuthenticatorSelectionCriteriaJSON? EncodeAuthenticatorSelection(AuthenticatorSelectionCriteria? authenticatorSelection)
+    private AuthenticatorSelectionCriteriaJSON? EncodeAuthenticatorSelection(AuthenticatorSelectionCriteria? authenticatorSelection)
     {
         if (authenticatorSelection is null)
         {
@@ -203,7 +250,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return new(authenticatorAttachment, residentKey, authenticatorSelection.RequireResidentKey, userVerification);
     }
 
-    protected virtual string[]? EncodeHints(PublicKeyCredentialHints[]? hints)
+    private string[]? EncodeHints(PublicKeyCredentialHints[]? hints)
     {
         if (hints is null)
         {
@@ -224,7 +271,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return result;
     }
 
-    protected virtual string? EncodeAttestation(AttestationConveyancePreference? attestation)
+    private string? EncodeAttestation(AttestationConveyancePreference? attestation)
     {
         if (!attestation.HasValue)
         {
@@ -239,7 +286,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return result;
     }
 
-    protected virtual string[]? EncodeAttestationFormats(AttestationStatementFormat[]? attestationFormats)
+    private string[]? EncodeAttestationFormats(AttestationStatementFormat[]? attestationFormats)
     {
         if (attestationFormats is null)
         {

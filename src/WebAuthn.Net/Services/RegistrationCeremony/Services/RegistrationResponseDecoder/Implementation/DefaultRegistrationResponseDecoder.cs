@@ -10,10 +10,20 @@ using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IRegistrationResponseDecoder" />.
+/// </summary>
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultRegistrationResponseDecoder" />.
+    /// </summary>
+    /// <param name="authenticatorTransportSerializer">Serializer for the <see cref="AuthenticatorTransport" /> enum.</param>
+    /// <param name="authenticatorAttachmentSerializer">Serializer for the <see cref="AuthenticatorAttachment" /> enum.</param>
+    /// <param name="publicKeyCredentialTypeSerializer">Serializer for the <see cref="PublicKeyCredentialType" /> enum.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultRegistrationResponseDecoder(
         IEnumMemberAttributeSerializer<AuthenticatorTransport> authenticatorTransportSerializer,
         IEnumMemberAttributeSerializer<AuthenticatorAttachment> authenticatorAttachmentSerializer,
@@ -27,10 +37,22 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
         PublicKeyCredentialTypeSerializer = publicKeyCredentialTypeSerializer;
     }
 
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorTransport" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticatorTransport> AuthenticatorTransportSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorAttachment" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<AuthenticatorAttachment> AuthenticatorAttachmentSerializer { get; }
+
+    /// <summary>
+    ///     Serializer for the <see cref="PublicKeyCredentialType" /> enum.
+    /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
 
+    /// <inheritdoc />
     public Result<RegistrationResponse> Decode(RegistrationResponseJSON registrationResponse)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -81,8 +103,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
         return Result<RegistrationResponse>.Success(result);
     }
 
-    protected virtual Result<AuthenticatorAttestationResponse> DecodeAttestationResponse(
-        AuthenticatorAttestationResponseJSON attestationResponseJson)
+    private Result<AuthenticatorAttestationResponse> DecodeAttestationResponse(AuthenticatorAttestationResponseJSON attestationResponseJson)
     {
         ArgumentNullException.ThrowIfNull(attestationResponseJson);
         if (!Base64Url.TryDecode(attestationResponseJson.ClientDataJson, out var clientDataJson))

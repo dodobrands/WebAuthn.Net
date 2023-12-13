@@ -58,35 +58,35 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
         return tagValue switch
         {
             UniversalTagNumber.EndOfContents => Result<AbstractAsn1Element>.Fail(),
-            UniversalTagNumber.Boolean => Transform(ReadBoolean(reader, tag)),
-            UniversalTagNumber.Integer => Transform(ReadInteger(reader, tag)),
-            UniversalTagNumber.BitString => Transform(ReadBitString(reader, tag)),
+            UniversalTagNumber.Boolean => Transform(ReadRaw(reader, tag)),
+            UniversalTagNumber.Integer => Transform(ReadRaw(reader, tag)),
+            UniversalTagNumber.BitString => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.OctetString => Transform(ReadOctetString(reader, tag)),
-            UniversalTagNumber.Null => Transform(ReadNull(reader, tag)),
+            UniversalTagNumber.Null => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.ObjectIdentifier => Transform(ReadObjectIdentifier(reader, tag)),
             UniversalTagNumber.ObjectDescriptor => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.External => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.Real => Transform(ReadRaw(reader, tag)),
-            UniversalTagNumber.Enumerated => Transform(ReadEnumerated(reader, tag)),
+            UniversalTagNumber.Enumerated => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.Embedded => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.UTF8String => Transform(ReadUtf8String(reader, tag)),
             UniversalTagNumber.RelativeObjectIdentifier => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.Time => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.Sequence => Transform(ReadSequence(reader, tag)),
             UniversalTagNumber.Set => Transform(ReadSet(reader, tag)),
-            UniversalTagNumber.NumericString => Transform(ReadNumericString(reader, tag)),
-            UniversalTagNumber.PrintableString => Transform(ReadPrintableString(reader, tag)),
-            UniversalTagNumber.T61String => Transform(ReadT61String(reader, tag)),
+            UniversalTagNumber.NumericString => Transform(ReadRaw(reader, tag)),
+            UniversalTagNumber.PrintableString => Transform(ReadRaw(reader, tag)),
+            UniversalTagNumber.T61String => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.VideotexString => Transform(ReadRaw(reader, tag)),
-            UniversalTagNumber.IA5String => Transform(ReadIa5String(reader, tag)),
+            UniversalTagNumber.IA5String => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.UtcTime => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.GeneralizedTime => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.GraphicString => Transform(ReadRaw(reader, tag)),
-            UniversalTagNumber.VisibleString => Transform(ReadVisibleString(reader, tag)),
+            UniversalTagNumber.VisibleString => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.GeneralString => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.UniversalString => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.UnrestrictedCharacterString => Transform(ReadRaw(reader, tag)),
-            UniversalTagNumber.BMPString => Transform(ReadBmpString(reader, tag)),
+            UniversalTagNumber.BMPString => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.Date => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.TimeOfDay => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.DateTime => Transform(ReadRaw(reader, tag)),
@@ -110,44 +110,12 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
             : Result<AbstractAsn1Element>.Success(source.Ok);
     }
 
-    private static Result<Asn1Boolean> ReadBoolean(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadBoolean(tag);
-        return Result<Asn1Boolean>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1Integer> ReadInteger(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadInteger(tag);
-        return Result<Asn1Integer>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1BitString> ReadBitString(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadBitString(out var unusedBitCount, tag);
-        return Result<Asn1BitString>.Success(new(tag, new(value, unusedBitCount)));
-    }
-
     private static Result<Asn1OctetString> ReadOctetString(
         AsnReader reader,
         Asn1Tag tag)
     {
         var value = reader.ReadOctetString(tag);
         return Result<Asn1OctetString>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1Null> ReadNull(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        reader.ReadNull(tag);
-        return Result<Asn1Null>.Success(new(tag));
     }
 
     private static Result<Asn1ObjectIdentifier> ReadObjectIdentifier(
@@ -164,14 +132,6 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
     {
         var value = reader.ReadEncodedValue();
         return Result<Asn1RawElement>.Success(new(tag, value.ToArray()));
-    }
-
-    private static Result<Asn1Enumerated> ReadEnumerated(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadEnumeratedBytes();
-        return Result<Asn1Enumerated>.Success(new(tag, value.ToArray()));
     }
 
     private static Result<Asn1Utf8String> ReadUtf8String(
@@ -226,53 +186,5 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
         }
 
         return Result<Asn1Set>.Success(new(tag, setItems.ToArray()));
-    }
-
-    private static Result<Asn1NumericString> ReadNumericString(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadCharacterString(UniversalTagNumber.NumericString, tag);
-        return Result<Asn1NumericString>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1PrintableString> ReadPrintableString(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadCharacterString(UniversalTagNumber.PrintableString, tag);
-        return Result<Asn1PrintableString>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1T61String> ReadT61String(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadCharacterString(UniversalTagNumber.T61String, tag);
-        return Result<Asn1T61String>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1Ia5String> ReadIa5String(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadCharacterString(UniversalTagNumber.IA5String, tag);
-        return Result<Asn1Ia5String>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1VisibleString> ReadVisibleString(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadCharacterString(UniversalTagNumber.VisibleString, tag);
-        return Result<Asn1VisibleString>.Success(new(tag, value));
-    }
-
-    private static Result<Asn1BmpString> ReadBmpString(
-        AsnReader reader,
-        Asn1Tag tag)
-    {
-        var value = reader.ReadCharacterString(UniversalTagNumber.BMPString, tag);
-        return Result<Asn1BmpString>.Success(new(tag, value));
     }
 }
