@@ -680,14 +680,14 @@ public class DefaultRegistrationCeremonyService<TContext>
             }
 
             var resultKeysToExclude = new List<PublicKeyCredentialDescriptor>(options.ManuallySpecifiedKeysToExclude.Length);
-            foreach (var existingKey in existingKeys)
+            foreach (var manualKey in options.ManuallySpecifiedKeysToExclude)
             {
-                var requestedKeyToExclude = options
-                    .ManuallySpecifiedKeysToExclude
-                    .FirstOrDefault(x => x.Type == existingKey.Type && x.Id.AsSpan().SequenceEqual(existingKey.Id));
-                if (requestedKeyToExclude is not null)
+                var existingKey = existingKeys.FirstOrDefault(x =>
+                    x.Type == manualKey.Type
+                    && x.Id.AsSpan().SequenceEqual(manualKey.Id));
+                if (existingKey is not null)
                 {
-                    resultKeysToExclude.Add(requestedKeyToExclude);
+                    resultKeysToExclude.Add(existingKey);
                 }
             }
 

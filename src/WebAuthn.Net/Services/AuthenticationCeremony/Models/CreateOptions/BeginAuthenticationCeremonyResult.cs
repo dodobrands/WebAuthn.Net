@@ -10,7 +10,7 @@ public class BeginAuthenticationCeremonyResult
     /// <summary>
     ///     Constructs <see cref="BeginAuthenticationCeremonyResult" />.
     /// </summary>
-    /// <param name="options">Model for serialization in JSON, containing the options with which it is necessary to perform the authentication ceremony in the browser.</param>
+    /// <param name="options">Model for serialization to JSON, containing the options necessary for performing the authentication ceremony.</param>
     /// <param name="authenticationCeremonyId">Unique identifier of the authentication ceremony.</param>
     public BeginAuthenticationCeremonyResult(PublicKeyCredentialRequestOptionsJSON options, string authenticationCeremonyId)
     {
@@ -19,7 +19,7 @@ public class BeginAuthenticationCeremonyResult
     }
 
     /// <summary>
-    ///     Model for serialization in JSON, containing the options with which it is necessary to perform the authentication ceremony in the browser.
+    ///     Model for serialization to JSON, containing the options necessary for performing the authentication ceremony.
     /// </summary>
     public PublicKeyCredentialRequestOptionsJSON Options { get; }
 

@@ -981,7 +981,6 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             }
 
             var resultKeysToInclude = new List<PublicKeyCredentialDescriptor>(options.ManuallySpecifiedKeysToInclude.Length);
-
             foreach (var manualKey in options.ManuallySpecifiedKeysToInclude)
             {
                 var existingKey = existingKeys.FirstOrDefault(x =>
@@ -989,35 +988,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                     && x.Id.AsSpan().SequenceEqual(manualKey.Id));
                 if (existingKey is not null)
                 {
-                    var manualTransports = (manualKey.Transports ?? Array.Empty<AuthenticatorTransport>())
-                        .Select(x => (int) x)
-                        .ToHashSet();
-                    var existingTransports = (existingKey.Transports ?? Array.Empty<AuthenticatorTransport>())
-                        .Select(x => (int) x)
-                        .ToHashSet();
-
-                    switch (existingTransports.Count)
-                    {
-                        case 0 when manualTransports.Count > 0:
-                        case > 0 when manualTransports.Count == 0:
-                            continue;
-                        case > 0 when manualTransports.Count > 0:
-                            {
-                                foreach (var existingTransport in existingTransports)
-                                {
-                                    manualTransports.Remove(existingTransport);
-                                }
-
-                                if (manualTransports.Count > 0)
-                                {
-                                    continue;
-                                }
-
-                                break;
-                            }
-                    }
-
-                    resultKeysToInclude.Add(manualKey);
+                    resultKeysToInclude.Add(existingKey);
                 }
             }
 

@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
-using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
@@ -93,10 +92,9 @@ public class DefaultAuthenticationCeremonyServiceAndroidSafetynetTests : Abstrac
             AuthenticationCeremonyIncludeCredentials.ManuallySpecified(
                 new[]
                 {
-                    new PublicKeyCredentialDescriptor(
+                    new AuthenticationCeremonyPublicKeyCredentialDescriptor(
                         PublicKeyCredentialType.PublicKey,
-                        WebEncoders.Base64UrlDecode("AQhGVh4AhYHIa06UqIE7BpSKEAhmdQCRZXkDohn9wtWcHTIV5_Q1o3pC498cM2Y922-3ikbisHI9l3UhX7tSwhc"),
-                        null)
+                        WebEncoders.Base64UrlDecode("AQhGVh4AhYHIa06UqIE7BpSKEAhmdQCRZXkDohn9wtWcHTIV5_Q1o3pC498cM2Y922-3ikbisHI9l3UhX7tSwhc"))
                 }),
             UserVerificationRequirement.Required,
             null,

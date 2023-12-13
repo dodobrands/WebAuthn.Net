@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
-using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
@@ -79,10 +78,9 @@ public class DefaultAuthenticationCeremonyServiceFidoU2FTests : AbstractAuthenti
             AuthenticationCeremonyIncludeCredentials.ManuallySpecified(
                 new[]
                 {
-                    new PublicKeyCredentialDescriptor(
+                    new AuthenticationCeremonyPublicKeyCredentialDescriptor(
                         PublicKeyCredentialType.PublicKey,
-                        WebEncoders.Base64UrlDecode("Ox696mJ0yDpYMNjNAqSJIbkuvaPEk9CTyMMrvUxCwVWKJblMwcd1zzNyVf7ngMA3X5dewF6-2YDKjrgkghmAZg"),
-                        null)
+                        WebEncoders.Base64UrlDecode("Ox696mJ0yDpYMNjNAqSJIbkuvaPEk9CTyMMrvUxCwVWKJblMwcd1zzNyVf7ngMA3X5dewF6-2YDKjrgkghmAZg"))
                 }),
             UserVerificationRequirement.Discouraged,
             null,
