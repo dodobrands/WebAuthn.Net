@@ -10,8 +10,24 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.Extensions;
 
 namespace WebAuthn.Net.Services.Serialization.Cose.Models;
 
+/// <summary>
+///     Public key in COSE EC2 format.
+/// </summary>
 public class CoseEc2Key : AbstractCoseKey
 {
+    /// <summary>
+    ///     Constructs <see cref="CoseEc2Key" />.
+    /// </summary>
+    /// <param name="alg">The identifier of the cryptographic algorithm of this public key.</param>
+    /// <param name="crv">COSE elliptic curve for a public key in EC2 format.</param>
+    /// <param name="x">X coordinate.</param>
+    /// <param name="y">Y coordinate.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="alg" /> is not in the range of supported algorithms for public keys in EC2 format</exception>
+    /// <exception cref="ArgumentOutOfRangeException">For the specified <paramref name="alg" />, it was not possible to determine the list of supported elliptic curves</exception>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="crv" /> contains a value that is not defined in <see cref="CoseEc2EllipticCurve" /></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="crv" /> is not in the allowed values for the specified <paramref name="alg" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="x" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="y" /> is <see langword="null" /></exception>
     public CoseEc2Key(CoseAlgorithm alg, CoseEc2EllipticCurve crv, byte[] x, byte[] y)
     {
         // alg
@@ -49,12 +65,28 @@ public class CoseEc2Key : AbstractCoseKey
         Y = y;
     }
 
+    /// <inheritdoc />
     public override CoseKeyType Kty => CoseKeyType.EC2;
+
+    /// <inheritdoc />
     public override CoseAlgorithm Alg { get; }
+
+    /// <summary>
+    ///     COSE elliptic curve for a public key in EC2 format.
+    /// </summary>
     public CoseEc2EllipticCurve Crv { get; }
+
+    /// <summary>
+    ///     X coordinate.
+    /// </summary>
     public byte[] X { get; }
+
+    /// <summary>
+    ///     Y coordinate.
+    /// </summary>
     public byte[] Y { get; }
 
+    /// <inheritdoc />
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     public override bool Matches(X509Certificate2 certificate)
     {
@@ -82,6 +114,7 @@ public class CoseEc2Key : AbstractCoseKey
                && certY.AsSpan().SequenceEqual(Y.AsSpan());
     }
 
+    /// <inheritdoc />
     public override bool Matches(AsymmetricAlgorithm asymmetricAlgorithm)
     {
         if (asymmetricAlgorithm is not ECDsa alg)
@@ -102,6 +135,7 @@ public class CoseEc2Key : AbstractCoseKey
                && algY.AsSpan().SequenceEqual(Y.AsSpan());
     }
 
+    /// <inheritdoc />
     public override bool Matches(AbstractCoseKey coseKey)
     {
         if (coseKey is not CoseEc2Key other)
@@ -116,6 +150,12 @@ public class CoseEc2Key : AbstractCoseKey
                && other.Y.AsSpan().SequenceEqual(Y.AsSpan());
     }
 
+    /// <summary>
+    ///     If possible, converts the built-in .NET type <see cref="ECCurve" /> value to a value of the <see cref="CoseEc2EllipticCurve" /> enum.
+    /// </summary>
+    /// <param name="ecCurve">The <see cref="ECCurve" /> value that needs to be converted to the <see cref="CoseEc2EllipticCurve" /> enum.</param>
+    /// <param name="coseCurve">Output parameter. If the method returns <see langword="true" />, the conversion was successful and it then contains a value from the <see cref="CoseEc2EllipticCurve" /> enum, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" />, if the conversion was successful, otherwise - <see langword="false" />.</returns>
     protected static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEc2EllipticCurve? coseCurve)
     {
         if (string.IsNullOrEmpty(ecCurve.Oid.Value))

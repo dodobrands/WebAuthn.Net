@@ -8,27 +8,56 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.Extensions;
 
 namespace WebAuthn.Net.Services.Serialization.Cose.Models;
 
+/// <summary>
+///     Public key in COSE RSA format.
+/// </summary>
 public class CoseRsaKey : AbstractCoseKey
 {
+    /// <summary>
+    ///     Constructs <see cref="CoseRsaKey" />.
+    /// </summary>
+    /// <param name="alg">The identifier of the cryptographic algorithm of this public key.</param>
+    /// <param name="modulusN">RSA modulus N.</param>
+    /// <param name="exponentE">RSA exponent E.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="alg" /> is not in the range of supported algorithms for public keys in RSA format</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="modulusN" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="exponentE" /> is <see langword="null" /></exception>
     public CoseRsaKey(CoseAlgorithm alg, byte[] modulusN, byte[] exponentE)
     {
+        // alg
         if (!CoseKeyType.RSA.GetSupportedAlgorithms().Contains(alg))
         {
             throw new ArgumentOutOfRangeException(nameof(alg), "The specified 'alg' is not included in the list of permitted values for kty = RSA.");
         }
 
-        ArgumentNullException.ThrowIfNull(modulusN);
-        ArgumentNullException.ThrowIfNull(exponentE);
         Alg = alg;
+
+        // modulusN
+        ArgumentNullException.ThrowIfNull(modulusN);
         ModulusN = modulusN;
+
+        // exponentE
+        ArgumentNullException.ThrowIfNull(exponentE);
         ExponentE = exponentE;
     }
 
+    /// <inheritdoc />
     public override CoseKeyType Kty => CoseKeyType.RSA;
+
+    /// <inheritdoc />
     public override CoseAlgorithm Alg { get; }
+
+    /// <summary>
+    ///     RSA modulus N.
+    /// </summary>
     public byte[] ModulusN { get; }
+
+    /// <summary>
+    ///     RSA exponent E.
+    /// </summary>
     public byte[] ExponentE { get; }
 
+    /// <inheritdoc />
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     public override bool Matches(X509Certificate2 certificate)
     {
@@ -55,6 +84,7 @@ public class CoseRsaKey : AbstractCoseKey
                && certExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
     }
 
+    /// <inheritdoc />
     public override bool Matches(AsymmetricAlgorithm asymmetricAlgorithm)
     {
         if (asymmetricAlgorithm is not RSA alg)
@@ -74,6 +104,7 @@ public class CoseRsaKey : AbstractCoseKey
                && algExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
     }
 
+    /// <inheritdoc />
     public override bool Matches(AbstractCoseKey coseKey)
     {
         if (coseKey is not CoseRsaKey other)

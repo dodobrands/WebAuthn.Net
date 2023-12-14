@@ -9,10 +9,24 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.Extensions;
 namespace WebAuthn.Net.Storage.Credential.Models;
 
 /// <summary>
-///     https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key
+///     Model for storing <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">credential public key</a> in COSE format.
 /// </summary>
 public class CredentialPublicKeyRecord
 {
+    /// <summary>
+    ///     Constructs <see cref="CredentialPublicKeyRecord" />.
+    /// </summary>
+    /// <param name="kty">The key type defined by the "kty" member of a COSE_Key object.</param>
+    /// <param name="alg">The identifier of the cryptographic algorithm of this public key.</param>
+    /// <param name="rsa">Data about the public COSE key in RSA format.</param>
+    /// <param name="ec2">Data about the public COSE key in EC2 format.</param>
+    /// <param name="okp">Data about the public COSE key in OKP format.</param>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="kty" /> contains a value that is not defined in <see cref="CoseKeyType" /></exception>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="alg" /> contains a value that is not defined in <see cref="CoseAlgorithm" /></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="alg" /> is not in the range of supported algorithms for public keys</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="rsa" /> is <see langword="null" /> when <paramref name="kty" /> contains <see cref="CoseKeyType.RSA" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="ec2" /> is <see langword="null" /> when <paramref name="kty" /> contains <see cref="CoseKeyType.EC2" />.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="okp" /> is <see langword="null" /> when <paramref name="kty" /> contains <see cref="CoseKeyType.OKP" />.</exception>
     public CredentialPublicKeyRecord(
         CoseKeyType kty,
         CoseAlgorithm alg,
@@ -83,12 +97,36 @@ public class CredentialPublicKeyRecord
         }
     }
 
+    /// <summary>
+    ///     The key type defined by the "kty" member of a COSE_Key object.
+    /// </summary>
     public CoseKeyType Kty { get; }
+
+    /// <summary>
+    ///     The identifier of the cryptographic algorithm of this public key.
+    /// </summary>
     public CoseAlgorithm Alg { get; }
+
+    /// <summary>
+    ///     Data about the public COSE key in RSA format.
+    /// </summary>
     public CredentialPublicKeyRsaParametersRecord? Rsa { get; }
+
+    /// <summary>
+    ///     Data about the public COSE key in EC2 format.
+    /// </summary>
     public CredentialPublicKeyEc2ParametersRecord? Ec2 { get; }
+
+    /// <summary>
+    ///     Data about the public COSE key in OKP format.
+    /// </summary>
     public CredentialPublicKeyOkpParametersRecord? Okp { get; }
 
+    /// <summary>
+    ///     If possible, converts the stored <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">credential public key</a> into a typed representation.
+    /// </summary>
+    /// <param name="key">Output parameter. The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">credential public key</a> materialized into a typed representation if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if it was possible to convert the stored credential public key into a typed representation, otherwise - <see langword="false" />.</returns>
     public virtual bool TryToCoseKey([NotNullWhen(true)] out AbstractCoseKey? key)
     {
         switch (Kty)

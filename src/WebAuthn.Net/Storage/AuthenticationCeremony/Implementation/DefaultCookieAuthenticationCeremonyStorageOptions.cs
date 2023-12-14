@@ -7,8 +7,14 @@ using Microsoft.AspNetCore.Http;
 
 namespace WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 
+/// <summary>
+///     Options for the default authentication ceremony store that operates on cookies.
+/// </summary>
 public class DefaultCookieAuthenticationCeremonyStorageOptions
 {
+    /// <summary>
+    ///     The name of the cookie that will be used by default
+    /// </summary>
     public const string CookieName = "webauthna";
 
     private CookieBuilder _cookieBuilder = new RequestPathBaseCookieBuilder
@@ -27,12 +33,20 @@ public class DefaultCookieAuthenticationCeremonyStorageOptions
         WriteIndented = false
     };
 
+    /// <summary>
+    ///     Serializer settings.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">If the value is <see langword="null" />.</exception>
     public JsonSerializerOptions SerializerOptions
     {
         get => _serializerOptions;
         set => _serializerOptions = value ?? throw new ArgumentNullException(nameof(value));
     }
 
+    /// <summary>
+    ///     Cookie settings.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">If the value is <see langword="null" />.</exception>
     public CookieBuilder Cookie
     {
         get => _cookieBuilder;

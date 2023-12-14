@@ -1,7 +1,7 @@
 ﻿namespace WebAuthn.Net.Services.Serialization.Cose.Models.Enums.EC2;
 
 /// <summary>
-///     <a href="https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves">COSE Elliptic Curves</a>
+///     <a href="https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves">COSE elliptic curves</a> for public keys in EC2 format.
 /// </summary>
 /// <remarks>
 ///     <para>

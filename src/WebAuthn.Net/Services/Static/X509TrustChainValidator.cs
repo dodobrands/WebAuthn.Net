@@ -5,8 +5,18 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace WebAuthn.Net.Services.Static;
 
+/// <summary>
+///     A static utility for validating a chain of x509v3 certificates.
+/// </summary>
 public static class X509TrustChainValidator
 {
+    /// <summary>
+    ///     Validates a certificate chain that signed the blob obtained from the FIDO Metadata Service.
+    /// </summary>
+    /// <param name="rootCertificates">Root CA certificates for the rest of the certificate chain.</param>
+    /// <param name="trustPath">The chain of intermediate certificates.</param>
+    /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
+    /// <returns><see langword="true" /> if the certificate chain is valid, otherwise - <see langword="false" />.</returns>
     public static bool IsFidoMetadataBlobJwtChainValid(
         X509Certificate2[] rootCertificates,
         X509Certificate2[] trustPath,
@@ -46,6 +56,13 @@ public static class X509TrustChainValidator
         return chain.Build(certificateToValidate);
     }
 
+    /// <summary>
+    ///     Validates the certificate chain of the attestation trust path received during the WebAuthn ceremony.
+    /// </summary>
+    /// <param name="rootCertificates">Root CA certificates.</param>
+    /// <param name="trustPath">Intermediate certificates of the attestation trust path.</param>
+    /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
+    /// <returns><see langword="true" /> if the certificate chain is valid, otherwise - <see langword="false" />.</returns>
     public static bool IsAttestationTrustPathChainValid(
         byte[][] rootCertificates,
         byte[][] trustPath,

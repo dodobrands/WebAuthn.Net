@@ -32,6 +32,15 @@ public static class CoseAlgorithmIdentifierExtensions
         CoseOkpEllipticCurve.Ed25519
     };
 
+    /// <summary>
+    ///     If possible, returns for the specified algorithm a set of supported elliptic curves for public keys in COSE EC2 format.
+    /// </summary>
+    /// <param name="coseAlgorithm">The algorithm for which a set of supported elliptic curves is obtained.</param>
+    /// <param name="ellipticCurves">
+    ///     Output parameter. Contains a set of supported elliptic curves for the specified <paramref name="coseAlgorithm" /> if the method returns <see langword="true" />. If the method returns <see langword="false" />, it means there are no supported elliptic
+    ///     curves for the specified <paramref name="coseAlgorithm" />, and the value of this parameter will be <see langword="null" />.
+    /// </param>
+    /// <returns><see langword="true" /> if a set of supported elliptic curves exists for the <paramref name="coseAlgorithm" />, otherwise - <see langword="false" />.</returns>
     public static bool TryGetEc2SupportedEllipticCurves(
         this CoseAlgorithm coseAlgorithm,
         [NotNullWhen(true)] out IReadOnlySet<CoseEc2EllipticCurve>? ellipticCurves)
@@ -61,6 +70,15 @@ public static class CoseAlgorithmIdentifierExtensions
         }
     }
 
+    /// <summary>
+    ///     If possible, returns for the specified algorithm a set of supported elliptic curves for public keys in COSE OKP format.
+    /// </summary>
+    /// <param name="coseAlgorithm">The algorithm for which a set of supported elliptic curves is obtained.</param>
+    /// <param name="ellipticCurves">
+    ///     Output parameter. Contains a set of supported elliptic curves for the specified <paramref name="coseAlgorithm" /> if the method returns <see langword="true" />. If the method returns <see langword="false" />, it means there are no supported elliptic
+    ///     curves for the specified <paramref name="coseAlgorithm" />, and the value of this parameter will be <see langword="null" />.
+    /// </param>
+    /// <returns><see langword="true" /> if a set of supported elliptic curves exists for the <paramref name="coseAlgorithm" />, otherwise - <see langword="false" />.</returns>
     public static bool TryGetOkpSupportedEllipticCurves(
         this CoseAlgorithm coseAlgorithm,
         [NotNullWhen(true)] out IReadOnlySet<CoseOkpEllipticCurve>? ellipticCurves)
@@ -75,6 +93,12 @@ public static class CoseAlgorithmIdentifierExtensions
         return false;
     }
 
+    /// <summary>
+    ///     If possible, it determines the COSE key type for the specified algorithm.
+    /// </summary>
+    /// <param name="coseAlgorithm">The algorithm for which the COSE key type needs to be determined</param>
+    /// <param name="kty">Output parameter. Contains the COSE key type if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if it was possible to determine the COSE key type for the specified <paramref name="coseAlgorithm" />, otherwise <see langword="false" />.</returns>
     public static bool TryGetCoseKeyType(
         this CoseAlgorithm coseAlgorithm,
         [NotNullWhen(true)] out CoseKeyType? kty)
@@ -144,6 +168,12 @@ public static class CoseAlgorithmIdentifierExtensions
         }
     }
 
+    /// <summary>
+    ///     If possible, determines the <see cref="HashAlgorithmName" /> for the specified algorithm.
+    /// </summary>
+    /// <param name="coseAlgorithm">The algorithm for which the <see cref="HashAlgorithmName" /> needs to be determined.</param>
+    /// <param name="alg">Output parameter. Contains the <see cref="HashAlgorithmName" /> if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if it was possible to determine the <see cref="HashAlgorithmName" /> for the specified <paramref name="coseAlgorithm" />, otherwise <see langword="false" />.</returns>
     public static bool TryToHashAlgorithmName(
         this CoseAlgorithm coseAlgorithm,
         [NotNullWhen(true)] out HashAlgorithmName? alg)
@@ -208,6 +238,13 @@ public static class CoseAlgorithmIdentifierExtensions
         }
     }
 
+    /// <summary>
+    ///     If possible, computes the hash using the specified algorithm.
+    /// </summary>
+    /// <param name="coseAlgorithm">The algorithm with which the hash will be computed.</param>
+    /// <param name="data">The data for which the hash needs to be computed.</param>
+    /// <param name="hash">Output parameter. Contains the computed hash if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if it is possible to compute a hash for the specified algorithm, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms")]
     public static bool TryComputeHash(
         this CoseAlgorithm coseAlgorithm,
@@ -274,6 +311,12 @@ public static class CoseAlgorithmIdentifierExtensions
         }
     }
 
+    /// <summary>
+    ///     If possible, returns the RSA padding mode for the specified algorithm.
+    /// </summary>
+    /// <param name="coseAlgorithm">The algorithm for which the RSA padding mode needs to be returned.</param>
+    /// <param name="padding">Output parameter. Contains the RSA padding mode if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if an RSA padding mode exists for the specified algorithm, otherwise - <see langword="false" />.</returns>
     public static bool TryGetRsaPadding(
         this CoseAlgorithm coseAlgorithm,
         [NotNullWhen(true)] out RSASignaturePadding? padding)

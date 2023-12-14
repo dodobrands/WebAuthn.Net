@@ -5,13 +5,27 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace WebAuthn.Net.Services.Static;
 
+/// <summary>
+///     Static utilities for working with Base64 in urlencoded format.
+/// </summary>
 public static class Base64Url
 {
+    /// <summary>
+    ///     Encodes the specified bytes into a Base64Urlencoded string.
+    /// </summary>
+    /// <param name="input">Bytes to be encoded into a Base64Urlencoded string.</param>
+    /// <returns>Base64Urlencoded string.</returns>
     public static string Encode(ReadOnlySpan<byte> input)
     {
         return WebEncoders.Base64UrlEncode(input);
     }
 
+    /// <summary>
+    ///     Decodes binary data from a base64urlencoded string.
+    /// </summary>
+    /// <param name="input">Base64Urlencoded string.</param>
+    /// <param name="bytes">Output parameter. Contains binary data decoded from a base64urlencoded string if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if it was possible to decode binary data from a base64urlencoded string, otherwise - <see langword="false" />.</returns>
     public static bool TryDecode(ReadOnlySpan<char> input, [NotNullWhen(true)] out byte[]? bytes)
     {
         const int dstBytesStackallocThreshold = 2048;

@@ -6,7 +6,7 @@ using WebAuthn.Net.Models.Protocol.Enums;
 namespace WebAuthn.Net.Storage.Credential.Models;
 
 /// <summary>
-///     Credential Record
+///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">Credential Record</a>
 /// </summary>
 /// <remarks>
 ///     <para>
@@ -22,6 +22,46 @@ namespace WebAuthn.Net.Storage.Credential.Models;
 /// </remarks>
 public class CredentialRecord
 {
+    /// <summary>
+    ///     Constructs <see cref="CredentialRecord" />.
+    /// </summary>
+    /// <param name="type">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source-type">type</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.</param>
+    /// <param name="id">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">Credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.</param>
+    /// <param name="publicKey">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-public-key">credential public key</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.</param>
+    /// <param name="signCount">
+    ///     The latest value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-signcount">signature counter</a> in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from any
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#ceremony">ceremony</a> using the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </param>
+    /// <param name="transports">
+    ///     The value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>.
+    /// </param>
+    /// <param name="uvInitialized">
+    ///     A Boolean value indicating whether any <a href="https://w3c.github.io/webappsec-credential-management/#concept-credential">credential</a> from this
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> has had the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-uv">UV</a>
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flag</a> set.
+    /// </param>
+    /// <param name="backupEligible">
+    ///     The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">BE</a> <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flag</a> when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was created.
+    /// </param>
+    /// <param name="backupState">
+    ///     The latest value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-bs">BS</a> <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flag</a> in the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from any <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#ceremony">ceremony</a> using the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </param>
+    /// <param name="attestationObject">
+    ///     OPTIONAL. The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-attestationobject">attestationObject</a> attribute when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential</a> source was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. Storing this enables the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> to reference the credential's <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> at a later time.
+    /// </param>
+    /// <param name="attestationClientDataJson">
+    ///     OPTIONAL. The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a> attribute when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. Storing this in combination with the above
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#abstract-opdef-credential-record-attestationobject">attestationObject</a> <a href="https://infra.spec.whatwg.org/#struct-item">item</a> enables the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> to re-verify the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-signature">attestation signature</a> at a later time.
+    /// </param>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="type" /> contains a value that is not defined in <see cref="PublicKeyCredentialType" /></exception>
     public CredentialRecord(
         PublicKeyCredentialType type,
         byte[] id,

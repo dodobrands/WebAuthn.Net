@@ -4,8 +4,17 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace WebAuthn.Net.Services.Static;
 
+/// <summary>
+///     Static utilities for working with regular Base64 (NOT urlencoded).
+/// </summary>
 public static class Base64Raw
 {
+    /// <summary>
+    ///     Decodes binary data from a base64 string
+    /// </summary>
+    /// <param name="input">Base64 string.</param>
+    /// <param name="bytes">Output parameter. Contains binary data decoded from base64 if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if it was possible to decode binary data from a base64 string, otherwise - <see langword="false" />.</returns>
     public static bool TryDecode(ReadOnlySpan<char> input, [NotNullWhen(true)] out byte[]? bytes)
     {
         const int dstBytesStackallocThreshold = 2048;

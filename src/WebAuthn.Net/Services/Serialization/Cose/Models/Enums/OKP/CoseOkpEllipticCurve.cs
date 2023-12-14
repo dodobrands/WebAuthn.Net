@@ -1,7 +1,7 @@
 ﻿namespace WebAuthn.Net.Services.Serialization.Cose.Models.Enums.OKP;
 
 /// <summary>
-///     <a href="https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves">COSE Elliptic Curves</a>
+///     <a href="https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves">COSE elliptic curves</a> for public keys in OKP format.
 /// </summary>
 /// <remarks>
 ///     <para>

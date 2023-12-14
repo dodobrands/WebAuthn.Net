@@ -9,8 +9,22 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.OKP;
 
 namespace WebAuthn.Net.Services.Serialization.Cose.Models;
 
+/// <summary>
+///     Public key in COSE OKP format.
+/// </summary>
 public class CoseOkpKey : AbstractCoseKey
 {
+    /// <summary>
+    ///     Constructs <see cref="CoseOkpKey" />.
+    /// </summary>
+    /// <param name="alg">The identifier of the cryptographic algorithm of this public key.</param>
+    /// <param name="crv">COSE elliptic curve for a public key in OKP format.</param>
+    /// <param name="x">Public Key.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="alg" /> is not in the range of supported algorithms for public keys in OKP format</exception>
+    /// <exception cref="ArgumentOutOfRangeException">For the specified <paramref name="alg" />, it was not possible to determine the list of supported elliptic curves</exception>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="crv" /> contains a value that is not defined in <see cref="CoseOkpEllipticCurve" /></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="crv" /> is not in the allowed values for the specified <paramref name="alg" /></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="x" /> is <see langword="null" /></exception>
     public CoseOkpKey(CoseAlgorithm alg, CoseOkpEllipticCurve crv, byte[] x)
     {
         // alg
@@ -44,26 +58,23 @@ public class CoseOkpKey : AbstractCoseKey
         X = x;
     }
 
-    /// <summary>
-    ///     Identification of the key type
-    /// </summary>
+    /// <inheritdoc />
     public override CoseKeyType Kty => CoseKeyType.OKP;
 
-    /// <summary>
-    ///     Key usage restriction to this algorithm
-    /// </summary>
+    /// <inheritdoc />
     public override CoseAlgorithm Alg { get; }
 
     /// <summary>
-    ///     EC identifier.
+    ///     COSE elliptic curve for a public key in OKP format.
     /// </summary>
     public CoseOkpEllipticCurve Crv { get; }
 
     /// <summary>
-    ///     Public Key
+    ///     Public Key.
     /// </summary>
     public byte[] X { get; }
 
+    /// <inheritdoc />
     public override bool Matches(X509Certificate2 certificate)
     {
         // https://github.com/dotnet/runtime/issues/14741
@@ -74,6 +85,7 @@ public class CoseOkpKey : AbstractCoseKey
         return false;
     }
 
+    /// <inheritdoc />
     public override bool Matches(AsymmetricAlgorithm asymmetricAlgorithm)
     {
         // https://github.com/dotnet/runtime/issues/14741
@@ -84,6 +96,7 @@ public class CoseOkpKey : AbstractCoseKey
         return false;
     }
 
+    /// <inheritdoc />
     public override bool Matches(AbstractCoseKey coseKey)
     {
         if (coseKey is not CoseOkpKey other)

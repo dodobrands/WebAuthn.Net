@@ -3,6 +3,9 @@ using System.ComponentModel;
 
 namespace WebAuthn.Net.Services.Serialization.Cose.Models.Enums.Extensions;
 
+/// <summary>
+///     Extension methods for <see cref="CoseKeyType" />.
+/// </summary>
 public static class CoseKeyTypeExtensions
 {
     private static readonly IReadOnlySet<CoseAlgorithm> Ec2 = new HashSet<CoseAlgorithm>
@@ -28,6 +31,12 @@ public static class CoseKeyTypeExtensions
         CoseAlgorithm.EdDSA
     };
 
+    /// <summary>
+    ///     Returns a set of supported algorithms for the given COSE key type.
+    /// </summary>
+    /// <param name="kty">COSE Key type</param>
+    /// <returns>A set of supported algorithms for the given COSE key type.</returns>
+    /// <exception cref="InvalidEnumArgumentException"><paramref name="kty" /> contains a value that is not defined in <see cref="CoseKeyType" /></exception>
     public static IReadOnlySet<CoseAlgorithm> GetSupportedAlgorithms(this CoseKeyType kty)
     {
         return kty switch

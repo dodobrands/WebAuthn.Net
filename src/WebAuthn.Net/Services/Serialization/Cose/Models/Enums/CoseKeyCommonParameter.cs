@@ -41,7 +41,7 @@ public enum CoseKeyCommonParameter
     alg = 3,
 
     /// <summary>
-    ///     Optional. This parameter is defined to restrict the set of operations that a key is to be used for. The value of the field is an array of values from <see cref="CoseKeyOptions" />.
+    ///     Optional. This parameter is defined to restrict the set of operations that a key is to be used for.
     /// </summary>
     key_ops = 4
 }

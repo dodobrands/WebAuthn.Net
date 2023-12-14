@@ -13,11 +13,25 @@ using WebAuthn.Net.Storage.AuthenticationCeremony.Models;
 
 namespace WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IAuthenticationCeremonyStorage{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticationCeremonyStorage<TContext>
     where TContext : class, IWebAuthnContext
 {
-    private const string DataProtectionPurpose = "WebAuthn.Net.DefaultCookieAuthenticationCeremonyStorage";
+    /// <summary>
+    ///     The purpose of the Data Protector.
+    /// </summary>
+    public const string DataProtectionPurpose = "WebAuthn.Net.DefaultCookieAuthenticationCeremonyStorage";
 
+    /// <summary>
+    ///     Constructs <see cref="DefaultCookieAuthenticationCeremonyStorage{TContext}" />.
+    /// </summary>
+    /// <param name="options">Accessor for getting the current value of the default authentication ceremony storage options.</param>
+    /// <param name="provider">Provider for creating IDataProtectors.</param>
+    /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultCookieAuthenticationCeremonyStorage(
         IOptionsMonitor<DefaultCookieAuthenticationCeremonyStorageOptions> options,
         IDataProtectionProvider provider,
@@ -32,11 +46,27 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
         SafeJsonSerializer = safeJsonSerializer;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of the default authentication ceremony storage options.
+    /// </summary>
     protected IOptionsMonitor<DefaultCookieAuthenticationCeremonyStorageOptions> Options { get; }
+
+    /// <summary>
+    ///     Protector for encrypting and decrypting sensitive data.
+    /// </summary>
     protected IDataProtector Protector { get; }
+
+    /// <summary>
+    ///     Manager for working with Cookies, abstracting away from direct interaction with the Cookie API.
+    /// </summary>
     protected ICookieManager CookieManager { get; }
+
+    /// <summary>
+    ///     Safe (exceptionless) JSON serializer.
+    /// </summary>
     protected ISafeJsonSerializer SafeJsonSerializer { get; }
 
+    /// <inheritdoc />
     public virtual Task<string> SaveAsync(
         TContext context,
         AuthenticationCeremonyParameters authenticationCeremony,
@@ -66,6 +96,7 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
         return Task.FromResult(id);
     }
 
+    /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public Task<AuthenticationCeremonyParameters?> FindAsync(
         TContext context,
@@ -111,6 +142,7 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
         }
     }
 
+    /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public Task RemoveAsync(
         TContext context,
@@ -157,6 +189,11 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
         }
     }
 
+    /// <summary>
+    ///     Returns the name of the cookie that is used to store the authentication ceremony data.
+    /// </summary>
+    /// <param name="options">Options for the default authentication ceremony store that operates on cookies.</param>
+    /// <returns>The name of the cookie used for storing the authentication ceremony data.</returns>
     protected virtual string GetCookieName(DefaultCookieAuthenticationCeremonyStorageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
