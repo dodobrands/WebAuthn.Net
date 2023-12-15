@@ -13,11 +13,25 @@ using WebAuthn.Net.Storage.RegistrationCeremony.Models;
 
 namespace WebAuthn.Net.Storage.RegistrationCeremony.Implementation;
 
+/// <summary>
+///     Default implementation of <see cref="IRegistrationCeremonyStorage{TContext}" />.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationCeremonyStorage<TContext>
     where TContext : class, IWebAuthnContext
 {
-    private const string DataProtectionPurpose = "WebAuthn.Net.DefaultCookieRegistrationCeremonyStorage";
+    /// <summary>
+    ///     The purpose of the Data Protector.
+    /// </summary>
+    public const string DataProtectionPurpose = "WebAuthn.Net.DefaultCookieRegistrationCeremonyStorage";
 
+    /// <summary>
+    ///     Constructs <see cref="DefaultCookieRegistrationCeremonyStorage{TContext}" />.
+    /// </summary>
+    /// <param name="options">Accessor for getting the current value of the default registration ceremony storage options.</param>
+    /// <param name="provider">Provider for creating <see cref="IDataProtector" />.</param>
+    /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultCookieRegistrationCeremonyStorage(
         IOptionsMonitor<DefaultCookieRegistrationCeremonyStorageOptions> options,
         IDataProtectionProvider provider,
@@ -32,11 +46,27 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
         SafeJsonSerializer = safeJsonSerializer;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of the default registration ceremony storage options.
+    /// </summary>
     protected IOptionsMonitor<DefaultCookieRegistrationCeremonyStorageOptions> Options { get; }
+
+    /// <summary>
+    ///     Protector for encrypting and decrypting sensitive data.
+    /// </summary>
     protected IDataProtector Protector { get; }
+
+    /// <summary>
+    ///     Manager for working with Cookies, abstracting away from direct interaction with the Cookie API.
+    /// </summary>
     protected ICookieManager CookieManager { get; }
+
+    /// <summary>
+    ///     Safe (exceptionless) JSON serializer.
+    /// </summary>
     protected ISafeJsonSerializer SafeJsonSerializer { get; }
 
+    /// <inheritdoc />
     public virtual Task<string> SaveAsync(
         TContext context,
         RegistrationCeremonyParameters registrationCeremony,
@@ -66,6 +96,7 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
         return Task.FromResult(id);
     }
 
+    /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public virtual Task<RegistrationCeremonyParameters?> FindAsync(
         TContext context,
@@ -111,6 +142,7 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
         }
     }
 
+    /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public virtual Task RemoveAsync(
         TContext context,
@@ -157,6 +189,11 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
         }
     }
 
+    /// <summary>
+    ///     Returns the name of the cookie that is used to store the registration ceremony data.
+    /// </summary>
+    /// <param name="options">Options for the default registration ceremony store that operates on cookies.</param>
+    /// <returns>The name of the cookie used for storing the registration ceremony data.</returns>
     protected virtual string GetCookieName(DefaultCookieRegistrationCeremonyStorageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);

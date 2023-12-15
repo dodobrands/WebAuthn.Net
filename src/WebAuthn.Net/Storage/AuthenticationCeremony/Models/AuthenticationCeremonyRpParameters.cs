@@ -12,7 +12,7 @@ public class AuthenticationCeremonyRpParameters
     /// </summary>
     /// <param name="rpId">Expected rpId when completing the authentication ceremony.</param>
     /// <param name="origins">Expected origins when completing the authentication ceremony.</param>
-    /// <param name="allowIframe">Flag determining whether iframe operation is allowed. If <see langword="true" />, then <see cref="TopOrigins" /> must be non-null and contain at least 1 element.</param>
+    /// <param name="allowIframe">Flag determining whether iframe operation is allowed. If <see langword="true" />, then <see cref="TopOrigins" /> must be non-null.</param>
     /// <param name="topOrigins">Expected allowed top origins - parent domains of iframes within which the authentication ceremony is performed. Only matters if <see cref="AllowIframe" /> is <see langword="true" />.</param>
     public AuthenticationCeremonyRpParameters(string rpId, string[] origins, bool allowIframe, string[]? topOrigins)
     {
@@ -33,7 +33,7 @@ public class AuthenticationCeremonyRpParameters
     public string[] Origins { get; }
 
     /// <summary>
-    ///     Flag determining whether iframe operation is allowed. If <see langword="true" />, then <see cref="TopOrigins" /> must be non-null and contain at least 1 element.
+    ///     Flag determining whether iframe operation is allowed. If <see langword="true" />, then <see cref="TopOrigins" /> must be non-null.
     /// </summary>
     [MemberNotNullWhen(true, nameof(TopOrigins))]
     public bool AllowIframe { get; }

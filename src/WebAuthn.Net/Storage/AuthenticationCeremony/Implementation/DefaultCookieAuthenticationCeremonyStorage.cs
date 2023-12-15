@@ -29,7 +29,7 @@ public class DefaultCookieAuthenticationCeremonyStorage<TContext> : IAuthenticat
     ///     Constructs <see cref="DefaultCookieAuthenticationCeremonyStorage{TContext}" />.
     /// </summary>
     /// <param name="options">Accessor for getting the current value of the default authentication ceremony storage options.</param>
-    /// <param name="provider">Provider for creating IDataProtectors.</param>
+    /// <param name="provider">Provider for creating <see cref="IDataProtector" />.</param>
     /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultCookieAuthenticationCeremonyStorage(
