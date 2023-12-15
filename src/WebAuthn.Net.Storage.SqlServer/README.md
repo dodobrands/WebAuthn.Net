@@ -36,6 +36,7 @@ CREATE TABLE [CredentialRecords]
     [BackupState] bit NOT NULL,
     [AttestationObject] varbinary(max) NULL,
     [AttestationClientDataJson] varbinary(max) NULL,
+    [Description] nvarchar(200) NULL,
     [CreatedAtUnixTime] bigint NOT NULL,
     [UpdatedAtUnixTime] bigint NOT NULL,
     CONSTRAINT [PK_CredentialRecords] PRIMARY KEY ([Id])

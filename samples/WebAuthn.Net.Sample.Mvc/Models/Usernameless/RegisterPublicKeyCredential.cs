@@ -44,7 +44,7 @@ public class RegisterPublicKeyCredential
     public CompleteRegistrationCeremonyRequest ToCompleteCeremonyRequest(string registrationCeremonyId)
     {
         var result = ToRegistrationResponseJson();
-        return new(registrationCeremonyId, result);
+        return new(registrationCeremonyId, null, result);
     }
 
     private RegistrationResponseJSON ToRegistrationResponseJson()

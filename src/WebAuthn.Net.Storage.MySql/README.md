@@ -33,6 +33,7 @@ CREATE TABLE `CredentialRecords`
     `BackupState`               tinyint(1)      NOT NULL,
     `AttestationObject`         longblob        NULL,
     `AttestationClientDataJson` longblob        NULL,
+    `Description`               varchar(200)    NULL,
     `CreatedAtUnixTime`         bigint          NOT NULL,
     `UpdatedAtUnixTime`         bigint          NOT NULL,
     CONSTRAINT `PK_CredentialRecords` PRIMARY KEY (`Id`)

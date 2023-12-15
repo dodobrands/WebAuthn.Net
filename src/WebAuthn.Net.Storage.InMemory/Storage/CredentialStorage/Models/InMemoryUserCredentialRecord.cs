@@ -36,6 +36,7 @@ public class InMemoryUserCredentialRecord
         BackupState = record.CredentialRecord.BackupState;
         AttestationObject = CopyArray(record.CredentialRecord.AttestationObject);
         AttestationClientDataJson = CopyArray(record.CredentialRecord.AttestationClientDataJSON);
+        Description = record.Description;
         CreatedAtUnixTime = createdAt.ToUnixTimeSeconds();
     }
 
@@ -90,7 +91,11 @@ public class InMemoryUserCredentialRecord
 
     public byte[]? AttestationClientDataJson { get; }
 
+    [MaxLength(200)]
+    public string? Description { get; }
+
     public long CreatedAtUnixTime { get; }
+
 
     [return: NotNullIfNotNull("src")]
     private static T[]? CopyArray<T>(T[]? src)
@@ -137,7 +142,6 @@ public class InMemoryUserCredentialRecord
             authenticatorTransports);
         return true;
     }
-
 
     public virtual bool TryMapToUserCredentialRecord([NotNullWhen(true)] out UserCredentialRecord? result)
     {
@@ -243,7 +247,7 @@ public class InMemoryUserCredentialRecord
             AttestationClientDataJson
         );
 
-        result = new(UserHandle, RpId, credentialRecord);
+        result = new(UserHandle, RpId, Description, credentialRecord);
         return true;
     }
 }

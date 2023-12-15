@@ -589,7 +589,11 @@ public class DefaultRegistrationCeremonyService<TContext>
                 currentBe,
                 currentBs,
                 response);
-            var userCredentialRecord = new UserCredentialRecord(options.User.Id, registrationCeremonyOptions.ExpectedRp.RpId, credentialRecord);
+            var userCredentialRecord = new UserCredentialRecord(
+                options.User.Id,
+                registrationCeremonyOptions.ExpectedRp.RpId,
+                request.Description,
+                credentialRecord);
             // 26. Verify that the credentialId is not yet registered for any user. If the credentialId is already known then the Relying Party SHOULD fail this registration ceremony.
             var credentialIdNotRegisteredForAnyUser = await CredentialStorage.SaveIfNotRegisteredForOtherUserAsync(
                 context,

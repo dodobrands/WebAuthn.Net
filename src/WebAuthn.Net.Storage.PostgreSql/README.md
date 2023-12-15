@@ -32,6 +32,7 @@ CREATE TABLE "CredentialRecords" (
     "BackupState" boolean NOT NULL,
     "AttestationObject" bytea,
     "AttestationClientDataJson" bytea,
+    "Description" character varying(200),
     "CreatedAtUnixTime" bigint NOT NULL,
     "UpdatedAtUnixTime" bigint NOT NULL,
     CONSTRAINT "PK_CredentialRecords" PRIMARY KEY ("Id")

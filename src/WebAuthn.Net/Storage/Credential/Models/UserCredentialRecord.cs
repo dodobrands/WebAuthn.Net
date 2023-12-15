@@ -12,13 +12,15 @@ public class UserCredentialRecord
     /// </summary>
     /// <param name="userHandle">Unique user account identifier to which the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credential record</a> is bound.</param>
     /// <param name="rpId">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#rp-id">RP ID</a> to which the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credential record</a> is bound.</param>
+    /// <param name="description">Description of the credential.</param>
     /// <param name="credentialRecord">
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">Credential Record</a>
     /// </param>
-    public UserCredentialRecord(byte[] userHandle, string rpId, CredentialRecord credentialRecord)
+    public UserCredentialRecord(byte[] userHandle, string rpId, string? description, CredentialRecord credentialRecord)
     {
         UserHandle = userHandle;
         RpId = rpId;
+        Description = description;
         CredentialRecord = credentialRecord;
     }
 
@@ -31,6 +33,11 @@ public class UserCredentialRecord
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#rp-id">RP ID</a> to which the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credential record</a> is bound.
     /// </summary>
     public string RpId { get; }
+
+    /// <summary>
+    ///     Description of the credential.
+    /// </summary>
+    public string? Description { get; }
 
     /// <summary>
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">Credential Record</a>

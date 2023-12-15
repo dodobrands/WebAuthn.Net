@@ -77,7 +77,11 @@ public class MySqlUserCredentialRecord
 
     public byte[]? AttestationClientDataJson { get; set; }
 
+    [MaxLength(200)]
+    public string? Description { get; set; }
+
     public long CreatedAtUnixTime { get; set; }
+
     public long UpdatedAtUnixTime { get; set; }
 
     public static MySqlUserCredentialRecord Create(
@@ -114,6 +118,7 @@ public class MySqlUserCredentialRecord
             BackupState = credential.CredentialRecord.BackupState,
             AttestationObject = credential.CredentialRecord.AttestationObject,
             AttestationClientDataJson = credential.CredentialRecord.AttestationClientDataJSON,
+            Description = credential.Description,
             CreatedAtUnixTime = createdAtUnixTime,
             UpdatedAtUnixTime = updatedAtUnixTime
         };
@@ -231,7 +236,7 @@ public class MySqlUserCredentialRecord
             AttestationObject,
             AttestationClientDataJson);
 
-        result = new(UserHandle, RpId, credentialRecord);
+        result = new(UserHandle, RpId, Description, credentialRecord);
         return true;
     }
 }

@@ -57,8 +57,6 @@ public static class Program
             {
                 authOptions.Cookie.HttpOnly = false;
             });
-
-        //
         // builder.Services.AddWebAuthnMySql(
         //     static options =>
         //     {
@@ -130,7 +128,7 @@ public static class Program
         //     {
         //         authOptions.Cookie.HttpOnly = false;
         //     },
-        //      static sqlServer =>
+        //     static sqlServer =>
         //     {
         //         sqlServer.ConnectionString = "Data Source=localhost;Initial Catalog=webauthn;User ID=sa;Password=WebAuthn!1337;Pooling=True;Trust Server Certificate=True";
         //     });

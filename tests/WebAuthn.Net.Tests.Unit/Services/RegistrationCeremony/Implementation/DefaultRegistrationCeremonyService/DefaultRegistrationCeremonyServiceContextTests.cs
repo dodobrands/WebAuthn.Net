@@ -94,20 +94,23 @@ public class DefaultRegistrationCeremonyServiceContextTests : AbstractRegistrati
 
         var completeResult = await RegistrationCeremonyService.CompleteCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
-            new(beginResult.RegistrationCeremonyId, new(
-                "iDFd_AQcKvKWSPeteal0SjVcYuo",
-                "iDFd_AQcKvKWSPeteal0SjVcYuo",
-                new(
-                    "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiRVFhaFFPZEhjZU9Xb0MzUnZQb2xUTHliaklqTHdDcmhSOGIxWk1waWp5USIsIm9yaWdpbiI6Imh0dHBzOi8vdmFuYnVraW4tcGMubG9jYWwifQ",
-                    null,
-                    null,
-                    null,
-                    null,
-                    "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViYwbGR7JKb_3nCDS_Zb_TxyUe4a4rtFXaAsGAUBoQQGPVdAAAAAAAAAAAAAAAAAAAAAAAAAAAAFIgxXfwEHCrylkj3rXmpdEo1XGLqpQECAyYgASFYICRm7Ppob1RBskUFZmOz0De8LRHkyBmEy_tja6XcAPdbIlggZZc4w5BaGG4IqtOG7lHgTijKOqGUJR98CaU5spPCiTY"
-                ),
+            new(
+                beginResult.RegistrationCeremonyId,
                 null,
-                new(),
-                "public-key")),
+                new(
+                    "iDFd_AQcKvKWSPeteal0SjVcYuo",
+                    "iDFd_AQcKvKWSPeteal0SjVcYuo",
+                    new(
+                        "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiRVFhaFFPZEhjZU9Xb0MzUnZQb2xUTHliaklqTHdDcmhSOGIxWk1waWp5USIsIm9yaWdpbiI6Imh0dHBzOi8vdmFuYnVraW4tcGMubG9jYWwifQ",
+                        null,
+                        null,
+                        null,
+                        null,
+                        "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViYwbGR7JKb_3nCDS_Zb_TxyUe4a4rtFXaAsGAUBoQQGPVdAAAAAAAAAAAAAAAAAAAAAAAAAAAAFIgxXfwEHCrylkj3rXmpdEo1XGLqpQECAyYgASFYICRm7Ppob1RBskUFZmOz0De8LRHkyBmEy_tja6XcAPdbIlggZZc4w5BaGG4IqtOG7lHgTijKOqGUJR98CaU5spPCiTY"
+                    ),
+                    null,
+                    new(),
+                    "public-key")),
             CancellationToken.None);
         Assert.That(completeResult.Successful, Is.True);
 

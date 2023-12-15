@@ -119,6 +119,7 @@ SELECT
     ""BackupState"",
     ""AttestationObject"",
     ""AttestationClientDataJson"",
+    ""Description"",
     ""CreatedAtUnixTime"",
     ""UpdatedAtUnixTime""
 FROM ""CredentialRecords""
@@ -200,6 +201,7 @@ INSERT INTO ""CredentialRecords""
     ""BackupState"",
     ""AttestationObject"",
     ""AttestationClientDataJson"",
+    ""Description"",
     ""CreatedAtUnixTime"",
     ""UpdatedAtUnixTime""
 )
@@ -226,6 +228,7 @@ VALUES
      @backupState,
      @attestationObject,
      @attestationClientDataJson,
+     @description,
      @createdAtUnixTime,
      @updatedAtUnixTime
 );",
@@ -252,6 +255,7 @@ VALUES
                 backupState = insert.BackupState,
                 attestationObject = insert.AttestationObject,
                 attestationClientDataJson = insert.AttestationClientDataJson,
+                description = insert.Description,
                 createdAtUnixTime = insert.CreatedAtUnixTime,
                 updatedAtUnixTime = insert.UpdatedAtUnixTime
             },
@@ -315,6 +319,7 @@ SET
     ""BackupState"" = @backupState,
     ""AttestationObject"" = @attestationObject,
     ""AttestationClientDataJson"" = @attestationClientDataJson,
+    ""Description"" = @description,
     ""UpdatedAtUnixTime"" = @updatedAtUnixTime
 WHERE ""Id"" = @id;",
             new
@@ -337,6 +342,7 @@ WHERE ""Id"" = @id;",
                 backupState = updated.BackupState,
                 attestationObject = updated.AttestationObject,
                 attestationClientDataJson = updated.AttestationClientDataJson,
+                description = updated.Description,
                 updatedAtUnixTime = updated.UpdatedAtUnixTime
             },
             context.Transaction,

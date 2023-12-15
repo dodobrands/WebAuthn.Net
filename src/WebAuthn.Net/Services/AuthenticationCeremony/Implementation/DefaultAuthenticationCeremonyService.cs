@@ -703,6 +703,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var updatedCredential = new UserCredentialRecord(
                 userCredentialRecord.UserHandle,
                 userCredentialRecord.RpId,
+                userCredentialRecord.Description,
                 credentialRecordUpdateResult.UpdatedCredentialRecord);
             var updated = await CredentialStorage.UpdateCredentialAsync(context, updatedCredential, cancellationToken);
             if (!updated)
