@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Abstractions;
-using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
@@ -234,7 +233,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         Counters.IncrementBeginCeremonyStart();
-        await using var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.BeginRegistrationCeremony, cancellationToken);
+        await using var context = await ContextFactory.CreateAsync(httpContext, cancellationToken);
         var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
         var rpId = await RpIdProvider.GetAsync(httpContext, cancellationToken);
         var credentialsToExclude = await GetCredentialsToExcludeAsync(
@@ -286,7 +285,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         cancellationToken.ThrowIfCancellationRequested();
         Counters.IncrementCompleteCeremonyStart();
         using (Logger.BeginCompleteRegistrationCeremonyScope(request.RegistrationCeremonyId))
-        await using (var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.CompleteRegistrationCeremony, cancellationToken))
+        await using (var context = await ContextFactory.CreateAsync(httpContext, cancellationToken))
         {
             var registrationCeremonyOptions = await CeremonyStorage.FindAsync(
                 context,

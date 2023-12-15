@@ -2,7 +2,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Services.Context;
 
 namespace WebAuthn.Net.DSL.Fakes;
@@ -11,7 +10,7 @@ public class FakeWebAuthnContextFactory : IWebAuthnContextFactory<FakeWebAuthnCo
 {
     private readonly List<FakeWebAuthnContextMetrics> _metrics = new();
 
-    public Task<FakeWebAuthnContext> CreateAsync(HttpContext httpContext, WebAuthnOperation operation, CancellationToken cancellationToken)
+    public Task<FakeWebAuthnContext> CreateAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var metrics = new FakeWebAuthnContextMetrics();

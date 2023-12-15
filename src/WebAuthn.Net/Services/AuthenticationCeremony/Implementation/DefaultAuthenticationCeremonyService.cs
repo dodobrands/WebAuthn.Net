@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Abstractions;
-using WebAuthn.Net.Models.Enums;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -244,7 +243,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         cancellationToken.ThrowIfCancellationRequested();
         Counters.IncrementBeginCeremonyStart();
         using (Logger.CreateBeginCeremonyScope())
-        await using (var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.BeginAuthenticationCeremony, cancellationToken))
+        await using (var context = await ContextFactory.CreateAsync(httpContext, cancellationToken))
         {
             var challenge = ChallengeGenerator.GenerateChallenge(request.ChallengeSize);
             var rpId = await RpIdProvider.GetAsync(httpContext, cancellationToken);
@@ -304,7 +303,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         cancellationToken.ThrowIfCancellationRequested();
         Counters.IncrementCompleteCeremonyStart();
         using (Logger.CreateCompleteCeremonyScope(request.AuthenticationCeremonyId))
-        await using (var context = await ContextFactory.CreateAsync(httpContext, WebAuthnOperation.CompleteAuthenticationCeremony, cancellationToken))
+        await using (var context = await ContextFactory.CreateAsync(httpContext, cancellationToken))
         {
             var authenticationCeremonyOptions = await CeremonyStorage.FindAsync(
                 context,
