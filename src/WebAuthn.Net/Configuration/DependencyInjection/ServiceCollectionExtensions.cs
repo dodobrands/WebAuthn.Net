@@ -8,7 +8,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIn
 namespace WebAuthn.Net.Configuration.DependencyInjection;
 
 /// <summary>
-///     Extension methods to <see cref="IServiceCollection" /> for setting up WebAuthn.Net.
+///     Extension methods to <see cref="IServiceCollection" /> for configuring up WebAuthn.Net.
 /// </summary>
 public static class ServiceCollectionExtensions
 {

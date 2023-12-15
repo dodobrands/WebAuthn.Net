@@ -3,7 +3,7 @@
 namespace WebAuthn.Net.Storage.Credential.Models;
 
 /// <summary>
-///     Credential Record bound to a user account.
+///     Credential record bound to a user account.
 /// </summary>
 public class UserCredentialRecord
 {

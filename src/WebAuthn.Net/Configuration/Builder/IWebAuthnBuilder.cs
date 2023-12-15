@@ -4,7 +4,7 @@ using WebAuthn.Net.Models.Abstractions;
 namespace WebAuthn.Net.Configuration.Builder;
 
 /// <summary>
-///     Builder for configuring in DI collection the services responsible for handling WebAuthn operations.
+///     Builder for configuring the DI service collection, responsible for processing WebAuthn operations.
 /// </summary>
 /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public interface IWebAuthnBuilder<TContext>

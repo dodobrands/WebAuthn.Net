@@ -11,8 +11,16 @@ using WebAuthn.Net.Storage.Credential.Models;
 
 namespace WebAuthn.Net.Storage.InMemory.Storage.CredentialStorage.Models;
 
+/// <summary>
+///     In-memory model for storing <see cref="UserCredentialRecord" />.
+/// </summary>
 public class InMemoryUserCredentialRecord
 {
+    /// <summary>
+    ///     Constructs <see cref="InMemoryUserCredentialRecord" />.
+    /// </summary>
+    /// <param name="record">Credential record bound to a user account.</param>
+    /// <param name="createdAt">The date the record was created.</param>
     public InMemoryUserCredentialRecord(UserCredentialRecord record, DateTimeOffset createdAt)
     {
         ArgumentNullException.ThrowIfNull(record);
@@ -40,26 +48,56 @@ public class InMemoryUserCredentialRecord
         CreatedAtUnixTime = createdAt.ToUnixTimeSeconds();
     }
 
+    /// <summary>
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#rp-id">RP ID</a> to which the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credential record</a> is bound.
+    /// </summary>
     public string RpId { get; }
 
+    /// <summary>
+    ///     Unique user account identifier to which the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-record">credential record</a> is bound.
+    /// </summary>
     public byte[] UserHandle { get; }
 
+    /// <summary>
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">Credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </summary>
     public byte[] CredentialId { get; }
 
+    /// <summary>
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source-type">type</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </summary>
     public int Type { get; }
 
+    /// <summary>
+    ///     The key type defined by the "kty" member of a COSE_Key object.
+    /// </summary>
     public int Kty { get; }
 
+    /// <summary>
+    ///     The identifier of the cryptographic algorithm of this public key.
+    /// </summary>
     public int Alg { get; }
 
+    /// <summary>
+    ///     COSE elliptic curve for a public key in EC2 format.
+    /// </summary>
     public int? Ec2Crv { get; }
 
+    /// <summary>
+    ///     X coordinate.
+    /// </summary>
     [MaxLength(256)]
     public byte[]? Ec2X { get; }
 
+    /// <summary>
+    ///     Y coordinate.
+    /// </summary>
     [MaxLength(256)]
     public byte[]? Ec2Y { get; }
 
+    /// <summary>
+    ///     RSA modulus N.
+    /// </summary>
     [MaxLength(8192 / 8)]
     public byte[]? RsaModulusN { get; }
 
@@ -69,31 +107,82 @@ public class InMemoryUserCredentialRecord
     // 6.2.1 Definition of a Key Pair
     // The public exponent e shall be an odd integer that is selected prior to the generation of p and q such that:
     // 65,537 ≤ e < 2^256
+    /// <summary>
+    ///     RSA exponent E.
+    /// </summary>
     [MaxLength(256 / 8)]
     public byte[]? RsaExponentE { get; }
 
+    /// <summary>
+    ///     COSE elliptic curve for a public key in OKP format.
+    /// </summary>
     public int? OkpCrv { get; }
 
+    /// <summary>
+    ///     Public Key.
+    /// </summary>
     [MaxLength(32)]
     public byte[]? OkpX { get; }
 
+    /// <summary>
+    ///     The latest value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-signcount">signature counter</a> in the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from any
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#ceremony">ceremony</a> using the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </summary>
     public uint SignCount { get; }
 
+    /// <summary>
+    ///     The value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>.
+    /// </summary>
+    /// <remarks>
+    ///     Modifying or removing <a href="https://infra.spec.whatwg.org/#list-item">items</a> from the value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> could negatively impact user
+    ///     experience, or even prevent use of the corresponding credential.
+    /// </remarks>
     public int[] Transports { get; }
 
+    /// <summary>
+    ///     A Boolean value indicating whether any <a href="https://w3c.github.io/webappsec-credential-management/#concept-credential">credential</a> from this <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> has
+    ///     had the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-uv">UV</a> <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flag</a> set.
+    /// </summary>
     public bool UvInitialized { get; }
 
+    /// <summary>
+    ///     The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-be">BE</a> <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flag</a> when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was created.
+    /// </summary>
     public bool BackupEligible { get; }
 
+    /// <summary>
+    ///     The latest value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags-bs">BS</a> <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authdata-flags">flag</a> in the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data</a> from any <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#ceremony">ceremony</a> using the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </summary>
     public bool BackupState { get; }
 
+    /// <summary>
+    ///     OPTIONAL. The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-attestationobject">attestationObject</a> attribute when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential</a> source was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. Storing this enables the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> to reference the credential's <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement</a> at a later time.
+    /// </summary>
     public byte[]? AttestationObject { get; }
 
+    /// <summary>
+    ///     OPTIONAL. The value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorresponse-clientdatajson">clientDataJSON</a> attribute when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. Storing this in combination with the above
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#abstract-opdef-credential-record-attestationobject">attestationObject</a> <a href="https://infra.spec.whatwg.org/#struct-item">item</a> enables the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> to re-verify the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-signature">attestation signature</a> at a later time.
+    /// </summary>
     public byte[]? AttestationClientDataJson { get; }
 
+    /// <summary>
+    ///     Description of the credential.
+    /// </summary>
     [MaxLength(200)]
     public string? Description { get; }
 
+    /// <summary>
+    ///     Creation date of the credential record in unixtime seconds format.
+    /// </summary>
     public long CreatedAtUnixTime { get; }
 
 
@@ -115,6 +204,11 @@ public class InMemoryUserCredentialRecord
         return result;
     }
 
+    /// <summary>
+    ///     If possible - converts the current record into a <see cref="PublicKeyCredentialDescriptor" />.
+    /// </summary>
+    /// <param name="result">Output parameter. Contains an instance of <see cref="PublicKeyCredentialDescriptor" /> if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if the conversion is successful, otherwise - <see langword="false" />.</returns>
     public virtual bool TryMapToDescriptor([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
     {
         result = null;
@@ -143,6 +237,11 @@ public class InMemoryUserCredentialRecord
         return true;
     }
 
+    /// <summary>
+    ///     If possible - converts the current record into a <see cref="UserCredentialRecord" />.
+    /// </summary>
+    /// <param name="result">Output parameter. Contains an instance of <see cref="UserCredentialRecord" /> if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if the conversion is successful, otherwise - <see langword="false" />.</returns>
     public virtual bool TryMapToUserCredentialRecord([NotNullWhen(true)] out UserCredentialRecord? result)
     {
         result = null;
