@@ -13,17 +13,30 @@ using WebAuthn.Net.Storage.SqlServer.Storage.Models;
 
 namespace WebAuthn.Net.Storage.SqlServer.Storage;
 
+/// <summary>
+///     Default implementation of <see cref="ICredentialStorage{TContext}" /> for Microsoft SQL Server-based storage.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed. Must be <see cref="DefaultSqlServerContext" /> or its descendant.</typeparam>
 public class DefaultSqlServerCredentialStorage<TContext> : ICredentialStorage<TContext>
     where TContext : DefaultSqlServerContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultSqlServerCredentialStorage{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultSqlServerCredentialStorage(ITimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         TimeProvider = timeProvider;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
 
+    /// <inheritdoc />
     public virtual async Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
         TContext context,
         string rpId,
@@ -66,6 +79,7 @@ WHERE RpId = @rpId AND UserHandle = @userHandle;",
         return result;
     }
 
+    /// <inheritdoc />
     public virtual async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
         TContext context,
         string rpId,
@@ -141,6 +155,7 @@ WHERE Id = @id;",
         return result;
     }
 
+    /// <inheritdoc />
     public virtual async Task<bool> SaveIfNotRegisteredForOtherUserAsync(
         TContext context,
         UserCredentialRecord credential,
@@ -262,6 +277,7 @@ VALUES
         return rowsInserted > 0;
     }
 
+    /// <inheritdoc />
     public virtual async Task<bool> UpdateCredentialAsync(
         TContext context,
         UserCredentialRecord credential,

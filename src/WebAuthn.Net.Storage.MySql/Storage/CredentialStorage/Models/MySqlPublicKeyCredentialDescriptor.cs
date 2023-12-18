@@ -22,10 +22,10 @@ public class MySqlPublicKeyCredentialDescriptor
     /// <param name="credentialId">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">Credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.</param>
     /// <param name="transports">
     ///     The value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> when the
-    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. For storage in MySQL, the values are transformed into
-    ///     json.
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. For storage in MySQL, the values are transformed into json
+    ///     ('json' data type).
     /// </param>
-    /// <param name="createdAtUnixTime">Creation date of the credential record (where the PublicKeyCredentialDescriptor is stored) in unixtime seconds format.</param>
+    /// <param name="createdAtUnixTime">Creation date of the credential record in unixtime seconds format.</param>
     public MySqlPublicKeyCredentialDescriptor(int type, byte[] credentialId, string transports, long createdAtUnixTime)
     {
         Type = type;
@@ -49,14 +49,14 @@ public class MySqlPublicKeyCredentialDescriptor
     /// <summary>
     ///     The value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> when the
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. For storage in MySQL, the values are transformed into
-    ///     json.
+    ///     json ('json' data type).
     /// </summary>
     [Column(TypeName = "json")]
     [Required]
     public string Transports { get; }
 
     /// <summary>
-    ///     Creation date of the credential record (where the PublicKeyCredentialDescriptor is stored) in unixtime seconds format.
+    ///     Creation date of the credential record in unixtime seconds format.
     /// </summary>
     public long CreatedAtUnixTime { get; }
 

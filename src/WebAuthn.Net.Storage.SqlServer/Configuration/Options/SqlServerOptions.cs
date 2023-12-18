@@ -2,9 +2,18 @@
 
 namespace WebAuthn.Net.Storage.SqlServer.Configuration.Options;
 
+/// <summary>
+///     Options for Microsoft SQL Server-based storage.
+/// </summary>
 public class SqlServerOptions
 {
+    /// <summary>
+    ///     The database connection string that the storage will use.
+    /// </summary>
     public string ConnectionString { get; set; } = null!;
 
+    /// <summary>
+    ///     Transaction isolation level for WebAuthn operations.
+    /// </summary>
     public IsolationLevel? WebAuthnContextIsolationLevel { get; set; }
 }

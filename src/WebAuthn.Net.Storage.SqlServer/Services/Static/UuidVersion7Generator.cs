@@ -5,8 +5,15 @@ using System.Runtime.InteropServices;
 
 namespace WebAuthn.Net.Storage.SqlServer.Services.Static;
 
+/// <summary>
+///     Uuidv7 generator that creates an optimal sequence of uuids, stored in Microsoft SQL Server as 'uniqueidentifier' data type.
+/// </summary>
 public static class UuidVersion7Generator
 {
+    /// <summary>
+    ///     Generates Uuidv7 for Microsoft SQL Server.
+    /// </summary>
+    /// <returns><see cref="Guid" /> containing Uuidv7 generated in a way to be optimally stored and used as a primary key in Microsoft SQL Server.</returns>
     public static Guid Generate()
     {
         const ushort bits48To63ResetVersionMask = 0xFFF;

@@ -10,6 +10,7 @@
         <IncludeSymbols>true</IncludeSymbols>
         <Version>$(VERSION_RELEASE)</Version>
         <Version Condition="'$(VERSION_RELEASE)' == ''">0.0.0</Version>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>

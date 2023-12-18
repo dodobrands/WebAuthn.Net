@@ -10,16 +10,28 @@ using WebAuthn.Net.Storage.PostgreSql.Models;
 
 namespace WebAuthn.Net.Storage.PostgreSql.Services.ContextFactory;
 
+/// <summary>
+///     Default implementation of <see cref="IWebAuthnContextFactory{DefaultPostgreSqlContext}" /> for PostgreSQL-based storage.
+/// </summary>
 public class DefaultPostgreSqlContextFactory : IWebAuthnContextFactory<DefaultPostgreSqlContext>
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultPostgreSqlContextFactory" />.
+    /// </summary>
+    /// <param name="options">Accessor for getting the current value of options for PostgreSQL-based storage.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPostgreSqlContextFactory(IOptionsMonitor<PostgreSqlOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         Options = options;
     }
 
+    /// <summary>
+    ///     Accessor for getting the current value of options for PostgreSQL-based storage.
+    /// </summary>
     protected IOptionsMonitor<PostgreSqlOptions> Options { get; }
 
+    /// <inheritdoc />
     public virtual async Task<DefaultPostgreSqlContext> CreateAsync(
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -31,6 +43,12 @@ public class DefaultPostgreSqlContextFactory : IWebAuthnContextFactory<DefaultPo
         return context;
     }
 
+    /// <summary>
+    ///     Asynchronously creates and opens a connection to PostgreSQL.
+    /// </summary>
+    /// <param name="httpContext">The context of the HTTP request in which the WebAuthn operation is being processed.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>Open connection to PostgreSQL database.</returns>
     protected virtual async Task<NpgsqlConnection> CreateConnectionAsync(
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -41,6 +59,13 @@ public class DefaultPostgreSqlContextFactory : IWebAuthnContextFactory<DefaultPo
         return connection;
     }
 
+    /// <summary>
+    ///     Asynchronously creates and opens a transaction in the specified connection to the PostgreSQL database.
+    /// </summary>
+    /// <param name="httpContext">The context of the HTTP request in which the WebAuthn operation is being processed.</param>
+    /// <param name="connection">Open connection to the PostgreSQL database, for which a transaction will be opened.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>Open transaction to PostgreSQL database.</returns>
     protected virtual async Task<NpgsqlTransaction> CreateTransactionAsync(
         HttpContext httpContext,
         NpgsqlConnection connection,

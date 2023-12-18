@@ -17,7 +17,7 @@ public class DefaultMySqlContext : IWebAuthnContext
     /// </summary>
     /// <param name="httpContext">The context of the HTTP request in which the WebAuthn operation is being processed.</param>
     /// <param name="connection">Open connection to MySQL database.</param>
-    /// <param name="transaction">Open transaction with MySQL database.</param>
+    /// <param name="transaction">Open transaction to MySQL database.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultMySqlContext(HttpContext httpContext, MySqlConnection connection, MySqlTransaction transaction)
     {
@@ -35,7 +35,7 @@ public class DefaultMySqlContext : IWebAuthnContext
     public MySqlConnection Connection { get; }
 
     /// <summary>
-    ///     Open transaction with MySQL database.
+    ///     Open transaction to MySQL database.
     /// </summary>
     public MySqlTransaction Transaction { get; }
 

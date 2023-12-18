@@ -117,8 +117,11 @@ public class MySqlUserCredentialRecord
     ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>.
     /// </summary>
     /// <remarks>
-    ///     Modifying or removing <a href="https://infra.spec.whatwg.org/#list-item">items</a> from the value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> could negatively impact user
-    ///     experience, or even prevent use of the corresponding credential.
+    ///     <para>
+    ///         Modifying or removing <a href="https://infra.spec.whatwg.org/#list-item">items</a> from the value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> could negatively impact
+    ///         user experience, or even prevent use of the corresponding credential.
+    ///     </para>
+    ///     <para>For storage in MySQL, the values are transformed into json ('json' data type).</para>
     /// </remarks>
     [Column(TypeName = "json")]
     [Required]

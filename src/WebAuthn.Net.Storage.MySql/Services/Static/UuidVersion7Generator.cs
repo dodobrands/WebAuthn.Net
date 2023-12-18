@@ -5,14 +5,14 @@ using System.Runtime.InteropServices;
 namespace WebAuthn.Net.Storage.MySql.Services.Static;
 
 /// <summary>
-///     Uuidv7 generator that creates optimal sequence of uuids stored in MySQL as binary(16).
+///     Uuidv7 generator that creates an optimal sequence of uuids, stored in MySQL as 'binary(16)' data type.
 /// </summary>
 public static class UuidVersion7Generator
 {
     /// <summary>
     ///     Generates Uuidv7 for MySQL.
     /// </summary>
-    /// <returns>Array of bytes containing Uuidv7.</returns>
+    /// <returns>Array of bytes containing Uuidv7 generated in a way to be optimally stored and used as a primary key in MySQL.</returns>
     public static byte[] Generate()
     {
         const ushort bits48To63ResetVersionMask = 0xFFF;

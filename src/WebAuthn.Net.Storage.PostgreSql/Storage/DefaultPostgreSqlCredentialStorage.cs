@@ -14,17 +14,30 @@ using WebAuthn.Net.Storage.PostgreSql.Storage.Models;
 
 namespace WebAuthn.Net.Storage.PostgreSql.Storage;
 
+/// <summary>
+///     Default implementation of <see cref="ICredentialStorage{TContext}" /> for PostgreSQL-based storage.
+/// </summary>
+/// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed. Must be <see cref="DefaultPostgreSqlContext" /> or its descendant.</typeparam>
 public class DefaultPostgreSqlCredentialStorage<TContext> : ICredentialStorage<TContext>
     where TContext : DefaultPostgreSqlContext
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultPostgreSqlCredentialStorage{TContext}" />.
+    /// </summary>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPostgreSqlCredentialStorage(ITimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         TimeProvider = timeProvider;
     }
 
+    /// <summary>
+    ///     Current time provider.
+    /// </summary>
     protected ITimeProvider TimeProvider { get; }
 
+    /// <inheritdoc />
     public virtual async Task<PublicKeyCredentialDescriptor[]> FindDescriptorsAsync(
         TContext context,
         string rpId,
@@ -67,7 +80,7 @@ WHERE ""RpId"" = @rpId AND ""UserHandle"" = @userHandle;",
         return result;
     }
 
-
+    /// <inheritdoc />
     public virtual async Task<UserCredentialRecord?> FindExistingCredentialForAuthenticationAsync(
         TContext context,
         string rpId,
@@ -145,6 +158,7 @@ FOR UPDATE;",
         return result;
     }
 
+    /// <inheritdoc />
     public virtual async Task<bool> SaveIfNotRegisteredForOtherUserAsync(
         TContext context,
         UserCredentialRecord credential,
@@ -266,6 +280,7 @@ VALUES
         return rowsInserted > 0;
     }
 
+    /// <inheritdoc />
     public virtual async Task<bool> UpdateCredentialAsync(
         TContext context,
         UserCredentialRecord credential,
