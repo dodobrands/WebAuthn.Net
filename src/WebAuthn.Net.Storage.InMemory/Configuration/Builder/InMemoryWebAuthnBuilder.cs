@@ -14,7 +14,7 @@ public class InMemoryWebAuthnBuilder<TContext> : IInMemoryWebAuthnBuilder<TConte
     /// <summary>
     ///     Constructs <see cref="InMemoryWebAuthnBuilder{TContext}" />.
     /// </summary>
-    /// <param name="services">A collection of services to which, using extension methods for this builder, will be added services responsible for handling WebAuthn operations with in-memory storage.</param>
+    /// <param name="services">A collection of services to which services will be added (using the extension methods for this builder), responsible for handling WebAuthn operations with an in-memory storage.</param>
     /// <exception cref="ArgumentNullException"><paramref name="services" /> is <see langword="null" /></exception>
     public InMemoryWebAuthnBuilder(IServiceCollection services)
     {

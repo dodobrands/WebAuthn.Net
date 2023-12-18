@@ -128,7 +128,10 @@ public class DefaultInMemoryCredentialStorage<TContext> : ICredentialStorage<TCo
                 return Task.FromResult(false);
             }
 
-            _credentials.Add(new(credential, TimeProvider.GetPreciseUtcDateTime()));
+            var createdAt = TimeProvider.GetPreciseUtcDateTime();
+            var updatedAt = createdAt;
+
+            _credentials.Add(InMemoryUserCredentialRecord.Create(credential, createdAt, updatedAt));
         }
 
         return Task.FromResult(true);
@@ -161,7 +164,11 @@ public class DefaultInMemoryCredentialStorage<TContext> : ICredentialStorage<TCo
                 return Task.FromResult(false);
             }
 
-            _credentials.Add(new(credential, TimeProvider.GetPreciseUtcDateTime()));
+            var createdAt = DateTimeOffset.FromUnixTimeSeconds(recordsToRemove.Single().CreatedAtUnixTime);
+            var updatedAt = TimeProvider.GetPreciseUtcDateTime();
+
+
+            _credentials.Add(InMemoryUserCredentialRecord.Create(credential, createdAt, updatedAt));
         }
 
         return Task.FromResult(true);

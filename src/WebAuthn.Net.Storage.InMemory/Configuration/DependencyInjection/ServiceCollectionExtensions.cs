@@ -13,7 +13,7 @@ using WebAuthn.Net.Storage.RegistrationCeremony.Implementation;
 namespace WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
 
 /// <summary>
-///     Extension methods to <see cref="IServiceCollection" /> for configuring WebAuthn.Net with in-memory storage.
+///     Extension methods for <see cref="IServiceCollection" /> for configuring WebAuthn.Net with in-memory storage.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
@@ -29,7 +29,7 @@ public static class ServiceCollectionExtensions
     /// <param name="configureBackgroundIngest">An optional delegate for configuring the behavior of metadata ingestion from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.</param>
     /// <param name="configureRegistration">An optional delegate for configuring the behavior of the storage responsible for storing registration ceremony data.</param>
     /// <param name="configureAuthentication">An optional delegate for configuring the behavior of the storage responsible for storing authentication ceremony data.</param>
-    /// <returns>An instance of <see cref="IInMemoryWebAuthnBuilder{DefaultInMemoryContext}" />, containing a configured service collection for working with in-memory storage.</returns>
+    /// <returns>An instance of <see cref="IInMemoryWebAuthnBuilder{DefaultInMemoryContext}" />, which includes configured services for working with in-memory storage.</returns>
     public static IInMemoryWebAuthnBuilder<DefaultInMemoryContext> AddWebAuthnInMemory(
         this IServiceCollection services,
         Action<WebAuthnOptions>? configure = null,

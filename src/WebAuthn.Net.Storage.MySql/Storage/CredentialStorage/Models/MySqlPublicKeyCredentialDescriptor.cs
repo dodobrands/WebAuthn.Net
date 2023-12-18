@@ -9,9 +9,23 @@ using WebAuthn.Net.Models.Protocol.Enums;
 
 namespace WebAuthn.Net.Storage.MySql.Storage.CredentialStorage.Models;
 
+/// <summary>
+///     Model for representing <see cref="PublicKeyCredentialDescriptor" /> stored in MySQL as part of <see cref="MySqlUserCredentialRecord" />.
+/// </summary>
 [SuppressMessage("Design", "CA1812:Avoid uninstantiated internal classes")]
 public class MySqlPublicKeyCredentialDescriptor
 {
+    /// <summary>
+    ///     Constructs <see cref="MySqlPublicKeyCredentialDescriptor" />.
+    /// </summary>
+    /// <param name="type">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source-type">type</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.</param>
+    /// <param name="credentialId">The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">Credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.</param>
+    /// <param name="transports">
+    ///     The value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. For storage in MySQL, the values are transformed into
+    ///     json.
+    /// </param>
+    /// <param name="createdAtUnixTime">Creation date of the credential record (where the PublicKeyCredentialDescriptor is stored) in unixtime seconds format.</param>
     public MySqlPublicKeyCredentialDescriptor(int type, byte[] credentialId, string transports, long createdAtUnixTime)
     {
         Type = type;
@@ -20,18 +34,37 @@ public class MySqlPublicKeyCredentialDescriptor
         CreatedAtUnixTime = createdAtUnixTime;
     }
 
+    /// <summary>
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source-type">type</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </summary>
     public int Type { get; }
 
+    /// <summary>
+    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#credential-id">Credential ID</a> of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a>.
+    /// </summary>
     [Required]
     [MaxLength(1024)]
     public byte[] CredentialId { get; }
 
+    /// <summary>
+    ///     The value returned from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-authenticatorattestationresponse-gettransports">getTransports()</a> when the
+    ///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#public-key-credential-source">public key credential source</a> was <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#registration">registered</a>. For storage in MySQL, the values are transformed into
+    ///     json.
+    /// </summary>
     [Column(TypeName = "json")]
     [Required]
     public string Transports { get; }
 
+    /// <summary>
+    ///     Creation date of the credential record (where the PublicKeyCredentialDescriptor is stored) in unixtime seconds format.
+    /// </summary>
     public long CreatedAtUnixTime { get; }
 
+    /// <summary>
+    ///     Converts <see cref="MySqlPublicKeyCredentialDescriptor" /> to <see cref="PublicKeyCredentialDescriptor" /> if possible.
+    /// </summary>
+    /// <param name="result">Output parameter. Contains <see cref="PublicKeyCredentialDescriptor" /> if the conversion was successful and the method returned <see langword="true" />, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if the conversion was successful, otherwise - <see langword="false" />.</returns>
     public virtual bool TryToPublicKeyCredentialDescriptor([NotNullWhen(true)] out PublicKeyCredentialDescriptor? result)
     {
         result = null;
