@@ -40,7 +40,7 @@ Our goal is to create an easy-to-use, extendable, production-ready implementatio
     - [PostgreSQL](src/WebAuthn.Net.Storage.PostgreSql)
     - [MySQL](src/WebAuthn.Net.Storage.MySql)
     - [InMemory](src/WebAuthn.Net.Storage.InMemory) (for sample applications)
-- ✅ Built-in metrics (with an additional library for integrating WebAuthn.Net metrics with OpenTelemetry)
+- ✅ Built-in metrics (with an additional library for integrating WebAuthn.Net metrics with [OpenTelemetry](https://opentelemetry.io))
 - ✅ [Sample applications](samples)
 - ✅ Exceptionless design (avoid exceptions wherever possible)
 - ✅ Designed with extensibility in mind (almost any library component can be overridden)
