@@ -30,7 +30,7 @@ public static class Program
         services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
-                metrics.AddWebAuthn();
+                metrics.AddWebAuthnNet();
                 metrics.AddPrometheusExporter();
             });
 

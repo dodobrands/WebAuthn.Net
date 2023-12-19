@@ -14,7 +14,7 @@ public static class MeterProviderBuilderExtensions
     /// </summary>
     /// <param name="builder">Extensible instance of <see cref="MeterProviderBuilder" /></param>
     /// <returns>Configured <see cref="MeterProviderBuilder" />.</returns>
-    public static MeterProviderBuilder AddWebAuthn(this MeterProviderBuilder builder)
+    public static MeterProviderBuilder AddWebAuthnNet(this MeterProviderBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.AddMeter(Meters.RegistrationCeremonyMeterName);
