@@ -1,10 +1,10 @@
 # WebAuthn.Net
 
-Working implementation of the [WebAuthn Level 3](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/) standard for .NET 6 and .NET 8
+A production-ready implementation of the [WebAuthn Level 3 standard](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/) for the relying party (server side of web applications) based on .NET 6 and .NET 8.
 
 ## Purpose
 
-Our goal is to create an easy-to-use, expandable, production-ready implementation of the [WebAuthn Relying Party](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-relying-party) library for the [latest version of the WebAuthn standard](https://www.w3.org/standards/history/webauthn-3/), which passes the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), and is adapted for [LTS versions of .NET](https://dotnet.microsoft.com/en-us/platform/support/policy) (6 and 8 at the moment).
+Our goal is to create an easy-to-use, extendable, production-ready implementation of the [WebAuthn Relying Party](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-relying-party) library for the [latest version of the WebAuthn standard](https://www.w3.org/standards/history/webauthn-3/), which passes the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), and is adapted for [LTS versions of .NET](https://dotnet.microsoft.com/en-us/platform/support/policy).
 
 ## Supported features
 
@@ -40,8 +40,9 @@ Our goal is to create an easy-to-use, expandable, production-ready implementatio
     - [PostgreSQL](src/WebAuthn.Net.Storage.PostgreSql)
     - [MySQL](src/WebAuthn.Net.Storage.MySql)
     - [InMemory](src/WebAuthn.Net.Storage.InMemory) (for sample applications)
+- ✅ Built-in metrics (with an additional library for integrating WebAuthn.Net metrics with OpenTelemetry)
 - ✅ [Sample applications](samples)
-- ✅ Exceptionless API (avoid exceptions wherever possible)
+- ✅ Exceptionless design (avoid exceptions wherever possible)
 - ✅ Designed with extensibility in mind (almost any library component can be overridden)
 - ✅ Intellisense documentation
 
@@ -52,24 +53,10 @@ Our goal is to create an easy-to-use, expandable, production-ready implementatio
 - [.NET SDK 6.0.417+](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 - [.NET SDK 8.0.100+](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 
-## Releasing
-
-- Create release via [Github New Release](https://github.com/dodopizza/WebAuthn.Net/releases/new)
-- Specify tag by semver (example: `1.3.37`) and target branch (`main` by default) then publish
-- Github Actions will trigger on new release and publish NuGet package for a release
-
 ## Tips for Contribution
 
 Any contributions appreciated!
 If you have an idea, feature request, or you find a bug – feel free to open new issue.
-
-There are few tips how to make your contribution even better
-
-- Start with issue.
-  Even if you want to write code by yourself to implement some feature or fix a bug,
-  please create Issue first and link it in the Pull Request.
-  It allows us to better understand what problem you are trying to solve.
-- When you create a Pull Request make sure triggered GitHub Actions workflow finished successfully.
 
 ## Acknowledgements
 
@@ -77,5 +64,6 @@ WebAuthn.Net is built using the following wonderful tools
 
 * [.NET](https://github.com/dotnet/runtime)
 * [ASP.NET Core](https://github.com/dotnet/aspnetcore)
-* [FIDO2 .NET Library (WebAuthn)](https://github.com/passwordless-lib/fido2-net-lib)
 * [JetBrains Rider](https://www.jetbrains.com/rider)
+
+WebAuthn.Net is inspired by the wonderful project [FIDO2 .NET Library (WebAuthn)](https://github.com/passwordless-lib/fido2-net-lib). However, WebAuthn.Net is not a fork, but a standalone project built entirely from scratch.
