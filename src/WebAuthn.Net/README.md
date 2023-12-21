@@ -163,7 +163,7 @@ The WebAuthn specification defines two main processes that occur during interact
 
 This process is detailed in the ["7.1. Registering a New Credential"](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-registering-a-new-credential) section of the WebAuthn specification.
 
-The essence of the process is to associate a public key with the user account.
+The purpose of the process is to associate a public key with the user account.
 
 1. Generate a random value (`challenge`) and read the identifier of the authenticated user (`userHandle`)
 2. Pass these values to the frontend as options in the method `navigator.credentials.create()`
@@ -176,7 +176,7 @@ As a result of this operation, an association is formed between the user's accou
 
 This process is detailed in the ["7.2. Verifying an Authentication Assertion"](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-verifying-assertion) section of the WebAuthn specification.
 
-The essence of the process comes down to comparing the `credentialId` and `userHandle` (in the case of Passkeys), which were created during the registration ceremony, with the data stored on the backend to authenticate the user.
+The purpose of the process comes down to comparing the `credentialId` and `userHandle` (in the case of Passkeys), which were created during the registration ceremony, with the data stored on the backend to authenticate the user.
 
 1. Generate a random value (`challenge`) and optionally (in the case of Passkeys) read the existing user's public keys
 2. Pass these values to the frontend as options in the method `navigator.credentials.get()`
