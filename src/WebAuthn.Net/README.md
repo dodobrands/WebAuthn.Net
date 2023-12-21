@@ -165,10 +165,11 @@ This process is detailed in the ["7.1. Registering a New Credential"](https://ww
 
 The purpose of the process is to associate a public key with the user account.
 
-1. Generate a random value (`challenge`) and read the identifier of the authenticated user (`userHandle`)
+1. Generate a random value (`challenge`) and read the identifier of the authenticated user (`userHandle`) on the backend
 2. Pass these values to the frontend as options in the method `navigator.credentials.create()`
-3. Perform validation of the result of the method `navigator.credentials.create()` on the backend, during which the `credentialId` will be obtained
-4. If the validation was successful - create an association between `userHandle` and `credentialId` on the backend
+3. Pass the result of the `navigator.credentials.create()` method to the backend, where its validation will be performed
+4. Obtain the `credentialId` during the validation process
+5. If the validation was successful - create an association between `userHandle` and `credentialId` on the backend
 
 As a result of this operation, an association is formed between the user's account and a specific public key, stored both on the backend and on the authenticator device. In the future, these data will be used for user authentication.
 
