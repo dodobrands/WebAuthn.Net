@@ -161,7 +161,7 @@ The WebAuthn specification defines two main processes that occur during interact
 
 ### Registration ceremony
 
-Also, this process can be referred to as "Registering a New Credential".
+This process is detailed in the ["7.1. Registering a New Credential"](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-registering-a-new-credential) section of the WebAuthn specification.
 
 The essence of the process is to associate a public key with the user account.
 
@@ -174,7 +174,7 @@ As a result of this operation, an association is formed between the user's accou
 
 ### Authentication ceremony
 
-Also, this process can be referred to as "Verifying an Authentication Assertion".
+This process is detailed in the ["7.2. Verifying an Authentication Assertion"](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-verifying-assertion) section of the WebAuthn specification.
 
 The essence of the process comes down to comparing the `credentialId` and `userHandle` (in the case of Passkeys), which were created during the registration ceremony, with the data stored on the backend to authenticate the user.
 
