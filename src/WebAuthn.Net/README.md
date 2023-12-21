@@ -181,8 +181,9 @@ The purpose of the process comes down to comparing the `credentialId` and `userH
 
 1. Generate a random value (`challenge`) and optionally (in the case of Passkeys) read the existing user's public keys
 2. Pass these values to the frontend as options in the method `navigator.credentials.get()`
-3. Validate the result of the `navigator.credentials.get()` method on the backend by comparing the `credentialId` and `userHandle` (in the case of Passkeys) with the values created during the registration ceremony.
-4. If the validation was successful - authenticate the user.
+3. Pass the result of executing `navigator.credentials.get()` to the backend, where validation will be performed
+4. Validate the result of the `navigator.credentials.get()` method on the backend by comparing the `credentialId` and `userHandle` (in the case of Passkeys) with the values created during the registration ceremony
+4. If the validation was successful - authenticate the user
 
 This is a highly simplified description of the processes. To familiarize yourself with what is actually happening, it is strongly recommended to read the specification.
 
