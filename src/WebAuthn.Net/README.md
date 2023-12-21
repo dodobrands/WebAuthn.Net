@@ -222,7 +222,11 @@ The service is designed to first download the data and then go into a background
 
 Meanwhile, WebAuthn.Net uses an in-memory storage implementation for such data.
 
-This approach is very simple and requires no complex logic, but it has one significant drawback - if the FIDO Metadata Service is unavailable, your application may not start. Therefore, you can implement your own storage and update of metadata based on a persistent storage so that the application start does not depend on the availability of the FIDO Metadata Service.
+This approach is very simple and requires no complex logic, but it has one significant drawback:
+> [!WARNING]
+> If the FIDO Metadata Service is unavailable, your application may not start.
+
+Therefore, you can implement your own storage and update of metadata based on a persistent storage so that the application start does not depend on the availability of the FIDO Metadata Service.
 
 ## Dependency Injection
 
