@@ -1,21 +1,17 @@
 # WebAuthn.Net
 
-A production-ready implementation of the [WebAuthn Level 3 standard](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/) for the relying party (server side of web applications) based on .NET 6 and .NET 8.
-
-## Purpose
-
-Our goal is to create an easy-to-use, extendable, production-ready implementation of the [WebAuthn Relying Party](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-relying-party) library for the [latest version of the WebAuthn standard](https://www.w3.org/standards/history/webauthn-3/), which passes the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), and is adapted for [LTS versions of .NET](https://dotnet.microsoft.com/en-us/platform/support/policy).
+Production-ready, easy-to-use, extensible implementation for the [latest version](https://www.w3.org/standards/history/webauthn-3/) of the [WebAuthn standard](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/) for [WebAuthn Relying Party](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-relying-party) (server side of web applications), which passes the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/) and is adapted for the latest [LTS versions of .NET  (6 and 8)](https://dotnet.microsoft.com/en-us/platform/support/policy).
 
 ## Documentation
 
 The documentation for each project is described in its README.md file.
 
 - [WebAuthn.Net](src/WebAuthn.Net)
-- [WebAuthn.Net.OpenTelemetry](src/WebAuthn.Net.OpenTelemetry)
-- [WebAuthn.Net.Storage.InMemory](src/WebAuthn.Net.Storage.InMemory)
-- [WebAuthn.Net.Storage.MySql](src/WebAuthn.Net.Storage.MySql)
-- [WebAuthn.Net.Storage.PostgreSql](src/WebAuthn.Net.Storage.PostgreSql)
 - [WebAuthn.Net.Storage.SqlServer](src/WebAuthn.Net.Storage.SqlServer)
+- [WebAuthn.Net.Storage.PostgreSql](src/WebAuthn.Net.Storage.PostgreSql)
+- [WebAuthn.Net.Storage.MySql](src/WebAuthn.Net.Storage.MySql)
+- [WebAuthn.Net.Storage.InMemory](src/WebAuthn.Net.Storage.InMemory)
+- [WebAuthn.Net.OpenTelemetry](src/WebAuthn.Net.OpenTelemetry)
 
 ## Supported features
 
