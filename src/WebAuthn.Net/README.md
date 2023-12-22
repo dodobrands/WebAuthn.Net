@@ -14,7 +14,7 @@ To connect WebAuthn.Net with a ready-to-use storage implementation for Microsoft
 
 ```csharp
 services.AddWebAuthnSqlServer(
-    configureSqlServer: static sqlServer =>
+    configureSqlServer: sqlServer =>
     {
         sqlServer.ConnectionString = "CONNECTION_STRING_HERE";
     });
@@ -28,7 +28,7 @@ To connect WebAuthn.Net with a ready-to-use storage implementation for PostgreSQ
 
 ```csharp
 services.AddWebAuthnPostgreSql(
-    configurePostgreSql: static postgresql =>
+    configurePostgreSql: postgresql =>
     {
         postgresql.ConnectionString = "CONNECTION_STRING_HERE";
     });
@@ -42,7 +42,7 @@ To connect WebAuthn.Net with a ready-to-use storage implementation for MySQL, yo
 
 ```csharp
 services.AddWebAuthnMySql(
-    configureMySql: static mysql =>
+    configureMySql: mysql =>
     {
         mysql.ConnectionString = "CONNECTION_STRING_HERE";
     });
@@ -63,7 +63,7 @@ var result = await _registrationCeremonyService.BeginCeremonyAsync(
         rpDisplayName: "My Awesome Web Service",
         user: new PublicKeyCredentialUserEntity(
             name: "User Name",
-            id: new byte[] { 0x1, 0x3, 0x3, 0x7 },
+            id: new byte[] { 0x01, 0x03, 0x03, 0x07 },
             displayName: "User Display Name"),
         challengeSize: 32,
         pubKeyCredParams: new CoseAlgorithm[]
@@ -121,7 +121,7 @@ var result = await _authenticationCeremonyService.BeginCeremonyAsync(
     request: new BeginAuthenticationCeremonyRequest(
         origins: null,
         topOrigins: null,
-        userHandle: new byte[] { 0x1, 0x3, 0x3, 0x7 },
+        userHandle: new byte[] { 0x01, 0x03, 0x03, 0x07 },
         challengeSize: 32,
         timeout: 300_000,
         allowCredentials: AuthenticationCeremonyIncludeCredentials.AllExisting(),

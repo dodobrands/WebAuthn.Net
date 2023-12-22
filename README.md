@@ -1,6 +1,6 @@
 # WebAuthn.Net
 
-Production-ready, easy-to-use, extensible implementation for the [latest version](https://www.w3.org/standards/history/webauthn-3/) of the [WebAuthn standard](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/) for [WebAuthn Relying Party](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#webauthn-relying-party) (server side of web applications), which passes the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/) and is adapted for the latest [LTS versions of .NET  (6 and 8)](https://dotnet.microsoft.com/en-us/platform/support/policy).
+A production-ready, easy-to-use, extensible implementation of the [WebAuthn Level 3 standard](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/), passing the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), for the server side of web applications on .NET 6 and .NET 8.
 
 ## Documentation
 
