@@ -1,0 +1,150 @@
+﻿@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@{
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+
+<div class="row">
+    <div class="col-md-6 mb-2">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Register</h2>
+                <form id="webauthn-register" class="p-1">
+                    <input id="webauthn-register-request-token" type="hidden" value="@requestToken"/>
+                    <div class="form-floating mb-3">
+                        <input type="text" id="webauthn-register-name" class="form-control" placeholder="Username"/>
+                        <label for="webauthn-register-name">Username</label>
+                    </div>
+                    <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto">
+                        <button type="submit" id="webauthn-register-submit" class="btn btn-primary">Sign Up</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-2">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Register Options</h2>
+                <form id="webauthn-params" class="p-1">
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-params-uv" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="discouraged">Discouraged</option>
+                            <option value="preferred">Preferred</option>
+                            <option value="required">Required</option>
+                        </select>
+                        <label for="webauthn-params-uv">User Verification Requirement</label>
+                    </div>
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-params-attachment" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="platform">Platform</option>
+                            <option value="cross-platform">Cross-Platform</option>
+                        </select>
+                        <label for="webauthn-params-attachment">Authenticator Attachment</label>
+                    </div>
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-params-discoverable" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="discouraged">Discouraged</option>
+                            <option value="preferred">Preferred</option>
+                            <option value="required">Required</option>
+                        </select>
+                        <label for="webauthn-params-discoverable">Discoverable Credential</label>
+                    </div>
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-params-attestation" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="none">None</option>
+                            <option value="direct">Direct</option>
+                            <option value="indirect">Indirect</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                        <label for="webauthn-params-attestation">Attestation Conveyance Preference</label>
+                    </div>
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-params-rkey" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="discouraged">Discouraged</option>
+                            <option value="preferred">Preferred</option>
+                            <option value="required">Required</option>
+                        </select>
+                        <label for="webauthn-params-rkey">Resident Key Requirement</label>
+                    </div>
+                    <div class="accordion mb-3" id="allowed-algo">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#allowed-algo-body">
+                                    Allowed Algorithms
+                                </button>
+                            </h2>
+                            <div id="allowed-algo-body" class="accordion-collapse collapse text-start" data-bs-parent="#allowed-algo">
+                                <div class="accordion-body">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS1" value="-65535">
+                                        <label class="form-check-label" for="allowed-algo-RS1">RS1 (RSASSA-PKCS1-v1_5 using SHA-1)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS512" value="-259">
+                                        <label class="form-check-label" for="allowed-algo-RS512">RS512 (RSASSA-PKCS1-v1_5 using SHA-512)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS384" value="-258">
+                                        <label class="form-check-label" for="allowed-algo-RS384">RS384 (RS512-PKCS1-v1_5 using SHA-384)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-RS256" value="-257">
+                                        <label class="form-check-label" for="allowed-algo-RS256">RS256 (RSASSA-PKCS1-v1_5 using SHA-256)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-PS512" value="-39">
+                                        <label class="form-check-label" for="allowed-algo-PS512">PS512 (RSASSA-PSS w/ SHA-512)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-PS384" value="-38">
+                                        <label class="form-check-label" for="allowed-algo-PS384">PS384 (RSASSA-PSS w/ SHA-384)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-PS256" value="-37">
+                                        <label class="form-check-label" for="allowed-algo-PS256">PS256 (RSASSA-PSS w/ SHA-256)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-ES512" value="-36">
+                                        <label class="form-check-label" for="allowed-algo-ES512">ES512 (ECDSA w/ SHA-512)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-ES384" value="-35">
+                                        <label class="form-check-label" for="allowed-algo-ES384">ES384 (ECDSA w/ SHA-384)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-ES256" value="-7">
+                                        <label class="form-check-label" for="allowed-algo-ES256">ES256 (ECDSA w/ SHA-256)</label>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowed-algo-EdDSA" value="-8">
+                                        <label class="form-check-label" for="allowed-algo-EdDSA">EdDSA</label>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto">
+                        <button type="submit" id="webauthn-params-submit" class="btn btn-secondary">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,6 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.VerifyAssertion;
 
@@ -34,7 +35,7 @@ public interface IAuthenticationCeremonyService
     /// <param name="request">A request containing the parameters for completing the authentication ceremony.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>The result of completing the authentication ceremony.</returns>
-    Task<CompleteAuthenticationCeremonyResult> CompleteCeremonyAsync(
+    Task<Result<CompleteAuthenticationCeremonyResult>> CompleteCeremonyAsync(
         HttpContext httpContext,
         CompleteAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken);

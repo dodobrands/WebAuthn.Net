@@ -77,7 +77,7 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 
     private async Task SetupRsaPkcsRegistrationAsync()
@@ -130,7 +130,7 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 
     [Test]
@@ -171,7 +171,7 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 
     [Test]
@@ -212,6 +212,6 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 }

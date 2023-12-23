@@ -1,0 +1,69 @@
+﻿@using Microsoft.AspNetCore.Antiforgery
+@using WebAuthn.Net.Demo.Mvc.Constants
+@inject IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Webauthn Passwordless";
+    ViewData["Flow"] = Flows.Passwordless;
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+
+<partial name="_RegisterRow"/>
+<hr>
+<div class="row">
+    <div class="col-md-6 mb-2">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Passwordless Authentication</h2>
+                <form id="webauthn-authenticate" class="p-1">
+                    <input id="webauthn-authenticate-request-token" type="hidden" value="@requestToken"/>
+                    <div class="form-floating mb-3">
+                        <input type="text" id="webauthn-authenticate-name" placeholder="Username" class="form-control mb-1"/>
+                        <label for="webauthn-authenticate-name">Username</label>
+                    </div>
+                    <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto">
+                        <button type="submit" id="webauthn-authenticate-submit" class="btn btn-primary">Sign In</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-2">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Passwordless Authentication Options</h2>
+                <form id="webauthn-passwordless-params" class="p-1">
+                    <div class="form-floating mb-2">
+                        <select id="webauthn-passwordless-params-uv" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="discouraged">Discouraged</option>
+                            <option value="preferred">Preferred</option>
+                            <option value="required">Required</option>
+                        </select>
+                        <label for="webauthn-passwordless-params-uv">User Verification Requirement</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <select id="webauthn-passwordless-params-attestation" class="form-select">
+                            <option value="unset">(not set)</option>
+                            <option value="none">None</option>
+                            <option value="direct">Direct</option>
+                            <option value="indirect">Indirect</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                        <label for="webauthn-passwordless-params-attestation">Attestation Conveyance Preference</label>
+                    </div>
+                    <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto">
+                        <button type="submit" id="webauthn-passwordless-params-submit" class="btn btn-secondary">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<partial name="_LogoutRow"/>
+
+@section Scripts
+{
+    <script defer type="text/javascript" src="~/js/views/passwordless.js"></script>
+    <script defer type="text/javascript" src="~/js/views/register.js"></script>
+}

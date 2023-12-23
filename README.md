@@ -48,7 +48,7 @@ The documentation for each project is described in its README.md file.
     - [MySQL](src/WebAuthn.Net.Storage.MySql)
     - [InMemory](src/WebAuthn.Net.Storage.InMemory) (for sample applications)
 - ✅ Built-in metrics (with an additional library for integrating WebAuthn.Net metrics with [OpenTelemetry](https://opentelemetry.io))
-- ✅ [Sample applications](samples)
+- ✅ [Demo applications](demo)
 - ✅ Exceptionless design (avoid exceptions wherever possible)
 - ✅ Designed with extensibility in mind (almost any library component can be overridden)
 - ✅ Intellisense documentation

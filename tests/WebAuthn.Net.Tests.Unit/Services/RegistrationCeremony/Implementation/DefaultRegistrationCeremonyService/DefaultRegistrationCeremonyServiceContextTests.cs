@@ -112,7 +112,7 @@ public class DefaultRegistrationCeremonyServiceContextTests : AbstractRegistrati
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
 
         var metrics = ContextFactory.GetMetrics();
         Assert.That(metrics.Length, Is.GreaterThan(0));

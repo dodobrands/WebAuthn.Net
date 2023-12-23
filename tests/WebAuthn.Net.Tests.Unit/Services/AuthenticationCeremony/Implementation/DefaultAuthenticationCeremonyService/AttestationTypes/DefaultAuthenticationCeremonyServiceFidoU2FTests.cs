@@ -66,7 +66,7 @@ public class DefaultAuthenticationCeremonyServiceFidoU2FTests : AbstractAuthenti
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 
     [Test]
@@ -113,6 +113,6 @@ public class DefaultAuthenticationCeremonyServiceFidoU2FTests : AbstractAuthenti
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 }

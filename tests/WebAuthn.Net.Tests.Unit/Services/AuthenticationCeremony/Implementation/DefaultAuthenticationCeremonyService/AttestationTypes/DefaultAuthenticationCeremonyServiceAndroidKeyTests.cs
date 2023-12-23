@@ -68,7 +68,7 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 
     [Test]
@@ -110,6 +110,6 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 }

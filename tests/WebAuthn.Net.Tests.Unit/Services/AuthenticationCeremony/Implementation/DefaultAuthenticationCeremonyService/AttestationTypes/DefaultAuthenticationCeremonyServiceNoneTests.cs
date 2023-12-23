@@ -78,7 +78,7 @@ public class DefaultAuthenticationCeremonyServiceNoneTests : AbstractAuthenticat
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 
     [Test]
@@ -119,6 +119,6 @@ public class DefaultAuthenticationCeremonyServiceNoneTests : AbstractAuthenticat
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.Successful, Is.True);
+        Assert.That(completeResult.HasError, Is.False);
     }
 }

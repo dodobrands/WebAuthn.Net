@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
@@ -293,7 +294,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     }
 
     /// <inheritdoc />
-    public async Task<CompleteAuthenticationCeremonyResult> CompleteCeremonyAsync(
+    public async Task<Result<CompleteAuthenticationCeremonyResult>> CompleteCeremonyAsync(
         HttpContext httpContext,
         CompleteAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken)
@@ -313,7 +314,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.AuthenticationCeremonyNotFound();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // 1. Let options be a new PublicKeyCredentialRequestOptions structure configured to the Relying Party's needs for the ceremony.
@@ -328,7 +329,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.FailedToDecodeAuthenticationResponseJson();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             var credential = credentialResult.Ok;
@@ -346,7 +347,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.InvalidCredentialId();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
             }
 
@@ -373,7 +374,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.CredentialNotFound();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
 
                 if (!dbCredential.ContainsCredentialThatBelongsTo(
@@ -383,7 +384,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.CredentialMismatch();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
 
                 // Let 'credentialRecord' be that credential record.
@@ -397,7 +398,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                     {
                         Logger.ResponseUserHandleMismatch();
                         Counters.IncrementCompleteCeremonyEnd(false);
-                        return CompleteAuthenticationCeremonyResult.Fail();
+                        return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
                 }
             }
@@ -411,7 +412,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.UserHandleNotPresentInResponse();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
 
                 //  Verify that the user account identified by response.userHandle contains a credential record whose id equals credential.rawId.
@@ -426,7 +427,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.CredentialNotFound();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
 
                 if (!dbCredential.ContainsCredentialThatBelongsTo(
@@ -436,7 +437,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.CredentialMismatch();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
 
                 // Let 'credentialRecord' be that credential record.
@@ -450,7 +451,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.FailedToDecodeResponseAuthenticatorData();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             var cData = response.ClientDataJson;
@@ -467,7 +468,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.FailedToDecodeResponseClientDataJson();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // ReSharper disable once InconsistentNaming
@@ -478,7 +479,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.IncorrectClientDataType(C.Type);
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // 13. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
@@ -486,7 +487,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.ChallengeMismatch();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // 14. Verify that the value of C.origin is an origin expected by the Relying Party. See §13.4.9 Validating the origin of a credential for guidance.
@@ -495,7 +496,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.InvalidOrigin(C.Origin);
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // 15. If C.topOrigin is present:
@@ -509,7 +510,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                     {
                         Logger.InvalidTopOrigin(C.TopOrigin);
                         Counters.IncrementCompleteCeremonyEnd(false);
-                        return CompleteAuthenticationCeremonyResult.Fail();
+                        return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
                 }
                 else
@@ -518,7 +519,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                     {
                         Logger.InvalidTopOrigin(C.TopOrigin);
                         Counters.IncrementCompleteCeremonyEnd(false);
-                        return CompleteAuthenticationCeremonyResult.Fail();
+                        return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
                 }
             }
@@ -530,7 +531,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.RpIdHashMismatch();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             var userVerificationRequired = options.UserVerification is UserVerificationRequirement.Required;
@@ -543,7 +544,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.UserPresentBitNotSet();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
 
                 // 18. Determine whether user verification is required for this assertion.
@@ -555,7 +556,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.UserVerificationBitNotSet();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
             }
 
@@ -575,7 +576,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 // |  1 |  1 | The credential is a multi-device credential and is currently backed up.
                 Logger.InvalidBeBsFlagsCombination();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // Compare 'currentBe' and 'currentBs' with 'credentialRecord.backupEligible' and 'credentialRecord.backupState':
@@ -587,7 +588,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.BackupEligibleBitNotSet();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
             }
 
@@ -598,7 +599,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.BackupEligibleBitSet();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
             }
 
@@ -622,14 +623,14 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.FailedToTransformCredentialPublicKey();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             if (!SignatureVerifier.IsValidCoseKeySign(credentialRecordPublicKey, dataToVerify, sig))
             {
                 Logger.InvalidSignature();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // 24. If 'authData.signCount' is nonzero or 'credentialRecord.signCount' is nonzero, then run the following sub-step:
@@ -649,7 +650,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                     {
                         Logger.AbortBySignCount();
                         Counters.IncrementCompleteCeremonyEnd(false);
-                        return CompleteAuthenticationCeremonyResult.Fail();
+                        return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
                 }
             }
@@ -663,7 +664,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.AttestationObjectDecodeFailed();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
 
                 var attestationObjectValid = await VerifyAttestationObjectAsync(
@@ -678,7 +679,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     Logger.AttestationObjectVerificationFailed();
                     Counters.IncrementCompleteCeremonyEnd(false);
-                    return CompleteAuthenticationCeremonyResult.Fail();
+                    return Result<CompleteAuthenticationCeremonyResult>.Fail();
                 }
             }
 
@@ -709,13 +710,15 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             {
                 Logger.CredentialStorageUpdateFailed();
                 Counters.IncrementCompleteCeremonyEnd(false);
-                return CompleteAuthenticationCeremonyResult.Fail();
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
             // 27. If all the above steps are successful, continue with the authentication ceremony as appropriate. Otherwise, fail the authentication ceremony.
-            var result = CompleteAuthenticationCeremonyResult.Success(
+            var successfulResult = new CompleteAuthenticationCeremonyResult(
                 recommendedActions,
-                credentialRecordUpdateResult.UserVerificationFlagMayBeUpdatedToTrue);
+                credentialRecordUpdateResult.UserVerificationFlagMayBeUpdatedToTrue,
+                updatedCredential.UserHandle);
+            var result = Result<CompleteAuthenticationCeremonyResult>.Success(successfulResult);
             await context.CommitAsync(cancellationToken);
             Counters.IncrementCompleteCeremonyEnd(true);
             return result;
