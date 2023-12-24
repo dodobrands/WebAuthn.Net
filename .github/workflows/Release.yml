@@ -21,6 +21,12 @@ jobs:
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+            -   uses: actions/setup-dotnet@v3.2.0
+                with:
+                    dotnet-version: 8.0.100
+                    source-url: ${{ secrets.NUGET_SOURCE }}
+                env:
+                    NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             -   run: dotnet test -c Release
             -   run: dotnet pack -c Release -o out src/WebAuthn.Net
             -   run: dotnet nuget push out/WebAuthn.Net.${{ env.RELEASE_VERSION }}.nupkg --source ${{ secrets.NUGET_SOURCE }} --api-key ${{ secrets.GITHUB_TOKEN }}
