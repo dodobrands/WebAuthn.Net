@@ -32,10 +32,7 @@ public class AttestedCredentialData
         byte[] credentialId,
         AbstractCoseKey credentialPublicKey)
     {
-        if (credentialId == null)
-        {
-            throw new ArgumentNullException(nameof(credentialId));
-        }
+        ArgumentNullException.ThrowIfNull(credentialId);
 
         if (credentialId.Length < 16)
         {

@@ -9,7 +9,7 @@ namespace WebAuthn.Net.Demo.Mvc.Services.Abstractions.CookieStore;
 public abstract class AbstractProtectedCookieStore
 {
     private readonly CookieBuilder _cookieBuilder;
-    private readonly ICookieManager _cookieManager;
+    private readonly ChunkingCookieManager _cookieManager;
     private readonly string _cookieName;
     private readonly IDataProtector _protector;
 
@@ -30,7 +30,7 @@ public abstract class AbstractProtectedCookieStore
         }
 
         _protector = provider.CreateProtector(dataProtectionPurpose);
-        _cookieManager = new ChunkingCookieManager();
+        _cookieManager = new();
         _cookieBuilder = new RequestPathBaseCookieBuilder
         {
             Name = cookieName,

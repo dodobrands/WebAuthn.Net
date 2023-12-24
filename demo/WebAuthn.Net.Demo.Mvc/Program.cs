@@ -56,10 +56,7 @@ public static class Program
 
         app.UseAuthentication();
         app.UseAuthorization();
-        app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapDefaultControllerRoute();
-        });
+        app.MapDefaultControllerRoute();
         app.UseOpenTelemetryPrometheusScrapingEndpoint();
         app.Run();
     }

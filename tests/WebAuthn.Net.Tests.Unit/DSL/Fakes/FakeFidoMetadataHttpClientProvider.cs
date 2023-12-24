@@ -11,10 +11,10 @@ namespace WebAuthn.Net.DSL.Fakes;
 
 public class FakeFidoMetadataHttpClientProvider : IDisposable
 {
-    public FakeFidoMetadataHttpClientProvider(IEnumerable<KeyValuePair<string, string>>? configuration = null)
+    public FakeFidoMetadataHttpClientProvider(IEnumerable<KeyValuePair<string, string?>>? configuration = null)
     {
         ConfigurationManager = new();
-        ConfigurationManager.AddInMemoryCollection(configuration ?? Enumerable.Empty<KeyValuePair<string, string>>());
+        ConfigurationManager.AddInMemoryCollection(configuration ?? Enumerable.Empty<KeyValuePair<string, string?>>());
         var webAuthnOptions = ConfigurationManager.Get<WebAuthnOptions>() ?? new WebAuthnOptions();
         var optionsCache = new OptionsCache<WebAuthnOptions>();
         optionsCache.TryAdd(string.Empty, webAuthnOptions);

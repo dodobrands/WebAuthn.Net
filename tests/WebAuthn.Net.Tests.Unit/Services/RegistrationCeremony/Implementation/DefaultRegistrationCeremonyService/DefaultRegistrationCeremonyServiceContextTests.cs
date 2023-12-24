@@ -18,7 +18,7 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegis
 
 public class DefaultRegistrationCeremonyServiceContextTests : AbstractRegistrationCeremonyServiceTests
 {
-    protected override IEnumerable<KeyValuePair<string, string>> GetConfiguration()
+    protected override IEnumerable<KeyValuePair<string, string?>>? GetConfiguration()
     {
         yield return new($"{nameof(WebAuthnOptions.AttestationTypes)}:{nameof(AttestationTypeOptions.None)}:{nameof(NoneAttestationTypeOptions.IsAcceptable)}", "true");
     }

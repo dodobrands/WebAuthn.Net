@@ -156,7 +156,7 @@ public class DefaultUserService : AbstractProtectedCookieStore, IUserService
         return itemsToPreserve;
     }
 
-    private class JsonApplicationUser
+    private sealed class JsonApplicationUser
     {
         [JsonConstructor]
         public JsonApplicationUser(string userHandle, string userName, long createdAt)
@@ -183,7 +183,7 @@ public class DefaultUserService : AbstractProtectedCookieStore, IUserService
         }
     }
 
-    private class TypedInternalApplicationUser
+    private sealed class TypedInternalApplicationUser
     {
         public TypedInternalApplicationUser(byte[] userHandle, string userName, DateTimeOffset createdAt)
         {

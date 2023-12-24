@@ -96,7 +96,15 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         try
         {
             // Signal cancellation to the executing method
-            StoppingCts?.Cancel();
+            var stoppingCts = StoppingCts;
+#if NET6_0
+            stoppingCts?.Cancel();
+#else
+            if (stoppingCts is not null)
+            {
+               await stoppingCts.CancelAsync();
+            }
+#endif
         }
         finally
         {

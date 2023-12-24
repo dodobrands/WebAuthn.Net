@@ -72,7 +72,7 @@ public class DefaultCborDeserializerTests
         return EmbeddedResourceProvider.GetString("WebAuthn.Net.Services.Serialization.Cbor.Implementation.FailedTestVectors.json");
     }
 
-    private class JsonTestVector
+    private sealed class JsonTestVector
     {
         [JsonConstructor]
         public JsonTestVector(string hex, bool roundtrip, JsonElement decoded)

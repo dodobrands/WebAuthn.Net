@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,7 +51,8 @@ public class DefaultFidoMetadataHttpClientTests
         ConfigurationManager.Dispose();
     }
 
-    protected virtual IEnumerable<KeyValuePair<string, string>> GetConfiguration()
+    [SuppressMessage("ReSharper", "ReturnTypeCanBeNotNullable")]
+    protected virtual IEnumerable<KeyValuePair<string, string?>>? GetConfiguration()
     {
         yield break;
     }
@@ -59,7 +61,7 @@ public class DefaultFidoMetadataHttpClientTests
     public async Task DefaultFidoMetadataHttpClient_DownloadMetadata_WhenSuccessfulResponse()
     {
         var result = await Client.DownloadMetadataAsync(CancellationToken.None);
-        Assert.NotNull(result);
+        Assert.That(result, Is.Not.Null);
     }
 
     [Test]

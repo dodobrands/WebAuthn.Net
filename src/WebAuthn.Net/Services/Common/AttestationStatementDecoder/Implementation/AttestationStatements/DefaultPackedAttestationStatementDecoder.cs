@@ -155,7 +155,7 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         return true;
     }
 
-    private class X5CDecodeResult
+    private sealed class X5CDecodeResult
     {
         private X5CDecodeResult(byte[][] value)
         {

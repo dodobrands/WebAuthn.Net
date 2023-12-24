@@ -17,11 +17,14 @@ public class CborNegativeInteger : AbstractCborInteger, IEquatable<CborNegativeI
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="value" /> is not in the range from <c>-1</c> to <see cref="int.MinValue" />.</exception>
     public CborNegativeInteger(int value)
     {
+#if NET6_0
         if (value > 0)
         {
             throw new ArgumentOutOfRangeException(nameof(value));
         }
-
+#else
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 0, nameof(value));
+#endif
         RawValue = (ulong) (-1 - value);
     }
 
