@@ -81,7 +81,7 @@
             }
         };
 
-        const response = await navigator.credentials.create({ publicKey });
+        const response = await navigator.credentials.create({publicKey});
         if (!response) return;
 
         const registrationResult = await submitRegistration({response, csrf});
