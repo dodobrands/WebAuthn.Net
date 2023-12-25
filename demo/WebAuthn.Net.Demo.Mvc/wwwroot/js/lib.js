@@ -138,7 +138,7 @@ const API = {
     },
     Passwordless: {
         initiateAuthentication: async ({username, userVerification, attestation, csrf}) => {
-            const url = "/passwordless/beginauthenticationceremony";
+            const url = "/passwordless/createauthenticationoptions";
             const data = {
                 username,
                 userVerification,
@@ -147,12 +147,13 @@ const API = {
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
         submitAuthentication: async ({username, response, csrf}) => {
-            const url = "/passwordless/authenticationceremony";
+            const url = "/passwordless/completeauthentication";
             const data = {
                 id: coerceToBase64Url(response.rawId),
+                rawId: coerceToBase64Url(response.rawId),
                 username,
                 type: response.type,
-                extensions: response.getClientExtensionResults(),
+                clientExtensionResults: response.getClientExtensionResults(),
                 response: {
                     userHandle: coerceToBase64Url(response.response.userHandle),
                     authenticatorData: coerceToBase64Url(response.response.authenticatorData),

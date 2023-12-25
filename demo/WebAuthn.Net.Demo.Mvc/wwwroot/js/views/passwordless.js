@@ -34,9 +34,8 @@
         }
 
         const {userVerification, attestation} = getState();
-        const initialData = await initiateAuthentication({username, attestation, userVerification, csrf});
-        if (!initialData) return;
-        const {options} = initialData;
+        const options = await initiateAuthentication({username, attestation, userVerification, csrf});
+        if (!options) return;
         const publicKey = {
             ...options,
             challenge: coerceToArrayBuffer(options.challenge),
@@ -47,8 +46,8 @@
 
         const attestationResult = await submitAuthentication({username, response, csrf});
         if (!attestationResult) return;
-        const {successful} = attestationResult;
-        if (!successful) {
+        const {hasError} = attestationResult;
+        if (hasError) {
             Alerts.failedToAuthenticate();
             return;
         }
