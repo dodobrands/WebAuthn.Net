@@ -8,9 +8,8 @@
     const onAuthenticateButtonHandler = async (e) => {
         e.preventDefault();
         const csrf = getElementValue(elements.csrfElement());
-        const initialData = await initiateAuthentication({csrf});
-        if (!initialData) return;
-        const {options} = initialData;
+        const options = await initiateAuthentication({csrf});
+        if (!options) return;
         const publicKey = {
             ...options,
             challenge: coerceToArrayBuffer(options.challenge),
@@ -21,8 +20,8 @@
 
         const attestationResult = await submitAuthentication({csrf, response});
         if (!attestationResult) return;
-        const {successful} = attestationResult;
-        if (!successful) {
+        const {hasError} = attestationResult;
+        if (hasError) {
             Alerts.failedToAuthenticate();
             return;
         }

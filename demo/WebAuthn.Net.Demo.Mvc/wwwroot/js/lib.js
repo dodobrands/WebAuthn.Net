@@ -166,16 +166,19 @@ const API = {
     },
     Usernameless: {
         initiateAuthentication: async ({csrf}) => {
-            const url = "/usernameless/beginauthenticationceremony";
-            const data = {};
+            const url = "/usernameless/createauthenticationoptions";
+            const data = {
+                extensions: {}
+            };
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
         submitAuthentication: async ({response, csrf}) => {
-            const url = "/usernameless/authenticationceremony";
+            const url = "/usernameless/completeauthentication";
             const data = {
                 id: coerceToBase64Url(response.rawId),
+                rawId: coerceToBase64Url(response.rawId),
                 type: response.type,
-                extensions: response.getClientExtensionResults(),
+                clientExtensionResults: response.getClientExtensionResults(),
                 response: {
                     userHandle: coerceToBase64Url(response.response.userHandle),
                     authenticatorData: coerceToBase64Url(response.response.authenticatorData),
