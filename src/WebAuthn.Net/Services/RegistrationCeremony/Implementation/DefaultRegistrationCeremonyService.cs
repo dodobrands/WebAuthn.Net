@@ -564,7 +564,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             // or is itself an acceptable certificate (i.e., it and the root certificate obtained in Step 22 may be the same).
             if (!AttestationTrustPathValidator.IsValid(attStmtVerification))
             {
-                // TODO Logs?
+                Logger.AttestationTrustPathIsInvalid();
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
@@ -572,7 +572,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             // 25. Verify that the credentialId is ≤ 1023 bytes. Credential IDs larger than this many bytes SHOULD cause the RP to fail this registration ceremony.
             if (authData.AttestedCredentialData.CredentialId.Length > 1023)
             {
-                // TODO Logs?
+                Logger.CredentialIdIsTooBig();
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
@@ -601,7 +601,7 @@ public class DefaultRegistrationCeremonyService<TContext>
                 cancellationToken);
             if (!credentialIdNotRegisteredForAnyUser)
             {
-                // TODO Logs?
+                Logger.CredentialIdExist();
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
@@ -1063,4 +1063,34 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
         Level = LogLevel.Warning,
         Message = "A 'Self' attestation has been provided, but the Relying Party policy does not permit 'Self' attestations")]
     public static partial void SelfAttestationDisallowed(this ILogger logger);
+
+    /// <summary>
+    /// Attestation Statement trustworthy check failed
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Attestation Statement trustworthy check failed")]
+    public static partial void AttestationTrustPathIsInvalid(this ILogger logger);
+
+    /// <summary>
+    /// CredentialId in AttestedCredentialData should be less or equal to 1023 bytes
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "CredentialId in AttestedCredentialData should be less or equal to 1023 bytes")]
+    public static partial void CredentialIdIsTooBig(this ILogger logger);
+
+    /// <summary>
+    /// CredentialId already associated with different user
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "CredentialId already associated with different user")]
+    public static partial void CredentialIdExist(this ILogger logger);
 }
