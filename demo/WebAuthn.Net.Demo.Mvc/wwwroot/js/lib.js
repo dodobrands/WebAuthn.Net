@@ -72,7 +72,6 @@ const initializeCheckboxArray = ({initialValues, setState, withState, checkboxEl
             element.addEventListener("change", withState(onChange));
         });
 
-
 const makeJsonApiCall = async ({url, data, method, csrf}) => {
     const response = await fetch(url, {
         method,
@@ -84,13 +83,15 @@ const makeJsonApiCall = async ({url, data, method, csrf}) => {
         }
     });
 
-    if (response.ok) {
-        return await response.json();
+    const content = await response.text();
+    if (!response.ok) {
+        alert(content);
+        return undefined;
     }
 
-    alert(await response.text());
-    return undefined;
+    return isValidString(content) ? JSON.parse(content) : {};
 };
+
 const isWebauthnAvailable = () => {
     const missingWebauthnApis = window.PublicKeyCredential === undefined
         || typeof window.PublicKeyCredential !== "function"
@@ -111,7 +112,7 @@ const Alerts = {
 const API = {
     Register: {
         initiateRegistration: async ({username, registrationParameters, csrf}) => {
-            const url = "/register/beginregisterceremony";
+            const url = "/registration/createregistrationoptions";
             const data = {
                 username,
                 registrationParameters,
@@ -120,14 +121,17 @@ const API = {
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
         submitRegistration: async ({response, csrf}) => {
-            const url = "/register/registerceremony";
+            const url = "/registration/completeregistration";
             const data = {
+                authenticatorAttachment: "cross-platform",
                 id: coerceToBase64Url(response.rawId),
+                rawId: coerceToBase64Url(response.rawId),
                 type: response.type,
                 response: {
                     attestationObject: coerceToBase64Url(response.response.attestationObject),
                     clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
-                }
+                },
+                clientExtensionResults: {}
             };
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },

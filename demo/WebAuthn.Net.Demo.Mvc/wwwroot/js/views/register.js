@@ -70,9 +70,8 @@
             return;
         }
 
-        const initialData = await initiateRegistration({registrationParameters, username, csrf});
-        if (!initialData) return;
-        const {options} = initialData;
+        const options = await initiateRegistration({registrationParameters, username, csrf});
+        if (!options) return;
         const publicKey = {
             ...options,
             challenge: coerceToArrayBuffer(options.challenge),
@@ -82,19 +81,15 @@
             }
         };
 
-        const response = await navigator.credentials.create({publicKey});
+        const response = await navigator.credentials.create({ publicKey });
         if (!response) return;
 
         const registrationResult = await submitRegistration({response, csrf});
-        if (!registrationResult) return;
-        const {successful} = registrationResult;
-        if (successful) {
-            Alerts.registerSuccess();
-            clearElementValue(elements.registerInput());
+        if (!registrationResult) {
             return;
         }
-
-        Alerts.failedToRegister();
+        Alerts.registerSuccess();
+        clearElementValue(elements.registerInput());
     };
 
     // INIT
