@@ -86,6 +86,7 @@
 
         const registrationResult = await submitRegistration({response, csrf});
         if (!registrationResult) {
+            Alerts.failedToRegister();
             return;
         }
         Alerts.registerSuccess();
