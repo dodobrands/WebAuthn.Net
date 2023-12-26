@@ -184,7 +184,7 @@ WHERE
             return false;
         }
 
-        var id = UuidVersion7Generator.Generate();
+        var id = GuidGenerator.Generate();
         var createdAt = TimeProvider.GetPreciseUtcDateTime();
         var updatedAt = createdAt;
         var insert = SqlServerUserCredentialRecord.Create(credential, id, createdAt, updatedAt);
