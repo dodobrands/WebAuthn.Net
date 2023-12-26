@@ -1065,7 +1065,7 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
     public static partial void SelfAttestationDisallowed(this ILogger logger);
 
     /// <summary>
-    /// Attestation Statement trustworthy check failed
+    ///     Attestation Statement trustworthy check failed
     /// </summary>
     /// <param name="logger">Logger.</param>
     [LoggerMessage(
@@ -1075,7 +1075,7 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
     public static partial void AttestationTrustPathIsInvalid(this ILogger logger);
 
     /// <summary>
-    /// CredentialId in AttestedCredentialData should be less or equal to 1023 bytes
+    ///     CredentialId in AttestedCredentialData should be less or equal to 1023 bytes
     /// </summary>
     /// <param name="logger">Logger.</param>
     [LoggerMessage(
@@ -1085,7 +1085,7 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
     public static partial void CredentialIdIsTooBig(this ILogger logger);
 
     /// <summary>
-    /// CredentialId already associated with different user
+    ///     CredentialId already associated with different user
     /// </summary>
     /// <param name="logger">Logger.</param>
     [LoggerMessage(
