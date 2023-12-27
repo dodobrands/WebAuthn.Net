@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using OpenTelemetry.Metrics;
+using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Demo.Mvc.Services.Abstractions.AuthenticationCeremonyHandle;
 using WebAuthn.Net.Demo.Mvc.Services.Abstractions.RegistrationCeremonyHandle;
 using WebAuthn.Net.Demo.Mvc.Services.Abstractions.User;
 using WebAuthn.Net.Demo.Mvc.Services.Implementation;
 using WebAuthn.Net.OpenTelemetry.Extensions;
-using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
+using WebAuthn.Net.Storage.InMemory.Models;
+using WebAuthn.Net.Storage.InMemory.Services.ContextFactory;
 
 namespace WebAuthn.Net.Demo.Mvc;
 
@@ -29,7 +31,10 @@ public static class Program
             });
         //services.AddSingleton<UserHandleStore>();
         services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
-        services.AddWebAuthnInMemory();
+        builder.Services.AddWebAuthnCore<DefaultInMemoryContext>()
+            .AddDefaultStorages()
+            .AddContextFactory<DefaultInMemoryContext, DefaultInMemoryContextFactory>()
+            .AddCredentialStorage<DefaultInMemoryContext, DefaultCookieCredentialStorage<DefaultInMemoryContext>>();
         services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
