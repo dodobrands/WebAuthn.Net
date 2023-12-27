@@ -47,12 +47,16 @@ public class DefaultCookieCredentialStorage<TContext>
         var resultAccumulator = new List<PublicKeyCredentialDescriptor>(existingItems.Length);
         foreach (var existingItem in existingItems)
         {
-            if (!existingItem.TryMapToDescriptor(out var descriptor))
+            if (!existingItem.TryMapToDescriptor(out var descriptor)
+                || !existingItem.TryMapToUserCredentialRecord(out var credentialRecord))
             {
                 throw new InvalidOperationException("Can't get descriptor");
             }
 
-            resultAccumulator.Add(descriptor);
+            if (credentialRecord.RpId == rpId && credentialRecord.UserHandle.AsSpan().SequenceEqual(userHandle))
+            {
+                resultAccumulator.Add(descriptor);
+            }
         }
 
         return Task.FromResult(resultAccumulator.ToArray());
