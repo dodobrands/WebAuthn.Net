@@ -21,7 +21,7 @@
         <None Update="ConformanceMetadata\Jwt\.gitkeep">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </None>
-        <None Update="ConformanceMetadata\JwtRoot\*.*">
+        <None Update="ConformanceMetadata\RootCertificate\*.*">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="ConformanceMetadata\MetadataStatements\.gitkeep">

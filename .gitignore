@@ -458,7 +458,7 @@ demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/MetadataStatements/*.
 !demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/MetadataStatements/.gitkeep
 demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/Jwt/*
 !demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/Jwt/.gitkeep
-demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/JwtRoot/*.*
-!demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/JwtRoot/.gitkeep
+demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/RootCertificate/*.*
+!demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/RootCertificate/.gitkeep
 
 demo/WebAuthn.Net.Demo.Mvc/out/

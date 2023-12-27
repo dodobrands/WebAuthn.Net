@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Polly;
 using WebAuthn.Net.Demo.FidoConformance.Middleware;
 using WebAuthn.Net.Demo.FidoConformance.Services;
@@ -16,6 +17,7 @@ namespace WebAuthn.Net.Demo.FidoConformance;
 
 public static class Program
 {
+    [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates")]
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -147,6 +149,7 @@ public static class Program
         // ---- REQUEST PIPELINE ----
         // --------------------------
         var app = builder.Build();
+        app.Logger.Log(LogLevel.Critical, "Application started!");
         app.UseMiddleware<RequestLoggingMiddleware>();
 
         // Configure the HTTP request pipeline.

@@ -149,15 +149,15 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
     private static byte[][] GetRootCertificates()
     {
         var rootDirectory = GetConformanceMetadataDirectory();
-        var jwtRoot = rootDirectory
+        var rootCertificate = rootDirectory
             .GetDirectories()
-            .FirstOrDefault(static x => string.Equals(x.Name, FidoConformanceMetadata.JwtRootSubdirectory, StringComparison.OrdinalIgnoreCase));
-        if (jwtRoot is null || !jwtRoot.Exists)
+            .FirstOrDefault(static x => string.Equals(x.Name, FidoConformanceMetadata.RootCertificateSubdirectory, StringComparison.OrdinalIgnoreCase));
+        if (rootCertificate is null || !rootCertificate.Exists)
         {
-            throw new InvalidOperationException($"Missing \"{FidoConformanceMetadata.JwtRootSubdirectory}\"");
+            throw new InvalidOperationException($"Missing \"{FidoConformanceMetadata.RootCertificateSubdirectory}\"");
         }
 
-        var certificates = jwtRoot
+        var certificates = rootCertificate
             .GetFiles()
             .Where(static x => string.Equals(x.Extension, ".crt", StringComparison.OrdinalIgnoreCase)
                                || string.Equals(x.Extension, ".der", StringComparison.OrdinalIgnoreCase)
@@ -172,7 +172,7 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
 
         if (result.Count == 0)
         {
-            throw new InvalidOperationException($"\"{FidoConformanceMetadata.JwtRootSubdirectory}\" is empty. Add conformance metadata root certificate.");
+            throw new InvalidOperationException($"\"{FidoConformanceMetadata.RootCertificateSubdirectory}\" is empty. Add conformance metadata root certificate.");
         }
 
         return result.ToArray();
