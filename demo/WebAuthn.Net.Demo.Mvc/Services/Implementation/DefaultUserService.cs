@@ -140,13 +140,11 @@ public class DefaultUserService : AbstractProtectedCookieStore, IUserService
         TypedInternalApplicationUser[] existingItems)
     {
         var resultAccumulator = new List<TypedInternalApplicationUser>();
-        resultAccumulator.Add(newItem);
-        foreach (var existingItem in existingItems)
+        resultAccumulator.AddRange(existingItems);
+
+        if (resultAccumulator.All(x => x.UserName != newItem.UserName))
         {
-            if (existingItem.UserName != newItem.UserName)
-            {
-                resultAccumulator.Add(existingItem);
-            }
+            resultAccumulator.Add(newItem);
         }
 
         var itemsToPreserve = resultAccumulator

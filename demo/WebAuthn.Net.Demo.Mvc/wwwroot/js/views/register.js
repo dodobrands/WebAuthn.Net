@@ -78,11 +78,21 @@
             user: {
                 ...options.user,
                 id: coerceToArrayBuffer(options.user.id),
-            }
+            },
+            excludeCredentials: (options.excludeCredentials ?? []).map(x => ({...x, id: coerceToArrayBuffer(x.id)}))
         };
 
-        const response = await navigator.credentials.create({publicKey});
-        if (!response) return;
+        let response;
+        try {
+            response = await navigator.credentials.create({ publicKey });
+            if (!response) {
+                Alerts.credentialsCreateApiNull();
+                return;
+            }
+        } catch (e) {
+            alert(e.message);
+            return;
+        }
 
         const registrationResult = await submitRegistration({response, csrf});
         if (!registrationResult) {

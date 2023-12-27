@@ -105,7 +105,9 @@ const Alerts = {
     failedToRegister: () => alert("Failed to register user, check server logs"),
     webauthnIsNotAvailable: () => alert("Browser doesn't support Webauthn API"),
     registerSuccess: () => alert("User registered!"),
-    usernameInputEmpty: () => alert("Username input is empty")
+    usernameInputEmpty: () => alert("Username input is empty"),
+    credentialsGetApiNull: () => alert("navigator.credentials.get returned null"),
+    credentialsCreateApiNull: () => alert("navigator.credentials.create returned null")
 };
 
 // API

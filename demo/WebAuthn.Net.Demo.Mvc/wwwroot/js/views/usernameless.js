@@ -15,8 +15,19 @@
             challenge: coerceToArrayBuffer(options.challenge),
             allowCredentials: (options.allowCredentials ?? []).map(x => ({...x, id: coerceToArrayBuffer(x.id)}))
         };
-        const response = await navigator.credentials.get({publicKey});
-        if (!response) return;
+
+        let response;
+        try {
+            response = await navigator.credentials.get({publicKey});
+            if (!response) {
+                Alerts.credentialsGetApiNull();
+                return;
+            }
+        } catch (e) {
+            alert(e.message);
+            return;
+        }
+
 
         const attestationResult = await submitAuthentication({csrf, response});
         if (!attestationResult) return;
