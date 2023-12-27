@@ -17,6 +17,7 @@ public static class GuidGenerator
     public static Guid Generate()
     {
         // https://github.com/dotnet/runtime/blob/5535e31a712343a63f5d7d796cd874e563e5ac14/src/libraries/System.Data.Common/src/System/Data/SQLTypes/SQLGuid.cs#L116
+        // https://web.archive.org/web/20120628234912/http://blogs.msdn.com/b/sqlprogrammability/archive/2006/11/06/how-are-guids-compared-in-sql-server-2005.aspx
         Span<Guid> guidBuffer = stackalloc Guid[1];
         guidBuffer[0] = Guid.NewGuid();
         var gBuffer = MemoryMarshal.AsBytes(guidBuffer);

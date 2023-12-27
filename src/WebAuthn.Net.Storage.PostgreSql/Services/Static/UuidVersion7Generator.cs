@@ -21,6 +21,7 @@ public static class UuidVersion7Generator
         const byte bits64To71ResetVersionMask = 0x3F;
         const byte bits64To71SetVersionMask = 0x80;
 
+        // https://github.com/npgsql/npgsql/blob/c36b1bc7e5c6d79bb526e5a89a0a68f150b283cb/src/Npgsql/Internal/Converters/Primitive/GuidUuidConverter.cs#L14-L43
         Span<Guid> guidBuffer = stackalloc Guid[1];
         guidBuffer[0] = Guid.NewGuid();
         var buffer = MemoryMarshal.AsBytes(guidBuffer);
