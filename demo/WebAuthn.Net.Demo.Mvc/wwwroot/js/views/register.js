@@ -84,7 +84,7 @@
 
         let response;
         try {
-            response = await navigator.credentials.create({ publicKey });
+            response = await navigator.credentials.create({publicKey});
             if (!response) {
                 Alerts.credentialsCreateApiNull();
                 return;
