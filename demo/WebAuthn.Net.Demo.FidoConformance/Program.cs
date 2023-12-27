@@ -1,10 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Http.Extensions;
 using Polly;
+using WebAuthn.Net.Demo.FidoConformance.Middleware;
 using WebAuthn.Net.Demo.FidoConformance.Services;
 using WebAuthn.Net.Demo.FidoConformance.Services.ConformanceMetadata;
 using WebAuthn.Net.Models;
@@ -12,6 +7,9 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
+// using WebAuthn.Net.Storage.MySql.Configuration.DependencyInjection;
+// using WebAuthn.Net.Storage.PostgreSql.Configuration.DependencyInjection;
+// using WebAuthn.Net.Storage.SqlServer.Configuration.DependencyInjection;
 
 namespace WebAuthn.Net.Demo.FidoConformance;
 
@@ -36,6 +34,9 @@ public static class Program
             .Build());
         builder.Services.AddSingleton<IFidoMetadataProvider, LocalFilesFidoMetadataProviderForMdsTests>();
         builder.Services.AddSingleton<ITpmManufacturerVerifier, ConformanceTpmManufacturerVerifier>();
+        // ---------------------------
+        // ---- IN-MEMORY STORAGE ----
+        // ---------------------------
         builder.Services.AddWebAuthnInMemory(
             static options =>
             {
@@ -57,6 +58,9 @@ public static class Program
             {
                 authOptions.Cookie.HttpOnly = false;
             });
+        // // ---------------------------
+        // // ------ MYSQL STORAGE ------
+        // // ---------------------------
         // builder.Services.AddWebAuthnMySql(
         //     static options =>
         //     {
@@ -82,6 +86,9 @@ public static class Program
         //     {
         //         mysql.ConnectionString = "Server=localhost;Port=3306;User ID=root;Password=root;Database=webauthn;Pooling=True;Default Command Timeout=30";
         //     });
+        // // --------------------------
+        // // --- POSTGRESQL STORAGE ---
+        // // --------------------------
         // builder.Services.AddWebAuthnPostgreSql(
         //     static options =>
         //     {
@@ -107,6 +114,9 @@ public static class Program
         //     {
         //         postgresql.ConnectionString = "Host=localhost;Port=5432;Password=postgres;Username=postgres;Database=webauthn;Pooling=True";
         //     });
+        // // ---------------------------
+        // // -- MS SQL SERVER STORAGE --
+        // // ---------------------------
         // builder.Services.AddWebAuthnSqlServer(
         //     static options =>
         //     {
@@ -132,6 +142,9 @@ public static class Program
         //     {
         //         sqlServer.ConnectionString = "Data Source=localhost;Initial Catalog=webauthn;User ID=sa;Password=WebAuthn!1337;Pooling=True;Trust Server Certificate=True";
         //     });
+        // --------------------------
+        // ---- REQUEST PIPELINE ----
+        // --------------------------
         var app = builder.Build();
         app.UseMiddleware<RequestLoggingMiddleware>();
 
@@ -148,41 +161,5 @@ public static class Program
         app.UseAuthorization();
         app.MapControllers();
         app.Run();
-    }
-}
-
-public class RequestLoggingMiddleware : IMiddleware
-{
-    private readonly JsonSerializerOptions _jsonSerializerOptions;
-    private readonly ILogger<RequestLoggingMiddleware> _logger;
-
-    public RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware> logger)
-    {
-        ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
-        _jsonSerializerOptions = new(JsonSerializerDefaults.General)
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-            WriteIndented = true
-        };
-    }
-
-    [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates")]
-    [SuppressMessage("Usage", "CA2254:Template should be a static expression")]
-    public async Task InvokeAsync(HttpContext context, RequestDelegate next)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(next);
-        context.Request.EnableBuffering(1024 * 1024 * 1024);
-        using var ms = new MemoryStream();
-        await context.Request.Body.CopyToAsync(ms);
-        ms.Seek(0L, SeekOrigin.Begin);
-        context.Request.Body.Seek(0L, SeekOrigin.Begin);
-        var json = Encoding.UTF8.GetString(ms.ToArray());
-        var element = JsonSerializer.Deserialize<JsonElement>(json);
-        var intendedJson = JsonSerializer.Serialize(element, _jsonSerializerOptions);
-        _logger.LogInformation($"Request {context.Request.Method} {context.Request.GetEncodedPathAndQuery()}{Environment.NewLine}Body:{Environment.NewLine}{intendedJson}");
-        await next(context);
     }
 }
