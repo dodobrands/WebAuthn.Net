@@ -19,6 +19,8 @@ The documentation for each project is described in its README.md file.
 - ✅ Attestation API & verification (Register and verify credentials/authenticators)
 - ✅ Assertion API & verification (Authenticate users)
 - ✅ 100% completion of the entire [FIDO Conformance Test](https://fidoalliance.org/certification/functional-certification/conformance/), including all optional features
+- ✅ [Demo application for performing the FIDO Conformance test](demo/WebAuthn.Net.Demo.FidoConformance)
+- ✅ [Demo application demonstrating the capabilities of the library](demo/WebAuthn.Net.Demo.Mvc)
 - ✅ Authenticators embedded in the device (FaceID, TouchID, Windows Hello)
 - ✅ Roaming aka cross-platform authenticators (USB/NFC/BLE keys, for example Yubico)
 - ✅ All current attestation statement formats
@@ -47,8 +49,7 @@ The documentation for each project is described in its README.md file.
     - [PostgreSQL](src/WebAuthn.Net.Storage.PostgreSql)
     - [MySQL](src/WebAuthn.Net.Storage.MySql)
     - [InMemory](src/WebAuthn.Net.Storage.InMemory) (for sample applications)
-- ✅ Built-in metrics (with an additional library for integrating WebAuthn.Net metrics with [OpenTelemetry](https://opentelemetry.io))
-- ✅ [Demo applications](demo)
+- ✅ Built-in metrics (with an [additional library](src/WebAuthn.Net.OpenTelemetry) for integrating WebAuthn.Net metrics with [OpenTelemetry](https://opentelemetry.io))
 - ✅ Exceptionless design (avoid exceptions wherever possible)
 - ✅ Designed with extensibility in mind (almost any library component can be overridden)
 - ✅ Intellisense documentation
