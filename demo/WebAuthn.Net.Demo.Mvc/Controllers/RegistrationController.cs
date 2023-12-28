@@ -76,7 +76,8 @@ public class RegistrationController : Controller
             cancellationToken);
         if (registrationCeremonyId is null)
         {
-            return BadRequest();
+            ModelState.AddModelError("", "Registration ceremony not found");
+            return BadRequest(ModelState);
         }
 
         var result = await _registrationCeremonyService.CompleteCeremonyAsync(
@@ -88,7 +89,8 @@ public class RegistrationController : Controller
             cancellationToken);
         if (result.HasError)
         {
-            return BadRequest();
+            ModelState.AddModelError("", "The registration ceremony completed with an error");
+            return BadRequest(ModelState);
         }
 
         await _registrationCeremonyHandleService.DeleteAsync(HttpContext, cancellationToken);

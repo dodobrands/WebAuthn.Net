@@ -95,7 +95,8 @@ public class PasswordlessController : Controller
             cancellationToken);
         if (authenticationCeremonyId is null)
         {
-            return BadRequest();
+            ModelState.AddModelError("", "Authentication ceremony not found");
+            return BadRequest(ModelState);
         }
 
         var result = await _authenticationCeremonyService.CompleteCeremonyAsync(
@@ -106,7 +107,8 @@ public class PasswordlessController : Controller
             cancellationToken);
         if (result.HasError)
         {
-            return BadRequest();
+            ModelState.AddModelError("", "The authentication ceremony completed with an error");
+            return BadRequest(ModelState);
         }
 
         var applicationUser = await _userService.FindAsync(
@@ -115,7 +117,8 @@ public class PasswordlessController : Controller
             cancellationToken);
         if (applicationUser is null)
         {
-            return BadRequest();
+            ModelState.AddModelError("", "User not found");
+            return BadRequest(ModelState);
         }
 
         var claims = new List<Claim>
