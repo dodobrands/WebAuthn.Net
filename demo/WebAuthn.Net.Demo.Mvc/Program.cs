@@ -29,7 +29,6 @@ public static class Program
                 options.LoginPath = "/passwordless";
                 options.LogoutPath = "/account/logout";
             });
-        //services.AddSingleton<UserHandleStore>();
         services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
         builder.Services.AddWebAuthnCore<DefaultInMemoryContext>()
             .AddDefaultStorages()
@@ -49,12 +48,9 @@ public static class Program
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
-        if (!app.Environment.IsDevelopment())
-        {
-            app.UseExceptionHandler("/Home/Error");
-            app.UseHsts();
-        }
-
+        app.UseExceptionHandler("/error");
+        app.UseStatusCodePagesWithReExecute("/code/{0}");
+        app.UseHsts();
         app.UseHttpsRedirection();
         app.UseStaticFiles();
         app.UseRouting();
