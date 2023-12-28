@@ -6,14 +6,10 @@ using WebAuthn.Net.Demo.Mvc.Services.Abstractions.CookieStore;
 
 namespace WebAuthn.Net.Demo.Mvc.Services.Implementation;
 
-public class DefaultAuthenticationCeremonyHandleService : AbstractProtectedCookieStore, IAuthenticationCeremonyHandleService
+public class DefaultAuthenticationCeremonyHandleService(IDataProtectionProvider provider)
+    : AbstractProtectedCookieStore(provider, DataProtectionPurpose, CookieConstants.AuthenticationCeremonyId), IAuthenticationCeremonyHandleService
 {
     private const string DataProtectionPurpose = "WebAuthn.Net.Demo.AuthenticationCeremonyHandle";
-
-    public DefaultAuthenticationCeremonyHandleService(IDataProtectionProvider provider)
-        : base(provider, DataProtectionPurpose, CookieConstants.AuthenticationCeremonyId)
-    {
-    }
 
     public Task SaveAsync(HttpContext httpContext, string authenticationCeremonyId, CancellationToken cancellationToken)
     {

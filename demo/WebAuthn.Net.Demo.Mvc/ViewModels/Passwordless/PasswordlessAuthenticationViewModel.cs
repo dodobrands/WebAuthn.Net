@@ -7,35 +7,31 @@ using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 
 namespace WebAuthn.Net.Demo.Mvc.ViewModels.Passwordless;
 
-public class PasswordlessAuthenticationViewModel
+[method: JsonConstructor]
+public class PasswordlessAuthenticationViewModel(
+    string userName,
+    Dictionary<string, JsonElement>? extensions,
+    string attestation,
+    string userVerification)
 {
-    [JsonConstructor]
-    public PasswordlessAuthenticationViewModel(string userName, Dictionary<string, JsonElement>? extensions, string attestation, string userVerification)
-    {
-        UserName = userName;
-        Extensions = extensions;
-        Attestation = attestation;
-        UserVerification = userVerification;
-    }
-
     [JsonPropertyName("username")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [Required]
-    public string UserName { get; }
+    public string UserName { get; } = userName;
 
     [JsonPropertyName("attestation")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [Required]
-    public string Attestation { get; }
+    public string Attestation { get; } = attestation;
 
     [JsonPropertyName("userVerification")]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [Required]
-    public string UserVerification { get; }
+    public string UserVerification { get; } = userVerification;
 
     [JsonPropertyName("extensions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, JsonElement>? Extensions { get; }
+    public Dictionary<string, JsonElement>? Extensions { get; } = extensions;
 
     public BeginAuthenticationCeremonyRequest ToBeginCeremonyRequest(byte[] userHandle)
     {

@@ -9,15 +9,11 @@ using WebAuthn.Net.Demo.Mvc.Services.Abstractions.User.Models;
 
 namespace WebAuthn.Net.Demo.Mvc.Services.Implementation;
 
-public class DefaultUserService : AbstractProtectedCookieStore, IUserService
+public class DefaultUserService(IDataProtectionProvider provider)
+    : AbstractProtectedCookieStore(provider, DataProtectionPurpose, CookieConstants.UserHandle), IUserService
 {
     private const string DataProtectionPurpose = "WebAuthn.Net.Demo.RegistrationCeremonyHandle";
     private const int ItemsToPreserve = 5;
-
-    public DefaultUserService(IDataProtectionProvider provider)
-        : base(provider, DataProtectionPurpose, CookieConstants.UserHandle)
-    {
-    }
 
     public Task<byte[]> CreateAsync(
         HttpContext httpContext,
@@ -154,24 +150,17 @@ public class DefaultUserService : AbstractProtectedCookieStore, IUserService
         return itemsToPreserve;
     }
 
-    private sealed class JsonApplicationUser
+    [method: JsonConstructor]
+    private sealed class JsonApplicationUser(string userHandle, string userName, long createdAt)
     {
-        [JsonConstructor]
-        public JsonApplicationUser(string userHandle, string userName, long createdAt)
-        {
-            UserHandle = userHandle;
-            UserName = userName;
-            CreatedAt = createdAt;
-        }
-
         [JsonPropertyName("userHandle")]
-        public string UserHandle { get; }
+        public string UserHandle { get; } = userHandle;
 
         [JsonPropertyName("userName")]
-        public string UserName { get; }
+        public string UserName { get; } = userName;
 
         [JsonPropertyName("createdAt")]
-        public long CreatedAt { get; }
+        public long CreatedAt { get; } = createdAt;
 
         public TypedInternalApplicationUser ToTyped()
         {
@@ -181,18 +170,11 @@ public class DefaultUserService : AbstractProtectedCookieStore, IUserService
         }
     }
 
-    private sealed class TypedInternalApplicationUser
+    private sealed class TypedInternalApplicationUser(byte[] userHandle, string userName, DateTimeOffset createdAt)
     {
-        public TypedInternalApplicationUser(byte[] userHandle, string userName, DateTimeOffset createdAt)
-        {
-            UserHandle = userHandle;
-            UserName = userName;
-            CreatedAt = createdAt;
-        }
-
-        public byte[] UserHandle { get; }
-        public string UserName { get; }
-        public DateTimeOffset CreatedAt { get; }
+        public byte[] UserHandle { get; } = userHandle;
+        public string UserName { get; } = userName;
+        public DateTimeOffset CreatedAt { get; } = createdAt;
 
         public JsonApplicationUser ToJson()
         {

@@ -1,14 +1,10 @@
 ﻿namespace WebAuthn.Net.Demo.Mvc.Services.Abstractions.User.Models;
 
-public class ApplicationUser
+public class ApplicationUser(
+    byte[] userHandle,
+    string userName)
 {
-    public ApplicationUser(byte[] userHandle, string userName)
-    {
-        UserHandle = userHandle;
-        UserName = userName;
-    }
+    public byte[] UserHandle { get; } = userHandle;
 
-    public byte[] UserHandle { get; }
-
-    public string UserName { get; }
+    public string UserName { get; } = userName;
 }

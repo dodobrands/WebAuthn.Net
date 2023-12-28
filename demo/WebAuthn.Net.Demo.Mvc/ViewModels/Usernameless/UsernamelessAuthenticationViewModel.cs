@@ -4,17 +4,12 @@ using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 
 namespace WebAuthn.Net.Demo.Mvc.ViewModels.Usernameless;
 
-public class UsernamelessAuthenticationViewModel
+[method: JsonConstructor]
+public class UsernamelessAuthenticationViewModel(Dictionary<string, JsonElement>? extensions)
 {
-    [JsonConstructor]
-    public UsernamelessAuthenticationViewModel(Dictionary<string, JsonElement>? extensions)
-    {
-        Extensions = extensions;
-    }
-
     [JsonPropertyName("extensions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, JsonElement>? Extensions { get; }
+    public Dictionary<string, JsonElement>? Extensions { get; } = extensions;
 
     public BeginAuthenticationCeremonyRequest ToBeginCeremonyRequest()
     {
