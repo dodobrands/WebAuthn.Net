@@ -79,7 +79,10 @@
                 ...registrationOptions.user,
                 id: coerceToArrayBuffer(registrationOptions.user.id),
             },
-            excludeCredentials: (registrationOptions.excludeCredentials ?? []).map(x => ({...x, id: coerceToArrayBuffer(x.id)}))
+            excludeCredentials: (registrationOptions.excludeCredentials ?? []).map(x => ({
+                ...x,
+                id: coerceToArrayBuffer(x.id)
+            }))
         };
 
         let newCredential;
