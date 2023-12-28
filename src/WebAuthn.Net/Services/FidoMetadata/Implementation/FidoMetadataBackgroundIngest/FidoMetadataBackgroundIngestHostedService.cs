@@ -102,7 +102,7 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
 #else
             if (stoppingCts is not null)
             {
-               await stoppingCts.CancelAsync();
+                await stoppingCts.CancelAsync();
             }
 #endif
         }
