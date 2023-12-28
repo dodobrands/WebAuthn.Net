@@ -9,10 +9,12 @@
         <DebugType>embedded</DebugType>
         <IncludeSymbols>true</IncludeSymbols>
         <Version>$(RELEASE_VERSION)</Version>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Version Condition="'$(RELEASE_VERSION)' == ''">0.0.0</Version>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Description>WebAuthn Level 3 Relying Party library for ASP.NET Core 6 and 8</Description>
+        <PackageTags>Passkey;Passkeys;WebAuthn;WebAuthn.Net;FIDO;FIDO2;Security</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

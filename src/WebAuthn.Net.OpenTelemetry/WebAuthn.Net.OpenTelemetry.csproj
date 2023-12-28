@@ -12,6 +12,8 @@
         <Version Condition="'$(RELEASE_VERSION)' == ''">0.0.0</Version>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Description>Library for integrating WebAuthn.Net metrics with OpenTelemetry</Description>
+        <PackageTags>Passkey;Passkeys;WebAuthn;WebAuthn.Net;FIDO;FIDO2;Security;OpenTelemetry;Metrics</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

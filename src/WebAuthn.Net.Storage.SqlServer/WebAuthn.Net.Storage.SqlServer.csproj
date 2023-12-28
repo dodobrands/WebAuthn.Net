@@ -12,6 +12,8 @@
         <Version Condition="'$(RELEASE_VERSION)' == ''">0.0.0</Version>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Description>WebAuthn.Net storage implementation for Microsoft SQL Server 2019 or higher</Description>
+        <PackageTags>Passkey;Passkeys;WebAuthn;WebAuthn.Net;FIDO;FIDO2;Security;Microsoft SQL Server;SQL Server;SQL;Storage</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

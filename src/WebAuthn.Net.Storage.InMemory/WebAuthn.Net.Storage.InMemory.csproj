@@ -12,6 +12,8 @@
         <Version Condition="'$(RELEASE_VERSION)' == ''">0.0.0</Version>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Description>An in-memory storage implementation for WebAuthn.Net, intended for testing, demonstration, and development</Description>
+        <PackageTags>Passkey;Passkeys;WebAuthn;WebAuthn.Net;FIDO;FIDO2;Security;InMemory;Storage</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
