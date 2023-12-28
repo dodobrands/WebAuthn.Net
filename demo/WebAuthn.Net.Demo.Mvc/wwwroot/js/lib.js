@@ -113,7 +113,7 @@ const Alerts = {
 // API
 const API = {
     Register: {
-        initiateRegistration: async ({username, registrationParameters, csrf}) => {
+        createRegistrationOptions: async ({username, registrationParameters, csrf}) => {
             const url = "/registration/createregistrationoptions";
             const data = {
                 username,
@@ -122,71 +122,101 @@ const API = {
             };
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
-        submitRegistration: async ({response, csrf}) => {
+        completeRegistration: async ({newCredential, csrf}) => {
             const url = "/registration/completeregistration";
+            const clientExtensionResults = newCredential?.getClientExtensionResults() ?? {};
+
+            const responseAuthenticatorData = newCredential.response?.getAuthenticatorData();
+            const authenticatorData = responseAuthenticatorData ?
+                coerceToBase64Url(newCredential.response.getAuthenticatorData()) : undefined;
+
+            const responsePublicKey = newCredential.response?.getPublicKey();
+            const publicKey = responsePublicKey ? coerceToBase64Url(responsePublicKey) : undefined;
+
+            const transports = newCredential.response?.getTransports();
+            const publicKeyAlgorithm = newCredential.response?.getPublicKeyAlgorithm();
+
             const data = {
-                authenticatorAttachment: "cross-platform",
-                id: coerceToBase64Url(response.rawId),
-                rawId: coerceToBase64Url(response.rawId),
-                type: response.type,
+                id: coerceToBase64Url(newCredential.rawId),
+                rawId: coerceToBase64Url(newCredential.rawId),
                 response: {
-                    attestationObject: coerceToBase64Url(response.response.attestationObject),
-                    clientDataJson: coerceToBase64Url(response.response.clientDataJSON)
+                    clientDataJson: coerceToBase64Url(newCredential.response.clientDataJSON),
+                    authenticatorData,
+                    transports,
+                    publicKey,
+                    publicKeyAlgorithm,
+                    attestationObject: coerceToBase64Url(newCredential.response.attestationObject)
                 },
-                clientExtensionResults: {}
+                authenticatorAttachment: newCredential?.authenticatorAttachment,
+                clientExtensionResults,
+                type: newCredential.type
             };
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
     },
     Passwordless: {
-        initiateAuthentication: async ({username, userVerification, attestation, csrf}) => {
+        createAuthenticationOptions: async ({username, userVerification, attestation, csrf}) => {
             const url = "/passwordless/createauthenticationoptions";
             const data = {
                 username,
                 userVerification,
-                attestation
+                attestation,
+                extensions: {}
             };
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
-        submitAuthentication: async ({username, response, csrf}) => {
+        completeAuthentication: async ({credential, csrf}) => {
             const url = "/passwordless/completeauthentication";
+            const clientExtensionResults = credential?.getClientExtensionResults() ?? {};
+            const userHandle = credential.response.userHandle ?
+                coerceToBase64Url(credential.response.userHandle) : undefined;
+            const attestationObject = credential.response.attestationObject ?
+                coerceToBase64Url(credential.response.attestationObject) : undefined;
             const data = {
-                id: coerceToBase64Url(response.rawId),
-                rawId: coerceToBase64Url(response.rawId),
-                username,
-                type: response.type,
-                clientExtensionResults: response.getClientExtensionResults(),
+                id: coerceToBase64Url(credential.rawId),
+                rawId: coerceToBase64Url(credential.rawId),
                 response: {
-                    userHandle: coerceToBase64Url(response.response.userHandle),
-                    authenticatorData: coerceToBase64Url(response.response.authenticatorData),
-                    clientDataJSON: coerceToBase64Url(response.response.clientDataJSON),
-                    signature: coerceToBase64Url(response.response.signature),
-                }
+                    clientDataJSON: coerceToBase64Url(credential.response.clientDataJSON),
+                    authenticatorData: coerceToBase64Url(credential.response.authenticatorData),
+                    signature: coerceToBase64Url(credential.response.signature),
+                    userHandle,
+                    attestationObject,
+                },
+                authenticatorAttachment: credential.authenticatorAttachment,
+                clientExtensionResults,
+                type: credential.type
             }
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
     },
     Usernameless: {
-        initiateAuthentication: async ({csrf}) => {
+        createAuthenticationOptions: async ({csrf}) => {
             const url = "/usernameless/createauthenticationoptions";
             const data = {
                 extensions: {}
             };
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         },
-        submitAuthentication: async ({response, csrf}) => {
+        completeAuthentication: async ({credential, csrf}) => {
             const url = "/usernameless/completeauthentication";
+            const clientExtensionResults = credential?.getClientExtensionResults() ?? {};
+            const userHandle = credential.response.userHandle ?
+                coerceToBase64Url(credential.response.userHandle) : undefined;
+            const attestationObject = credential.response.attestationObject ?
+                coerceToBase64Url(credential.response.attestationObject) : undefined;
             const data = {
-                id: coerceToBase64Url(response.rawId),
-                rawId: coerceToBase64Url(response.rawId),
-                type: response.type,
-                clientExtensionResults: response.getClientExtensionResults(),
+                id: coerceToBase64Url(credential.rawId),
+                rawId: coerceToBase64Url(credential.rawId),
                 response: {
-                    userHandle: coerceToBase64Url(response.response.userHandle),
-                    authenticatorData: coerceToBase64Url(response.response.authenticatorData),
-                    clientDataJSON: coerceToBase64Url(response.response.clientDataJSON),
-                    signature: coerceToBase64Url(response.response.signature),
-                }
+                    clientDataJSON: coerceToBase64Url(credential.response.clientDataJSON),
+                    authenticatorData: coerceToBase64Url(credential.response.authenticatorData),
+                    signature: coerceToBase64Url(credential.response.signature),
+                    userHandle,
+                    attestationObject,
+                },
+                authenticatorAttachment: credential.authenticatorAttachment,
+                clientExtensionResults,
+                type: credential.type
             }
             return await makeJsonApiCall({url, data, method: "POST", csrf});
         }

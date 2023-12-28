@@ -1,5 +1,5 @@
 (() => {
-    const {initiateAuthentication, submitAuthentication} = API.Usernameless;
+    const {createAuthenticationOptions, completeAuthentication} = API.Usernameless;
     const elements = {
         authenticateBtn: () => document.getElementById("webauthn-usernameless-submit"),
         csrfElement: () => document.getElementById("webauthn-usernameless-request-token")
@@ -8,7 +8,7 @@
     const onAuthenticateButtonHandler = async (e) => {
         e.preventDefault();
         const csrf = getElementValue(elements.csrfElement());
-        const options = await initiateAuthentication({csrf});
+        const options = await createAuthenticationOptions({csrf});
         if (!options) return;
         const publicKey = {
             ...options,
@@ -16,10 +16,10 @@
             allowCredentials: (options.allowCredentials ?? []).map(x => ({...x, id: coerceToArrayBuffer(x.id)}))
         };
 
-        let response;
+        let credential;
         try {
-            response = await navigator.credentials.get({publicKey});
-            if (!response) {
+            credential = await navigator.credentials.get({publicKey});
+            if (!credential) {
                 Alerts.credentialsGetApiNull();
                 return;
             }
@@ -29,7 +29,7 @@
         }
 
 
-        const attestationResult = await submitAuthentication({csrf, response});
+        const attestationResult = await completeAuthentication({csrf, credential});
         if (!attestationResult) return;
         const {hasError} = attestationResult;
         if (hasError) {

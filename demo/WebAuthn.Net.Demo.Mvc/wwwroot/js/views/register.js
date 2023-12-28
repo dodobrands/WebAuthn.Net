@@ -48,7 +48,7 @@
             -7
         ],
     };
-    const {initiateRegistration, submitRegistration} = API.Register;
+    const {createRegistrationOptions, completeRegistration} = API.Register;
     const {
         getState,
         setState,
@@ -70,22 +70,22 @@
             return;
         }
 
-        const options = await initiateRegistration({registrationParameters, username, csrf});
-        if (!options) return;
+        const registrationOptions = await createRegistrationOptions({registrationParameters, username, csrf});
+        if (!registrationOptions) return;
         const publicKey = {
-            ...options,
-            challenge: coerceToArrayBuffer(options.challenge),
+            ...registrationOptions,
+            challenge: coerceToArrayBuffer(registrationOptions.challenge),
             user: {
-                ...options.user,
-                id: coerceToArrayBuffer(options.user.id),
+                ...registrationOptions.user,
+                id: coerceToArrayBuffer(registrationOptions.user.id),
             },
-            excludeCredentials: (options.excludeCredentials ?? []).map(x => ({...x, id: coerceToArrayBuffer(x.id)}))
+            excludeCredentials: (registrationOptions.excludeCredentials ?? []).map(x => ({...x, id: coerceToArrayBuffer(x.id)}))
         };
 
-        let response;
+        let newCredential;
         try {
-            response = await navigator.credentials.create({publicKey});
-            if (!response) {
+            newCredential = await navigator.credentials.create({publicKey});
+            if (!newCredential) {
                 Alerts.credentialsCreateApiNull();
                 return;
             }
@@ -94,7 +94,7 @@
             return;
         }
 
-        const registrationResult = await submitRegistration({response, csrf});
+        const registrationResult = await completeRegistration({newCredential, csrf});
         if (!registrationResult) {
             Alerts.failedToRegister();
             return;

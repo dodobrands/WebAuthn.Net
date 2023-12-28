@@ -13,7 +13,7 @@
         userVerification: "preferred",
         attestation: "none",
     };
-    const {initiateAuthentication, submitAuthentication} = API.Passwordless;
+    const {createAuthenticationOptions, completeAuthentication} = API.Passwordless;
     const {
         getState,
         setState,
@@ -34,7 +34,7 @@
         }
 
         const {userVerification, attestation} = getState();
-        const options = await initiateAuthentication({username, attestation, userVerification, csrf});
+        const options = await createAuthenticationOptions({username, attestation, userVerification, csrf});
         if (!options) return;
         const publicKey = {
             ...options,
@@ -42,10 +42,10 @@
             allowCredentials: (options.allowCredentials ?? []).map(x => ({...x, id: coerceToArrayBuffer(x.id)}))
         };
 
-        let response;
+        let credential;
         try {
-            response = await navigator.credentials.get({publicKey});
-            if (!response) {
+            credential = await navigator.credentials.get({publicKey});
+            if (!credential) {
                 Alerts.credentialsGetApiNull();
                 return;
             }
@@ -55,7 +55,7 @@
         }
 
 
-        const attestationResult = await submitAuthentication({username, response, csrf});
+        const attestationResult = await completeAuthentication({credential, csrf});
         if (!attestationResult) return;
         const {hasError} = attestationResult;
         if (hasError) {
