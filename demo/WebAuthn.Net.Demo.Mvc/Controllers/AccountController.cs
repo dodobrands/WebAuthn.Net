@@ -11,7 +11,26 @@ public class AccountController : Controller
     {
         cancellationToken.ThrowIfCancellationRequested();
         await HttpContext.SignOutAsync();
+        return HandleReturnUrl(returnUrl);
+    }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Reset(string? returnUrl)
+    {
+        foreach (var (key, _) in HttpContext.Request.Cookies)
+        {
+            if (!key.Contains("antiforgery", StringComparison.InvariantCultureIgnoreCase))
+            {
+                HttpContext.Response.Cookies.Delete(key);
+            }
+        }
+
+        return HandleReturnUrl(returnUrl);
+    }
+
+    private RedirectToActionResult HandleReturnUrl(string? returnUrl)
+    {
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
             if (returnUrl == Url.Action("Index", "Passwordless"))
@@ -26,20 +45,5 @@ public class AccountController : Controller
         }
 
         return RedirectToAction("Index", "Home");
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult Reset()
-    {
-        foreach (var (key, _) in HttpContext.Request.Cookies)
-        {
-            if (!key.Contains("antiforgery", StringComparison.InvariantCultureIgnoreCase))
-            {
-                HttpContext.Response.Cookies.Delete(key);
-            }
-        }
-
-        return Ok();
     }
 }

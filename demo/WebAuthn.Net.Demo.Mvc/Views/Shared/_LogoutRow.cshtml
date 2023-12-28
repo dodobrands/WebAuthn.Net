@@ -17,10 +17,10 @@
     }
 }
 
-@if (showLogoutButton)
-{
-    <hr/>
-    <div class="row">
+<hr/>
+<div class="row">
+    @if (showLogoutButton)
+    {
         <div class="col-md-6">
             <div class="card">
                 <div class="card-body">
@@ -33,5 +33,17 @@
                 </div>
             </div>
         </div>
+    }
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Reset registered users</h2>
+                <form id="webauthn-reset" class="p-1" asp-controller="Account" asp-action="Reset" asp-route-returnUrl="@returnUrl" method="post">
+                    <div class="d-grid gap-2 col-lg-6 col-sm-12 mx-auto mt-3">
+                        <button class="btn btn-secondary" type="submit">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-}
+</div>
