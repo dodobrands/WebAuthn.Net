@@ -2,7 +2,7 @@ name: Release and Publish
 
 on:
     release:
-        types: [ published ]
+        types: [published]
 
 jobs:
     build:
@@ -12,32 +12,51 @@ jobs:
             DOTNET_CLI_TELEMETRY_OPTOUT: true
         environment: Production
         steps:
-            -   uses: actions/checkout@v4.1.1
-                with:
-                    ref: ${{ github.sha }}
-            -   run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-            -   uses: actions/setup-dotnet@v3.2.0
-                with:
-                    dotnet-version: 6.0.417
-                    source-url: ${{ secrets.NUGET_SOURCE }}
-                env:
-                    NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-            -   uses: actions/setup-dotnet@v3.2.0
-                with:
-                    dotnet-version: 8.0.100
-                    source-url: ${{ secrets.NUGET_SOURCE }}
-                env:
-                    NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-            -   run: dotnet test -c Release
-            -   run: dotnet pack -c Release -o out src/WebAuthn.Net
-            -   run: dotnet pack -c Release -o out src/WebAuthn.Net.OpenTelemetry
-            -   run: dotnet pack -c Release -o out src/WebAuthn.Net.Storage.InMemory
-            -   run: dotnet pack -c Release -o out src/WebAuthn.Net.Storage.MySql
-            -   run: dotnet pack -c Release -o out src/WebAuthn.Net.Storage.PostgreSql
-            -   run: dotnet pack -c Release -o out src/WebAuthn.Net.Storage.SqlServer
-            -   run: dotnet nuget push out/WebAuthn.Net.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
-            -   run: dotnet nuget push out/WebAuthn.Net.OpenTelemetry.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
-            -   run: dotnet nuget push out/WebAuthn.Net.Storage.InMemory.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
-            -   run: dotnet nuget push out/WebAuthn.Net.Storage.MySql.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
-            -   run: dotnet nuget push out/WebAuthn.Net.Storage.PostgreSql.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
-            -   run: dotnet nuget push out/WebAuthn.Net.Storage.SqlServer.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
+            - name: Checkout
+              uses: actions/checkout@v4.1.1
+              with:
+                  ref: ${{ github.sha }}
+            - name: Set release version
+              run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+            - name: Setup .NET SDK 6.0
+              uses: actions/setup-dotnet@v4.0.0
+              with:
+                  dotnet-version: 6.0.417
+                  source-url: ${{ secrets.NUGET_SOURCE }}
+              env:
+                  NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+            - name: Setup .NET SDK 8.0
+              uses: actions/setup-dotnet@v4.0.0
+              with:
+                  dotnet-version: 8.0.100
+                  source-url: ${{ secrets.NUGET_SOURCE }}
+              env:
+                  NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+            - name: Build solution
+              run: dotnet build --configuration Release
+            - name: Run tests
+              run: dotnet test --configuration Release
+            - name: Pack WebAuthn.Net
+              run: dotnet pack src/WebAuthn.Net/WebAuthn.Net.csproj --output out --configuration Release
+            - name: Pack WebAuthn.Net.OpenTelemetry
+              run: dotnet pack src/WebAuthn.Net.OpenTelemetry/WebAuthn.Net.OpenTelemetry.csproj --output out --configuration Release
+            - name: Pack WebAuthn.Net.Storage.InMemory
+              run: dotnet pack src/WebAuthn.Net.Storage.InMemory/WebAuthn.Net.Storage.InMemory.csproj --output out --configuration Release
+            - name: Pack WebAuthn.Net.Storage.MySql
+              run: dotnet pack src/WebAuthn.Net.Storage.MySql/WebAuthn.Net.Storage.MySql.csproj --output out --configuration Release
+            - name: Pack WebAuthn.Net.Storage.PostgreSql
+              run: dotnet pack src/WebAuthn.Net.Storage.PostgreSql/WebAuthn.Net.Storage.PostgreSql.csproj --output out --configuration Release
+            - name: Pack WebAuthn.Net.Storage.SqlServer
+              run: dotnet pack src/WebAuthn.Net.Storage.SqlServer/WebAuthn.Net.Storage.SqlServer.csproj --output out --configuration Release
+            - name: Publish package WebAuthn.Net
+              run: dotnet nuget push out/WebAuthn.Net.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
+            - name: Publish package WebAuthn.Net.OpenTelemetry
+              run: dotnet nuget push out/WebAuthn.Net.OpenTelemetry.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
+            - name: Publish package WebAuthn.Net.Storage.InMemory
+              run: dotnet nuget push out/WebAuthn.Net.Storage.InMemory.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
+            - name: Publish package WebAuthn.Net.Storage.MySql
+              run: dotnet nuget push out/WebAuthn.Net.Storage.MySql.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
+            - name: Publish package WebAuthn.Net.Storage.PostgreSql
+              run: dotnet nuget push out/WebAuthn.Net.Storage.PostgreSql.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
+            - name: Publish package WebAuthn.Net.Storage.SqlServer
+              run: dotnet nuget push out/WebAuthn.Net.Storage.SqlServer.${{ env.RELEASE_VERSION }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_PUBLISH_KEY }}
