@@ -11,8 +11,8 @@
         <EnableNETAnalyzers>true</EnableNETAnalyzers>
         <AnalysisMode>All</AnalysisMode>
         <AnalysisLevel>latest</AnalysisLevel>
-        <PackageProjectUrl>https://github.com/dodopizza/WebAuthn.Net</PackageProjectUrl>
-        <PackageReleaseNotes>https://github.com/dodopizza/WebAuthn.Net/releases</PackageReleaseNotes>
+        <PackageProjectUrl>https://github.com/dodobrands/WebAuthn.Net</PackageProjectUrl>
+        <PackageReleaseNotes>https://github.com/dodobrands/WebAuthn.Net/releases</PackageReleaseNotes>
     </PropertyGroup>
 
 </Project>
