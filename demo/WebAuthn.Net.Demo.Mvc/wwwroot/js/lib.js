@@ -124,17 +124,20 @@ const API = {
         },
         completeRegistration: async ({newCredential, csrf}) => {
             const url = "/registration/completeregistration";
-            const clientExtensionResults = newCredential?.getClientExtensionResults() ?? {};
+            const clientExtensionResults = newCredential.getClientExtensionResults ?
+                (newCredential.getClientExtensionResults() ?? {}) : {};
 
-            const responseAuthenticatorData = newCredential.response?.getAuthenticatorData();
-            const authenticatorData = responseAuthenticatorData ?
+            const authenticatorData = newCredential.response.getAuthenticatorData ?
                 coerceToBase64Url(newCredential.response.getAuthenticatorData()) : undefined;
 
-            const responsePublicKey = newCredential.response?.getPublicKey();
-            const publicKey = responsePublicKey ? coerceToBase64Url(responsePublicKey) : undefined;
+            const publicKey = newCredential.response.getPublicKey ?
+                coerceToBase64Url(newCredential.response.getPublicKey()) : undefined;
 
-            const transports = newCredential.response?.getTransports();
-            const publicKeyAlgorithm = newCredential.response?.getPublicKeyAlgorithm();
+            const transports = newCredential.response.getTransports ?
+                newCredential.response.getTransports() : undefined;
+
+            const publicKeyAlgorithm = newCredential.response.getPublicKeyAlgorithm ?
+                newCredential.response.getPublicKeyAlgorithm() : undefined;
 
             const data = {
                 id: coerceToBase64Url(newCredential.rawId),
@@ -167,11 +170,12 @@ const API = {
         },
         completeAuthentication: async ({credential, csrf}) => {
             const url = "/passwordless/completeauthentication";
-            const clientExtensionResults = credential?.getClientExtensionResults() ?? {};
+            const clientExtensionResults = credential.getClientExtensionResults() ?? {};
             const userHandle = credential.response.userHandle ?
                 coerceToBase64Url(credential.response.userHandle) : undefined;
             const attestationObject = credential.response.attestationObject ?
                 coerceToBase64Url(credential.response.attestationObject) : undefined;
+
             const data = {
                 id: coerceToBase64Url(credential.rawId),
                 rawId: coerceToBase64Url(credential.rawId),
@@ -199,7 +203,8 @@ const API = {
         },
         completeAuthentication: async ({credential, csrf}) => {
             const url = "/usernameless/completeauthentication";
-            const clientExtensionResults = credential?.getClientExtensionResults() ?? {};
+            const clientExtensionResults = credential.getClientExtensionResults ?
+                (credential.getClientExtensionResults() ?? {}) : undefined;
             const userHandle = credential.response.userHandle ?
                 coerceToBase64Url(credential.response.userHandle) : undefined;
             const attestationObject = credential.response.attestationObject ?
