@@ -130,8 +130,9 @@ const API = {
             const authenticatorData = newCredential.response.getAuthenticatorData ?
                 coerceToBase64Url(newCredential.response.getAuthenticatorData()) : undefined;
 
-            const publicKey = newCredential.response.getPublicKey ?
-                coerceToBase64Url(newCredential.response.getPublicKey()) : undefined;
+            const responsePublicKey = newCredential.response.getPublicKey ?
+                newCredential.response.getPublicKey() : undefined;
+            const publicKey = responsePublicKey ? coerceToBase64Url(responsePublicKey) : undefined;
 
             const transports = newCredential.response.getTransports ?
                 newCredential.response.getTransports() : undefined;
