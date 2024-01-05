@@ -11,23 +11,23 @@ jobs:
             DOTNET_NOLOGO: true
             DOTNET_CLI_TELEMETRY_OPTOUT: true
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4.1.1
-            - name: Setup .NET SDK 6.0
-              uses: actions/setup-dotnet@v4.0.0
-              with:
-                  dotnet-version: 6.0.417
-                  source-url: ${{ secrets.NUGET_SOURCE }}
-              env:
-                  NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-            - name: Setup .NET SDK 8.0
-              uses: actions/setup-dotnet@v4.0.0
-              with:
-                  dotnet-version: 8.0.100
-                  source-url: ${{ secrets.NUGET_SOURCE }}
-              env:
-                  NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-            - name: Build solution
-              run: dotnet build --configuration Release
-            - name: Run tests
-              run: dotnet test --configuration Release
+            -   name: Checkout
+                uses: actions/checkout@v4.1.1
+            -   name: Setup .NET SDK 6.0
+                uses: actions/setup-dotnet@v4.0.0
+                with:
+                    dotnet-version: 6.0.417
+                    source-url: ${{ secrets.NUGET_SOURCE }}
+                env:
+                    NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+            -   name: Setup .NET SDK 8.0
+                uses: actions/setup-dotnet@v4.0.0
+                with:
+                    dotnet-version: 8.0.100
+                    source-url: ${{ secrets.NUGET_SOURCE }}
+                env:
+                    NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+            -   name: Build solution
+                run: dotnet build --configuration Release
+            -   name: Run tests
+                run: dotnet test --configuration Release
