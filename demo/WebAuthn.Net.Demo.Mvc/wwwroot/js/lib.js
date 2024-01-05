@@ -76,7 +76,7 @@ const makeJsonApiCall = async ({url, data, method, csrf}) => {
     const response = await fetch(url, {
         method,
         body: JSON.stringify(data),
-        credentials: "same-origin",
+        credentials: "include",
         headers: {
             "RequestVerificationToken": csrf ?? "",
             "content-type": "application/json"

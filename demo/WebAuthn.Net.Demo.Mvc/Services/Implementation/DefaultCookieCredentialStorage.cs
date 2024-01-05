@@ -198,12 +198,16 @@ public class DefaultCookieCredentialStorage<TContext>
         };
         foreach (var existingItem in existingItems)
         {
-            if (existingItem.UserHandle != newItem.UserHandle
-                && existingItem.RpId != newItem.RpId
-                && existingItem.CredentialId != newItem.CredentialId)
+            // do not overwrite the newly added item with the old value
+            // the new one is prioritized
+            if (existingItem.UserHandle == newItem.UserHandle
+                && existingItem.RpId == newItem.RpId
+                && existingItem.CredentialId == newItem.CredentialId)
             {
-                resultAccumulator.Add(existingItem);
+                continue;
             }
+
+            resultAccumulator.Add(existingItem);
         }
 
         var itemsToPreserve = resultAccumulator
