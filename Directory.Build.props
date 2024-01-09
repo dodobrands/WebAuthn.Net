@@ -4,8 +4,8 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>disable</ImplicitUsings>
         <DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
-        <Company>Dodo Engineering</Company>
-        <Copyright>Dodo Engineering</Copyright>
+        <Company>Dodo Brands</Company>
+        <Copyright>2023 - $([System.DateTime]::Now.Year)</Copyright>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <EnableNETAnalyzers>true</EnableNETAnalyzers>
