@@ -234,7 +234,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     protected IAuthenticationCeremonyCounters Counters { get; }
 
     /// <inheritdoc />
-    public async Task<BeginAuthenticationCeremonyResult> BeginCeremonyAsync(
+    public virtual async Task<BeginAuthenticationCeremonyResult> BeginCeremonyAsync(
         HttpContext httpContext,
         BeginAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken)
@@ -294,7 +294,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     }
 
     /// <inheritdoc />
-    public async Task<Result<CompleteAuthenticationCeremonyResult>> CompleteCeremonyAsync(
+    public virtual async Task<Result<CompleteAuthenticationCeremonyResult>> CompleteCeremonyAsync(
         HttpContext httpContext,
         CompleteAuthenticationCeremonyRequest request,
         CancellationToken cancellationToken)

@@ -18,8 +18,11 @@ using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder;
+using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions;
+using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AttestationTrustPathValidator;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder;
@@ -263,12 +266,12 @@ public class DefaultRegistrationCeremonyService<TContext>
         var expiresAt = GetExpiresAtUtc(createdAt, timeout);
         var options = CreatePublicKeyCredentialCreationOptions(request, timeout, rpId, challenge, credentialsToExclude);
         var outputOptions = PublicKeyCredentialCreationOptionsEncoder.Encode(options);
-        var registrationCeremony = new RegistrationCeremonyParameters(
+        var registrationCeremonyParameters = new RegistrationCeremonyParameters(
             options,
             expectedRpParameters,
             createdAt,
             expiresAt);
-        var ceremonyId = await CeremonyStorage.SaveAsync(context, registrationCeremony, cancellationToken);
+        var ceremonyId = await CeremonyStorage.SaveAsync(context, registrationCeremonyParameters, cancellationToken);
         await context.CommitAsync(cancellationToken);
         var result = new BeginRegistrationCeremonyResult(outputOptions, ceremonyId);
         Counters.IncrementBeginCeremonyEnd(true);
@@ -276,7 +279,10 @@ public class DefaultRegistrationCeremonyService<TContext>
     }
 
     /// <inheritdoc />
-    public async Task<Result<CompleteRegistrationCeremonyResult>> CompleteCeremonyAsync(HttpContext httpContext, CompleteRegistrationCeremonyRequest request, CancellationToken cancellationToken)
+    public virtual async Task<Result<CompleteRegistrationCeremonyResult>> CompleteCeremonyAsync(
+        HttpContext httpContext,
+        CompleteRegistrationCeremonyRequest request,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
@@ -285,11 +291,11 @@ public class DefaultRegistrationCeremonyService<TContext>
         using (Logger.BeginCompleteRegistrationCeremonyScope(request.RegistrationCeremonyId))
         await using (var context = await ContextFactory.CreateAsync(httpContext, cancellationToken))
         {
-            var registrationCeremonyOptions = await CeremonyStorage.FindAsync(
+            var registrationCeremonyParameters = await CeremonyStorage.FindAsync(
                 context,
                 request.RegistrationCeremonyId,
                 cancellationToken);
-            if (registrationCeremonyOptions is null)
+            if (registrationCeremonyParameters is null)
             {
                 Logger.RegistrationCeremonyNotFound();
                 Counters.IncrementCompleteCeremonyEnd(false);
@@ -298,7 +304,7 @@ public class DefaultRegistrationCeremonyService<TContext>
 
             // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-registering-a-new-credential
             // 1. Let 'options' be a new 'PublicKeyCredentialCreationOptions' structure configured to the Relying Party's needs for the ceremony.
-            var options = registrationCeremonyOptions.Options;
+            var options = registrationCeremonyParameters.Options;
 
             // 2. Call navigator.credentials.create() and pass 'options' as the 'publicKey' option.
             // Let 'credential' be the result of the successfully resolved promise.
@@ -360,7 +366,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             }
 
             // 9. Verify that the value of 'C.origin' is an origin expected by the Relying Party. See §13.4.9 Validating the origin of a credential for guidance.
-            var allowedOrigin = registrationCeremonyOptions.ExpectedRp.Origins.FirstOrDefault(x => string.Equals(x, C.Origin, StringComparison.Ordinal));
+            var allowedOrigin = registrationCeremonyParameters.ExpectedRp.Origins.FirstOrDefault(x => string.Equals(x, C.Origin, StringComparison.Ordinal));
             if (allowedOrigin is null)
             {
                 Logger.InvalidOrigin(C.Origin);
@@ -373,7 +379,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             {
                 //   1. Verify that the Relying Party expects that this credential would have been created within an iframe that is not same-origin with its ancestors.
                 //   2. Verify that the value of C.topOrigin matches the origin of a page that the Relying Party expects to be sub-framed within. See §13.4.9 Validating the origin of a credential for guidance.
-                if (!registrationCeremonyOptions.ExpectedRp.AllowIframe)
+                if (!registrationCeremonyParameters.ExpectedRp.AllowIframe)
                 {
                     if (!string.Equals(allowedOrigin, C.TopOrigin, StringComparison.Ordinal))
                     {
@@ -384,7 +390,7 @@ public class DefaultRegistrationCeremonyService<TContext>
                 }
                 else
                 {
-                    if (!registrationCeremonyOptions.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
+                    if (!registrationCeremonyParameters.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
                     {
                         Logger.InvalidTopOrigin(C.TopOrigin);
                         Counters.IncrementCompleteCeremonyEnd(false);
@@ -446,7 +452,7 @@ public class DefaultRegistrationCeremonyService<TContext>
 
             // 13. Verify that the 'rpIdHash' in 'authData' is the SHA-256 hash of the 'RP ID' expected by the Relying Party.
             var authDataRpIdHash = authData.RpIdHash;
-            var expectedRpIdHash = SHA256.HashData(Encoding.UTF8.GetBytes(registrationCeremonyOptions.ExpectedRp.RpId));
+            var expectedRpIdHash = SHA256.HashData(Encoding.UTF8.GetBytes(registrationCeremonyParameters.ExpectedRp.RpId));
             if (!authDataRpIdHash.AsSpan().SequenceEqual(expectedRpIdHash.AsSpan()))
             {
                 Logger.RpIdHashMismatch();
@@ -590,11 +596,16 @@ public class DefaultRegistrationCeremonyService<TContext>
                 currentBe,
                 currentBs,
                 response);
-            var userCredentialRecord = new UserCredentialRecord(
-                options.User.Id,
-                registrationCeremonyOptions.ExpectedRp.RpId,
-                request.Description,
-                credentialRecord);
+            var userCredentialRecord = await CreateUserCredentialRecordAsync(
+                context,
+                registrationCeremonyParameters,
+                request,
+                credentialRecord,
+                attestationObjectResult.Ok,
+                authData,
+                attStmt,
+                attStmtVerification,
+                cancellationToken);
             var credentialIdNotRegisteredForAnyUser = await CredentialStorage.SaveIfNotRegisteredForOtherUserAsync(
                 context,
                 userCredentialRecord,
@@ -749,7 +760,7 @@ public class DefaultRegistrationCeremonyService<TContext>
     }
 
     /// <summary>
-    ///     Creates a <see cref="CredentialRecord" />, which is the final artifact of the registration ceremony.
+    ///     Creates a <see cref="CredentialRecord" /> that stores the properties of the registered public key.
     /// </summary>
     /// <param name="credential">PublicKeyCredential. The response received from the authenticator during the registration ceremony.</param>
     /// <param name="authData">Authenticator Data (which has attestedCredentialData).</param>
@@ -837,6 +848,55 @@ public class DefaultRegistrationCeremonyService<TContext>
             response.AttestationObject,
             response.ClientDataJson);
         return credentialRecord;
+    }
+
+    /// <summary>
+    ///     Creates a <see cref="UserCredentialRecord" />, which is the final artifact of the registration ceremony.
+    /// </summary>
+    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
+    /// <param name="registrationCeremonyParameters">Registration ceremony parameters.</param>
+    /// <param name="request">Request containing parameters for completing the registration ceremony.</param>
+    /// <param name="credentialRecord"><see cref="CredentialRecord" /> that stores the properties of the registered public key.</param>
+    /// <param name="attestationObject">Decoded <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-object">attestation object</a>.</param>
+    /// <param name="authData">Decoded value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator-data">authenticator data (authData)</a>.</param>
+    /// <param name="attStmt">Decoded value of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement (attStmt)</a>.</param>
+    /// <param name="verifiedAttestationStatement">Verified value of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-statement">attestation statement (attStmt)</a>.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns>Instance of <see cref="UserCredentialRecord" />.</returns>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
+    /// <remarks>
+    ///     This method is mostly made to allow the override of any properties of the resulting <see cref="UserCredentialRecord" /> before it is saved to the database.
+    ///     For example, you can set the description of the registering public key depending on the type of attestation.
+    ///     The asynchronous signature of this method is made for flexibility.
+    ///     The saving of the <see cref="UserCredentialRecord" /> itself is performed in the next step.
+    ///     Please don't save it to the database in this method.
+    /// </remarks>
+    protected virtual Task<UserCredentialRecord> CreateUserCredentialRecordAsync(
+        TContext context,
+        RegistrationCeremonyParameters registrationCeremonyParameters,
+        CompleteRegistrationCeremonyRequest request,
+        CredentialRecord credentialRecord,
+        AttestationObject attestationObject,
+        AttestedAuthenticatorData authData,
+        AbstractAttestationStatement attStmt,
+        VerifiedAttestationStatement verifiedAttestationStatement,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(registrationCeremonyParameters);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(credentialRecord);
+        ArgumentNullException.ThrowIfNull(attestationObject);
+        ArgumentNullException.ThrowIfNull(authData);
+        ArgumentNullException.ThrowIfNull(attStmt);
+        ArgumentNullException.ThrowIfNull(verifiedAttestationStatement);
+        var result = new UserCredentialRecord(
+            registrationCeremonyParameters.Options.User.Id,
+            registrationCeremonyParameters.ExpectedRp.RpId,
+            request.Description,
+            credentialRecord);
+        return Task.FromResult(result);
     }
 }
 

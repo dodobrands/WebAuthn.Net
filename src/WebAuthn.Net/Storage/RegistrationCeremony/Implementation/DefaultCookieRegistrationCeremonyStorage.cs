@@ -69,14 +69,14 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
     /// <inheritdoc />
     public virtual Task<string> SaveAsync(
         TContext context,
-        RegistrationCeremonyParameters registrationCeremony,
+        RegistrationCeremonyParameters registrationCeremonyParameters,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
         var options = Options.CurrentValue;
         var id = Guid.NewGuid().ToString("N").ToLowerInvariant();
-        var container = new RegistrationCeremonyParametersCookieContainer(id, registrationCeremony);
+        var container = new RegistrationCeremonyParametersCookieContainer(id, registrationCeremonyParameters);
         var jsonBytesResult = SafeJsonSerializer.SerializeToUtf8Bytes(container, options.SerializerOptions);
         if (jsonBytesResult.HasError)
         {
