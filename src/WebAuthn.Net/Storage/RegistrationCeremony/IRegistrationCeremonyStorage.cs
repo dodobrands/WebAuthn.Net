@@ -16,12 +16,12 @@ public interface IRegistrationCeremonyStorage<TContext>
     ///     Saves the parameters of the specified registration ceremony and returns the unique identifier of the saved record.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
-    /// <param name="registrationCeremony">Registration ceremony parameters.</param>
+    /// <param name="registrationCeremonyParameters">Registration ceremony parameters.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns></returns>
     Task<string> SaveAsync(
         TContext context,
-        RegistrationCeremonyParameters registrationCeremony,
+        RegistrationCeremonyParameters registrationCeremonyParameters,
         CancellationToken cancellationToken);
 
     /// <summary>

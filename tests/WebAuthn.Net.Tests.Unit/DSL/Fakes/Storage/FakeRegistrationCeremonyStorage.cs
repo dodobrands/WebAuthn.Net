@@ -15,14 +15,14 @@ public class FakeRegistrationCeremonyStorage : IRegistrationCeremonyStorage<Fake
 
     public Task<string> SaveAsync(
         FakeWebAuthnContext context,
-        RegistrationCeremonyParameters registrationCeremony,
+        RegistrationCeremonyParameters registrationCeremonyParameters,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var id = Guid.NewGuid().ToString("N");
         lock (_locker)
         {
-            _registrationCeremonies[id] = registrationCeremony;
+            _registrationCeremonies[id] = registrationCeremonyParameters;
         }
 
         return Task.FromResult(id);
