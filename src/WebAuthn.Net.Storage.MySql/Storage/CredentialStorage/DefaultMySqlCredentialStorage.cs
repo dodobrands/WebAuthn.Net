@@ -292,10 +292,7 @@ VALUES
             @"
 SELECT `Id`
 FROM `CredentialRecords`
-WHERE
-    `UserHandle` = @userHandle
-    AND `CredentialId` = @credentialId
-    AND `RpId` = @rpId;",
+WHERE `UserHandle` = @userHandle AND `CredentialId` = @credentialId AND `RpId` = @rpId;",
             new
             {
                 rpId = credential.RpId,
