@@ -40,11 +40,17 @@ CREATE TABLE `CredentialRecords`
 ) CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_0900_ai_ci;
 
-CREATE UNIQUE INDEX `IX_CredentialRecords_RpId_UserHandle_CredentialId` ON `CredentialRecords`
+CREATE UNIQUE INDEX `IX_CredentialRecords_UserHandle_CredentialId_RpId` ON `CredentialRecords`
 (
-    `RpId`,
     `UserHandle`,
-    `CredentialId`
+    `CredentialId`,
+    `RpId`
+);
+
+CREATE UNIQUE INDEX `IX_CredentialRecords_CredentialId_RpId` ON `CredentialRecords`
+(
+     `CredentialId`,
+     `RpId`
 );
 ```
 

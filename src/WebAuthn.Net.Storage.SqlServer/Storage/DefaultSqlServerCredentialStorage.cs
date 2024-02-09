@@ -46,8 +46,9 @@ public class DefaultSqlServerCredentialStorage<TContext> : ICredentialStorage<TC
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
         var dbPublicKeysEnumerable = await context.Connection.QueryAsync<SqlServerPublicKeyCredentialDescriptor>(new(@"
-SELECT Type, CredentialId, Transports, CreatedAtUnixTime FROM CredentialRecords
-WHERE RpId = @rpId AND UserHandle = @userHandle;",
+SELECT Type, CredentialId, Transports, CreatedAtUnixTime
+FROM CredentialRecords
+WHERE UserHandle = @userHandle AND RpId = @rpId;",
             new
             {
                 rpId,
@@ -92,7 +93,7 @@ WHERE RpId = @rpId AND UserHandle = @userHandle;",
         var exisingId = await context.Connection.QuerySingleOrDefaultAsync<Guid?>(new(@"
 SELECT Id
 FROM CredentialRecords
-WHERE RpId = @rpId AND UserHandle = @userHandle AND CredentialId = @credentialId;",
+WHERE UserHandle = @userHandle AND CredentialId = @credentialId AND RpId = @rpId;",
             new
             {
                 rpId,
@@ -166,10 +167,9 @@ WHERE Id = @id;",
         cancellationToken.ThrowIfCancellationRequested();
         var existingCount = await context.Connection.ExecuteScalarAsync<long>(new(
             @"
-SELECT COUNT(Id) FROM CredentialRecords
-WHERE
-    RpId = @rpId
-    AND CredentialId = @credentialId;",
+SELECT COUNT(CredentialId)
+FROM CredentialRecords
+WHERE CredentialId = @credentialId AND RpId = @rpId;",
             new
             {
                 rpId = credential.RpId,
@@ -288,11 +288,9 @@ VALUES
         cancellationToken.ThrowIfCancellationRequested();
         var recordIdToUpdate = await context.Connection.QuerySingleOrDefaultAsync<Guid?>(new(
             @"
-SELECT Id FROM CredentialRecords
-WHERE
-    RpId = @rpId
-    AND UserHandle = @userHandle
-    AND CredentialId = @credentialId;",
+SELECT Id
+FROM CredentialRecords
+WHERE UserHandle = @userHandle AND CredentialId = @credentialId AND RpId = @rpId;",
             new
             {
                 rpId = credential.RpId,

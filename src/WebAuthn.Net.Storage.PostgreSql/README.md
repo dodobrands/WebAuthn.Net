@@ -38,7 +38,8 @@ CREATE TABLE "CredentialRecords" (
     CONSTRAINT "PK_CredentialRecords" PRIMARY KEY ("Id")
 );
 
-CREATE UNIQUE INDEX "IX_CredentialRecords_RpId_UserHandle_CredentialId" ON "CredentialRecords" ("RpId", "UserHandle", "CredentialId");
+CREATE UNIQUE INDEX "IX_CredentialRecords_UserHandle_CredentialId_RpId" ON "CredentialRecords" ("UserHandle", "CredentialId", "RpId");
+CREATE UNIQUE INDEX "IX_CredentialRecords_CredentialId_RpId" ON "CredentialRecords" ("CredentialId", "RpId");
 ```
 
 ## Local dev environment
