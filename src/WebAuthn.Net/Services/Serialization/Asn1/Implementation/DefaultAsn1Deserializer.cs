@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
@@ -12,6 +14,22 @@ namespace WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 /// </summary>
 public class DefaultAsn1Deserializer : IAsn1Deserializer
 {
+    /// <summary>
+    ///     Constructs <see cref="DefaultAsn1Deserializer" />.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
+    public DefaultAsn1Deserializer(ILogger<DefaultAsn1Deserializer> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        Logger = logger;
+    }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultAsn1Deserializer> Logger { get; }
+
     /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public virtual Result<AbstractAsn1Element?> Deserialize(byte[] input, AsnEncodingRules encodingRules)
@@ -33,8 +51,9 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
             return Result<AbstractAsn1Element?>.Success(rootResult.Ok);
         }
         // ReSharper disable once EmptyGeneralCatchClause
-        catch
+        catch (Exception exception)
         {
+            Logger.WarnDeserializationError(exception);
             return Result<AbstractAsn1Element?>.Fail();
         }
     }
@@ -186,5 +205,30 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
         }
 
         return Result<Asn1Set>.Success(new(tag, setItems.ToArray()));
+    }
+}
+
+/// <summary>
+///     Extension methods for logging ASN.1 deserialization.
+/// </summary>
+public static class DefaultAuthenticationCeremonyServiceLoggingExtensions
+{
+    private static readonly Action<ILogger, Exception?> WarnDeserializationErrorCallback = LoggerMessage.Define(
+        LogLevel.Warning,
+        new(default, nameof(WarnDeserializationError)),
+        "An error occurred during the deserialization");
+
+    /// <summary>
+    ///     An error occurred during the deserialization
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">Exception.</param>
+    public static void WarnDeserializationError(this ILogger logger, Exception? exception)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        if (logger.IsEnabled(LogLevel.Warning))
+        {
+            WarnDeserializationErrorCallback(logger, exception);
+        }
     }
 }

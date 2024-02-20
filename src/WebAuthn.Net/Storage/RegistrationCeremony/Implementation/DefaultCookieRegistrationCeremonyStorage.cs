@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.Serialization.Json;
@@ -31,19 +32,23 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
     /// <param name="options">Accessor for getting the current value of the default registration ceremony storage options.</param>
     /// <param name="provider">Provider for creating <see cref="IDataProtector" />.</param>
     /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultCookieRegistrationCeremonyStorage(
         IOptionsMonitor<DefaultCookieRegistrationCeremonyStorageOptions> options,
         IDataProtectionProvider provider,
-        ISafeJsonSerializer safeJsonSerializer)
+        ISafeJsonSerializer safeJsonSerializer,
+        ILogger<DefaultCookieRegistrationCeremonyStorage<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(safeJsonSerializer);
+        ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         Protector = provider.CreateProtector(DataProtectionPurpose, "v1");
         CookieManager = new ChunkingCookieManager();
         SafeJsonSerializer = safeJsonSerializer;
+        Logger = logger;
     }
 
     /// <summary>
@@ -65,6 +70,11 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
     ///     Safe (exceptionless) JSON serializer.
     /// </summary>
     protected ISafeJsonSerializer SafeJsonSerializer { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultCookieRegistrationCeremonyStorage<TContext>> Logger { get; }
 
     /// <inheritdoc />
     public virtual Task<string> SaveAsync(
@@ -136,8 +146,9 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
 
             return Task.FromResult((RegistrationCeremonyParameters?) null);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            Logger.WarnFindAsyncError(exception);
             return Task.FromResult((RegistrationCeremonyParameters?) null);
         }
     }
@@ -183,8 +194,9 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
 
             return Task.CompletedTask;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            Logger.WarnRemoveAsyncError(exception);
             return Task.CompletedTask;
         }
     }
@@ -198,5 +210,49 @@ public class DefaultCookieRegistrationCeremonyStorage<TContext> : IRegistrationC
     {
         ArgumentNullException.ThrowIfNull(options);
         return options.Cookie.Name ?? DefaultCookieRegistrationCeremonyStorageOptions.CookieName;
+    }
+}
+
+/// <summary>
+///     Extension methods for logging the default implementation of <see cref="IRegistrationCeremonyStorage{TContext}" />.
+/// </summary>
+public static class DefaultCookieRegistrationCeremonyStorageLoggingExtensions
+{
+    private static readonly Action<ILogger, Exception?> WarnFindAsyncErrorCallback = LoggerMessage.Define(
+        LogLevel.Warning,
+        new(default, nameof(WarnFindAsyncError)),
+        "An unexpected error occurred during the execution of the FindAsync method");
+
+    private static readonly Action<ILogger, Exception?> WarnRemoveAsyncErrorCallback = LoggerMessage.Define(
+        LogLevel.Warning,
+        new(default, nameof(WarnRemoveAsyncError)),
+        "An unexpected error occurred during the execution of the RemoveAsync method");
+
+    /// <summary>
+    ///     An unexpected error occurred during the execution of the FindAsync method
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">Exception.</param>
+    public static void WarnFindAsyncError(this ILogger logger, Exception? exception)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        if (logger.IsEnabled(LogLevel.Warning))
+        {
+            WarnFindAsyncErrorCallback(logger, exception);
+        }
+    }
+
+    /// <summary>
+    ///     An unexpected error occurred during the execution of the RemoveAsync method
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">Exception.</param>
+    public static void WarnRemoveAsyncError(this ILogger logger, Exception? exception)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        if (logger.IsEnabled(LogLevel.Warning))
+        {
+            WarnRemoveAsyncErrorCallback(logger, exception);
+        }
     }
 }

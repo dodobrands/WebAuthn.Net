@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
@@ -18,21 +19,25 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     /// <param name="metadataIngestService">The ingestion service for metadata obtained from the FIDO Metadata Service, designed to store data from the retrieved blob.</param>
     /// <param name="provider">Provider of metadata from FIDO Metadata Service.</param>
     /// <param name="decoder">Decoder for data received from the FIDO Metadata Service's blob.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public FidoMetadataBackgroundIngestHostedService(
         IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> options,
         IFidoMetadataIngestService metadataIngestService,
         IFidoMetadataProvider provider,
-        IFidoMetadataDecoder decoder)
+        IFidoMetadataDecoder decoder,
+        ILogger<FidoMetadataBackgroundIngestHostedService> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(metadataIngestService);
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(decoder);
+        ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         MetadataIngestService = metadataIngestService;
         Provider = provider;
         Decoder = decoder;
+        Logger = logger;
     }
 
     /// <summary>
@@ -64,6 +69,11 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     ///     Decoder for data received from the FIDO Metadata Service's blob.
     /// </summary>
     protected IFidoMetadataDecoder Decoder { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<FidoMetadataBackgroundIngestHostedService> Logger { get; }
 
     /// <inheritdoc />
     public void Dispose()
@@ -160,6 +170,7 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         var metadataResult = await Provider.DownloadMetadataAsync(stoppingToken);
         if (metadataResult.HasError)
         {
+            Logger.FailedToDownload();
             if (Options.CurrentValue.ThrowExceptionOnFailure)
             {
                 throw new InvalidOperationException("Failed to download metadata from the FIDO Metadata Service");
@@ -172,6 +183,7 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         var decodeResult = Decoder.Decode(rawMetadata);
         if (decodeResult.HasError)
         {
+            Logger.FailedToDecode();
             if (Options.CurrentValue.ThrowExceptionOnFailure)
             {
                 throw new InvalidOperationException("Failed to decode data downloaded from the FIDO Metadata Service");
@@ -195,4 +207,30 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
             StoppingCts?.Dispose();
         }
     }
+}
+
+/// <summary>
+///     Extension method for logging the background ingestion.
+/// </summary>
+public static partial class FidoMetadataBackgroundIngestHostedServiceLoggingExtensions
+{
+    /// <summary>
+    ///     Failed to download metadata from the FIDO Metadata Service.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to download metadata from the FIDO Metadata Service")]
+    public static partial void FailedToDownload(this ILogger logger);
+
+    /// <summary>
+    ///     Failed to decode data downloaded from the FIDO Metadata Service.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Warning,
+        Message = "Failed to decode data downloaded from the FIDO Metadata Service")]
+    public static partial void FailedToDecode(this ILogger logger);
 }

@@ -39,7 +39,7 @@ public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
 
     /// <inheritdoc />
-    public async Task<string> DownloadMetadataAsync(CancellationToken cancellationToken)
+    public virtual async Task<string> DownloadMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var response = await HttpClient.GetAsync(

@@ -11,7 +11,7 @@ namespace WebAuthn.Net.Services.Providers.Implementation;
 public class DefaultRelyingPartyOriginProvider : IRelyingPartyOriginProvider
 {
     /// <inheritdoc />
-    public Task<string> GetAsync(HttpContext httpContext, CancellationToken cancellationToken)
+    public virtual Task<string> GetAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(httpContext);
         cancellationToken.ThrowIfCancellationRequested();

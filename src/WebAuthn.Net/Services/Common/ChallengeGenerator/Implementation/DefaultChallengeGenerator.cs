@@ -9,7 +9,7 @@ namespace WebAuthn.Net.Services.Common.ChallengeGenerator.Implementation;
 public class DefaultChallengeGenerator : IChallengeGenerator
 {
     /// <inheritdoc />
-    public byte[] GenerateChallenge(int size)
+    public virtual byte[] GenerateChallenge(int size)
     {
         // https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-cryptographic-challenges
         if (size < 16)

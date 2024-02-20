@@ -29,7 +29,7 @@ public class DefaultEnumMemberAttributeSerializer<TEnum> : IEnumMemberAttributeS
     }
 
     /// <inheritdoc />
-    public bool TryDeserialize(string key, [NotNullWhen(true)] out TEnum? value)
+    public virtual bool TryDeserialize(string key, [NotNullWhen(true)] out TEnum? value)
     {
         if (_namesToValues.TryGetValue(key, out var result))
         {
@@ -42,7 +42,7 @@ public class DefaultEnumMemberAttributeSerializer<TEnum> : IEnumMemberAttributeS
     }
 
     /// <inheritdoc />
-    public bool TrySerialize(TEnum key, [NotNullWhen(true)] out string? value)
+    public virtual bool TrySerialize(TEnum key, [NotNullWhen(true)] out string? value)
     {
         if (!_allEnumValues.Contains(key))
         {
@@ -78,12 +78,10 @@ public class DefaultEnumMemberAttributeSerializer<TEnum> : IEnumMemberAttributeS
                 throw new InvalidOperationException($"Value of [EnumMember(Value = \"\")] attribute for {systemName} value of {enumType.FullName} type can't be null or empty string");
             }
 
-            if (result.ContainsKey(name))
+            if (!result.TryAdd(name, enumValue))
             {
                 throw new InvalidOperationException($"Value of [EnumMember(Value = \"SomeValue\")] attribute for {systemName} value of {enumType.FullName} type is duplicates with some other value");
             }
-
-            result[name] = enumValue;
         }
 
         return result;

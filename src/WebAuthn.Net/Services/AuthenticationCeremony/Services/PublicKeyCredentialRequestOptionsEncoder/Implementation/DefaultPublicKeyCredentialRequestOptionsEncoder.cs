@@ -80,7 +80,7 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
     protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
 
     /// <inheritdoc />
-    public PublicKeyCredentialRequestOptionsJSON Encode(PublicKeyCredentialRequestOptions options)
+    public virtual PublicKeyCredentialRequestOptionsJSON Encode(PublicKeyCredentialRequestOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         var challenge = Base64Url.Encode(options.Challenge);

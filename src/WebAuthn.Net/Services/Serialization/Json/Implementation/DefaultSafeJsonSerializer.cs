@@ -29,7 +29,7 @@ public class DefaultSafeJsonSerializer : ISafeJsonSerializer
 
     /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    public Result<TValue> DeserializeNonNullable<TValue>(string json, JsonSerializerOptions? options = null)
+    public virtual Result<TValue> DeserializeNonNullable<TValue>(string json, JsonSerializerOptions? options = null)
     {
         try
         {
@@ -57,7 +57,7 @@ public class DefaultSafeJsonSerializer : ISafeJsonSerializer
 
     /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    public Result<TValue> DeserializeNonNullable<TValue>(ReadOnlySpan<byte> utf8Json, JsonSerializerOptions? options = null)
+    public virtual Result<TValue> DeserializeNonNullable<TValue>(ReadOnlySpan<byte> utf8Json, JsonSerializerOptions? options = null)
     {
         try
         {
@@ -79,7 +79,7 @@ public class DefaultSafeJsonSerializer : ISafeJsonSerializer
 
     /// <inheritdoc />
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    public Result<byte[]> SerializeToUtf8Bytes<TValue>(TValue value, JsonSerializerOptions? options = null)
+    public virtual Result<byte[]> SerializeToUtf8Bytes<TValue>(TValue value, JsonSerializerOptions? options = null)
     {
         try
         {

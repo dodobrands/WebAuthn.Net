@@ -18,7 +18,7 @@ namespace WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
 {
     /// <inheritdoc />
-    public bool IsValidCertificateSign(X509Certificate2 certificate, CoseAlgorithm alg, byte[] dataToVerify, byte[] signature)
+    public virtual bool IsValidCertificateSign(X509Certificate2 certificate, CoseAlgorithm alg, byte[] dataToVerify, byte[] signature)
     {
         if (!alg.TryGetCoseKeyType(out var kty))
         {
@@ -116,7 +116,7 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
     }
 
     /// <inheritdoc />
-    public bool IsValidCoseKeySign(AbstractCoseKey coseKey, byte[] dataToVerify, byte[] signature)
+    public virtual bool IsValidCoseKeySign(AbstractCoseKey coseKey, byte[] dataToVerify, byte[] signature)
     {
         ArgumentNullException.ThrowIfNull(coseKey);
         switch (coseKey.Kty)

@@ -22,7 +22,7 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> :
     protected MetadataBlobPayload? Blob { get; set; }
 
     /// <inheritdoc />
-    public Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
+    public virtual Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Blob = metadataBlob;
@@ -30,7 +30,7 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> :
     }
 
     /// <inheritdoc />
-    public Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
+    public virtual Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken)
@@ -47,7 +47,7 @@ public class DefaultInMemoryFidoMetadataStorage<TContext> :
     }
 
     /// <inheritdoc />
-    public Task<MetadataBlobPayloadEntry?> FindBySubjectKeyIdentifierAsync(
+    public virtual Task<MetadataBlobPayloadEntry?> FindBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
         CancellationToken cancellationToken)

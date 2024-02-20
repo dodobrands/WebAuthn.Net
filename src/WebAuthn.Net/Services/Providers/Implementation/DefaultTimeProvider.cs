@@ -8,13 +8,13 @@ namespace WebAuthn.Net.Services.Providers.Implementation;
 public class DefaultTimeProvider : ITimeProvider
 {
     /// <inheritdoc />
-    public DateTimeOffset GetRoundUtcDateTime()
+    public virtual DateTimeOffset GetRoundUtcDateTime()
     {
         return DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 
     /// <inheritdoc />
-    public DateTimeOffset GetPreciseUtcDateTime()
+    public virtual DateTimeOffset GetPreciseUtcDateTime()
     {
         return DateTimeOffset.UtcNow;
     }

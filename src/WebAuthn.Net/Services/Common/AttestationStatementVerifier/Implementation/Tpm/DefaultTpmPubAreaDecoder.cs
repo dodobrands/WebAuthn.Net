@@ -14,7 +14,7 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
 {
     /// <inheritdoc />
-    public Result<PubArea> Decode(Span<byte> bytes)
+    public virtual Result<PubArea> Decode(Span<byte> bytes)
     {
         var buffer = bytes;
         // 12.2.4 TPMT_PUBLIC

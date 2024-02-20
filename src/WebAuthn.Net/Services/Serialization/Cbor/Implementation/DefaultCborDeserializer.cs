@@ -48,8 +48,9 @@ public class DefaultCborDeserializer : ICborDeserializer
             return Result<CborRoot>.Success(root);
         }
         // ReSharper disable once EmptyGeneralCatchClause
-        catch
+        catch (Exception exception)
         {
+            Logger.WarnDeserializationError(exception);
             return Result<CborRoot>.Fail();
         }
     }
@@ -251,6 +252,25 @@ public class DefaultCborDeserializer : ICborDeserializer
 /// </summary>
 public static partial class DefaultCborDeserializerLoggingExtensions
 {
+    private static readonly Action<ILogger, Exception?> WarnDeserializationErrorCallback = LoggerMessage.Define(
+        LogLevel.Warning,
+        new(default, nameof(WarnDeserializationError)),
+        "An error occurred during the deserialization");
+
+    /// <summary>
+    ///     An error occurred during the deserialization
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">Exception.</param>
+    public static void WarnDeserializationError(this ILogger logger, Exception? exception)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        if (logger.IsEnabled(LogLevel.Warning))
+        {
+            WarnDeserializationErrorCallback(logger, exception);
+        }
+    }
+
     /// <summary>
     ///     The CborReader is in an 'Undefined' state, unable to perform reading
     /// </summary>

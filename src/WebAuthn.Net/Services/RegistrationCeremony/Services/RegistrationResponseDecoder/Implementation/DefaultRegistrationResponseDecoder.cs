@@ -53,7 +53,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
 
     /// <inheritdoc />
-    public Result<RegistrationResponse> Decode(RegistrationResponseJSON registrationResponse)
+    public virtual Result<RegistrationResponse> Decode(RegistrationResponseJSON registrationResponse)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (registrationResponse is null)
