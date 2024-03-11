@@ -713,7 +713,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         result = new byte[attestationRootCertificates.Length][];
         for (var i = 0; i < attestationRootCertificates.Length; i++)
         {
-            if (!Base64Raw.TryDecode(attestationRootCertificates[i], out var attestationRootCertificate))
+            if (!Base64Raw.TryDecode(attestationRootCertificates[i].Trim(), out var attestationRootCertificate))
             {
                 result = null;
                 return false;
