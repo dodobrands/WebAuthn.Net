@@ -132,7 +132,7 @@ const API = {
             let authenticatorData;
             if (newCredential.response.getAuthenticatorData) {
                 const authData = newCredential.response.getAuthenticatorData();
-                const isValid = authData instanceof "arraybuffer";
+                const isValid = authData instanceof ArrayBuffer;
                 if (!isValid){
                     Alerts.getAuthenticatorDataInvalid();
                     return;
@@ -143,7 +143,7 @@ const API = {
             let publicKey;
             if (newCredential.response.getPublicKey) {
                 const responsePublicKey = newCredential.response.getPublicKey();
-                const isValid = responsePublicKey instanceof "arraybuffer";
+                const isValid = responsePublicKey instanceof ArrayBuffer;
                 if (!isValid) {
                     Alerts.getPublicKeyInvalid();
                     return;
