@@ -61,8 +61,8 @@ The documentation for each project is described in its README.md file.
 
 ### Required dependencies
 
-- [.NET SDK 6.0.419+](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
-- [.NET SDK 8.0.201+](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- [.NET SDK 6.0.420+](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
+- [.NET SDK 8.0.203+](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 
 ## Tips for Contribution
 
