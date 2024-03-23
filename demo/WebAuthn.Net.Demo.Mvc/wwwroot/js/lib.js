@@ -107,7 +107,9 @@ const Alerts = {
     registerSuccess: () => alert("User registered!"),
     usernameInputEmpty: () => alert("Username input is empty"),
     credentialsGetApiNull: () => alert("navigator.credentials.get returned null"),
-    credentialsCreateApiNull: () => alert("navigator.credentials.create returned null")
+    credentialsCreateApiNull: () => alert("navigator.credentials.create returned null"),
+    getAuthenticatorDataInvalid: () => alert("Invalid data from getAuthenticatorData() method. Expected arraybuffer"),
+    getPublicKeyInvalid: () => alert("Invalid data from getPublicKey() method. Expected arraybuffer")
 };
 
 // API
@@ -127,12 +129,27 @@ const API = {
             const clientExtensionResults = newCredential.getClientExtensionResults ?
                 (newCredential.getClientExtensionResults() ?? {}) : {};
 
-            const authenticatorData = newCredential.response.getAuthenticatorData ?
-                coerceToBase64Url(newCredential.response.getAuthenticatorData()) : undefined;
+            let authenticatorData;
+            if (newCredential.response.getAuthenticatorData) {
+                const authData = newCredential.response.getAuthenticatorData();
+                const isValid = authData instanceof ArrayBuffer;
+                if (!isValid) {
+                    Alerts.getAuthenticatorDataInvalid();
+                    return;
+                }
+                authenticatorData = coerceToBase64Url(authData);
+            }
 
-            const responsePublicKey = newCredential.response.getPublicKey ?
-                newCredential.response.getPublicKey() : undefined;
-            const publicKey = responsePublicKey ? coerceToBase64Url(responsePublicKey) : undefined;
+            let publicKey;
+            if (newCredential.response.getPublicKey) {
+                const responsePublicKey = newCredential.response.getPublicKey();
+                const isValid = responsePublicKey instanceof ArrayBuffer;
+                if (!isValid) {
+                    Alerts.getPublicKeyInvalid();
+                    return;
+                }
+                publicKey = coerceToBase64Url(responsePublicKey);
+            }
 
             const transports = newCredential.response.getTransports ?
                 newCredential.response.getTransports() : undefined;
