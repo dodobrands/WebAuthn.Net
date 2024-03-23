@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.WebUtilities;
@@ -106,7 +108,7 @@ public class DefaultUserService(IDataProtectionProvider provider)
 
     private static TypedInternalApplicationUser Create(string userName)
     {
-        var userHandle = Guid.NewGuid().ToByteArray();
+        var userHandle = SHA256.HashData(Encoding.UTF8.GetBytes(userName));
         var createdAt = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         return new(userHandle, userName, createdAt);
     }
