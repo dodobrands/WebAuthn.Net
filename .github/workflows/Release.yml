@@ -13,22 +13,22 @@ jobs:
         environment: Production
         steps:
             -   name: Checkout
-                uses: actions/checkout@v4.1.2
+                uses: actions/checkout@v4
                 with:
                     ref: ${{ github.sha }}
             -   name: Set release version
                 run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
             -   name: Setup .NET SDK 6.0
-                uses: actions/setup-dotnet@v4.0.0
+                uses: actions/setup-dotnet@v4
                 with:
-                    dotnet-version: 6.0.419
+                    dotnet-version: 6.0.420
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             -   name: Setup .NET SDK 8.0
-                uses: actions/setup-dotnet@v4.0.0
+                uses: actions/setup-dotnet@v4
                 with:
-                    dotnet-version: 8.0.201
+                    dotnet-version: 8.0.203
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
