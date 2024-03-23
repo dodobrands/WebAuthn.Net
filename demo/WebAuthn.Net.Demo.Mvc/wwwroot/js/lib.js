@@ -133,7 +133,7 @@ const API = {
             if (newCredential.response.getAuthenticatorData) {
                 const authData = newCredential.response.getAuthenticatorData();
                 const isValid = authData instanceof ArrayBuffer;
-                if (!isValid){
+                if (!isValid) {
                     Alerts.getAuthenticatorDataInvalid();
                     return;
                 }
