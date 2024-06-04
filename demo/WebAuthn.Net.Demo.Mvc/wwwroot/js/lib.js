@@ -108,7 +108,7 @@ const Alerts = {
     usernameInputEmpty: () => alert("Username input is empty"),
     credentialsGetApiNull: () => alert("navigator.credentials.get returned null"),
     credentialsCreateApiNull: () => alert("navigator.credentials.create returned null"),
-    getAuthenticatorDataInvalid: () => alert("Invalid data from getAuthenticatorData() method. Expected arraybuffer")
+    getAuthenticatorDataInvalid: () => alert("Invalid data from getAuthenticatorData() method. Expected ArrayBuffer")
 };
 
 // API
