@@ -108,8 +108,8 @@ const Alerts = {
     usernameInputEmpty: () => alert("Username input is empty"),
     credentialsGetApiNull: () => alert("navigator.credentials.get returned null"),
     credentialsCreateApiNull: () => alert("navigator.credentials.create returned null"),
-    getAuthenticatorDataInvalid: () => alert("Invalid data from getAuthenticatorData() method. Expected arraybuffer"),
-    getPublicKeyInvalid: () => alert("Invalid data from getPublicKey() method. Expected arraybuffer")
+    getAuthenticatorDataInvalid: () => alert("Invalid data from getAuthenticatorData() method. Expected ArrayBuffer"),
+    getPublicKeyInvalid: () => alert("Invalid data from getPublicKey() method. Expected ArrayBuffer")
 };
 
 // API
@@ -144,11 +144,14 @@ const API = {
             if (newCredential.response.getPublicKey) {
                 const responsePublicKey = newCredential.response.getPublicKey();
                 const isValid = responsePublicKey instanceof ArrayBuffer;
-                if (!isValid) {
+                if (responsePublicKey === null) {
+                    publicKey = null;
+                } else if (isValid) {
+                    publicKey = coerceToBase64Url(responsePublicKey);
+                } else {
                     Alerts.getPublicKeyInvalid();
                     return;
                 }
-                publicKey = coerceToBase64Url(responsePublicKey);
             }
 
             const transports = newCredential.response.getTransports ?
