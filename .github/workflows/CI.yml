@@ -16,14 +16,14 @@ jobs:
             -   name: Setup .NET SDK 6.0
                 uses: actions/setup-dotnet@v4
                 with:
-                    dotnet-version: 6.0.422
+                    dotnet-version: 6.0.425
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             -   name: Setup .NET SDK 8.0
                 uses: actions/setup-dotnet@v4
                 with:
-                    dotnet-version: 8.0.205
+                    dotnet-version: 8.0.402
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
