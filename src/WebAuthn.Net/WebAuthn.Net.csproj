@@ -27,14 +27,14 @@
     </ItemGroup>
 
     <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
-        <PackageReference Include="libsodium" Version="1.0.19.2" />
+        <PackageReference Include="libsodium" Version="1.0.20" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
         <PackageReference Include="System.Formats.Cbor" Version="6.0.0" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.35.0" />
     </ItemGroup>
 
     <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
-        <PackageReference Include="libsodium" Version="1.0.19.2" />
+        <PackageReference Include="libsodium" Version="1.0.20" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
         <PackageReference Include="System.Formats.Cbor" Version="8.0.0" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.5.2" />
