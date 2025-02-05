@@ -97,7 +97,7 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
         AttestationStatementFormat attestationStatementFormat)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
-        if (!Enum.IsDefined(typeof(AttestationStatementFormat), attestationStatementFormat))
+        if (!Enum.IsDefined(attestationStatementFormat))
         {
             throw new InvalidEnumArgumentException(nameof(attestationStatementFormat), (int) attestationStatementFormat, typeof(AttestationStatementFormat));
         }

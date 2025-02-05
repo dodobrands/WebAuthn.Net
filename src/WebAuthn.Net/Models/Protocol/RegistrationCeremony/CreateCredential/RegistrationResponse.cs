@@ -98,7 +98,7 @@ public class RegistrationResponse
         // authenticatorAttachment
         if (authenticatorAttachment.HasValue)
         {
-            if (!Enum.IsDefined(typeof(AuthenticatorAttachment), authenticatorAttachment.Value))
+            if (!Enum.IsDefined(authenticatorAttachment.Value))
             {
                 throw new InvalidEnumArgumentException(nameof(authenticatorAttachment), (int) authenticatorAttachment.Value, typeof(AuthenticatorAttachment));
             }
@@ -110,7 +110,7 @@ public class RegistrationResponse
         ClientExtensionResults = clientExtensionResults;
 
         // type
-        if (!Enum.IsDefined(typeof(PublicKeyCredentialType), type))
+        if (!Enum.IsDefined(type))
         {
             throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
         }

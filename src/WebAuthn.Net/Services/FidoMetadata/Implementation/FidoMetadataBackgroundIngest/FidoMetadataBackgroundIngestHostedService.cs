@@ -107,14 +107,10 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         {
             // Signal cancellation to the executing method
             var stoppingCts = StoppingCts;
-#if NET6_0
-            stoppingCts?.Cancel();
-#else
             if (stoppingCts is not null)
             {
                 await stoppingCts.CancelAsync();
             }
-#endif
         }
         finally
         {

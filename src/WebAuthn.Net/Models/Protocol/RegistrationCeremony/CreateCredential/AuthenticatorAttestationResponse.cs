@@ -67,7 +67,7 @@ public class AuthenticatorAttestationResponse
         {
             foreach (var transport in transports)
             {
-                if (!Enum.IsDefined(typeof(AuthenticatorTransport), transport))
+                if (!Enum.IsDefined(transport))
                 {
                     throw new InvalidEnumArgumentException(nameof(transports), (int) transport, typeof(AuthenticatorTransport));
                 }
@@ -82,7 +82,7 @@ public class AuthenticatorAttestationResponse
         // publicKeyAlgorithm
         if (publicKeyAlgorithm.HasValue)
         {
-            if (!Enum.IsDefined(typeof(CoseAlgorithm), publicKeyAlgorithm.Value))
+            if (!Enum.IsDefined(publicKeyAlgorithm.Value))
             {
                 throw new InvalidEnumArgumentException(nameof(publicKeyAlgorithm), (int) publicKeyAlgorithm.Value, typeof(CoseAlgorithm));
             }

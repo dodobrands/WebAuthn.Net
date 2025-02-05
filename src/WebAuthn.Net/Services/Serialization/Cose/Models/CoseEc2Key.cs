@@ -44,7 +44,7 @@ public class CoseEc2Key : AbstractCoseKey
         Alg = alg;
 
         // crv
-        if (!Enum.IsDefined(typeof(CoseEc2EllipticCurve), crv))
+        if (!Enum.IsDefined(crv))
         {
             throw new InvalidEnumArgumentException(nameof(crv), (int) crv, typeof(CoseEc2EllipticCurve));
         }

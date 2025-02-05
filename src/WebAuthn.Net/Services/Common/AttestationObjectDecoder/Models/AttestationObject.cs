@@ -26,7 +26,7 @@ public class AttestationObject
         byte[]? authData)
     {
         // fmt
-        if (!Enum.IsDefined(typeof(AttestationStatementFormat), fmt))
+        if (!Enum.IsDefined(fmt))
         {
             throw new InvalidEnumArgumentException(nameof(fmt), (int) fmt, typeof(AttestationStatementFormat));
         }

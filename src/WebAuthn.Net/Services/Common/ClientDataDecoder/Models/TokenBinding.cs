@@ -46,7 +46,7 @@ public class TokenBinding
     /// <exception cref="ArgumentException"><paramref name="id" /> is empty when status is <see cref="TokenBindingStatus.Present" /></exception>
     public TokenBinding(TokenBindingStatus status, byte[]? id)
     {
-        if (!Enum.IsDefined(typeof(TokenBindingStatus), status))
+        if (!Enum.IsDefined(status))
         {
             throw new InvalidEnumArgumentException(nameof(status), (int) status, typeof(TokenBindingStatus));
         }

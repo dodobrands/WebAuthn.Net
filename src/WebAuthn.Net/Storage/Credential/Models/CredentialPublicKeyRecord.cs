@@ -35,7 +35,7 @@ public class CredentialPublicKeyRecord
         CredentialPublicKeyOkpParametersRecord? okp)
     {
         // kty
-        if (!Enum.IsDefined(typeof(CoseKeyType), kty))
+        if (!Enum.IsDefined(kty))
         {
             throw new InvalidEnumArgumentException(nameof(kty), (int) kty, typeof(CoseKeyType));
         }
@@ -43,7 +43,7 @@ public class CredentialPublicKeyRecord
         Kty = kty;
 
         // alg
-        if (!Enum.IsDefined(typeof(CoseAlgorithm), alg))
+        if (!Enum.IsDefined(alg))
         {
             throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithm));
         }

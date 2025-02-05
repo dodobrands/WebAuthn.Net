@@ -27,7 +27,7 @@ public class PackedAttestationStatement : AbstractAttestationStatement
     public PackedAttestationStatement(CoseAlgorithm alg, byte[] sig, byte[][]? x5C)
     {
         // alg
-        if (!Enum.IsDefined(typeof(CoseAlgorithm), alg))
+        if (!Enum.IsDefined(alg))
         {
             throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithm));
         }

@@ -42,7 +42,7 @@ public class TpmAttestationStatement : AbstractAttestationStatement
         Ver = ver;
 
         // alg
-        if (!Enum.IsDefined(typeof(CoseAlgorithm), alg))
+        if (!Enum.IsDefined(alg))
         {
             throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithm));
         }

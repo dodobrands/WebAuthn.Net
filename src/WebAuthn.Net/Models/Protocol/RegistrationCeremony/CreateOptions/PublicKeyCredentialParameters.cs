@@ -28,12 +28,12 @@ public class PublicKeyCredentialParameters
     /// <exception cref="InvalidEnumArgumentException"><paramref name="alg" /> contains a value that is not defined in <see cref="CoseAlgorithm" /></exception>
     public PublicKeyCredentialParameters(PublicKeyCredentialType type, CoseAlgorithm alg)
     {
-        if (!Enum.IsDefined(typeof(PublicKeyCredentialType), type))
+        if (!Enum.IsDefined(type))
         {
             throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
         }
 
-        if (!Enum.IsDefined(typeof(CoseAlgorithm), alg))
+        if (!Enum.IsDefined(alg))
         {
             throw new InvalidEnumArgumentException(nameof(alg), (int) alg, typeof(CoseAlgorithm));
         }

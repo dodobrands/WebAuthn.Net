@@ -30,7 +30,7 @@ public class VerifiedAttestationStatement
         UniqueByteArraysCollection? attestationRootCertificates)
     {
         // fmt
-        if (!Enum.IsDefined(typeof(AttestationStatementFormat), fmt))
+        if (!Enum.IsDefined(fmt))
         {
             throw new InvalidEnumArgumentException(nameof(fmt), (int) fmt, typeof(AttestationStatementFormat));
         }
@@ -38,7 +38,7 @@ public class VerifiedAttestationStatement
         Fmt = fmt;
 
         // attestationType
-        if (!Enum.IsDefined(typeof(AttestationType), attestationType))
+        if (!Enum.IsDefined(attestationType))
         {
             throw new InvalidEnumArgumentException(nameof(attestationType), (int) attestationType, typeof(AttestationType));
         }

@@ -74,7 +74,7 @@ public class CredentialRecord
         byte[]? attestationObject,
         byte[]? attestationClientDataJson)
     {
-        if (!Enum.IsDefined(typeof(PublicKeyCredentialType), type))
+        if (!Enum.IsDefined(type))
         {
             throw new InvalidEnumArgumentException(nameof(type), (int) type, typeof(PublicKeyCredentialType));
         }

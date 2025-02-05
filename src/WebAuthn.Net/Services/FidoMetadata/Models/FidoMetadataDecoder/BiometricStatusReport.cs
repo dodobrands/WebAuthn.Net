@@ -46,7 +46,7 @@ public class BiometricStatusReport
             throw new ArgumentException("'modality' must contain a single USER_VERIFY constant, representing biometric modality", nameof(modality));
         }
 
-        if (!Enum.IsDefined(typeof(UserVerificationMethod), modality))
+        if (!Enum.IsDefined(modality))
         {
             throw new ArgumentOutOfRangeException(nameof(modality), "Value should be defined in the UserVerificationMethod enum.");
         }

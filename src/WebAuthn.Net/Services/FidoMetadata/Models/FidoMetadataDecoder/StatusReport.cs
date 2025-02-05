@@ -40,7 +40,7 @@ public class StatusReport
         string? certificationPolicyVersion,
         string? certificationRequirementsVersion)
     {
-        if (!Enum.IsDefined(typeof(AuthenticatorStatus), status))
+        if (!Enum.IsDefined(status))
         {
             throw new ArgumentOutOfRangeException(nameof(status), "Value should be defined in the AuthenticatorStatus enum.");
         }

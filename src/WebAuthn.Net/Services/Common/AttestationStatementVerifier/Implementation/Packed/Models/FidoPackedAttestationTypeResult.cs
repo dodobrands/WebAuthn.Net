@@ -22,7 +22,7 @@ public class FidoPackedAttestationTypeResult
         AttestationType attestationType,
         UniqueByteArraysCollection attestationRootCertificates)
     {
-        if (!Enum.IsDefined(typeof(AttestationType), attestationType))
+        if (!Enum.IsDefined(attestationType))
         {
             throw new InvalidEnumArgumentException(nameof(attestationType), (int) attestationType, typeof(AttestationType));
         }

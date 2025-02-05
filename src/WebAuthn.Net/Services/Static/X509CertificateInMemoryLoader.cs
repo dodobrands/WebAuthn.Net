@@ -23,7 +23,9 @@ public static class X509CertificateInMemoryLoader
         X509Certificate2? cert = null;
         try
         {
+#pragma warning disable SYSLIB0057
             cert = new(bytes, password, keyStorageFlags);
+#pragma warning restore SYSLIB0057
             if (cert.GetRSAPublicKey() is { } rsaPublicKey)
             {
                 rsaPublicKey.Dispose();
