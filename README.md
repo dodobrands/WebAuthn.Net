@@ -1,6 +1,6 @@
 # WebAuthn.Net
 
-A production-ready, easy-to-use, extensible implementation of the [WebAuthn Level 3 standard](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/), passing the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), for the server side of web applications on .NET 8 and .NET 9.
+A production-ready, easy-to-use, extensible implementation of the [WebAuthn Level 3 standard](https://www.w3.org/TR/2025/WD-webauthn-3-20250127), passing the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), for the server side of web applications on .NET 8 and .NET 9.
 
 <a href="https://webauthn.dodo.dev"><img src="https://img.shields.io/badge/Demo-blue"/></a>
 <a href="https://www.nuget.org/packages/WebAuthn.Net/"><img src="https://img.shields.io/badge/NuGet-blue"/></a>
@@ -18,7 +18,7 @@ The documentation for each project is described in its README.md file.
 
 ## Supported features
 
-- ✅ [Passkeys](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#passkey) are supported out of the box
+- ✅ [Passkeys](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#passkey) are supported out of the box
 - ✅ Attestation API & verification (Register and verify credentials/authenticators)
 - ✅ Assertion API & verification (Authenticate users)
 - ✅ 100% completion of the entire [FIDO Conformance Test](https://fidoalliance.org/certification/functional-certification/conformance/), including all optional features
@@ -27,13 +27,13 @@ The documentation for each project is described in its README.md file.
 - ✅ Authenticators embedded in the device (FaceID, TouchID, Windows Hello)
 - ✅ Roaming aka cross-platform authenticators (USB/NFC/BLE keys, for example Yubico)
 - ✅ All current attestation statement formats
-    - [packed](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-packed-attestation)
-    - [tpm](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-tpm-attestation)
-    - [android-key](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-key-attestation)
-    - [android-safetynet](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-android-safetynet-attestation)
-    - [fido-u2f](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-fido-u2f-attestation)
-    - [none](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-none-attestation)
-    - [apple](https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-apple-anonymous-attestation)
+    - [packed](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#sctn-packed-attestation)
+    - [tpm](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#sctn-tpm-attestation)
+    - [android-key](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#sctn-android-key-attestation)
+    - [android-safetynet](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#sctn-android-safetynet-attestation)
+    - [fido-u2f](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#sctn-fido-u2f-attestation)
+    - [none](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#sctn-none-attestation)
+    - [apple](https://www.w3.org/TR/2025/WD-webauthn-3-20250127/#sctn-apple-anonymous-attestation)
 - ✅ All cryptographic algorithms required to pass the [FIDO Conformance Test](https://fidoalliance.org/certification/functional-certification/conformance/)
     - [RS1](https://www.rfc-editor.org/rfc/rfc8812.html#section-2)
     - [RS256](https://www.rfc-editor.org/rfc/rfc8812.html#section-2)
