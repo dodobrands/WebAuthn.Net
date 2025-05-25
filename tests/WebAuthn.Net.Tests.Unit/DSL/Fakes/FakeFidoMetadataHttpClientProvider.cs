@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -11,11 +10,11 @@ namespace WebAuthn.Net.DSL.Fakes;
 
 public class FakeFidoMetadataHttpClientProvider : IDisposable
 {
-    public FakeFidoMetadataHttpClientProvider(IEnumerable<KeyValuePair<string, string?>>? configuration = null)
+    public FakeFidoMetadataHttpClientProvider()
     {
         ConfigurationManager = new();
-        ConfigurationManager.AddInMemoryCollection(configuration ?? Enumerable.Empty<KeyValuePair<string, string?>>());
-        var webAuthnOptions = ConfigurationManager.Get<WebAuthnOptions>() ?? new WebAuthnOptions();
+        ConfigurationManager.AddInMemoryCollection([]);
+        var webAuthnOptions = FakeWebAuthnOptionsFactory.Create(ConfigurationManager);
         var optionsCache = new OptionsCache<WebAuthnOptions>();
         optionsCache.TryAdd(string.Empty, webAuthnOptions);
         Options = new(

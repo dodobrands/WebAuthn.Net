@@ -30,7 +30,7 @@ public class DefaultFidoMetadataDecoderTests
     public async Task SetupServices()
     {
         ConfigurationManager = new();
-        var webAuthnOptions = ConfigurationManager.Get<WebAuthnOptions>() ?? new WebAuthnOptions();
+        var webAuthnOptions = FakeWebAuthnOptionsFactory.Create(ConfigurationManager);
         var optionsCache = new OptionsCache<WebAuthnOptions>();
         optionsCache.TryAdd(string.Empty, webAuthnOptions);
         Options = new(

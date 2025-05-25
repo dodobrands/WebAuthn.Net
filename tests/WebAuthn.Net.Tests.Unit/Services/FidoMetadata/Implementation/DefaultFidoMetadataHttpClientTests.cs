@@ -25,7 +25,7 @@ public class DefaultFidoMetadataHttpClientTests
     {
         ConfigurationManager = new();
         ConfigurationManager.AddInMemoryCollection(GetConfiguration());
-        var webAuthnOptions = ConfigurationManager.Get<WebAuthnOptions>() ?? new WebAuthnOptions();
+        var webAuthnOptions = FakeWebAuthnOptionsFactory.Create(ConfigurationManager);
         var optionsCache = new OptionsCache<WebAuthnOptions>();
         optionsCache.TryAdd(string.Empty, webAuthnOptions);
         Options = new(
