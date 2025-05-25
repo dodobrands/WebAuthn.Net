@@ -52,6 +52,7 @@ public class LocalFilesFidoMetadataHttpClientDelegatingHandler : DelegatingHandl
         var jwtBlobs = jwtDirectory?
             .GetFiles()
             .Where(static x => !string.Equals(x.Extension, ".gitkeep", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.Name)
             .ToArray();
         if (jwtBlobs is not null)
         {

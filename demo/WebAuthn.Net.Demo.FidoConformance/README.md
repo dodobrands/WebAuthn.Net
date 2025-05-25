@@ -37,10 +37,10 @@ These steps need to be performed only if you have not done them before.
    ![MDS3 test server - button](docs/images/mds-server.jpg)
 9. On the page that opens, in the `"Server endpoint"` field, enter the application address (by default `https://localhost:5000`).
    ![MDS3 test server - Server endpoint](docs/images/mds-server-endpoint.jpg)
-10. Click the `"Download root certificate"` button. Place the downloaded certificate (`MDS3ROOT.crt`) in the `demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/RootCertificate` folder.
-    ![MDS3 test server - Download root certificate](docs/images/mds-server-root-ca.jpg)
-11. Click the `"SUBMIT"` button, after which you will receive 5 links to different files. Download them and place them in the `demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/Jwt` folder.
+10. Click the `"SUBMIT"` button, after which you will receive 5 links to different files. Download them and place them in the `demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/Jwt` folder.
     ![MDS3 test server - submit](docs/images/mds-server-submit-endpoints.jpg)
+11. Click the `"Download root certificate"` button. Place the downloaded certificate (`MDS3ROOT.crt`) in the `demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/RootCertificate` folder.
+    ![MDS3 test server - Download root certificate](docs/images/mds-server-submit-root-ca.jpg)
 12. Execute the instructions from the section ["Starting the test application"](#starting-the-test-application).
     ![Starting the test application](docs/images/app-started.jpg)
 13. Press the `"RUN"` button.
@@ -56,3 +56,4 @@ These steps need to be performed only if you have not done them before.
    dotnet run --configuration Release
    ```
 3. You should see the logged message "Application started!" in the console.
+   ![Application started](docs/images/app-started.jpg)

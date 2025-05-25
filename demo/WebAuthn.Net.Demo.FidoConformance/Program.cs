@@ -149,8 +149,8 @@ public static class Program
         // ---- REQUEST PIPELINE ----
         // --------------------------
         var app = builder.Build();
-        app.Logger.Log(LogLevel.Critical, "Application started!");
-        app.UseMiddleware<RequestLoggingMiddleware>();
+        app.Logger.Log(LogLevel.Information, "Application started!");
+        // app.UseMiddleware<RequestLoggingMiddleware>();
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
