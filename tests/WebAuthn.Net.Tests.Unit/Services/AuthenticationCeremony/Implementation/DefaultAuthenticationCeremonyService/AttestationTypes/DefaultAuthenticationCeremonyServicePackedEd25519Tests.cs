@@ -86,8 +86,6 @@ public class DefaultAuthenticationCeremonyServicePackedEd25519Tests : AbstractAu
             null,
             UserVerificationRequirement.Preferred,
             null,
-            null,
-            null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

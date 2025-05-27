@@ -93,8 +93,6 @@ public class DefaultAuthenticationCeremonyServiceNoneTests : AbstractAuthenticat
             null,
             UserVerificationRequirement.Required,
             null,
-            null,
-            null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

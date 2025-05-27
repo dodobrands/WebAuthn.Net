@@ -87,8 +87,6 @@ public class DefaultAuthenticationCeremonyServiceFidoU2FTests : AbstractAuthenti
                 }),
             UserVerificationRequirement.Discouraged,
             null,
-            null,
-            null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

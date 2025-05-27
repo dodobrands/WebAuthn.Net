@@ -208,9 +208,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
             new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
             new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>(),
-            new DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>(),
-            new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>());
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>());
         var authenticationResponseDecoder = new DefaultAuthenticationResponseDecoder(
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());

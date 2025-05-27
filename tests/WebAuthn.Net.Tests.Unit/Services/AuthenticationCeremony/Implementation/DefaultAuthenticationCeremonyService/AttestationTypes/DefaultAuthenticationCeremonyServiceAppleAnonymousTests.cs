@@ -95,8 +95,6 @@ public class DefaultAuthenticationCeremonyServiceAppleAnonymousTests : AbstractA
             null,
             UserVerificationRequirement.Required,
             null,
-            null,
-            null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

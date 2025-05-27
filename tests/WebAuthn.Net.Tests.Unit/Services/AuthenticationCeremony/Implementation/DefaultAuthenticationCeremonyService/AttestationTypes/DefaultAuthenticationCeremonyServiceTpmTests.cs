@@ -145,8 +145,6 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
             null,
             UserVerificationRequirement.Required,
             null,
-            null,
-            null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
@@ -185,8 +183,6 @@ public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticati
             60000,
             null,
             UserVerificationRequirement.Required,
-            null,
-            null,
             null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(

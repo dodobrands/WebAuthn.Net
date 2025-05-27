@@ -116,17 +116,6 @@ public class BeginAuthenticationCeremonyRequest
     /// <param name="hints">
     ///     This OPTIONAL member contains zero or more elements from <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-publickeycredentialhints">PublicKeyCredentialHints</a> to guide the user agent in interacting with the user.
     /// </param>
-    /// <param name="attestation">
-    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify a preference regarding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-conveyance">attestation conveyance</a>. Its
-    ///     value SHOULD be a member of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-attestationconveyancepreference">AttestationConveyancePreference</a>. <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">Client platforms</a> MUST ignore
-    ///     unknown values, treating an unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>.
-    /// </param>
-    /// <param name="attestationFormats">
-    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify a preference regarding the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation">attestation</a> statement format used
-    ///     by the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a>. Values SHOULD be taken from the <a href="https://www.iana.org/assignments/webauthn/webauthn.xhtml">IANA "WebAuthn Attestation Statement Format Identifiers" registry</a>
-    ///     established by <a href="https://www.rfc-editor.org/rfc/rfc8809.html">RFC 8809</a>. Values are ordered from most preferable to least preferable. This parameter is advisory and the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> MAY
-    ///     use an attestation statement not enumerated in this parameter.
-    /// </param>
     /// <param name="extensions">
     ///     <para>
     ///         The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to provide <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-extension-input">client extension inputs</a> requesting additional
@@ -141,8 +130,6 @@ public class BeginAuthenticationCeremonyRequest
     /// <exception cref="ArgumentException"><paramref name="challengeSize" /> is less than 16</exception>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="userVerification" /> contains a value that is not defined in <see cref="UserVerificationRequirement" /></exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHints" /></exception>
-    /// <exception cref="InvalidEnumArgumentException"><paramref name="attestation" /> contains a value that is not defined in <see cref="AttestationConveyancePreference" /></exception>
-    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="attestationFormats" /> array contains a value not defined in <see cref="AttestationStatementFormat" /></exception>
     public BeginAuthenticationCeremonyRequest(
         AuthenticationCeremonyOriginParameters? origins,
         AuthenticationCeremonyOriginParameters? topOrigins,
@@ -152,8 +139,6 @@ public class BeginAuthenticationCeremonyRequest
         AuthenticationCeremonyIncludeCredentials? allowCredentials,
         UserVerificationRequirement? userVerification,
         PublicKeyCredentialHints[]? hints,
-        AttestationConveyancePreference? attestation,
-        AttestationStatementFormat[]? attestationFormats,
         Dictionary<string, JsonElement>? extensions)
     {
         // origins
@@ -202,31 +187,6 @@ public class BeginAuthenticationCeremonyRequest
             }
 
             Hints = hints;
-        }
-
-        // attestation
-        if (attestation.HasValue)
-        {
-            if (!Enum.IsDefined(attestation.Value))
-            {
-                throw new InvalidEnumArgumentException(nameof(attestation), (int) attestation.Value, typeof(AttestationConveyancePreference));
-            }
-
-            Attestation = attestation.Value;
-        }
-
-        // attestationFormats
-        if (attestationFormats?.Length > 0)
-        {
-            foreach (var attestationFormat in attestationFormats)
-            {
-                if (!Enum.IsDefined(attestationFormat))
-                {
-                    throw new InvalidEnumArgumentException(nameof(attestationFormats), (int) attestationFormat, typeof(AttestationStatementFormat));
-                }
-            }
-
-            AttestationFormats = attestationFormats;
         }
 
         // extensions
@@ -358,27 +318,6 @@ public class BeginAuthenticationCeremonyRequest
     ///     defaulting to []
     /// </remarks>
     public PublicKeyCredentialHints[]? Hints { get; }
-
-    /// <summary>
-    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify a preference regarding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-conveyance">attestation conveyance</a>. Its
-    ///     value SHOULD be a member of <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enumdef-attestationconveyancepreference">AttestationConveyancePreference</a>. <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#client-platform">Client platforms</a> MUST ignore
-    ///     unknown values, treating an unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>.
-    /// </summary>
-    /// <remarks>
-    ///     defaulting to <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-attestationconveyancepreference-none">"none"</a>
-    /// </remarks>
-    public AttestationConveyancePreference? Attestation { get; }
-
-    /// <summary>
-    ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify a preference regarding the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation">attestation</a> statement format used
-    ///     by the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a>. Values SHOULD be taken from the <a href="https://www.iana.org/assignments/webauthn/webauthn.xhtml">IANA "WebAuthn Attestation Statement Format Identifiers" registry</a>
-    ///     established by <a href="https://www.rfc-editor.org/rfc/rfc8809.html">RFC 8809</a>. Values are ordered from most preferable to least preferable. This parameter is advisory and the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#authenticator">authenticator</a> MAY
-    ///     use an attestation statement not enumerated in this parameter.
-    /// </summary>
-    /// <remarks>
-    ///     defaulting to []
-    /// </remarks>
-    public AttestationStatementFormat[]? AttestationFormats { get; }
 
     /// <summary>
     ///     <para>

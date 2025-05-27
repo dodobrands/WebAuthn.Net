@@ -44,8 +44,6 @@ public class PasswordlessAuthenticationViewModel(
             AuthenticationCeremonyIncludeCredentials.AllExisting(),
             UserVerification.RemapUnsetValue<UserVerificationRequirement>(),
             null,
-            Attestation.RemapUnsetValue<AttestationConveyancePreference>(),
-            null,
             Extensions);
     }
 }

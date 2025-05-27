@@ -61,8 +61,6 @@ public class ServerPublicKeyCredentialGetOptionsRequest
             AuthenticationCeremonyIncludeCredentials.AllExisting(),
             userVerification,
             null,
-            null,
-            null,
             Extensions);
         return true;
     }

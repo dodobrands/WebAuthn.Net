@@ -21,7 +21,7 @@ public class X509ChainValidationOptions
     };
 
     /// <summary>
-    ///     A delegate that is called during the validation of the X509v3 certificate chain of the <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-trust-path">attestation trust path</a>.
+    ///     A delegate that is called during the validation of the X509v3 certificate chain of the <a href="https://www.w3.org/TR/webauthn-3/#attestation-trust-path">attestation trust path</a>.
     /// </summary>
     public Action<X509Chain> OnValidateAttestationTrustPathChain { get; set; } = chain =>
     {

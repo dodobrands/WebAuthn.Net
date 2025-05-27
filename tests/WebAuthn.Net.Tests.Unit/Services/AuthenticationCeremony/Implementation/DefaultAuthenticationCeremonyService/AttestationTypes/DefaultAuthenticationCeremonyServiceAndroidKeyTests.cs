@@ -84,8 +84,6 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
             AuthenticationCeremonyIncludeCredentials.None(),
             UserVerificationRequirement.Required,
             null,
-            null,
-            null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

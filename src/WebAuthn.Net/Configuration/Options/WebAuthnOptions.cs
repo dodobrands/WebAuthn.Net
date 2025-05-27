@@ -6,12 +6,12 @@
 public class WebAuthnOptions
 {
     /// <summary>
-    ///     Options that define behavior when working with various <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-defined-attestation-formats">formats of attestation statements</a>.
+    ///     Options that define behavior when working with various <a href="https://www.w3.org/TR/webauthn-3/#sctn-defined-attestation-formats">formats of attestation statements</a>.
     /// </summary>
     public AttestationStatementOptions AttestationStatements { get; set; } = new();
 
     /// <summary>
-    ///     Options that define behavior when working with different <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#sctn-attestation-types">attestation types</a>.
+    ///     Options that define behavior when working with different <a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-types">attestation types</a>.
     /// </summary>
     public AttestationTypeOptions AttestationTypes { get; set; } = new();
 

@@ -94,8 +94,6 @@ public class DefaultAuthenticationCeremonyServiceContextTests : AbstractAuthenti
             null,
             UserVerificationRequirement.Required,
             null,
-            null,
-            null,
             null);
         ContextFactory.ResetMetrics();
         await AuthenticationCeremonyService.BeginCeremonyAsync(
@@ -119,8 +117,6 @@ public class DefaultAuthenticationCeremonyServiceContextTests : AbstractAuthenti
             60000,
             null,
             UserVerificationRequirement.Required,
-            null,
-            null,
             null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(

@@ -22,8 +22,6 @@ public class UsernamelessAuthenticationViewModel(Dictionary<string, JsonElement>
             AuthenticationCeremonyIncludeCredentials.AllExisting(),
             null,
             null,
-            null,
-            null,
             Extensions);
     }
 }

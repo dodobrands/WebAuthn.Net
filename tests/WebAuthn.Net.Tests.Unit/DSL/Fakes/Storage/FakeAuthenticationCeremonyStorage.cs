@@ -77,8 +77,6 @@ public class FakeAuthenticationCeremonyStorage : IAuthenticationCeremonyStorage<
                     options.AllowCredentials,
                     options.UserVerification,
                     options.Hints,
-                    options.Attestation,
-                    options.AttestationFormats,
                     options.Extensions);
                 var newCeremony = new AuthenticationCeremonyParameters(
                     existingCeremony.UserHandle,

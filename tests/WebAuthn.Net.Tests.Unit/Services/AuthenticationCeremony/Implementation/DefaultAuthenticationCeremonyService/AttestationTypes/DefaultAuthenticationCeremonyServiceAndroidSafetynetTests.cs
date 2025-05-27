@@ -101,8 +101,6 @@ public class DefaultAuthenticationCeremonyServiceAndroidSafetynetTests : Abstrac
                 }),
             UserVerificationRequirement.Required,
             null,
-            null,
-            null,
             null);
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),

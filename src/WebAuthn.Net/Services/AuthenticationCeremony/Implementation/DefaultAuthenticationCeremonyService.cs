@@ -1031,8 +1031,6 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             allowCredentials,
             request.UserVerification,
             request.Hints,
-            request.Attestation,
-            request.AttestationFormats,
             request.Extensions);
         return options;
     }

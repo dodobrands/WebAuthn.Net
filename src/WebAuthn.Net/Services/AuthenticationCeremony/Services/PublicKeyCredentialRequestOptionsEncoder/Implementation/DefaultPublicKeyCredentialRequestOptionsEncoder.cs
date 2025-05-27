@@ -24,29 +24,21 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
     /// <param name="authenticatorTransportSerializer">Serializer for the <see cref="AuthenticatorTransport" /> enum.</param>
     /// <param name="userVerificationRequirementSerializer">Serializer for the <see cref="UserVerificationRequirement" /> enum.</param>
     /// <param name="publicKeyCredentialHintsSerializer">Serializer for the <see cref="PublicKeyCredentialHints" /> enum.</param>
-    /// <param name="attestationConveyancePreferenceSerializer">Serializer for the <see cref="AttestationConveyancePreference" /> enum.</param>
-    /// <param name="attestationStatementFormatSerializer">Serializer for the <see cref="AttestationStatementFormat" /> enum.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPublicKeyCredentialRequestOptionsEncoder(
         IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer,
         IEnumMemberAttributeSerializer<AuthenticatorTransport> authenticatorTransportSerializer,
         IEnumMemberAttributeSerializer<UserVerificationRequirement> userVerificationRequirementSerializer,
-        IEnumMemberAttributeSerializer<PublicKeyCredentialHints> publicKeyCredentialHintsSerializer,
-        IEnumMemberAttributeSerializer<AttestationConveyancePreference> attestationConveyancePreferenceSerializer,
-        IEnumMemberAttributeSerializer<AttestationStatementFormat> attestationStatementFormatSerializer)
+        IEnumMemberAttributeSerializer<PublicKeyCredentialHints> publicKeyCredentialHintsSerializer)
     {
         ArgumentNullException.ThrowIfNull(publicKeyCredentialTypeSerializer);
         ArgumentNullException.ThrowIfNull(authenticatorTransportSerializer);
         ArgumentNullException.ThrowIfNull(userVerificationRequirementSerializer);
         ArgumentNullException.ThrowIfNull(publicKeyCredentialHintsSerializer);
-        ArgumentNullException.ThrowIfNull(attestationConveyancePreferenceSerializer);
-        ArgumentNullException.ThrowIfNull(attestationStatementFormatSerializer);
         PublicKeyCredentialTypeSerializer = publicKeyCredentialTypeSerializer;
         AuthenticatorTransportSerializer = authenticatorTransportSerializer;
         UserVerificationRequirementSerializer = userVerificationRequirementSerializer;
         PublicKeyCredentialHintsSerializer = publicKeyCredentialHintsSerializer;
-        AttestationConveyancePreferenceSerializer = attestationConveyancePreferenceSerializer;
-        AttestationStatementFormatSerializer = attestationStatementFormatSerializer;
     }
 
     /// <summary>
@@ -69,15 +61,6 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
     /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialHints> PublicKeyCredentialHintsSerializer { get; }
 
-    /// <summary>
-    ///     Serializer for the <see cref="AttestationConveyancePreference" /> enum.
-    /// </summary>
-    protected IEnumMemberAttributeSerializer<AttestationConveyancePreference> AttestationConveyancePreferenceSerializer { get; }
-
-    /// <summary>
-    ///     Serializer for the <see cref="AttestationStatementFormat" /> enum.
-    /// </summary>
-    protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
 
     /// <inheritdoc />
     public virtual PublicKeyCredentialRequestOptionsJSON Encode(PublicKeyCredentialRequestOptions options)
@@ -87,8 +70,6 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
         var allowCredentials = EncodeAllowCredentials(options.AllowCredentials);
         var userVerification = EncodeUserVerification(options.UserVerification);
         var hints = EncodeHints(options.Hints);
-        var attestation = EncodeAttestation(options.Attestation);
-        var attestationFormats = EncodeAttestationFormats(options.AttestationFormats);
         var result = new PublicKeyCredentialRequestOptionsJSON(
             challenge,
             options.Timeout,
@@ -96,8 +77,6 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
             allowCredentials,
             userVerification,
             hints,
-            attestation,
-            attestationFormats,
             options.Extensions);
         return result;
     }
@@ -197,54 +176,6 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
             if (!PublicKeyCredentialHintsSerializer.TrySerialize(hints[i], out var resultHint))
             {
                 throw new InvalidOperationException("Failed to encode hint in hints");
-            }
-
-            result[i] = resultHint;
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    ///     Encodes the <see cref="AttestationConveyancePreference" /> enum into a string.
-    /// </summary>
-    /// <param name="attestation">The value of the <see cref="AttestationConveyancePreference" /> enum that needs to be encoded into a string.</param>
-    /// <returns>String representation of <see cref="AttestationConveyancePreference" /> or <see langword="null" />.</returns>
-    /// <exception cref="InvalidOperationException">Failed to encode <paramref name="attestation" /> into a string.</exception>
-    protected virtual string? EncodeAttestation(AttestationConveyancePreference? attestation)
-    {
-        if (!attestation.HasValue)
-        {
-            return null;
-        }
-
-        if (!AttestationConveyancePreferenceSerializer.TrySerialize(attestation.Value, out var result))
-        {
-            throw new InvalidOperationException("Failed to encode attestation");
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    ///     Encodes an array of <see cref="AttestationStatementFormat" /> enums into an array of strings.
-    /// </summary>
-    /// <param name="attestationFormats">Array of <see cref="AttestationStatementFormat" />, which needs to be encoded into strings.</param>
-    /// <returns>Array of strings or <see langword="null" />.</returns>
-    /// <exception cref="InvalidOperationException">Failed to encode one of the elements in the <paramref name="attestationFormats" /> array.</exception>
-    protected virtual string[]? EncodeAttestationFormats(AttestationStatementFormat[]? attestationFormats)
-    {
-        if (attestationFormats is null)
-        {
-            return null;
-        }
-
-        var result = new string[attestationFormats.Length];
-        for (var i = 0; i < attestationFormats.Length; i++)
-        {
-            if (!AttestationStatementFormatSerializer.TrySerialize(attestationFormats[i], out var resultHint))
-            {
-                throw new InvalidOperationException("Failed to encode attestationFormats");
             }
 
             result[i] = resultHint;
