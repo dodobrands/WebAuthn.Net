@@ -139,21 +139,11 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             }
         }
 
-        byte[]? attestationObject = null;
-        if (!string.IsNullOrEmpty(response.AttestationObject))
-        {
-            if (!Base64Url.TryDecode(response.AttestationObject, out attestationObject))
-            {
-                return Result<AuthenticatorAssertionResponse>.Fail();
-            }
-        }
-
         var result = new AuthenticatorAssertionResponse(
             clientDataJson,
             authenticatorData,
             signature,
-            userHandle,
-            attestationObject);
+            userHandle);
         return Result<AuthenticatorAssertionResponse>.Success(result);
     }
 

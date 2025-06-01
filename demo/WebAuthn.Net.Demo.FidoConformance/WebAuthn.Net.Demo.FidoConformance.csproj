@@ -23,15 +23,18 @@
         <None Update="ConformanceMetadata\Jwt\.gitkeep">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </None>
-        <None Update="ConformanceMetadata\RootCertificate\*.*">
+        <None Update="ConformanceMetadata\RootCertificate\*.crt">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-        <None Update="ConformanceMetadata\MetadataStatements\.gitkeep">
+        <None Update="ConformanceMetadata\RootCertificate\.gitkeep">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </None>
         <Content Remove="ConformanceMetadata\MetadataStatements\*.json" />
         <None Include="ConformanceMetadata\MetadataStatements\*.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="ConformanceMetadata\MetadataStatements\.gitkeep">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </None>
     </ItemGroup>
 

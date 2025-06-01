@@ -1,28 +1,47 @@
-﻿using System.Net;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Text;
 using WebAuthn.Net.Demo.FidoConformance.Constants;
+using WebAuthn.Net.Demo.FidoConformance.Services.ConformanceMetadata.Models;
 
 namespace WebAuthn.Net.Demo.FidoConformance.Services.ConformanceMetadata;
 
 public class LocalFilesFidoMetadataHttpClientDelegatingHandler : DelegatingHandler
 {
-    private readonly string[] _jwtBlobContents = GetJwtBlobsContents();
-    private int _calls = -1;
+    private readonly LocalFileBlobInfo[] _jwtBlobContents = GetJwtBlobsContents();
+    private readonly object _lock = new();
 
+    private readonly ILogger<LocalFilesFidoMetadataHttpClientDelegatingHandler> _logger;
+    private int _index;
+
+    public LocalFilesFidoMetadataHttpClientDelegatingHandler(ILogger<LocalFilesFidoMetadataHttpClientDelegatingHandler> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+    }
+
+    [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates")]
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        HttpResponseMessage? result = null;
         if (_jwtBlobContents.Length > 0)
         {
-            var calls = Interlocked.Increment(ref _calls);
-            var index = calls % _jwtBlobContents.Length;
-            var result = _jwtBlobContents[index];
-            return new(HttpStatusCode.OK)
+            lock (_lock)
             {
-                Content = new StringContent(result, Encoding.UTF8)
-            };
+                if (_index < _jwtBlobContents.Length)
+                {
+                    var jwtBlob = _jwtBlobContents[_index];
+                    _index++;
+                    result = new(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(jwtBlob.Content, Encoding.UTF8)
+                    };
+                    _logger.LogInformation("Provide {BlobIndex} / {TotalBlobs} blob {FilePath}", _index, _jwtBlobContents.Length, jwtBlob.FileName);
+                }
+            }
         }
 
-        return new(HttpStatusCode.NotFound);
+        return result ?? new(HttpStatusCode.NotFound);
     }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -43,7 +62,7 @@ public class LocalFilesFidoMetadataHttpClientDelegatingHandler : DelegatingHandl
             .FirstOrDefault(static x => string.Equals(x.Name, FidoConformanceMetadata.RootDirectory, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string[] GetJwtBlobsContents()
+    private static LocalFileBlobInfo[] GetJwtBlobsContents()
     {
         var conformanceMetadata = GetConformanceMetadataDirectory();
         var jwtDirectory = conformanceMetadata?
@@ -56,15 +75,16 @@ public class LocalFilesFidoMetadataHttpClientDelegatingHandler : DelegatingHandl
             .ToArray();
         if (jwtBlobs is not null)
         {
-            var result = new string[jwtBlobs.Length];
+            var result = new LocalFileBlobInfo[jwtBlobs.Length];
             for (var i = 0; i < jwtBlobs.Length; i++)
             {
-                result[i] = File.ReadAllText(jwtBlobs[i].FullName).Trim();
+                var content = File.ReadAllText(jwtBlobs[i].FullName).Trim();
+                result[i] = new(jwtBlobs[i].Name, content);
             }
 
             return result;
         }
 
-        return Array.Empty<string>();
+        return [];
     }
 }

@@ -57,7 +57,6 @@ public class ServerPublicKeyCredential
             input.ClientDataJson,
             input.AuthenticatorData,
             input.Signature,
-            input.UserHandle,
-            input.AttestationObject);
+            input.UserHandle);
     }
 }

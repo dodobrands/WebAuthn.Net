@@ -129,6 +129,11 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 {
                     rootCertificates.Add(fidoRootCertificate);
                 }
+
+                else
+                {
+                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                }
             }
 
             var securityKeys = new List<SecurityKey>();

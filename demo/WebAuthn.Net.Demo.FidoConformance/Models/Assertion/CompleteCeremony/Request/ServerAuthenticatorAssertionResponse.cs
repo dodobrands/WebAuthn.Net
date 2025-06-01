@@ -10,14 +10,12 @@ public class ServerAuthenticatorAssertionResponse
         string clientDataJson,
         string authenticatorData,
         string signature,
-        string userHandle,
-        string? attestationObject)
+        string userHandle)
     {
         ClientDataJson = clientDataJson;
         AuthenticatorData = authenticatorData;
         Signature = signature;
         UserHandle = userHandle;
-        AttestationObject = attestationObject;
     }
 
     [JsonPropertyName("clientDataJSON")]
@@ -38,8 +36,4 @@ public class ServerAuthenticatorAssertionResponse
     [JsonPropertyName("userHandle")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string UserHandle { get; }
-
-    [JsonPropertyName("attestationObject")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string? AttestationObject { get; }
 }

@@ -189,6 +189,7 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         }
 
         await MetadataIngestService.UpsertAsync(decodeResult.Ok, stoppingToken);
+        Logger.MetadataUpdated();
     }
 
     /// <summary>
@@ -229,4 +230,14 @@ public static partial class FidoMetadataBackgroundIngestHostedServiceLoggingExte
         Level = LogLevel.Warning,
         Message = "Failed to decode data downloaded from the FIDO Metadata Service")]
     public static partial void FailedToDecode(this ILogger logger);
+
+    /// <summary>
+    ///     FIDO Metadata updated.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        EventId = default,
+        Level = LogLevel.Information,
+        Message = "FIDO Metadata updated")]
+    public static partial void MetadataUpdated(this ILogger logger);
 }
