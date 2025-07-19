@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enum-hints">Web Authentication: An API for accessing Public Key Credentials Level 3 - User-agent Hints Enumeration (enum PublicKeyCredentialHint)</a>
+///         <a href="https://www.w3.org/TR/webauthn-3/#enum-hints">Web Authentication: An API for accessing Public Key Credentials Level 3 - User-agent Hints Enumeration (enum PublicKeyCredentialHint)</a>
 ///     </para>
 ///     <para>
 ///         <a href="https://www.w3.org/TR/webauthn-3/#webauthn-relying-party">WebAuthn Relying Parties</a> may use this enumeration to communicate hints to the user-agent about how a request may be best completed. These hints are not requirements, and do not bind the user-agent,
