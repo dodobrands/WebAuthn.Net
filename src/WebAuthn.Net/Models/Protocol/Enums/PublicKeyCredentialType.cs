@@ -6,7 +6,13 @@ namespace WebAuthn.Net.Models.Protocol.Enums;
 ///     Credential Type Enumeration
 /// </summary>
 /// <remarks>
-///     <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#enum-credentialType">Web Authentication: An API for accessing Public Key Credentials Level 3 - §5.8.2. Credential Type Enumeration</a>
+///     <para>
+///         <a href="https://www.w3.org/TR/webauthn-3/#enum-credentialType">Web Authentication: An API for accessing Public Key Credentials Level 3 - Credential Type Enumeration (enum PublicKeyCredentialType)</a>
+///     </para>
+///     <para>
+///         This enumeration defines the valid credential types. It is an extension point; values can be added to it in the future, as more credential types are defined. The values of this enumeration are used for versioning the Authentication Assertion and attestation structures
+///         according to the type of the authenticator.
+///     </para>
 /// </remarks>
 public enum PublicKeyCredentialType
 {
