@@ -8,12 +8,12 @@
         <EmbedUntrackedSources>false</EmbedUntrackedSources>
         <DebugType>embedded</DebugType>
         <IncludeSymbols>true</IncludeSymbols>
-        <Version>$(RELEASE_VERSION)</Version>
+        <Version Condition="'$(RELEASE_VERSION)' != ''">$(RELEASE_VERSION)</Version>
         <Version Condition="'$(RELEASE_VERSION)' == ''">0.0.0</Version>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
-        <Description>WebAuthn Level 3 Relying Party library for ASP.NET Core 6 and 8</Description>
+        <Description>WebAuthn Level 3 Relying Party library for ASP.NET Core</Description>
         <PackageTags>Passkey;Passkeys;WebAuthn;WebAuthn.Net;FIDO;FIDO2;Security</PackageTags>
     </PropertyGroup>
 
@@ -28,15 +28,13 @@
 
     <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
         <PackageReference Include="libsodium" Version="1.0.20.1" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
         <PackageReference Include="System.Formats.Cbor" Version="8.0.0" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
     </ItemGroup>
 
     <ItemGroup Condition=" '$(TargetFramework)' == 'net9.0' ">
         <PackageReference Include="libsodium" Version="1.0.20.1" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
-        <PackageReference Include="System.Formats.Cbor" Version="9.0.5" />
+        <PackageReference Include="System.Formats.Cbor" Version="9.0.0" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
     </ItemGroup>
 
