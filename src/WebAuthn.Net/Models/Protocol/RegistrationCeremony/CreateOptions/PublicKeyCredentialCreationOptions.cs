@@ -71,7 +71,7 @@ public class PublicKeyCredentialCreationOptions
     /// <exception cref="ArgumentException"><paramref name="challenge" /> contains less than 16 bytes</exception>
     /// <exception cref="ArgumentNullException"><paramref name="pubKeyCredParams" /> is <see langword="null" /></exception>
     /// <exception cref="ArgumentException"><paramref name="pubKeyCredParams" /> is empty</exception>
-    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHints" /></exception>
+    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHint" /></exception>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="attestation" /> contains a value that is not defined in <see cref="AttestationConveyancePreference" /></exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="attestationFormats" /> array contains a value not defined in <see cref="AttestationStatementFormat" /></exception>
     public PublicKeyCredentialCreationOptions(
@@ -82,7 +82,7 @@ public class PublicKeyCredentialCreationOptions
         uint? timeout,
         PublicKeyCredentialDescriptor[]? excludeCredentials,
         AuthenticatorSelectionCriteria? authenticatorSelection,
-        PublicKeyCredentialHints[]? hints,
+        PublicKeyCredentialHint[]? hints,
         AttestationConveyancePreference? attestation,
         AttestationStatementFormat[]? attestationFormats,
         Dictionary<string, JsonElement>? extensions)
@@ -130,7 +130,7 @@ public class PublicKeyCredentialCreationOptions
             {
                 if (!Enum.IsDefined(hint))
                 {
-                    throw new InvalidEnumArgumentException(nameof(hints), (int) hint, typeof(PublicKeyCredentialHints));
+                    throw new InvalidEnumArgumentException(nameof(hints), (int) hint, typeof(PublicKeyCredentialHint));
                 }
             }
 
@@ -263,7 +263,7 @@ public class PublicKeyCredentialCreationOptions
     /// <remarks>
     ///     defaulting to []
     /// </remarks>
-    public PublicKeyCredentialHints[]? Hints { get; }
+    public PublicKeyCredentialHint[]? Hints { get; }
 
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify a preference regarding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-conveyance">attestation conveyance</a>. Its

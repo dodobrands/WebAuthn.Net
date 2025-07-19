@@ -23,13 +23,13 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
     /// <param name="publicKeyCredentialTypeSerializer">Serializer for the <see cref="PublicKeyCredentialType" /> enum.</param>
     /// <param name="authenticatorTransportSerializer">Serializer for the <see cref="AuthenticatorTransport" /> enum.</param>
     /// <param name="userVerificationRequirementSerializer">Serializer for the <see cref="UserVerificationRequirement" /> enum.</param>
-    /// <param name="publicKeyCredentialHintsSerializer">Serializer for the <see cref="PublicKeyCredentialHints" /> enum.</param>
+    /// <param name="publicKeyCredentialHintsSerializer">Serializer for the <see cref="PublicKeyCredentialHint" /> enum.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPublicKeyCredentialRequestOptionsEncoder(
         IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer,
         IEnumMemberAttributeSerializer<AuthenticatorTransport> authenticatorTransportSerializer,
         IEnumMemberAttributeSerializer<UserVerificationRequirement> userVerificationRequirementSerializer,
-        IEnumMemberAttributeSerializer<PublicKeyCredentialHints> publicKeyCredentialHintsSerializer)
+        IEnumMemberAttributeSerializer<PublicKeyCredentialHint> publicKeyCredentialHintsSerializer)
     {
         ArgumentNullException.ThrowIfNull(publicKeyCredentialTypeSerializer);
         ArgumentNullException.ThrowIfNull(authenticatorTransportSerializer);
@@ -57,9 +57,9 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
     protected IEnumMemberAttributeSerializer<UserVerificationRequirement> UserVerificationRequirementSerializer { get; }
 
     /// <summary>
-    ///     Serializer for the <see cref="PublicKeyCredentialHints" /> enum.
+    ///     Serializer for the <see cref="PublicKeyCredentialHint" /> enum.
     /// </summary>
-    protected IEnumMemberAttributeSerializer<PublicKeyCredentialHints> PublicKeyCredentialHintsSerializer { get; }
+    protected IEnumMemberAttributeSerializer<PublicKeyCredentialHint> PublicKeyCredentialHintsSerializer { get; }
 
 
     /// <inheritdoc />
@@ -158,12 +158,12 @@ public class DefaultPublicKeyCredentialRequestOptionsEncoder : IPublicKeyCredent
     }
 
     /// <summary>
-    ///     Encodes an array of <see cref="PublicKeyCredentialHints" /> enums into an array of strings.
+    ///     Encodes an array of <see cref="PublicKeyCredentialHint" /> enums into an array of strings.
     /// </summary>
-    /// <param name="hints">Array of <see cref="PublicKeyCredentialHints" />, which needs to be encoded into strings.</param>
+    /// <param name="hints">Array of <see cref="PublicKeyCredentialHint" />, which needs to be encoded into strings.</param>
     /// <returns>Array of strings or <see langword="null" />.</returns>
     /// <exception cref="InvalidOperationException">Failed to encode one of the elements in the <paramref name="hints" /> array.</exception>
-    protected virtual string[]? EncodeHints(PublicKeyCredentialHints[]? hints)
+    protected virtual string[]? EncodeHints(PublicKeyCredentialHint[]? hints)
     {
         if (hints is null)
         {

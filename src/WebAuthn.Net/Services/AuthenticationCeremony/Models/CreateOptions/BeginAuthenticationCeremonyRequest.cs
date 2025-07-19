@@ -129,7 +129,7 @@ public class BeginAuthenticationCeremonyRequest
     /// </param>
     /// <exception cref="ArgumentException"><paramref name="challengeSize" /> is less than 16</exception>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="userVerification" /> contains a value that is not defined in <see cref="UserVerificationRequirement" /></exception>
-    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHints" /></exception>
+    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHint" /></exception>
     public BeginAuthenticationCeremonyRequest(
         AuthenticationCeremonyOriginParameters? origins,
         AuthenticationCeremonyOriginParameters? topOrigins,
@@ -138,7 +138,7 @@ public class BeginAuthenticationCeremonyRequest
         uint? timeout,
         AuthenticationCeremonyIncludeCredentials? allowCredentials,
         UserVerificationRequirement? userVerification,
-        PublicKeyCredentialHints[]? hints,
+        PublicKeyCredentialHint[]? hints,
         Dictionary<string, JsonElement>? extensions)
     {
         // origins
@@ -182,7 +182,7 @@ public class BeginAuthenticationCeremonyRequest
             {
                 if (!Enum.IsDefined(hint))
                 {
-                    throw new InvalidEnumArgumentException(nameof(hints), (int) hint, typeof(PublicKeyCredentialHints));
+                    throw new InvalidEnumArgumentException(nameof(hints), (int) hint, typeof(PublicKeyCredentialHint));
                 }
             }
 
@@ -317,7 +317,7 @@ public class BeginAuthenticationCeremonyRequest
     /// <remarks>
     ///     defaulting to []
     /// </remarks>
-    public PublicKeyCredentialHints[]? Hints { get; }
+    public PublicKeyCredentialHint[]? Hints { get; }
 
     /// <summary>
     ///     <para>

@@ -119,7 +119,7 @@ public class PublicKeyCredentialRequestOptions
         string? rpId,
         PublicKeyCredentialDescriptor[]? allowCredentials,
         UserVerificationRequirement? userVerification,
-        PublicKeyCredentialHints[]? hints,
+        PublicKeyCredentialHint[]? hints,
         Dictionary<string, JsonElement>? extensions)
     {
         Challenge = challenge;
@@ -226,7 +226,7 @@ public class PublicKeyCredentialRequestOptions
     /// <remarks>
     ///     defaulting to []
     /// </remarks>
-    public PublicKeyCredentialHints[]? Hints { get; }
+    public PublicKeyCredentialHint[]? Hints { get; }
 
     /// <summary>
     ///     <para>

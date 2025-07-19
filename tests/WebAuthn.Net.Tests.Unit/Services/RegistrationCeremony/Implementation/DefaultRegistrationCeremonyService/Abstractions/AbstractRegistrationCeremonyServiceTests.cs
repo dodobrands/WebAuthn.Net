@@ -85,7 +85,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<ResidentKeyRequirement>(),
             new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>(),
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHint>(),
             new DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>(),
             new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>());
         FakeCredentialStorage credentialStorage = new();

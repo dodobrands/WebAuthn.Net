@@ -352,7 +352,7 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<PublicKeyCredentialType>, DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorTransport>, DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<UserVerificationRequirement>, DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>>();
-        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<PublicKeyCredentialHints>, DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<PublicKeyCredentialHint>, DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHint>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AttestationConveyancePreference>, DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<ResidentKeyRequirement>, DefaultEnumMemberAttributeSerializer<ResidentKeyRequirement>>();
         return builder;

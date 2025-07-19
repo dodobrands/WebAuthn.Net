@@ -26,7 +26,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
     /// <param name="authenticatorAttachmentSerializer">Serializer for the <see cref="AuthenticatorAttachment" /> enum.</param>
     /// <param name="residentKeyRequirementSerializer">Serializer for the <see cref="ResidentKeyRequirement" /> enum.</param>
     /// <param name="userVerificationRequirementSerializer">Serializer for the <see cref="UserVerificationRequirement" /> enum.</param>
-    /// <param name="publicKeyCredentialHintsSerializer">Serializer for the <see cref="PublicKeyCredentialHints" /> enum.</param>
+    /// <param name="publicKeyCredentialHintsSerializer">Serializer for the <see cref="PublicKeyCredentialHint" /> enum.</param>
     /// <param name="attestationConveyancePreferenceSerializer">Serializer for the <see cref="AttestationConveyancePreference" /> enum.</param>
     /// <param name="attestationStatementFormatSerializer">Serializer for the <see cref="AttestationStatementFormat" /> enum.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
@@ -36,7 +36,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         IEnumMemberAttributeSerializer<AuthenticatorAttachment> authenticatorAttachmentSerializer,
         IEnumMemberAttributeSerializer<ResidentKeyRequirement> residentKeyRequirementSerializer,
         IEnumMemberAttributeSerializer<UserVerificationRequirement> userVerificationRequirementSerializer,
-        IEnumMemberAttributeSerializer<PublicKeyCredentialHints> publicKeyCredentialHintsSerializer,
+        IEnumMemberAttributeSerializer<PublicKeyCredentialHint> publicKeyCredentialHintsSerializer,
         IEnumMemberAttributeSerializer<AttestationConveyancePreference> attestationConveyancePreferenceSerializer,
         IEnumMemberAttributeSerializer<AttestationStatementFormat> attestationStatementFormatSerializer)
     {
@@ -84,9 +84,9 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
     protected IEnumMemberAttributeSerializer<UserVerificationRequirement> UserVerificationRequirementSerializer { get; }
 
     /// <summary>
-    ///     Serializer for the <see cref="PublicKeyCredentialHints" /> enum.
+    ///     Serializer for the <see cref="PublicKeyCredentialHint" /> enum.
     /// </summary>
-    protected IEnumMemberAttributeSerializer<PublicKeyCredentialHints> PublicKeyCredentialHintsSerializer { get; }
+    protected IEnumMemberAttributeSerializer<PublicKeyCredentialHint> PublicKeyCredentialHintsSerializer { get; }
 
     /// <summary>
     ///     Serializer for the <see cref="AttestationConveyancePreference" /> enum.
@@ -250,7 +250,7 @@ public class DefaultPublicKeyCredentialCreationOptionsEncoder
         return new(authenticatorAttachment, residentKey, authenticatorSelection.RequireResidentKey, userVerification);
     }
 
-    private string[]? EncodeHints(PublicKeyCredentialHints[]? hints)
+    private string[]? EncodeHints(PublicKeyCredentialHint[]? hints)
     {
         if (hints is null)
         {

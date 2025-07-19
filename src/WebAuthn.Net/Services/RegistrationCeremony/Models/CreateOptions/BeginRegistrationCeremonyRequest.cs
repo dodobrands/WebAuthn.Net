@@ -62,7 +62,7 @@ public class BeginRegistrationCeremonyRequest
     /// <exception cref="ArgumentException"><paramref name="pubKeyCredParams" /> is empty</exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="pubKeyCredParams" /> array contains a value not defined in <see cref="CoseAlgorithm" /></exception>
     /// <exception cref="ArgumentNullException"><paramref name="excludeCredentials" /> is <see langword="null" /></exception>
-    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHints" /></exception>
+    /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="hints" /> array contains a value not defined in <see cref="PublicKeyCredentialHint" /></exception>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="attestation" /> contains a value that is not defined in <see cref="AttestationConveyancePreference" /></exception>
     /// <exception cref="InvalidEnumArgumentException">One of the elements in the <paramref name="attestationFormats" /> array contains a value not defined in <see cref="AttestationStatementFormat" /></exception>
     public BeginRegistrationCeremonyRequest(
@@ -75,7 +75,7 @@ public class BeginRegistrationCeremonyRequest
         uint? timeout,
         RegistrationCeremonyExcludeCredentials excludeCredentials,
         AuthenticatorSelectionCriteria? authenticatorSelection,
-        PublicKeyCredentialHints[]? hints,
+        PublicKeyCredentialHint[]? hints,
         AttestationConveyancePreference? attestation,
         AttestationStatementFormat[]? attestationFormats,
         Dictionary<string, JsonElement>? extensions)
@@ -140,7 +140,7 @@ public class BeginRegistrationCeremonyRequest
             {
                 if (!Enum.IsDefined(hint))
                 {
-                    throw new InvalidEnumArgumentException(nameof(hints), (int) hint, typeof(PublicKeyCredentialHints));
+                    throw new InvalidEnumArgumentException(nameof(hints), (int) hint, typeof(PublicKeyCredentialHint));
                 }
             }
 
@@ -264,7 +264,7 @@ public class BeginRegistrationCeremonyRequest
     /// <remarks>
     ///     defaulting to []
     /// </remarks>
-    public PublicKeyCredentialHints[]? Hints { get; }
+    public PublicKeyCredentialHint[]? Hints { get; }
 
     /// <summary>
     ///     The <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#relying-party">Relying Party</a> MAY use this OPTIONAL member to specify a preference regarding <a href="https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#attestation-conveyance">attestation conveyance</a>. Its

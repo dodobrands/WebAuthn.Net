@@ -88,7 +88,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<ResidentKeyRequirement>(),
             new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>(),
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHint>(),
             new DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>(),
             new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>());
         CredentialStorage = new();
@@ -208,7 +208,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
             new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
             new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>());
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHint>());
         var authenticationResponseDecoder = new DefaultAuthenticationResponseDecoder(
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
