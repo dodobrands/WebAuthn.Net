@@ -35,6 +35,7 @@ public static class JwtValidator
             ValidateLifetime = false,
             ValidateAudience = false,
             ValidateIssuer = false,
+            TryAllIssuerSigningKeys = true
         };
         var tokenHandler = new JsonWebTokenHandler
         {
