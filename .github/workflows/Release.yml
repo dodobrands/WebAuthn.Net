@@ -13,7 +13,7 @@ jobs:
         environment: Production
         steps:
             -   name: Checkout
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
                 with:
                     ref: ${{ github.sha }}
             -   name: Set release version
@@ -21,14 +21,14 @@ jobs:
             -   name: Setup .NET SDK 8.0
                 uses: actions/setup-dotnet@v4
                 with:
-                    dotnet-version: 8.0.412
+                    dotnet-version: 8.0.413
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             -   name: Setup .NET SDK 9.0
                 uses: actions/setup-dotnet@v4
                 with:
-                    dotnet-version: 9.0.303
+                    dotnet-version: 9.0.304
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
