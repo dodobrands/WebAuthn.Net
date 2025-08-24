@@ -78,7 +78,7 @@ public class LocalFilesFidoMetadataHttpClientDelegatingHandler : DelegatingHandl
             var result = new LocalFileBlobInfo[jwtBlobs.Length];
             for (var i = 0; i < jwtBlobs.Length; i++)
             {
-                var content = File.ReadAllText(jwtBlobs[i].FullName).Trim();
+                var content = File.ReadAllText(jwtBlobs[i].FullName, Encoding.UTF8).Trim();
                 result[i] = new(jwtBlobs[i].Name, content);
             }
 

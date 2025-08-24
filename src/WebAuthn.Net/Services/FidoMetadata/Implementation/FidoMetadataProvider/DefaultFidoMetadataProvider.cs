@@ -142,13 +142,27 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 if (jwtCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
                 {
                     keysToDispose.Add(ecdsaPublicKey);
-                    securityKeys.Add(new ECDsaSecurityKey(ecdsaPublicKey));
+                    var ecdsaKey = new ECDsaSecurityKey(ecdsaPublicKey)
+                    {
+                        CryptoProviderFactory =
+                        {
+                            CacheSignatureProviders = false
+                        }
+                    };
+                    securityKeys.Add(ecdsaKey);
                 }
                 else if (jwtCertificate.GetRSAPublicKey() is { } rsaPublicKey)
                 {
                     keysToDispose.Add(rsaPublicKey);
                     var parameters = rsaPublicKey.ExportParameters(false);
-                    securityKeys.Add(new RsaSecurityKey(parameters));
+                    var rsaKey = new RsaSecurityKey(parameters)
+                    {
+                        CryptoProviderFactory =
+                        {
+                            CacheSignatureProviders = false
+                        }
+                    };
+                    securityKeys.Add(rsaKey);
                 }
                 else
                 {

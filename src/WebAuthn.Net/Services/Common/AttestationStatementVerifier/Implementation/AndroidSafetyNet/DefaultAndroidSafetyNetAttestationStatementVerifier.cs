@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
@@ -125,14 +126,27 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 if (certificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
                 {
                     keysToDispose.Add(ecdsaPublicKey);
-                    var key = new ECDsaSecurityKey(ecdsaPublicKey);
-                    securityKeys.Add(key);
+                    var ecdsaKey = new ECDsaSecurityKey(ecdsaPublicKey)
+                    {
+                        CryptoProviderFactory =
+                        {
+                            CacheSignatureProviders = false
+                        }
+                    };
+                    securityKeys.Add(ecdsaKey);
                 }
                 else if (certificate.GetRSAPublicKey() is { } rsaPublicKey)
                 {
                     keysToDispose.Add(rsaPublicKey);
                     var parameters = rsaPublicKey.ExportParameters(false);
-                    securityKeys.Add(new RsaSecurityKey(parameters));
+                    var rsaKey = new RsaSecurityKey(parameters)
+                    {
+                        CryptoProviderFactory =
+                        {
+                            CacheSignatureProviders = false
+                        }
+                    };
+                    securityKeys.Add(rsaKey);
                 }
                 else
                 {
@@ -146,7 +160,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
-            if (jwtValidationResult.SecurityToken is not JwtSecurityToken validatedJwt)
+            if (jwtValidationResult.SecurityToken is not JsonWebToken validatedJwt)
             {
                 return Result<VerifiedAttestationStatement>.Fail();
             }
@@ -415,7 +429,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     /// <returns>If all claims are found and extracted - returns <see langword="true" />, otherwise - <see langword="false" />.</returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool TryGetRequiredClaims(
-        JwtSecurityToken validatedJwt,
+        JsonWebToken validatedJwt,
         [NotNullWhen(true)] out string? nonce,
         [NotNullWhen(true)] out bool? ctsProfileMatch,
         [NotNullWhen(true)] out DateTimeOffset? timestamp)
