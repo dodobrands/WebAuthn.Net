@@ -285,7 +285,7 @@ public class MetadataStatement
     ///         The information is the same reported by an authenticator when invoking the 'authenticatorGetInfo' method, see <a href="https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html#authenticatorGetInfo">[FIDOCTAP]</a>.
     ///     </para>
     /// </param>
-    /// <param name="cxpConfigUrl">
+    /// <param name="cxConfigURL">
     ///     <para>Specifies the URL for retrieving the configuration details for the credential export protocol (CXP).</para>
     ///     <para>
     ///         When importing credentials, the passkey provider to export the credential might retrieve the configuration details for the credential export protocol in order to provide additional security. More details can be found in Credential Export Protocol specification that can
@@ -327,7 +327,7 @@ public class MetadataStatement
         string? keyScope,
         string? multiDeviceCredentialSupport,
         AuthenticatorGetInfo? authenticatorGetInfo,
-        string? cxpConfigUrl)
+        string? cxConfigURL)
     {
         LegalHeader = legalHeader;
         Aaid = aaid;
@@ -363,7 +363,7 @@ public class MetadataStatement
         KeyScope = keyScope;
         MultiDeviceCredentialSupport = multiDeviceCredentialSupport;
         AuthenticatorGetInfo = authenticatorGetInfo;
-        CxpConfigUrl = cxpConfigUrl;
+        CxConfigUrl = cxConfigURL;
     }
 
     /// <summary>
@@ -840,5 +840,5 @@ public class MetadataStatement
     ///         be found on the FIDO <a href="https://fidoalliance.org/specifications-credential-exchange-specifications/">Credential Exchange Specifications</a> web page.
     ///     </para>
     /// </summary>
-    public string? CxpConfigUrl { get; }
+    public string? CxConfigUrl { get; }
 }

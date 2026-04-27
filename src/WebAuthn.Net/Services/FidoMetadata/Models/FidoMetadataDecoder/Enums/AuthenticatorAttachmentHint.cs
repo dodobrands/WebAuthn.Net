@@ -77,5 +77,12 @@ public enum AuthenticatorAttachmentHint : ushort
     ///     should also be set.
     /// </summary>
     [EnumMember(Value = "wifi_direct")]
-    ATTACHMENT_HINT_WIFI_DIRECT = 0x0100
+    ATTACHMENT_HINT_WIFI_DIRECT = 0x0100,
+
+    /// <summary>
+    ///     This flag MAY be set to indicate that an external authenticator is able to communicate by ISO7816 messages with the FIDO User Device. As part of authenticator metadata, or when reporting characteristics through discovery, if this flag is set, the ATTACHMENT_HINT_WIRED flag
+    ///     should also be set.
+    /// </summary>
+    [EnumMember(Value = "smart-card")]
+    ATTACHMENT_HINT_SMART_CARD = 0x0200
 }

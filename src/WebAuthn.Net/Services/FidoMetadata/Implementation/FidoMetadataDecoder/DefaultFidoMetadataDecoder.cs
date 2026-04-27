@@ -396,7 +396,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             metadataStatement.KeyScope,
             metadataStatement.MultiDeviceCredentialSupport,
             authenticatorGetInfo,
-            metadataStatement.CxpConfigUrl);
+            metadataStatement.CxConfigUrl);
         return true;
     }
 

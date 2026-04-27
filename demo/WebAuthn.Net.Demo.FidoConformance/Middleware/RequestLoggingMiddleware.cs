@@ -38,7 +38,10 @@ public class RequestLoggingMiddleware : IMiddleware
         var json = Encoding.UTF8.GetString(ms.ToArray());
         var element = JsonSerializer.Deserialize<JsonElement>(json);
         var intendedJson = JsonSerializer.Serialize(element, _jsonSerializerOptions);
+// Error CA1873 : Evaluation of this argument may be expensive and unnecessary if logging is disabled (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1873)
+#pragma warning disable CA1873
         _logger.LogRequestInformation(context.Request.Method, context.Request.GetEncodedPathAndQuery(), intendedJson);
+#pragma warning restore CA1873
         await next(context);
     }
 }
