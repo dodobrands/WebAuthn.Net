@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
@@ -16,6 +18,48 @@ public enum TpmiAlgKdf : ushort
     /// <summary>
     ///     Null algorithm
     /// </summary>
-    /// <remarks>TCG TPM 2.0 library specification</remarks>
-    TpmAlgNull = 0x0010
+    /// <remarks>
+    /// <para>TPM_ALG_NULL</para>
+    /// <para>TCG TPM 2.0 library specification</para>
+    /// </remarks>
+    TpmAlgNull = 0x0010,
+
+    /// <summary>
+    /// Hash-based mask-generation function
+    /// </summary>
+    /// <remarks>
+    /// <para>TPM_ALG_MGF1</para>
+    /// <para>IEEE Std 1363-2000</para>
+    /// <para>IEEE Std 1363a-2004</para>
+    /// </remarks>
+    TpmAlgMfg1 = 0x0007,
+
+    /// <summary>
+    /// Concatenation key derivation function (approved alternative 1) clause 5.8.1
+    /// </summary>
+    /// <remarks>
+    /// <para>TPM_ALG_KDF1_SP800_56A</para>
+    /// <para>NIST SP800-56A</para>
+    /// </remarks>
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    TpmAlgKdf1Sp800_56a = 0x0020,
+
+    /// <summary>
+    /// Key derivation function KDF2 clause 13.2
+    /// </summary>
+    /// <remarks>
+    /// <para>TPM_ALG_KDF2</para>
+    /// <para>IEEE Std 1363a-2004</para>
+    /// </remarks>
+    TpmAlgKdf2 = 0x0021,
+
+    /// <summary>
+    /// A key derivation method clause 5.1 KDF in Counter Mode
+    /// </summary>
+    /// <remarks>
+    /// <para>TPM_ALG_KDF1_SP800_108</para>
+    /// <para>NIST SP800-108</para>
+    /// </remarks>
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    TpmAlgKdf1Sp800_108 = 0x0022
 }

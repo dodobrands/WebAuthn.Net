@@ -65,7 +65,7 @@ public enum ObjectAttributes : uint
     ///             <term>
     ///                 <see langword="true" />
     ///             </term>
-    ///             <description>The parent of the object may not change.</description>
+    ///             <description>The parent of the object may not change</description>
     ///         </item>
     ///         <item>
     ///             <term>
@@ -137,6 +137,42 @@ public enum ObjectAttributes : uint
     ///             <term>
     ///                 <see langword="true" />
     ///             </term>
+    ///             <description>The object exists only within a firmware-limited hierarchy.</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="false" />
+    ///             </term>
+    ///             <description>The object can exist outside a firmware-limited hierarchy.</description>
+    ///         </item>
+    ///     </list>
+    /// </summary>
+    FirmwareLimited = 1 << 8,
+
+    /// <summary>
+    ///     <list type="table">
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="true" />
+    ///             </term>
+    ///             <description>The object exists only within an SVN-limited hierarchy.</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="false" />
+    ///             </term>
+    ///             <description>The object can exist outside an SVN-limited hierarchy.</description>
+    ///         </item>
+    ///     </list>
+    /// </summary>
+    SvnLimited = 1 << 9,
+
+    /// <summary>
+    ///     <list type="table">
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="true" />
+    ///             </term>
     ///             <description>The object is not subject to dictionary attack protections.</description>
     ///         </item>
     ///         <item>
@@ -201,6 +237,9 @@ public enum ObjectAttributes : uint
     ///         </item>
     ///     </list>
     /// </summary>
+    /// <remarks>
+    /// Version 185 deprecated support for keys with both sign and decrypt SET.
+    /// </remarks>
     Decrypt = 1 << 17,
 
     /// <summary>
@@ -209,7 +248,7 @@ public enum ObjectAttributes : uint
     ///             <term>
     ///                 <see langword="true" />
     ///             </term>
-    ///             <description>For a symmetric cipher object, the private portion of the key may be used to encrypt. For other objects, the private portion of the key may be used to sign.</description>
+    ///             <description>For a symmetric block cipher key, the private portion of the key may be used to encrypt. For other keys, the private portion of the key may be used to sign.</description>
     ///         </item>
     ///         <item>
     ///             <term>
@@ -219,6 +258,9 @@ public enum ObjectAttributes : uint
     ///         </item>
     ///     </list>
     /// </summary>
+    /// <remarks>
+    /// Version 185 deprecated support for keys with both sign and decrypt SET.
+    /// </remarks>
     SignEncrypt = 1 << 18,
 
     /// <summary>
