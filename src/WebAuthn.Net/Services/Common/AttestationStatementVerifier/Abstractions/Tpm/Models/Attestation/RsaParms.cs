@@ -20,18 +20,11 @@ public class RsaParms : AbstractPublicParms
     /// <summary>
     ///     Constructs <see cref="RsaParms" />.
     /// </summary>
-    /// <param name="keyBits">Number of bits in the public modulus.</param>
     /// <param name="exponent">The public exponent. A prime number greater than 2.</param>
-    public RsaParms(ushort keyBits, uint exponent)
+    public RsaParms(uint exponent)
     {
-        KeyBits = keyBits;
         Exponent = exponent;
     }
-
-    /// <summary>
-    ///     Number of bits in the public modulus.
-    /// </summary>
-    public ushort KeyBits { get; }
 
     /// <summary>
     ///     The public exponent. A prime number greater than 2.

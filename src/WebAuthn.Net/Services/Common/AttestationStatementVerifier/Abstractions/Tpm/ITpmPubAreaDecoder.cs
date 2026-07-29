@@ -12,7 +12,7 @@ public interface ITpmPubAreaDecoder
     /// <summary>
     ///     Decodes the TPMT_PUBLIC structure from binary representation to a typed format for further processing.
     /// </summary>
-    /// <param name="bytes">Binary representation of the TPMT_PUBLIC structure.</param>
+    /// <param name="publicArea">Binary representation of the TPMT_PUBLIC structure.</param>
     /// <returns>If the decoding was successful, the result contains the <see cref="PubArea" />; otherwise, the result indicates that an error occurred during the decoding process.</returns>
-    Result<PubArea> Decode(Span<byte> bytes);
+    Result<PubArea> Decode(Span<byte> publicArea);
 }

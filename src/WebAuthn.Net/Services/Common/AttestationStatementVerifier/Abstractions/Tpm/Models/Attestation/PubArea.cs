@@ -21,8 +21,6 @@ public class PubArea
     ///     Constructs <see cref="PubArea" />.
     /// </summary>
     /// <param name="type">"algorithm" associated with this object.</param>
-    /// <param name="nameAlg">algorithm used for computing the Name of the object.</param>
-    /// <param name="objectAttributes">Attributes that, along with type, determine the manipulations of this object.</param>
     /// <param name="parameters">The algorithm or structure details.</param>
     /// <param name="unique">
     ///     <para>The unique identifier of the structure.</para>
@@ -30,14 +28,10 @@ public class PubArea
     /// </param>
     public PubArea(
         TpmAlgPublic type,
-        TpmAlgIdHash nameAlg,
-        ObjectAttributes objectAttributes,
         AbstractPublicParms parameters,
         AbstractUnique unique)
     {
         Type = type;
-        NameAlg = nameAlg;
-        ObjectAttributes = objectAttributes;
         Parameters = parameters;
         Unique = unique;
     }
@@ -46,16 +40,6 @@ public class PubArea
     ///     "algorithm" associated with this object.
     /// </summary>
     public TpmAlgPublic Type { get; }
-
-    /// <summary>
-    ///     algorithm used for computing the Name of the object.
-    /// </summary>
-    public TpmAlgIdHash NameAlg { get; }
-
-    /// <summary>
-    ///     Attributes that, along with type, determine the manipulations of this object.
-    /// </summary>
-    public ObjectAttributes ObjectAttributes { get; }
 
     /// <summary>
     ///     The algorithm or structure details.
