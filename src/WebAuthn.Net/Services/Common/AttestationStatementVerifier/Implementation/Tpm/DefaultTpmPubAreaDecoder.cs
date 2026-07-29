@@ -145,10 +145,6 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
                 return Result<PubArea>.Fail();
             }
         }
-        else
-        {
-            return Result<PubArea>.Fail();
-        }
 
         // ---------------------------------------
         // "publicArea"."[type]parameters"
