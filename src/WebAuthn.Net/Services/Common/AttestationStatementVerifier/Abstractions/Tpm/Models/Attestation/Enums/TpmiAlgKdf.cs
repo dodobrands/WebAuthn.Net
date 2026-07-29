@@ -32,7 +32,7 @@ public enum TpmiAlgKdf : ushort
     /// <para>IEEE Std 1363-2000</para>
     /// <para>IEEE Std 1363a-2004</para>
     /// </remarks>
-    TpmAlgMfg1 = 0x0007,
+    TpmAlgMgf1 = 0x0007,
 
     /// <summary>
     /// Concatenation key derivation function (approved alternative 1) clause 5.8.1
