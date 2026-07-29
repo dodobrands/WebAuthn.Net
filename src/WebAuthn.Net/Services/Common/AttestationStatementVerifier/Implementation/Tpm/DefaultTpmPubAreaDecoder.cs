@@ -256,7 +256,7 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // 12.2.3.5 TPMS_RSA_PARMS
         // Table defines the TPMS_RSA_PARMS structure.
         // A TPM compatible with this specification and supporting RSA shall support two primes and an exponent of zero.
-        // An exponent of zero indicates that the exponent is the default of 216 + 1.
+        // An exponent of zero indicates that the exponent is the default of 2^16 + 1.
         // Support for other values is optional.
         // Use of other exponents in duplicated keys is not recommended because the resulting keys would not be interoperable with other TPMs.
         // Support for other values is optional.
