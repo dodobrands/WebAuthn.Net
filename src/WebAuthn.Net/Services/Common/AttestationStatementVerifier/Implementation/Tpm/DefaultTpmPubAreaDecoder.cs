@@ -827,7 +827,7 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
                 return Result<EccParms>.Fail();
             }
 
-            var kdfSchemeHashAlg = BinaryPrimitives.ReadUInt16BigEndian(rawKdfSchemeHashAlg);
+            // var kdfSchemeHashAlg = BinaryPrimitives.ReadUInt16BigEndian(rawKdfSchemeHashAlg);
         }
 
         var eccDetail = new EccParms(curveId);
