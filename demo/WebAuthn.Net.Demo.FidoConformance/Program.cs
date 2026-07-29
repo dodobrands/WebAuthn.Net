@@ -7,6 +7,9 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Storage.InMemory.Configuration.DependencyInjection;
+using WebAuthn.Net.Storage.MySql.Configuration.DependencyInjection;
+using WebAuthn.Net.Storage.PostgreSql.Configuration.DependencyInjection;
+using WebAuthn.Net.Storage.SqlServer.Configuration.DependencyInjection;
 
 // using WebAuthn.Net.Storage.MySql.Configuration.DependencyInjection;
 // using WebAuthn.Net.Storage.PostgreSql.Configuration.DependencyInjection;

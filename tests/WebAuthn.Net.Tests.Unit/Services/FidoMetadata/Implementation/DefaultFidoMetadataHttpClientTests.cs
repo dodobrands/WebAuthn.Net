@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Threading;
@@ -68,9 +69,9 @@ public class DefaultFidoMetadataHttpClientTests
     public void DefaultFidoMetadataHttpClient_DownloadMetadataThrows_When404Response()
     {
         FakeMetadataHandler.ReturnNotFound();
-        Assert.ThrowsAsync<HttpRequestException>(async () =>
+        Assert.ThrowsAsync<HttpRequestException>((Func<Task>) (async () =>
         {
             _ = await Client.DownloadMetadataAsync(CancellationToken.None);
-        });
+        }));
     }
 }

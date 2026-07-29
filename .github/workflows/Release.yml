@@ -26,23 +26,23 @@ jobs:
             -   name: Set release version
                 run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
             -   name: Setup .NET SDK 8.0
-                uses: actions/setup-dotnet@v5
+                uses: actions/setup-dotnet@v6
                 with:
-                    dotnet-version: 8.0.420
+                    dotnet-version: 8.0.423
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             -   name: Setup .NET SDK 9.0
-                uses: actions/setup-dotnet@v5
+                uses: actions/setup-dotnet@v6
                 with:
-                    dotnet-version: 9.0.313
+                    dotnet-version: 9.0.316
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             -   name: Setup .NET SDK 10.0
-                uses: actions/setup-dotnet@v5
+                uses: actions/setup-dotnet@v6
                 with:
-                    dotnet-version: 10.0.203
+                    dotnet-version: 10.0.302
                     source-url: ${{ secrets.NUGET_SOURCE }}
                 env:
                     NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
