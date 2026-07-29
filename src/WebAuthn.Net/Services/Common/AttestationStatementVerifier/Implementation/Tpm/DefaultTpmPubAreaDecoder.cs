@@ -800,6 +800,11 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         }
 
         var kdfScheme = (TpmiAlgKdf) BinaryPrimitives.ReadUInt16BigEndian(rawKdfScheme);
+        if (!Enum.IsDefined(kdfScheme))
+        {
+            return Result<EccParms>.Fail();
+        }
+
         if (kdfScheme != TpmiAlgKdf.TpmAlgNull)
         {
             // TPM_ALG_MGF1 => TPMS_KDF_SCHEME_MGF1_Marshal => TPMS_SCHEME_HASH_Marshal
