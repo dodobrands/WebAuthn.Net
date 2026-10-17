@@ -43,7 +43,7 @@ public class DefaultFidoMetadataProviderTests
             Options,
             safeJsonDeserializer,
             FakeFidoHttpClientProvider.Client,
-            new FakeTimeProvider(DateTimeOffset.Parse("2026-04-27T16:36:38Z", CultureInfo.InvariantCulture)));
+            new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)));
     }
 
     [TearDown]

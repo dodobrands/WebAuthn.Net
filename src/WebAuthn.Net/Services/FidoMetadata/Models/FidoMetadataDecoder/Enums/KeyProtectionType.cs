@@ -9,7 +9,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#key-protection-types">FIDO Registry of Predefined Values - Key Protection Types</a>
+///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#key-protection-types">FIDO Registry of Predefined Values - Key Protection Types</a>
 ///     </para>
 /// </remarks>
 [Flags]

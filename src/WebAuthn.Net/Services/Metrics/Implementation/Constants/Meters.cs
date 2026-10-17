@@ -16,4 +16,9 @@ public static class Meters
     ///     Name of the <see cref="Meter" /> responsible  for creating and tracking Instruments of the registration ceremony.
     /// </summary>
     public const string RegistrationCeremonyMeterName = "WebAuthn.Net.RegistrationCeremony";
+
+    /// <summary>
+    ///     Name of the <see cref="Meter" /> responsible for creating and tracking Instruments of the FIDO Metadata Service.
+    /// </summary>
+    public const string FidoMetadataMeterName = "WebAuthn.Net.FidoMetadata";
 }

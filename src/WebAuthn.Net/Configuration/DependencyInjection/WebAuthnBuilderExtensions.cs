@@ -206,6 +206,7 @@ public static class WebAuthnBuilderExtensions
         // -- Metrics --
         builder.Services.TryAddSingleton<IAuthenticationCeremonyCounters, DefaultAuthenticationCeremonyCounters>();
         builder.Services.TryAddSingleton<IRegistrationCeremonyCounters, DefaultRegistrationCeremonyCounters>();
+        builder.Services.TryAddSingleton<IFidoMetadataCounters, DefaultFidoMetadataCounters>();
         // ---------------------
 
         return builder;
@@ -347,6 +348,7 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<MatcherProtectionType>, DefaultEnumMemberAttributeSerializer<MatcherProtectionType>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>, DefaultEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>, DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorStatus>, DefaultEnumMemberAttributeSerializer<AuthenticatorStatus>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorAttachment>, DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<PublicKeyCredentialType>, DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AuthenticatorTransport>, DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>>();

@@ -19,6 +19,7 @@ public static class MeterProviderBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         builder.AddMeter(Meters.RegistrationCeremonyMeterName);
         builder.AddMeter(Meters.AuthenticationCeremonyMeterName);
+        builder.AddMeter(Meters.FidoMetadataMeterName);
         return builder;
     }
 }

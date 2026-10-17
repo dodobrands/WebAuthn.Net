@@ -4,7 +4,7 @@
 ///     RGB Palette Entry
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-type-rgbpe">FIDO Metadata Statement - rgbPaletteEntry dictionary</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-type-rgbpe">FIDO Metadata Statement - rgbPaletteEntry dictionary</a>
 /// </remarks>
 public class RgbPaletteEntry
 {

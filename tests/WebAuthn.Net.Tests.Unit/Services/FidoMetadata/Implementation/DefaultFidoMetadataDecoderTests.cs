@@ -24,6 +24,7 @@ public class DefaultFidoMetadataDecoderTests
     private FakeFidoMetadataHttpClientProvider FakeFidoHttpClientProvider { get; set; } = null!;
     private DefaultFidoMetadataProvider MetadataProvider { get; set; } = null!;
     private DefaultFidoMetadataDecoder Decoder { get; set; } = null!;
+    private FakeFidoMetadataCounters Counters { get; set; } = null!;
     private MetadataBLOBPayloadJSON PayloadToDecode { get; set; } = null!;
 
     [SetUp]
@@ -43,12 +44,13 @@ public class DefaultFidoMetadataDecoderTests
             },
             optionsCache);
         FakeFidoHttpClientProvider = new();
+        Counters = new();
         var safeJsonDeserializer = new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance);
         MetadataProvider = new(
             Options,
             safeJsonDeserializer,
             FakeFidoHttpClientProvider.Client,
-            new FakeTimeProvider(DateTimeOffset.Parse("2026-04-27T16:36:38Z", CultureInfo.InvariantCulture)));
+            new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)));
         Decoder = new(
             new DefaultEnumMemberAttributeSerializer<UserVerificationMethod>(),
             new DefaultEnumMemberAttributeSerializer<ProtocolFamily>(),
@@ -58,7 +60,10 @@ public class DefaultFidoMetadataDecoderTests
             new DefaultEnumMemberAttributeSerializer<KeyProtectionType>(),
             new DefaultEnumMemberAttributeSerializer<MatcherProtectionType>(),
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>(),
-            new DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>());
+            new DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>(),
+            new DefaultEnumMemberAttributeSerializer<AuthenticatorStatus>(),
+            Counters,
+            NullLogger<DefaultFidoMetadataDecoder>.Instance);
         var result = await MetadataProvider.DownloadMetadataAsync(CancellationToken.None);
         if (result.HasError)
         {
@@ -80,5 +85,11 @@ public class DefaultFidoMetadataDecoderTests
         var result = Decoder.Decode(PayloadToDecode);
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok, Is.Not.Null);
+        // all entries of the real blob must be decoded, none of them may be skipped
+        Assert.That(result.Ok?.Entries, Has.Length.EqualTo(PayloadToDecode.Entries.Length));
+        Assert.That(Counters.SkippedEntries, Is.Empty);
+        // every status of the real blob must be known to the library, otherwise the AuthenticatorStatus enum is outdated
+        Assert.That(Counters.IgnoredStatusReports, Is.Empty);
+        Assert.That(Counters.SuccessfulDecodeEnds, Is.EqualTo(1));
     }
 }

@@ -6,7 +6,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 ///     Verification Method Descriptor
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-type-vmd">FIDO Metadata Statement - VerificationMethodDescriptor dictionary</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-type-vmd">FIDO Metadata Statement - VerificationMethodDescriptor dictionary</a>
 /// </remarks>
 public class VerificationMethodDescriptor
 {
@@ -14,7 +14,7 @@ public class VerificationMethodDescriptor
     ///     Constructs <see cref="VerificationMethodDescriptor" />.
     /// </summary>
     /// <param name="userVerificationMethod">
-    ///     <para>a single USER_VERIFY constant case-sensitive string name. See section "User Verification Methods" in <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> (e.g. "presence_internal"). This value MUST NOT be empty.</para>
+    ///     <para>a single USER_VERIFY constant case-sensitive string name. See section "User Verification Methods" in <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a> (e.g. "presence_internal"). This value MUST NOT be empty.</para>
     ///     <para>The constant USER_VERIFY_ALL MUST NOT be used here.</para>
     /// </param>
     /// <param name="caDesc">May optionally be used in the case of method USER_VERIFY_PASSCODE_INTERNAL or USER_VERIFY_PASSCODE_EXTERNAL.</param>
@@ -34,7 +34,7 @@ public class VerificationMethodDescriptor
 
     /// <summary>
     ///     <para>
-    ///         a single USER_VERIFY constant case-sensitive string name. See section "User Verification Methods" in <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#user-verification-methods">[FIDORegistry]</a> (e.g. "presence_internal"). This
+    ///         a single USER_VERIFY constant case-sensitive string name. See section "User Verification Methods" in <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#user-verification-methods">[FIDORegistry]</a> (e.g. "presence_internal"). This
     ///         value MUST NOT be empty.
     ///     </para>
     ///     <para>The constant USER_VERIFY_ALL MUST NOT be used here.</para>

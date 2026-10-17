@@ -9,7 +9,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#transaction-confirmation-display-types">FIDO Registry of Predefined Values - Transaction Confirmation Display Types</a>
+///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#transaction-confirmation-display-types">FIDO Registry of Predefined Values - Transaction Confirmation Display Types</a>
 ///     </para>
 /// </remarks>
 [Flags]

@@ -31,6 +31,13 @@ public class DefaultEnumMemberAttributeSerializer<TEnum> : IEnumMemberAttributeS
     /// <inheritdoc />
     public virtual bool TryDeserialize(string key, [NotNullWhen(true)] out TEnum? value)
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (key is null)
+        {
+            value = null;
+            return false;
+        }
+
         if (_namesToValues.TryGetValue(key, out var result))
         {
             value = result;
