@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protoco
 ///     BiometricStatusReport dictionary
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#sctn-bio-stat-rep">FIDO Metadata Service - BiometricStatusReport dictionary</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-bio-stat-rep">FIDO Metadata Service - BiometricStatusReport dictionary</a>
 /// </remarks>
 // ReSharper disable once InconsistentNaming
 public class BiometricStatusReportJSON
@@ -15,18 +15,18 @@ public class BiometricStatusReportJSON
     /// <summary>
     ///     Constructs <see cref="BiometricStatusReportJSON" />.
     /// </summary>
-    /// <param name="certLevel">Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v4.1-fd-20250106.html">[FIDOBiometricsRequirements]</a>.</param>
+    /// <param name="certLevel">Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v5.0-rd02-20260901.html">[FIDOBiometricsRequirements]</a>.</param>
     /// <param name="modality">
     ///     A single a single USER_VERIFY short form case-sensitive string name constant, representing biometric modality. See section "User Verification Methods" in
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#user-verification-methods">[FIDORegistry]</a> (e.g. "fingerprint_internal"). This value MUST NOT be empty and this value MUST correspond to one or more entries in field
-    ///     "userVerificationDetails" in the related Metadata Statement <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html">[FIDOMetadataStatement]</a>. This value MUST represent a biometric modality.
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#user-verification-methods">[FIDORegistry]</a> (e.g. "fingerprint_internal"). This value MUST NOT be empty and this value MUST correspond to one or more entries in field
+    ///     "userVerificationDetails" in the related Metadata Statement <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html">[FIDOMetadataStatement]</a>. This value MUST represent a biometric modality.
     /// </param>
     /// <param name="effectiveDate">ISO-8601 formatted date since when the certLevel achieved, if applicable. If no date is given, the status is assumed to be effective while present.</param>
     /// <param name="certificationDescriptor">Describes the externally visible aspects of the Biometric Certification evaluation.</param>
     /// <param name="certificateNumber">The unique identifier for the issued Biometric Certification.</param>
     /// <param name="certificationPolicyVersion">The version of the Biometric Certification Policy the implementation is Certified to, e.g. "1.0.0".</param>
     /// <param name="certificationRequirementsVersion">
-    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
+    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
     /// </param>
     [JsonConstructor]
     public BiometricStatusReportJSON(
@@ -48,7 +48,7 @@ public class BiometricStatusReportJSON
     }
 
     /// <summary>
-    ///     Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v4.1-fd-20250106.html">[FIDOBiometricsRequirements]</a>.
+    ///     Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v5.0-rd02-20260901.html">[FIDOBiometricsRequirements]</a>.
     /// </summary>
     [JsonPropertyName("certLevel")]
     [Required]
@@ -57,8 +57,8 @@ public class BiometricStatusReportJSON
 
     /// <summary>
     ///     A single a single USER_VERIFY short form case-sensitive string name constant, representing biometric modality. See section "User Verification Methods" in
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#user-verification-methods">[FIDORegistry]</a> (e.g. "fingerprint_internal"). This value MUST NOT be empty and this value MUST correspond to one or more entries in field
-    ///     "userVerificationDetails" in the related Metadata Statement <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html">[FIDOMetadataStatement]</a>. This value MUST represent a biometric modality.
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#user-verification-methods">[FIDORegistry]</a> (e.g. "fingerprint_internal"). This value MUST NOT be empty and this value MUST correspond to one or more entries in field
+    ///     "userVerificationDetails" in the related Metadata Statement <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html">[FIDOMetadataStatement]</a>. This value MUST represent a biometric modality.
     /// </summary>
     /// <remarks>
     ///     For example use USER_VERIFY_FINGERPRINT for the fingerprint based biometric component. In this case the related Metadata Statement must also claim fingerprint as one of the user verification methods.
@@ -100,7 +100,7 @@ public class BiometricStatusReportJSON
     public string? CertificationPolicyVersion { get; }
 
     /// <summary>
-    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
+    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
     /// </summary>
     [JsonPropertyName("certificationRequirementsVersion")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

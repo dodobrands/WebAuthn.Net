@@ -66,10 +66,10 @@ public class DefaultFidoMetadataHttpClientTests
     }
 
     [Test]
-    public void DefaultFidoMetadataHttpClient_DownloadMetadataThrows_When404Response()
+    public async Task DefaultFidoMetadataHttpClient_DownloadMetadataThrows_When404Response()
     {
         FakeMetadataHandler.ReturnNotFound();
-        Assert.ThrowsAsync<HttpRequestException>((Func<Task>) (async () =>
+        await Assert.ThrowsAsync<HttpRequestException>((Func<Task>) (async () =>
         {
             _ = await Client.DownloadMetadataAsync(CancellationToken.None);
         }));

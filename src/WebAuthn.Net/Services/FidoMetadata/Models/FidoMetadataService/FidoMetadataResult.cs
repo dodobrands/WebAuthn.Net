@@ -12,7 +12,7 @@ public class FidoMetadataResult
     /// </summary>
     /// <param name="rootCertificates">x509v3 root CA certificates from the FIDO Metadata Service.</param>
     /// <param name="attestationTypes">
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#authenticator-attestation-types">Authenticator attestation types</a>
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#authenticator-attestation-types">Authenticator attestation types</a>
     /// </param>
     public FidoMetadataResult(byte[][] rootCertificates, AuthenticatorAttestationType[] attestationTypes)
     {
@@ -26,7 +26,7 @@ public class FidoMetadataResult
     public byte[][] RootCertificates { get; }
 
     /// <summary>
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#authenticator-attestation-types">Authenticator attestation types</a>
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#authenticator-attestation-types">Authenticator attestation types</a>
     /// </summary>
     public AuthenticatorAttestationType[] AttestationTypes { get; }
 }

@@ -135,6 +135,7 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         foreach (var statusReport in blobEntry.StatusReports)
         {
             if (statusReport.Status == AuthenticatorStatus.REVOKED
+                || statusReport.Status == AuthenticatorStatus.RETIRED
                 || statusReport.Status == AuthenticatorStatus.USER_VERIFICATION_BYPASS
                 || statusReport.Status == AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE
                 || statusReport.Status == AuthenticatorStatus.USER_KEY_REMOTE_COMPROMISE

@@ -14,4 +14,9 @@ public static class TagValues
     ///     Failed operation status
     /// </summary>
     public const string StatusFail = "fail";
+
+    /// <summary>
+    ///     An element was skipped because an error occurred during its processing.
+    /// </summary>
+    public const string ReasonException = "exception";
 }

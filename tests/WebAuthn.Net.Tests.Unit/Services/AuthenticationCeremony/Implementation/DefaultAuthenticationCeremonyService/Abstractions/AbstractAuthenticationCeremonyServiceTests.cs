@@ -57,6 +57,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         ConfigurationManager = new();
         ConfigurationManager.AddInMemoryCollection(GetConfiguration());
         var webAuthnOptions = FakeWebAuthnOptionsFactory.Create(ConfigurationManager);
+        ConfigureWebAuthnOptions(webAuthnOptions);
         var optionsCache = new OptionsCache<WebAuthnOptions>();
         optionsCache.TryAdd(string.Empty, webAuthnOptions);
         Options = new(
@@ -114,7 +115,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
                 Options,
                 safeJsonDeserializer,
                 fakeFidoHttpClientProvider.Client,
-                new FakeTimeProvider(DateTimeOffset.Parse("2026-04-27T16:36:38Z", CultureInfo.InvariantCulture)));
+                new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)));
             var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);
             if (downloadMetadataResult.HasError)
             {
@@ -130,7 +131,10 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
                 new DefaultEnumMemberAttributeSerializer<KeyProtectionType>(),
                 new DefaultEnumMemberAttributeSerializer<MatcherProtectionType>(),
                 new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachmentHint>(),
-                new DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>());
+                new DefaultEnumMemberAttributeSerializer<TransactionConfirmationDisplayType>(),
+                new DefaultEnumMemberAttributeSerializer<AuthenticatorStatus>(),
+                new FakeFidoMetadataCounters(),
+                NullLogger<DefaultFidoMetadataDecoder>.Instance);
             var decodeMetadataResult = decoder.Decode(downloadMetadataResult.Ok);
             if (decodeMetadataResult.HasError)
             {
@@ -264,6 +268,10 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
     protected virtual IEnumerable<KeyValuePair<string, string?>>? GetConfiguration()
     {
         yield break;
+    }
+
+    protected virtual void ConfigureWebAuthnOptions(WebAuthnOptions options)
+    {
     }
 
     protected abstract Uri GetRelyingPartyAddress();

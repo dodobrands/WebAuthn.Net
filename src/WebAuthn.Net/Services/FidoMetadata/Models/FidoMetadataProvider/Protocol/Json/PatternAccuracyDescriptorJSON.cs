@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protoco
 ///     Pattern Accuracy Descriptor
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-type-pad">FIDO Metadata Statement - PatternAccuracyDescriptor dictionary</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-type-pad">FIDO Metadata Statement - PatternAccuracyDescriptor dictionary</a>
 /// </remarks>
 // ReSharper disable once InconsistentNaming
 public class PatternAccuracyDescriptorJSON

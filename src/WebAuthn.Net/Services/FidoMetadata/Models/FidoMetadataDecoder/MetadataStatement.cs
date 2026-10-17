@@ -8,7 +8,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 ///     Metadata Statement
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-md-keys">FIDO Metadata Statement - Metadata Keys</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-md-keys">FIDO Metadata Statement - Metadata Keys</a>
 /// </remarks>
 public class MetadataStatement
 {
@@ -42,7 +42,7 @@ public class MetadataStatement
     /// <param name="authenticatorVersion">
     ///     <para>Earliest (i.e. lowest) trustworthy authenticatorVersion meeting the requirements specified in this metadata statement.</para>
     ///     <para>
-    ///         Adding new StatusReport entries with status UPDATE_AVAILABLE to the metadata BLOB object <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html">[FIDOMetadataService]</a> MUST also change this authenticatorVersion if the update fixes
+    ///         Adding new StatusReport entries with status UPDATE_AVAILABLE to the metadata BLOB object <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html">[FIDOMetadataService]</a> MUST also change this authenticatorVersion if the update fixes
     ///         severe security issues, e.g. the ones reported by preceding StatusReport entries with status code USER_VERIFICATION_BYPASS,ATTESTATION_KEY_COMPROMISE,USER_KEY_REMOTE_COMPROMISE,USER_KEY_PHYSICAL_COMPROMISE,REVOKED.
     ///     </para>
     ///     <para>
@@ -50,8 +50,10 @@ public class MetadataStatement
     ///         entry, than any firmware version lower (older) than the one specified in the metadata statement is assumed to be vulnerable.
     ///     </para>
     ///     <para>
-    ///         The specified version should equal the value of the 'firmwareVersion' member of the authenticatorGetInfo response. If present, see <a href="https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html">[FIDOCTAP]</a>.
+    ///         The specified version should equal the value of the 'firmwareVersion' member of the authenticatorGetInfo response. If present, see
+    ///         <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html">[FIDOCTAP]</a>.
     ///     </para>
+    ///     <para>The firmware version of the authenticator providing the attestation can be found in the attestation certificate in extension id-fido-gen-ce-fw-version (OID 1.3.6.1.4.1.45724.1.1.5).</para>
     /// </param>
     /// <param name="protocolFamily">
     ///     <para>The FIDO protocol family. The values "uaf", "u2f", and "fido2" are supported.</para>
@@ -101,6 +103,12 @@ public class MetadataStatement
     ///                         <item>
     ///                             <description>major version 1, minor version 1 for CTAP 2.1</description>
     ///                         </item>
+    ///                         <item>
+    ///                             <description>major version 1, minor version 2 reserved, CTAP 2.2 was skipped</description>
+    ///                         </item>
+    ///                         <item>
+    ///                             <description>major version 1, minor version 3 for CTAP 2.3</description>
+    ///                         </item>
     ///                     </list>
     ///                 </description>
     ///             </item>
@@ -110,7 +118,7 @@ public class MetadataStatement
     /// <param name="authenticationAlgorithms">
     ///     <para>The list of authentication algorithms supported by the authenticator.</para>
     ///     <para>
-    ///         Must be set to the complete list of the supported ALG_ constant case-sensitive string names defined in the FIDO Registry of Predefined Values <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> (section
+    ///         Must be set to the complete list of the supported ALG_ constant case-sensitive string names defined in the FIDO Registry of Predefined Values <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a> (section
     ///         "Authentication Algorithms") if the authenticator supports multiple algorithms. E.g. "secp256r1_ecdsa_sha256_raw", "secp256r1_ecdsa_sha256_der".
     ///     </para>
     ///     <para>The list MUST NOT be empty.</para>
@@ -128,11 +136,15 @@ public class MetadataStatement
     /// </param>
     /// <param name="attestationTypes">
     ///     Must be set to the complete list of the supported ATTESTATION_ constant case-sensitive string names. See section "Authenticator Attestation Types" of FIDO Registry
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> for all available attestation formats, e.g. "basic_full".
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a> for all available attestation formats, e.g. "basic_full".
     /// </param>
     /// <param name="userVerificationDetails">
     ///     <para>A list of alternative VerificationMethodANDCombinations.</para>
     ///     <para>userVerificationDetails is a two dimensional array, that informs RP what VerificationMethodANDCombinations user may be required to perform in order to pass user verification, e.g User need to pass fingerprint, or faceprint, or password and palm print, etc.</para>
+    ///     <para>
+    ///         If this entry is missing, any user verification method could be implemented - including "none", "presence_internal" and other methods - including methods not formally defined in the FIDO Registry
+    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>. Depending on the "protocolFamily", the authentication assertion might contain further details.
+    ///     </para>
     ///     <para>
     ///         Consider this userVerificationDetails example:
     ///         <code>
@@ -173,7 +185,7 @@ public class MetadataStatement
     /// </param>
     /// <param name="keyProtection">
     ///     The list of key protection types supported by the authenticator. Must be set to the complete list of the supported KEY_PROTECTION_ constant case-sensitive string names defined in the FIDO Registry of Predefined Values
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> in section "Key Protection Types" e.g. "secure_element". Each value MUST NOT be empty.
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a> in section "Key Protection Types" e.g. "secure_element". Each value MUST NOT be empty.
     /// </param>
     /// <param name="isKeyRestricted">
     ///     This entry is set to true, if the Uauth private key is restricted by the authenticator to only sign valid FIDO signature assertions. This entry is set to false, if the authenticator doesn't restrict the Uauth key to only sign valid FIDO signature
@@ -189,7 +201,7 @@ public class MetadataStatement
     /// </param>
     /// <param name="matcherProtection">
     ///     The list of matcher protections supported by the authenticator. Must be set to the complete list of the supported MATCHER_PROTECTION constant case-sensitive string names defined in the FIDO Registry of Predefined Values
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>. See section "Matcher Protection Types", e.g. "on_chip". This value MUST NOT be empty.
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>. See section "Matcher Protection Types", e.g. "on_chip". This value MUST NOT be empty.
     /// </param>
     /// <param name="cryptoStrength">
     ///     The authenticator's overall claimed cryptographic strength in bits (sometimes also called security strength or security level). If this value is absent, the cryptographic strength is unknown. If the cryptographic strength of one of the involved
@@ -198,14 +210,14 @@ public class MetadataStatement
     /// <param name="attachmentHint">
     ///     <para>
     ///         The list of supported attachment hints describing the method(s) by which the authenticator communicates with the FIDO user device. Must be set to the complete list of the supported ATTACHMENT_HINT constant case-sensitive string names defined in the FIDO Registry of
-    ///         Predefined Values <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>. See section "Authenticator Attachment Hints", e.g. "nfc".
+    ///         Predefined Values <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>. See section "Authenticator Attachment Hints", e.g. "nfc".
     ///     </para>
     ///     <para>This value MUST NOT be empty.</para>
     /// </param>
     /// <param name="tcDisplay">
     ///     <para>
     ///         The list of supported transaction confirmation display capabilities. Must be set to include a valid combination, as specified in FIDO Registry of Predefined Values
-    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> section "Transaction Confirmation Display Types", of the supported TRANSACTION_CONFIRMATION_DISPLAY constant case-sensitive string names e.g. "any", "hardware".
+    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a> section "Transaction Confirmation Display Types", of the supported TRANSACTION_CONFIRMATION_DISPLAY constant case-sensitive string names e.g. "any", "hardware".
     ///     </para>
     ///     <para>This value MUST be empty, if transaction confirmation is not supported by the authenticator.</para>
     /// </param>
@@ -256,19 +268,13 @@ public class MetadataStatement
     /// </param>
     /// <param name="providerLogoLight">
     ///     A data: url <a href="https://www.rfc-editor.org/rfc/rfc2397.html">[RFC2397]</a> encoded <a href="https://www.w3.org/TR/SVG11/">[SVG11]</a> light mode icon for the provider (e.g., logomark of the passkey provider). The SVG MUST meet all of the requirements defined in
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
     /// </param>
     /// <param name="providerLogoDark">
     ///     A data: url <a href="https://www.rfc-editor.org/rfc/rfc2397.html">[RFC2397]</a> encoded <a href="https://www.w3.org/TR/SVG11/">[SVG11]</a> dark mode icon for the provider (e.g., logomark of the passkey provider). The SVG MUST meet all of the requirements defined in
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
     /// </param>
     /// <param name="supportedExtensions">List of extensions supported by the authenticator.</param>
-    /// <param name="keyScope">
-    ///     <para>Scope of keys generated and maintained by this authenticator model. When this field is absent or set to "public-key-credential-source", this authenticator only generates and maintains "main" FIDO credentials (and not supplemental public keys).</para>
-    ///     <para>When set to "device-spk", this authenticator only generates and maintains device-scoped supplemental public keys that are included in the supplemental public keys (SPK) extension.</para>
-    ///     <para>When set to "provider-spk", this authenticator only generates and maintains provider-scoped supplemental public keys that are included in the supplemental public keys (SPK) extension.</para>
-    ///     <para>Seeing keys generated and maintained by this authenticator model in an unexpected location (main credential, supplemental public keys extension confusion) is an indication of malicious authenticator behavior and should be rejected.</para>
-    /// </param>
     /// <param name="multiDeviceCredentialSupport">
     ///     <para>
     ///         When set to "unsupported" it means that all private keys relating to the <a href="https://www.w3.org/TR/webauthn-3/#public-key-credential-source">Public Key Credential Source [WebAuthn]</a> are designed to stay within the authenticator boundary. Consequently, the
@@ -282,14 +288,15 @@ public class MetadataStatement
     /// <param name="authenticatorGetInfo">
     ///     <para>Describes supported versions, extensions, AAGUID of the device and its capabilities.</para>
     ///     <para>
-    ///         The information is the same reported by an authenticator when invoking the 'authenticatorGetInfo' method, see <a href="https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html#authenticatorGetInfo">[FIDOCTAP]</a>.
+    ///         The information is the same reported by an authenticator when invoking the 'authenticatorGetInfo' method, see
+    ///         <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorGetInfo">[FIDOCTAP]</a>.
     ///     </para>
     /// </param>
     /// <param name="cxConfigURL">
-    ///     <para>Specifies the URL for retrieving the configuration details for the credential export protocol (CXP).</para>
+    ///     <para>Specifies the URL for retrieving the configuration details for credential exchange (CX).</para>
     ///     <para>
-    ///         When importing credentials, the passkey provider to export the credential might retrieve the configuration details for the credential export protocol in order to provide additional security. More details can be found in Credential Export Protocol specification that can
-    ///         be found on the FIDO <a href="https://fidoalliance.org/specifications-credential-exchange-specifications/">Credential Exchange Specifications</a> web page.
+    ///         When exchanging credentials, the passkey provider to export the credential might retrieve the credential exchange configuration details of the importing provider in order to provide additional security. More details can be found in Credential Exchange Protocol
+    ///         specification that can be found on the FIDO <a href="https://fidoalliance.org/specifications-credential-exchange-specifications/">Credential Exchange Specifications</a> web page.
     ///     </para>
     /// </param>
     public MetadataStatement(
@@ -307,7 +314,7 @@ public class MetadataStatement
         AuthenticationAlgorithm[] authenticationAlgorithms,
         PublicKeyRepresentationFormat[] publicKeyAlgAndEncodings,
         AuthenticatorAttestationType[] attestationTypes,
-        VerificationMethodDescriptor[][] userVerificationDetails,
+        VerificationMethodDescriptor[][]? userVerificationDetails,
         KeyProtectionType[] keyProtection,
         bool? isKeyRestricted,
         bool? isFreshUserVerificationRequired,
@@ -324,7 +331,6 @@ public class MetadataStatement
         string? providerLogoLight,
         string? providerLogoDark,
         ExtensionDescriptor[]? supportedExtensions,
-        string? keyScope,
         string? multiDeviceCredentialSupport,
         AuthenticatorGetInfo? authenticatorGetInfo,
         string? cxConfigURL)
@@ -360,7 +366,6 @@ public class MetadataStatement
         ProviderLogoLight = providerLogoLight;
         ProviderLogoDark = providerLogoDark;
         SupportedExtensions = supportedExtensions;
-        KeyScope = keyScope;
         MultiDeviceCredentialSupport = multiDeviceCredentialSupport;
         AuthenticatorGetInfo = authenticatorGetInfo;
         CxConfigUrl = cxConfigURL;
@@ -428,7 +433,7 @@ public class MetadataStatement
     /// <summary>
     ///     <para>Earliest (i.e. lowest) trustworthy authenticatorVersion meeting the requirements specified in this metadata statement.</para>
     ///     <para>
-    ///         Adding new StatusReport entries with status UPDATE_AVAILABLE to the metadata BLOB object <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html">[FIDOMetadataService]</a> MUST also change this authenticatorVersion if the update fixes
+    ///         Adding new StatusReport entries with status UPDATE_AVAILABLE to the metadata BLOB object <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html">[FIDOMetadataService]</a> MUST also change this authenticatorVersion if the update fixes
     ///         severe security issues, e.g. the ones reported by preceding StatusReport entries with status code USER_VERIFICATION_BYPASS,ATTESTATION_KEY_COMPROMISE,USER_KEY_REMOTE_COMPROMISE,USER_KEY_PHYSICAL_COMPROMISE,REVOKED.
     ///     </para>
     ///     <para>
@@ -436,8 +441,10 @@ public class MetadataStatement
     ///         entry, than any firmware version lower (older) than the one specified in the metadata statement is assumed to be vulnerable.
     ///     </para>
     ///     <para>
-    ///         The specified version should equal the value of the 'firmwareVersion' member of the authenticatorGetInfo response. If present, see <a href="https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html">[FIDOCTAP]</a>.
+    ///         The specified version should equal the value of the 'firmwareVersion' member of the authenticatorGetInfo response. If present, see
+    ///         <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html">[FIDOCTAP]</a>.
     ///     </para>
+    ///     <para>The firmware version of the authenticator providing the attestation can be found in the attestation certificate in extension id-fido-gen-ce-fw-version (OID 1.3.6.1.4.1.45724.1.1.5).</para>
     /// </summary>
     public ulong AuthenticatorVersion { get; }
 
@@ -493,6 +500,12 @@ public class MetadataStatement
     ///                         <item>
     ///                             <description>major version 1, minor version 1 for CTAP 2.1</description>
     ///                         </item>
+    ///                         <item>
+    ///                             <description>major version 1, minor version 2 reserved, CTAP 2.2 was skipped</description>
+    ///                         </item>
+    ///                         <item>
+    ///                             <description>major version 1, minor version 3 for CTAP 2.3</description>
+    ///                         </item>
     ///                     </list>
     ///                 </description>
     ///             </item>
@@ -505,7 +518,7 @@ public class MetadataStatement
     ///     <para>The list of authentication algorithms supported by the authenticator.</para>
     ///     <para>
     ///         Must be set to the complete list of the supported ALG_ constant case-sensitive string names defined in the FIDO Registry of Predefined Values
-    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html#authentication-algorithms">[FIDORegistry] (section "Authentication Algorithms")</a> if the authenticator supports multiple algorithms. E.g. "secp256r1_ecdsa_sha256_raw",
+    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#authentication-algorithms">[FIDORegistry] (section "Authentication Algorithms")</a> if the authenticator supports multiple algorithms. E.g. "secp256r1_ecdsa_sha256_raw",
     ///         "secp256r1_ecdsa_sha256_der".
     ///     </para>
     ///     <para>The list MUST NOT be empty.</para>
@@ -526,7 +539,7 @@ public class MetadataStatement
     ///                 <b>FIDO U2F Authenticators</b>
     ///             </term>
     ///             <description>
-    ///                 FIDO U2F only supports one signature algorithm and encoding: ALG_SIGN_SECP256R1_ECDSA_SHA256_RAW <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>.
+    ///                 FIDO U2F only supports one signature algorithm and encoding: ALG_SIGN_SECP256R1_ECDSA_SHA256_RAW <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>.
     ///             </description>
     ///         </item>
     ///     </list>
@@ -560,7 +573,7 @@ public class MetadataStatement
     ///                 <b>FIDO U2F Authenticators</b>
     ///             </term>
     ///             <description>
-    ///                 FIDO U2F only supports one public key encoding: ALG_KEY_ECC_X962_RAW <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>.
+    ///                 FIDO U2F only supports one public key encoding: ALG_KEY_ECC_X962_RAW <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>.
     ///             </description>
     ///         </item>
     ///     </list>
@@ -568,7 +581,7 @@ public class MetadataStatement
     public PublicKeyRepresentationFormat[] PublicKeyAlgAndEncodings { get; }
 
     /// <summary>
-    ///     Must be set to the complete list of the supported ATTESTATION_ constant case-sensitive string names. See section "Authenticator Attestation Types" of FIDO Registry <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>
+    ///     Must be set to the complete list of the supported ATTESTATION_ constant case-sensitive string names. See section "Authenticator Attestation Types" of FIDO Registry <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>
     ///     for all available attestation formats, e.g. "basic_full".
     /// </summary>
 
@@ -577,6 +590,10 @@ public class MetadataStatement
     /// <summary>
     ///     <para>A list of alternative VerificationMethodANDCombinations.</para>
     ///     <para>userVerificationDetails is a two dimensional array, that informs RP what VerificationMethodANDCombinations user may be required to perform in order to pass user verification, e.g User need to pass fingerprint, or faceprint, or password and palm print, etc.</para>
+    ///     <para>
+    ///         If this entry is missing, any user verification method could be implemented - including "none", "presence_internal" and other methods - including methods not formally defined in the FIDO Registry
+    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>. Depending on the "protocolFamily", the authentication assertion might contain further details.
+    ///     </para>
     ///     <para>
     ///         Consider this userVerificationDetails example:
     ///         <code>
@@ -617,15 +634,15 @@ public class MetadataStatement
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         FIDO2 "Security Keys" will typically support "none", or "presence_internal", or "passcode_external" <a href="https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html">[FIDOCTAP]</a>
+    ///         FIDO2 "Security Keys" will typically support "none", or "presence_internal", or "passcode_external" <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html">[FIDOCTAP]</a>
     ///     </para>
     ///     <para>The FIDO Client will typically prevent "none" (silent authentication) and "passcode_external" (without "presence_internal") from being used in practice</para>
     /// </remarks>
-    public VerificationMethodDescriptor[][] UserVerificationDetails { get; }
+    public VerificationMethodDescriptor[][]? UserVerificationDetails { get; }
 
     /// <summary>
     ///     The list of key protection types supported by the authenticator. Must be set to the complete list of the supported KEY_PROTECTION_ constant case-sensitive string names defined in the FIDO Registry of Predefined Values
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> in section "Key Protection Types" e.g. "secure_element". Each value MUST NOT be empty.
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a> in section "Key Protection Types" e.g. "secure_element". Each value MUST NOT be empty.
     /// </summary>
     /// <remarks>
     ///     The keyProtection specified here denotes the effective security of the attestation key and Uauth private key and the effective trustworthiness of the attested attributes in the "sign assertion". Effective security means that key extraction or injecting malicious attested
@@ -657,7 +674,7 @@ public class MetadataStatement
 
     /// <summary>
     ///     The list of matcher protections supported by the authenticator. Must be set to the complete list of the supported MATCHER_PROTECTION constant case-sensitive string names defined in the FIDO Registry of Predefined Values
-    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>. See section "Matcher Protection Types", e.g. "on_chip". This value MUST NOT be empty.
+    ///     <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>. See section "Matcher Protection Types", e.g. "on_chip". This value MUST NOT be empty.
     /// </summary>
     /// <remarks>
     ///     <para>If multiple user verification methods ("matchers") are implemented, then this value must reflect the weakest implementation of all user verification methods.</para>
@@ -681,7 +698,7 @@ public class MetadataStatement
     /// <summary>
     ///     <para>
     ///         The list of supported attachment hints describing the method(s) by which the authenticator communicates with the FIDO user device. Must be set to the complete list of the supported ATTACHMENT_HINT constant case-sensitive string names defined in the FIDO Registry of
-    ///         Predefined Values <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a>. See section "Authenticator Attachment Hints", e.g. "nfc".
+    ///         Predefined Values <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a>. See section "Authenticator Attachment Hints", e.g. "nfc".
     ///     </para>
     ///     <para>This value MUST NOT be empty.</para>
     /// </summary>
@@ -693,7 +710,7 @@ public class MetadataStatement
     ///     <para>For FIDO2 the values of attachmentHint MUST correspond to the authenticatorGetInfo.transports if present.</para>
     ///     <para>
     ///         See the field authenticatorGetInfo for FIDO2 authenticators; which expose similar information in the 'transports' member when invoking the 'authenticatorGetInfo' method. See
-    ///         <a href="https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html">[FIDOCTAP]</a>
+    ///         <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html">[FIDOCTAP]</a>
     ///     </para>
     /// </remarks>
     public AuthenticatorAttachmentHint[]? AttachmentHint { get; }
@@ -701,7 +718,7 @@ public class MetadataStatement
     /// <summary>
     ///     <para>
     ///         The list of supported transaction confirmation display capabilities. Must be set to include a valid combination, as specified in FIDO Registry of Predefined Values
-    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.1-ps-20191217.html">[FIDORegistry]</a> section "Transaction Confirmation Display Types", of the supported TRANSACTION_CONFIRMATION_DISPLAY constant case-sensitive string names e.g. "any", "hardware".
+    ///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html">[FIDORegistry]</a> section "Transaction Confirmation Display Types", of the supported TRANSACTION_CONFIRMATION_DISPLAY constant case-sensitive string names e.g. "any", "hardware".
     ///     </para>
     ///     <para>This value MUST be empty, if transaction confirmation is not supported by the authenticator.</para>
     /// </summary>
@@ -782,13 +799,13 @@ public class MetadataStatement
 
     /// <summary>
     ///     A data: url <a href="https://www.rfc-editor.org/rfc/rfc2397.html">[RFC2397]</a> encoded <a href="https://www.w3.org/TR/SVG11/">[SVG11]</a> light mode icon for the provider (e.g., logomark of the passkey provider). The SVG MUST meet all of the requirements defined in
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
     /// </summary>
     public string? ProviderLogoLight { get; }
 
     /// <summary>
     ///     A data: url <a href="https://www.rfc-editor.org/rfc/rfc2397.html">[RFC2397]</a> encoded <a href="https://www.w3.org/TR/SVG11/">[SVG11]</a> dark mode icon for the provider (e.g., logomark of the passkey provider). The SVG MUST meet all of the requirements defined in
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-svg-requirements">"SVG requirements"</a>. This icon is intended to be shown to users by RPs.
     /// </summary>
     public string? ProviderLogoDark { get; }
 
@@ -800,14 +817,6 @@ public class MetadataStatement
     ///     <para>For FIDO2 authenticators see authenticatorGetInfo.</para>
     /// </remarks>
     public ExtensionDescriptor[]? SupportedExtensions { get; }
-
-    /// <summary>
-    ///     <para>Scope of keys generated and maintained by this authenticator model. When this field is absent or set to "public-key-credential-source", this authenticator only generates and maintains "main" FIDO credentials (and not supplemental public keys).</para>
-    ///     <para>When set to "device-spk", this authenticator only generates and maintains device-scoped supplemental public keys that are included in the supplemental public keys (SPK) extension.</para>
-    ///     <para>When set to "provider-spk", this authenticator only generates and maintains provider-scoped supplemental public keys that are included in the supplemental public keys (SPK) extension.</para>
-    ///     <para>Seeing keys generated and maintained by this authenticator model in an unexpected location (main credential, supplemental public keys extension confusion) is an indication of malicious authenticator behavior and should be rejected.</para>
-    /// </summary>
-    public string? KeyScope { get; }
 
     /// <summary>
     ///     <para>
@@ -824,20 +833,27 @@ public class MetadataStatement
     /// <summary>
     ///     <para>Describes supported versions, extensions, AAGUID of the device and its capabilities.</para>
     ///     <para>
-    ///         The information is the same reported by an authenticator when invoking the 'authenticatorGetInfo' method, see <a href="https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html#authenticatorGetInfo">[FIDOCTAP]</a>.
+    ///         The information is the same reported by an authenticator when invoking the 'authenticatorGetInfo' method, see
+    ///         <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorGetInfo">[FIDOCTAP]</a>.
     ///     </para>
     /// </summary>
     /// <remarks>
-    ///     <para>This field MUST be present for FIDO 2 authenticators.</para>
+    ///     <para>
+    ///         This field MUST be present for FIDO2 authenticators that natively support FIDO CTAP, i.e., when protocolFamily is "fido2". Authenticators only implementing platform APIs shall not provide the field authenticatorGetInfo.
+    ///     </para>
     ///     <para>FIDO UAF and FIDO U2F authenticators do not support authenticatorGetInfo.</para>
+    ///     <para>
+    ///         The FIDO Alliance does not verify the certification status information in field certifications of the authenticatorGetInfo response. Authoritative information on the authenticator certification status is included in the StatusReport field of the respective
+    ///         Metadata entry <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html">[FIDOMetadataService]</a>.
+    ///     </para>
     /// </remarks>
     public AuthenticatorGetInfo? AuthenticatorGetInfo { get; }
 
     /// <summary>
-    ///     <para>Specifies the URL for retrieving the configuration details for the credential export protocol (CXP).</para>
+    ///     <para>Specifies the URL for retrieving the configuration details for credential exchange (CX).</para>
     ///     <para>
-    ///         When importing credentials, the passkey provider to export the credential might retrieve the configuration details for the credential export protocol in order to provide additional security. More details can be found in Credential Export Protocol specification that can
-    ///         be found on the FIDO <a href="https://fidoalliance.org/specifications-credential-exchange-specifications/">Credential Exchange Specifications</a> web page.
+    ///         When exchanging credentials, the passkey provider to export the credential might retrieve the credential exchange configuration details of the importing provider in order to provide additional security. More details can be found in Credential Exchange Protocol
+    ///         specification that can be found on the FIDO <a href="https://fidoalliance.org/specifications-credential-exchange-specifications/">Credential Exchange Specifications</a> web page.
     ///     </para>
     /// </summary>
     public string? CxConfigUrl { get; }
