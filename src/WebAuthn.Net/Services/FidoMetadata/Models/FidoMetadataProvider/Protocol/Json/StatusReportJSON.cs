@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protoco
 ///     Status Report
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#sctn-stat-rep">FIDO Metadata Service - StatusReport dictionary</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-stat-rep">FIDO Metadata Service - StatusReport dictionary</a>
 /// </remarks>
 // ReSharper disable once InconsistentNaming
 public class StatusReportJSON
@@ -38,11 +38,11 @@ public class StatusReportJSON
     /// <param name="sunsetDate">ISO-8601 formatted date since when the status wil expire, if applicable. If no date is given, the status is assumed to not have a scheduled expiry.</param>
     /// <param name="fipsRevision">
     ///     The revision number of the FIPS 140 specification, e.g. "3" in the case of FIPS 140-3. This entry MUST be present if and only if the
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*.
     /// </param>
     /// <param name="fipsPhysicalSecurityLevel">
     ///     In the case the status represents a FIPS certification, this field contains the "physical security level" of the FIPS certification. This entry MUST be present if and only if the
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
     /// </param>
     [JsonConstructor]
     public StatusReportJSON(
@@ -100,7 +100,7 @@ public class StatusReportJSON
     ///         For example, if the status would be USER_VERIFICATION_BYPASS, the authenticatorVersion indicates the vulnerable firmware version of the authenticator. Similarly, if the status would be UPDATE_AVAILABLE, the authenticatorVersion indicates the updated firmware version
     ///         that is available now. If the status would be SELF_ASSERTION_SUBMITTED, the authenticatorVersion indicates the firmware version that the self assertion was based on.
     ///     </para>
-    ///     <para>An authenticator’s current firmware version can be found in the attestation certificate in extension id-fido-gen-ce-fw-version (OID 1.3.6.1.4.1.45724.1.1.5).</para>
+    ///     <para>The firmware version of the authenticator providing the attestation can be found in the attestation certificate in extension id-fido-gen-ce-fw-version (OID 1.3.6.1.4.1.45724.1.1.5).</para>
     /// </remarks>
     [JsonPropertyName("authenticatorVersion")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -110,7 +110,7 @@ public class StatusReportJSON
     ///     Base64-encoded <a href="https://www.rfc-editor.org/rfc/rfc4648.html">[RFC4648]</a> (not base64url!) DER <a href="https://www.itu.int/rec/T-REC-X.690-200811-S">[ITU-X690-2008]</a> PKIX certificate value related to the current status, if applicable.
     /// </summary>
     /// <remarks>
-    ///     As an example, this could be an Batch Attestation Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (USER_KEY_REMOTE_COMPROMISE).
+    ///     As an example, this could be an Batch Attestation Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (USER_KEY_REMOTE_COMPROMISE).
     /// </remarks>
     [JsonPropertyName("batchCertificate")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -121,7 +121,7 @@ public class StatusReportJSON
     ///     not be present if field "batchCertificate" is present.
     /// </summary>
     /// <remarks>
-    ///     As an example, this could be an Attestation Root Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (ATTESTATION_KEY_COMPROMISE).
+    ///     As an example, this could be an Attestation Root Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (ATTESTATION_KEY_COMPROMISE).
     /// </remarks>
     [JsonPropertyName("certificate")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -184,7 +184,8 @@ public class StatusReportJSON
     public string? SunsetDate { get; }
 
     /// <summary>
-    ///     The revision number of the FIPS 140 specification, e.g. "3" in the case of FIPS 140-3. This entry MUST be present if and only if the <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of
+    ///     The revision number of the FIPS 140 specification, e.g. "3" in the case of FIPS 140-3. This entry MUST be present if and only if the <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one
+    ///     of
     ///     FIPS140_CERTIFIED_L*.
     /// </summary>
     [JsonPropertyName("fipsRevision")]
@@ -193,7 +194,7 @@ public class StatusReportJSON
 
     /// <summary>
     ///     In the case the status represents a FIPS certification, this field contains the "physical security level" of the FIPS certification. This entry MUST be present if and only if the
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
     /// </summary>
     [JsonPropertyName("fipsPhysicalSecurityLevel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

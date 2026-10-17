@@ -8,21 +8,21 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 ///     BiometricStatusReport dictionary
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#sctn-bio-stat-rep">FIDO Metadata Service - BiometricStatusReport dictionary</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-bio-stat-rep">FIDO Metadata Service - BiometricStatusReport dictionary</a>
 /// </remarks>
 public class BiometricStatusReport
 {
     /// <summary>
     ///     Constructs <see cref="BiometricStatusReport" />.
     /// </summary>
-    /// <param name="certLevel">Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v4.1-fd-20250106.html">[FIDOBiometricsRequirements]</a>.</param>
+    /// <param name="certLevel">Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v5.0-rd02-20260901.html">[FIDOBiometricsRequirements]</a>.</param>
     /// <param name="modality">Single USER_VERIFY constant, representing biometric modality.</param>
     /// <param name="effectiveDate">Date since when the certLevel achieved, if applicable. If no date is given, the status is assumed to be effective while present.</param>
     /// <param name="certificationDescriptor">Describes the externally visible aspects of the Biometric Certification evaluation.</param>
     /// <param name="certificateNumber">The unique identifier for the issued Biometric Certification.</param>
     /// <param name="certificationPolicyVersion">The version of the Biometric Certification Policy the implementation is Certified to, e.g. "1.0.0".</param>
     /// <param name="certificationRequirementsVersion">
-    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
+    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
     /// </param>
     /// <exception cref="ArgumentException"><paramref name="modality" /> doesn't contain a single USER_VERIFY constant</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="modality" /> contains a value that is not defined in <see cref="UserVerificationMethod" /></exception>
@@ -68,7 +68,7 @@ public class BiometricStatusReport
     }
 
     /// <summary>
-    ///     Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v4.1-fd-20250106.html">[FIDOBiometricsRequirements]</a>.
+    ///     Achieved level of the biometric certification of this biometric component of the authenticator <a href="https://fidoalliance.org/specs/biometric/requirements/Biometrics-Requirements-v5.0-rd02-20260901.html">[FIDOBiometricsRequirements]</a>.
     /// </summary>
     public ushort CertLevel { get; }
 
@@ -101,7 +101,7 @@ public class BiometricStatusReport
     public string? CertificationPolicyVersion { get; }
 
     /// <summary>
-    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
+    ///     The version of the Biometric Requirements <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#biblio-fidobiometricsrequirements">[FIDOBiometricsRequirements]</a> the implementation is certified to, e.g. "1.0.0".
     /// </summary>
     public string? CertificationRequirementsVersion { get; }
 }

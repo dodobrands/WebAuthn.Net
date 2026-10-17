@@ -9,7 +9,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-ps-20220523.html#user-verification-methods">FIDO Registry of Predefined Values - User Verification Methods</a>
+///         <a href="https://fidoalliance.org/specs/common-specs/fido-registry-v2.3-ps-20260105.html#user-verification-methods">FIDO Registry of Predefined Values - User Verification Methods</a>
 ///     </para>
 /// </remarks>
 [Flags]

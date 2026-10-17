@@ -10,7 +10,7 @@ namespace WebAuthn.Net.DSL.Fakes;
 
 public class FakeFidoMetadataDelegatingHandler : DelegatingHandler
 {
-    private static readonly byte[] FakeResponse = Encoding.UTF8.GetBytes(EmbeddedResourceProvider.GetString("WebAuthn.Net.DSL.Fakes.FakeResources.FakeFidoMetadata.txt"));
+    private static readonly byte[] BlobResponse = Encoding.UTF8.GetBytes(EmbeddedResourceProvider.GetString("WebAuthn.Net.DSL.Fakes.FakeResources.blob.jwt"));
     private bool _returnNotFoundPermanent;
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -40,7 +40,7 @@ public class FakeFidoMetadataDelegatingHandler : DelegatingHandler
     private static HttpResponseMessage CreateFileResponse()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
-        response.Content = new ByteArrayContent(FakeResponse);
+        response.Content = new ByteArrayContent(BlobResponse);
         response.Content.Headers.ContentType = new("application/octet-stream");
         response.Content.Headers.ContentDisposition = ContentDispositionHeaderValue.Parse("attachment; filename=blob.jwt");
         return response;

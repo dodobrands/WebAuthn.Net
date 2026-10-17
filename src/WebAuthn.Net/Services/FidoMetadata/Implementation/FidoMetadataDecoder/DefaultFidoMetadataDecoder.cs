@@ -2,10 +2,13 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 using Version = WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Version;
@@ -15,9 +18,30 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 /// <summary>
 ///     Default implementation of <see cref="IFidoMetadataDecoder" />.
 /// </summary>
+/// <remarks>
+///     <para>
+///         The entries of the blob are decoded independently of each other, as required by the
+///         <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-mds-blob-proc-rules">Metadata BLOB object processing rules</a>.
+///         An entry that is missing a required member, contains a value that cannot be decoded, or contains an unknown value of an enumerated type is skipped as a whole (so that no negative information about an authenticator can be lost by dropping only a part of the entry),
+///         and a warning is logged with the identifier of the skipped entry. Skipped entries do not affect the decoding of other entries.
+///     </para>
+///     <para>
+///         The only exception is the <c>status</c> member of a status report: according to the
+///         <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-authnr-stat">AuthenticatorStatus enum</a> section, FIDO Servers MUST silently ignore all unknown <see cref="AuthenticatorStatus" /> values.
+///         Therefore, a status report with a status unknown to the library is ignored, and the rest of the entry is decoded as usual.
+///     </para>
+///     <para>
+///         Skipped entries and ignored status reports are not only logged, but also counted by <see cref="IFidoMetadataCounters" />, so that the problems of decoding the blob are visible in the monitoring.
+///     </para>
+///     <para>
+///         The decoding of the whole blob fails only if the payload itself is invalid (for example, the <c>entries</c> member is missing) or if the blob contains entries, but none of them could be decoded.
+///     </para>
+/// </remarks>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
 {
+    private const string EntryIdentifierPlaceholder = "<unknown>";
+
     /// <summary>
     ///     Constructs <see cref="DefaultFidoMetadataDecoder" />
     /// </summary>
@@ -30,6 +54,9 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
     /// <param name="matcherProtectionTypeSerializer">Serializer for the <see cref="MatcherProtectionType" /> enum.</param>
     /// <param name="authenticatorAttachmentHintSerializer">Serializer for the <see cref="AuthenticatorAttachmentHint" /> enum.</param>
     /// <param name="transactionConfirmationDisplayTypeSerializer">Serializer for the <see cref="TransactionConfirmationDisplayType" /> enum.</param>
+    /// <param name="authenticatorStatusSerializer">Serializer for the <see cref="AuthenticatorStatus" /> enum.</param>
+    /// <param name="counters">Counters for FIDO Metadata Service metrics.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataDecoder(
         IEnumMemberAttributeSerializer<UserVerificationMethod> userVerificationMethodSerializer,
@@ -40,7 +67,10 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         IEnumMemberAttributeSerializer<KeyProtectionType> keyProtectionTypeSerializer,
         IEnumMemberAttributeSerializer<MatcherProtectionType> matcherProtectionTypeSerializer,
         IEnumMemberAttributeSerializer<AuthenticatorAttachmentHint> authenticatorAttachmentHintSerializer,
-        IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType> transactionConfirmationDisplayTypeSerializer)
+        IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType> transactionConfirmationDisplayTypeSerializer,
+        IEnumMemberAttributeSerializer<AuthenticatorStatus> authenticatorStatusSerializer,
+        IFidoMetadataCounters counters,
+        ILogger<DefaultFidoMetadataDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(userVerificationMethodSerializer);
         ArgumentNullException.ThrowIfNull(protocolFamilySerializer);
@@ -51,6 +81,9 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         ArgumentNullException.ThrowIfNull(matcherProtectionTypeSerializer);
         ArgumentNullException.ThrowIfNull(authenticatorAttachmentHintSerializer);
         ArgumentNullException.ThrowIfNull(transactionConfirmationDisplayTypeSerializer);
+        ArgumentNullException.ThrowIfNull(authenticatorStatusSerializer);
+        ArgumentNullException.ThrowIfNull(counters);
+        ArgumentNullException.ThrowIfNull(logger);
         UserVerificationMethodSerializer = userVerificationMethodSerializer;
         ProtocolFamilySerializer = protocolFamilySerializer;
         AuthenticationAlgorithmSerializer = authenticationAlgorithmSerializer;
@@ -60,6 +93,9 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         MatcherProtectionTypeSerializer = matcherProtectionTypeSerializer;
         AuthenticatorAttachmentHintSerializer = authenticatorAttachmentHintSerializer;
         TransactionConfirmationDisplayTypeSerializer = transactionConfirmationDisplayTypeSerializer;
+        AuthenticatorStatusSerializer = authenticatorStatusSerializer;
+        Counters = counters;
+        Logger = logger;
     }
 
     /// <summary>
@@ -107,64 +143,189 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
     /// </summary>
     protected IEnumMemberAttributeSerializer<TransactionConfirmationDisplayType> TransactionConfirmationDisplayTypeSerializer { get; }
 
+    /// <summary>
+    ///     Serializer for the <see cref="AuthenticatorStatus" /> enum.
+    /// </summary>
+    protected IEnumMemberAttributeSerializer<AuthenticatorStatus> AuthenticatorStatusSerializer { get; }
+
+    /// <summary>
+    ///     Counters for FIDO Metadata Service metrics.
+    /// </summary>
+    protected IFidoMetadataCounters Counters { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultFidoMetadataDecoder> Logger { get; }
+
     /// <inheritdoc />
     public virtual Result<MetadataBlobPayload> Decode(MetadataBLOBPayloadJSON json)
     {
+        Counters.IncrementDecodeStart();
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (json is null)
         {
+            Counters.IncrementDecodeEnd(false);
             return Result<MetadataBlobPayload>.Fail();
         }
 
-        if (!TryDecodeIso8601Date(json.NextUpdate, out var nextUpdate))
+        // https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-metadatablobpayload-entries
+        // List of zero or more MetadataBLOBPayloadEntry objects.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (json.Entries is null)
         {
+            Logger.WarnEntriesMissing(json.No);
+            Counters.IncrementDecodeEnd(false);
             return Result<MetadataBlobPayload>.Fail();
         }
 
-        if (!TryDecodeEntries(json.Entries, out var entries))
+        // https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-metadatablobpayload-nextupdate
+        // The use of the "nextUpdate" field is discouraged and the field will be removed in the future.
+        // FIDO servers should ensure this field is not required by their code.
+        DateTimeOffset? nextUpdate = null;
+        if (json.NextUpdate is not null && !TryDecodeIso8601Date(json.NextUpdate, out nextUpdate))
         {
+            Logger.WarnNextUpdateIgnored(json.No, json.NextUpdate);
+            nextUpdate = null;
+        }
+
+        // https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-mds-blob-proc-rules
+        // Iterate through the individual entries (of type MetadataBLOBPayloadEntry).
+        // It is possible that an MDS entry representing an authenticator disappears in a future update of the BLOB.
+        // This should not affect the processing of any other MDS entries.
+        var entries = DecodeEntries(json.Entries);
+        if (json.Entries.Length > 0 && entries.Length == 0)
+        {
+            // If the blob contains entries, but none of them could be decoded, the problem is not in the individual entries,
+            // so the whole blob is rejected to prevent replacing the previously ingested metadata with an empty set.
+            Logger.WarnNoEntriesDecoded(json.No, json.Entries.Length);
+            Counters.IncrementDecodeEnd(false);
             return Result<MetadataBlobPayload>.Fail();
+        }
+
+        if (entries.Length != json.Entries.Length)
+        {
+            Logger.InfoEntriesSkipped(json.No, entries.Length, json.Entries.Length, json.Entries.Length - entries.Length);
         }
 
         var result = new MetadataBlobPayload(
             json.LegalHeader,
             json.No,
-            nextUpdate.Value,
+            nextUpdate,
             entries);
+        Counters.IncrementDecodeEnd(true);
         return Result<MetadataBlobPayload>.Success(result);
     }
 
-    private bool TryDecodeEntries(MetadataBLOBPayloadEntryJSON[] entries, [NotNullWhen(true)] out MetadataBlobPayloadEntry[]? result)
+    private MetadataBlobPayloadEntry[] DecodeEntries(MetadataBLOBPayloadEntryJSON[] entries)
     {
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (entries is null)
+        var result = new List<MetadataBlobPayloadEntry>(entries.Length);
+        for (var i = 0; i < entries.Length; i++)
         {
+            if (TryDecodeEntryWithoutExceptions(i, entries[i], out var decodedEntry))
+            {
+                result.Add(decodedEntry);
+            }
+        }
+
+        return result.ToArray();
+    }
+
+    // The decoded models validate their arguments in the constructors, therefore the decoding of a malformed entry
+    // can end with an exception even if all the inputs are checked beforehand. A single malformed entry must never
+    // interrupt the decoding of the other entries nor break the ingestion of the whole blob.
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
+    private bool TryDecodeEntryWithoutExceptions(int index, MetadataBLOBPayloadEntryJSON entry, [NotNullWhen(true)] out MetadataBlobPayloadEntry? result)
+    {
+        var identifier = GetEntryIdentifier(entry);
+        try
+        {
+            if (TryDecodeEntry(index, identifier, entry, out result, out var failedMember))
+            {
+                return true;
+            }
+
+            Logger.WarnEntrySkipped(index, identifier, failedMember);
+            Counters.IncrementEntrySkipped(NormalizeMemberPath(failedMember));
+            return false;
+        }
+        catch (Exception exception)
+        {
+            Logger.WarnEntrySkippedDueToException(exception, index, identifier);
+            Counters.IncrementEntrySkippedDueToException();
             result = null;
             return false;
         }
-
-        result = new MetadataBlobPayloadEntry[entries.Length];
-        for (var i = 0; i < entries.Length; i++)
-        {
-            var entry = entries[i];
-            if (!TryDecodeEntry(entry, out var decodedEntry))
-            {
-                result = null;
-                return false;
-            }
-
-            result[i] = decodedEntry;
-        }
-
-        return true;
     }
 
-    private bool TryDecodeEntry(MetadataBLOBPayloadEntryJSON entry, [NotNullWhen(true)] out MetadataBlobPayloadEntry? result)
+    // Removes array indices from the path of a member (for example, "statusReports[3].effectiveDate" becomes "statusReports[].effectiveDate"),
+    // so that the set of values used as a metric tag stays bounded by the schema of the blob instead of growing with the size of its arrays.
+    private static string NormalizeMemberPath(string memberPath)
+    {
+        if (!memberPath.Contains('[', StringComparison.Ordinal))
+        {
+            return memberPath;
+        }
+
+        var result = new StringBuilder(memberPath.Length);
+        var insideIndex = false;
+        foreach (var symbol in memberPath)
+        {
+            if (insideIndex)
+            {
+                if (symbol == ']')
+                {
+                    insideIndex = false;
+                    result.Append(symbol);
+                }
+
+                continue;
+            }
+
+            if (symbol == '[')
+            {
+                insideIndex = true;
+            }
+
+            result.Append(symbol);
+        }
+
+        return result.ToString();
+    }
+
+    private static string GetEntryIdentifier(MetadataBLOBPayloadEntryJSON entry)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (entry is null)
+        {
+            return EntryIdentifierPlaceholder;
+        }
+
+        if (!string.IsNullOrEmpty(entry.Aaguid))
+        {
+            return entry.Aaguid;
+        }
+
+        if (!string.IsNullOrEmpty(entry.Aaid))
+        {
+            return entry.Aaid;
+        }
+
+        if (entry.AttestationCertificateKeyIdentifiers?.Length > 0 && !string.IsNullOrEmpty(entry.AttestationCertificateKeyIdentifiers[0]))
+        {
+            return entry.AttestationCertificateKeyIdentifiers[0];
+        }
+
+        return EntryIdentifierPlaceholder;
+    }
+
+    private bool TryDecodeEntry(int index, string identifier, MetadataBLOBPayloadEntryJSON entry, [NotNullWhen(true)] out MetadataBlobPayloadEntry? result, [NotNullWhen(false)] out string? failedMember)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (entry is null)
         {
             result = null;
+            failedMember = "entry";
             return false;
         }
 
@@ -174,6 +335,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             if (!Guid.TryParse(entry.Aaguid, out var parsedAaguid))
             {
                 result = null;
+                failedMember = "aaguid";
                 return false;
             }
 
@@ -183,23 +345,23 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         if (entry.Aaguid is null && entry.Aaid is null && entry.AttestationCertificateKeyIdentifiers is null)
         {
             result = null;
+            failedMember = "aaid/aaguid/attestationCertificateKeyIdentifiers";
             return false;
         }
 
         byte[][]? attestationCertificateKeyIdentifiers = null;
-        if (entry.AttestationCertificateKeyIdentifiers is not null)
+        if (entry.AttestationCertificateKeyIdentifiers is not null && !TryDecodeAttestationCertificateKeyIdentifiers(entry.AttestationCertificateKeyIdentifiers, out attestationCertificateKeyIdentifiers))
         {
-            attestationCertificateKeyIdentifiers = new byte[entry.AttestationCertificateKeyIdentifiers.Length][];
-            for (var i = 0; i < entry.AttestationCertificateKeyIdentifiers.Length; i++)
-            {
-                attestationCertificateKeyIdentifiers[i] = Convert.FromHexString(entry.AttestationCertificateKeyIdentifiers[i]);
-            }
+            result = null;
+            failedMember = "attestationCertificateKeyIdentifiers";
+            return false;
         }
 
         MetadataStatement? metadataStatement = null;
-        if (entry.MetadataStatement is not null && !TryDecodeMetadataStatement(entry.MetadataStatement, out metadataStatement))
+        if (entry.MetadataStatement is not null && !TryDecodeMetadataStatement(entry.MetadataStatement, out metadataStatement, out var failedMetadataStatementMember))
         {
             result = null;
+            failedMember = $"metadataStatement.{failedMetadataStatementMember}";
             return false;
         }
 
@@ -207,18 +369,30 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         if (entry.BiometricStatusReports is not null && !TryDecodeBiometricStatusReports(entry.BiometricStatusReports, out biometricStatusReports))
         {
             result = null;
+            failedMember = "biometricStatusReports";
             return false;
         }
 
-        if (!TryDecodeStatusReports(entry.StatusReports, out var statusReports))
+        if (!TryDecodeStatusReports(index, identifier, entry.StatusReports, out var statusReports, out var failedStatusReportsMember))
         {
             result = null;
+            failedMember = failedStatusReportsMember;
             return false;
         }
 
         if (!TryDecodeIso8601Date(entry.TimeOfLastStatusChange, out var timeOfLastStatusChange))
         {
             result = null;
+            failedMember = "timeOfLastStatusChange";
+            return false;
+        }
+
+        // https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-metadatablobpayloadentry-roguelisthash
+        // This hash value MUST be present and non-empty whenever rogueListURL is present.
+        if (entry.RogueListURL is not null && string.IsNullOrEmpty(entry.RogueListHash))
+        {
+            result = null;
+            failedMember = "rogueListHash";
             return false;
         }
 
@@ -232,15 +406,17 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             timeOfLastStatusChange.Value,
             entry.RogueListURL,
             entry.RogueListHash);
+        failedMember = null;
         return true;
     }
 
-    private bool TryDecodeMetadataStatement(MetadataStatementJSON metadataStatement, [NotNullWhen(true)] out MetadataStatement? result)
+    private bool TryDecodeMetadataStatement(MetadataStatementJSON metadataStatement, [NotNullWhen(true)] out MetadataStatement? result, [NotNullWhen(false)] out string? failedMember)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (metadataStatement is null)
         {
             result = null;
+            failedMember = "metadataStatement";
             return false;
         }
 
@@ -250,6 +426,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             if (!Guid.TryParse(metadataStatement.Aaguid, out var parsedAaguid))
             {
                 result = null;
+                failedMember = "aaguid";
                 return false;
             }
 
@@ -257,60 +434,69 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         }
 
         byte[][]? attestationCertificateKeyIdentifiers = null;
-        if (metadataStatement.AttestationCertificateKeyIdentifiers is not null)
+        if (metadataStatement.AttestationCertificateKeyIdentifiers is not null && !TryDecodeAttestationCertificateKeyIdentifiers(metadataStatement.AttestationCertificateKeyIdentifiers, out attestationCertificateKeyIdentifiers))
         {
-            attestationCertificateKeyIdentifiers = new byte[metadataStatement.AttestationCertificateKeyIdentifiers.Length][];
-            for (var i = 0; i < metadataStatement.AttestationCertificateKeyIdentifiers.Length; i++)
-            {
-                attestationCertificateKeyIdentifiers[i] = Convert.FromHexString(metadataStatement.AttestationCertificateKeyIdentifiers[i]);
-            }
+            result = null;
+            failedMember = "attestationCertificateKeyIdentifiers";
+            return false;
         }
 
         if (!ProtocolFamilySerializer.TryDeserialize(metadataStatement.ProtocolFamily, out var protocolFamily))
         {
             result = null;
+            failedMember = "protocolFamily";
             return false;
         }
 
         if (!TryDecodeUpv(metadataStatement.Upv, out var upv))
         {
             result = null;
+            failedMember = "upv";
             return false;
         }
 
         if (!TryDecodeAuthenticationAlgorithms(metadataStatement.AuthenticationAlgorithms, out var authenticationAlgorithms))
         {
             result = null;
+            failedMember = "authenticationAlgorithms";
             return false;
         }
 
         if (!TryDecodePublicKeyAlgAndEncodings(metadataStatement.PublicKeyAlgAndEncodings, out var publicKeyAlgAndEncodings))
         {
             result = null;
+            failedMember = "publicKeyAlgAndEncodings";
             return false;
         }
 
         if (!TryDecodeAttestationTypes(metadataStatement.AttestationTypes, out var attestationTypes))
         {
             result = null;
+            failedMember = "attestationTypes";
             return false;
         }
 
-        if (!TryDecodeUserVerificationDetails(metadataStatement.UserVerificationDetails, out var userVerificationDetails))
+        // https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#dom-metadatastatement-userverificationdetails
+        // If this entry is missing, any user verification method could be implemented
+        VerificationMethodDescriptor[][]? userVerificationDetails = null;
+        if (metadataStatement.UserVerificationDetails is not null && !TryDecodeUserVerificationDetails(metadataStatement.UserVerificationDetails, out userVerificationDetails))
         {
             result = null;
+            failedMember = "userVerificationDetails";
             return false;
         }
 
         if (!TryDecodeKeyProtection(metadataStatement.KeyProtection, out var keyProtection))
         {
             result = null;
+            failedMember = "keyProtection";
             return false;
         }
 
         if (!TryDecodeMatcherProtection(metadataStatement.MatcherProtection, out var matcherProtection))
         {
             result = null;
+            failedMember = "matcherProtection";
             return false;
         }
 
@@ -318,12 +504,14 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         if (metadataStatement.AttachmentHint is not null && !TryDecodeAttachmentHint(metadataStatement.AttachmentHint, out attachmentHint))
         {
             result = null;
+            failedMember = "attachmentHint";
             return false;
         }
 
         if (!TryDecodeTcDisplay(metadataStatement.TcDisplay, out var tcDisplay))
         {
             result = null;
+            failedMember = "tcDisplay";
             return false;
         }
 
@@ -331,12 +519,14 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         if (metadataStatement.TcDisplayPNGCharacteristics is not null && !TryDecodeTcDisplayPngCharacteristics(metadataStatement.TcDisplayPNGCharacteristics, out tcDisplayPngCharacteristics))
         {
             result = null;
+            failedMember = "tcDisplayPNGCharacteristics";
             return false;
         }
 
         if (!TryDecodeAttestationRootCertificates(metadataStatement.AttestationRootCertificates, out var attestationRootCertificates))
         {
             result = null;
+            failedMember = "attestationRootCertificates";
             return false;
         }
 
@@ -344,6 +534,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         if (metadataStatement.EcdaaTrustAnchors is not null && !TryDecodeEcdaaTrustAnchors(metadataStatement.EcdaaTrustAnchors, out ecdaaTrustAnchors))
         {
             result = null;
+            failedMember = "ecdaaTrustAnchors";
             return false;
         }
 
@@ -351,13 +542,15 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         if (metadataStatement.SupportedExtensions is not null && !TryDecodeSupportedExtensions(metadataStatement.SupportedExtensions, out supportedExtensions))
         {
             result = null;
+            failedMember = "supportedExtensions";
             return false;
         }
 
         AuthenticatorGetInfo? authenticatorGetInfo = null;
-        if (metadataStatement.AuthenticatorGetInfo is not null && !TryDecodeAuthenticatorGetInfo(metadataStatement.AuthenticatorGetInfo, out authenticatorGetInfo))
+        if (metadataStatement.AuthenticatorGetInfo is not null && !TryDecodeAuthenticatorGetInfo(metadataStatement.AuthenticatorGetInfo, out authenticatorGetInfo, out var failedAuthenticatorGetInfoMember))
         {
             result = null;
+            failedMember = $"authenticatorGetInfo.{failedAuthenticatorGetInfoMember}";
             return false;
         }
 
@@ -393,10 +586,10 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             metadataStatement.ProviderLogoLight,
             metadataStatement.ProviderLogoDark,
             supportedExtensions,
-            metadataStatement.KeyScope,
             metadataStatement.MultiDeviceCredentialSupport,
             authenticatorGetInfo,
             metadataStatement.CxConfigUrl);
+        failedMember = null;
         return true;
     }
 
@@ -722,7 +915,9 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         result = new byte[attestationRootCertificates.Length][];
         for (var i = 0; i < attestationRootCertificates.Length; i++)
         {
-            if (!Base64Raw.TryDecode(attestationRootCertificates[i].Trim(), out var attestationRootCertificate))
+            var attestationRootCertificateBase64 = attestationRootCertificates[i];
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (attestationRootCertificateBase64 is null || !Base64Raw.TryDecode(attestationRootCertificateBase64.Trim(), out var attestationRootCertificate))
             {
                 result = null;
                 return false;
@@ -824,18 +1019,30 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    private static bool TryDecodeAuthenticatorGetInfo(AuthenticatorGetInfoJSON authenticatorGetInfo, [NotNullWhen(true)] out AuthenticatorGetInfo? result)
+    private static bool TryDecodeAuthenticatorGetInfo(AuthenticatorGetInfoJSON authenticatorGetInfo, [NotNullWhen(true)] out AuthenticatorGetInfo? result, [NotNullWhen(false)] out string? failedMember)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (authenticatorGetInfo is null)
         {
             result = null;
+            failedMember = "authenticatorGetInfo";
             return false;
         }
 
-        if (!Guid.TryParse(authenticatorGetInfo.Aaguid, out var aaguid))
+        // https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorGetInfo
+        // versions (0x01) - Array of strings - Required
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (authenticatorGetInfo.Versions is null)
         {
             result = null;
+            failedMember = "versions";
+            return false;
+        }
+
+        if (!TryDecodeAuthenticatorGetInfoAaguid(authenticatorGetInfo.Aaguid, out var aaguid))
+        {
+            result = null;
+            failedMember = "aaguid";
             return false;
         }
 
@@ -845,14 +1052,17 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             var resultAccumulator = new List<FidoPublicKeyCredentialParameters>(authenticatorGetInfo.Algorithms.Length);
             foreach (var algorithm in authenticatorGetInfo.Algorithms)
             {
+                // https://www.w3.org/TR/webauthn-3/#dom-publickeycredentialparameters-type
+                // The value SHOULD be a member of PublicKeyCredentialType but client platforms MUST ignore unknown values,
+                // ignoring any PublicKeyCredentialParameters with an unknown type.
                 // https://www.w3.org/TR/webauthn-3/#enum-credentialType
                 // enum PublicKeyCredentialType {
                 //     "public-key"
                 // };
-                if (algorithm.Type != "public-key")
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                if (algorithm is null || algorithm.Type != "public-key")
                 {
-                    result = null;
-                    return false;
+                    continue;
                 }
 
                 resultAccumulator.Add(new(algorithm.Type, algorithm.Alg));
@@ -867,7 +1077,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         result = new(
             authenticatorGetInfo.Versions,
             authenticatorGetInfo.Extensions,
-            aaguid,
+            aaguid.Value,
             authenticatorGetInfo.Options,
             authenticatorGetInfo.MaxMsgSize,
             authenticatorGetInfo.PinUvAuthProtocols,
@@ -885,8 +1095,47 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             authenticatorGetInfo.UvModality,
             authenticatorGetInfo.Certifications,
             authenticatorGetInfo.RemainingDiscoverableCredentials,
-            authenticatorGetInfo.AttestationFormats);
+            authenticatorGetInfo.VendorPrototypeConfigCommands,
+            authenticatorGetInfo.AttestationFormats,
+            authenticatorGetInfo.UvCountSinceLastPinEntry,
+            authenticatorGetInfo.LongTouchForReset,
+            authenticatorGetInfo.EncIdentifier,
+            authenticatorGetInfo.TransportsForReset,
+            authenticatorGetInfo.PinComplexityPolicy,
+            authenticatorGetInfo.PinComplexityPolicyURL,
+            authenticatorGetInfo.MaxPINLength,
+            authenticatorGetInfo.EncCredStoreState,
+            authenticatorGetInfo.AuthenticatorConfigCommands);
+        failedMember = null;
         return true;
+    }
+
+    private static bool TryDecodeAuthenticatorGetInfoAaguid(string aaguid, [NotNullWhen(true)] out Guid? result)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (aaguid is null)
+        {
+            result = null;
+            return false;
+        }
+
+        // The FIDO Metadata Service publishes the AAGUID as a hex string (with or without dashes)
+        if (Guid.TryParse(aaguid, out var parsedAaguid))
+        {
+            result = parsedAaguid;
+            return true;
+        }
+
+        // https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html#sctn-type-agid
+        // All binary values are base64 encoded.
+        if ((Base64Raw.TryDecode(aaguid, out var aaguidBytes) || Base64Url.TryDecode(aaguid, out aaguidBytes)) && aaguidBytes.Length == 16)
+        {
+            result = new Guid(Convert.ToHexString(aaguidBytes));
+            return true;
+        }
+
+        result = null;
+        return false;
     }
 
     private bool TryDecodeBiometricStatusReports(BiometricStatusReportJSON[] biometricStatusReports, [NotNullWhen(true)] out BiometricStatusReport[]? result)
@@ -946,49 +1195,74 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    private static bool TryDecodeStatusReports(StatusReportJSON[] statusReports, [NotNullWhen(true)] out StatusReport[]? result)
+    private bool TryDecodeStatusReports(int index, string identifier, StatusReportJSON[] statusReports, [NotNullWhen(true)] out StatusReport[]? result, [NotNullWhen(false)] out string? failedMember)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (statusReports is null)
         {
             result = null;
+            failedMember = "statusReports";
             return false;
         }
 
-        result = new StatusReport[statusReports.Length];
+        var decodedStatusReports = new List<StatusReport>(statusReports.Length);
         for (var i = 0; i < statusReports.Length; i++)
         {
-            if (!TryDecodeStatusReport(statusReports[i], out var statusReport))
+            var statusReport = statusReports[i];
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (statusReport is null)
             {
                 result = null;
+                failedMember = $"statusReports[{i.ToString(CultureInfo.InvariantCulture)}]";
                 return false;
             }
 
-            result[i] = statusReport;
+            // https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status
+            // The 'status' member is required, so a status report without it is malformed and the entry is skipped as a whole.
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (statusReport.Status is null)
+            {
+                result = null;
+                failedMember = $"statusReports[{i.ToString(CultureInfo.InvariantCulture)}].status";
+                return false;
+            }
+
+            // https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-authnr-stat
+            // More values might be added in the future. FIDO Servers MUST silently ignore all unknown AuthenticatorStatus values.
+            // Unlike any other invalid member, an unknown status doesn't make the entry invalid: only the status report is ignored,
+            // and the rest of the entry is decoded as usual. The ignored status report is logged and counted instead of being ignored
+            // completely silently, because it means that the library doesn't know a status defined by a newer version of the specification.
+            // If none of the status reports of the entry is known, the entry is decoded with an empty array of status reports,
+            // and the IFidoMetadataSearchService treats such an entry as untrusted.
+            if (!AuthenticatorStatusSerializer.TryDeserialize(statusReport.Status, out var status))
+            {
+                Logger.WarnStatusReportIgnored(index, identifier, i, statusReport.Status);
+                Counters.IncrementStatusReportIgnored(statusReport.Status);
+                continue;
+            }
+
+            if (!TryDecodeStatusReport(statusReport, status.Value, out var decodedStatusReport, out var failedStatusReportMember))
+            {
+                result = null;
+                failedMember = $"statusReports[{i.ToString(CultureInfo.InvariantCulture)}].{failedStatusReportMember}";
+                return false;
+            }
+
+            decodedStatusReports.Add(decodedStatusReport);
         }
 
+        result = decodedStatusReports.ToArray();
+        failedMember = null;
         return true;
     }
 
-    private static bool TryDecodeStatusReport(StatusReportJSON statusReport, [NotNullWhen(true)] out StatusReport? result)
+    private static bool TryDecodeStatusReport(StatusReportJSON statusReport, AuthenticatorStatus status, [NotNullWhen(true)] out StatusReport? result, [NotNullWhen(false)] out string? failedMember)
     {
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (statusReport is null)
-        {
-            result = null;
-            return false;
-        }
-
-        if (!Enum.TryParse<AuthenticatorStatus>(statusReport.Status, false, out var status))
-        {
-            result = null;
-            return false;
-        }
-
         DateTimeOffset? effectiveDate = null;
         if (statusReport.EffectiveDate is not null && !TryDecodeIso8601Date(statusReport.EffectiveDate, out effectiveDate))
         {
             result = null;
+            failedMember = "effectiveDate";
             return false;
         }
 
@@ -998,6 +1272,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             if (!Base64Raw.TryDecode(statusReport.BatchCertificate, out var statusReportBatchCertificate))
             {
                 result = null;
+                failedMember = "batchCertificate";
                 return false;
             }
 
@@ -1010,6 +1285,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             if (!Base64Raw.TryDecode(statusReport.Certificate, out var statusReportCertificate))
             {
                 result = null;
+                failedMember = "certificate";
                 return false;
             }
 
@@ -1022,6 +1298,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             if (!TryDecodeIso8601Date(statusReport.SunsetDate, out var parsedSunsetDate))
             {
                 result = null;
+                failedMember = "sunsetDate";
                 return false;
             }
 
@@ -1043,14 +1320,61 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             sunsetDate,
             statusReport.FipsRevision,
             statusReport.FipsPhysicalSecurityLevel);
+        failedMember = null;
+        return true;
+    }
+
+    private static bool TryDecodeAttestationCertificateKeyIdentifiers(string[] attestationCertificateKeyIdentifiers, [NotNullWhen(true)] out byte[][]? result)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (attestationCertificateKeyIdentifiers is null)
+        {
+            result = null;
+            return false;
+        }
+
+        result = new byte[attestationCertificateKeyIdentifiers.Length][];
+        for (var i = 0; i < attestationCertificateKeyIdentifiers.Length; i++)
+        {
+            if (!TryDecodeHex(attestationCertificateKeyIdentifiers[i], out var attestationCertificateKeyIdentifier))
+            {
+                result = null;
+                return false;
+            }
+
+            result[i] = attestationCertificateKeyIdentifier;
+        }
+
+        return true;
+    }
+
+    private static bool TryDecodeHex(string input, [NotNullWhen(true)] out byte[]? result)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (input is null || input.Length % 2 != 0)
+        {
+            result = null;
+            return false;
+        }
+
+        foreach (var ch in input)
+        {
+            if (!char.IsAsciiHexDigit(ch))
+            {
+                result = null;
+                return false;
+            }
+        }
+
+        result = Convert.FromHexString(input);
         return true;
     }
 
     private static bool TryDecodeIso8601Date(string input, [NotNullWhen(true)] out DateTimeOffset? result)
     {
-        if (DateTimeOffset.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        if (DateTimeOffset.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
         {
-            result = new DateTimeOffset(parsed.Ticks, TimeSpan.Zero);
+            result = parsed;
             return true;
         }
 
@@ -1081,7 +1405,9 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         result = new TEnum[input.Length];
         for (var i = 0; i < input.Length; i++)
         {
-            if (!mapper.TryDeserialize(input[i], out var parsedValue))
+            var inputValue = input[i];
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (inputValue is null || !mapper.TryDeserialize(inputValue, out var parsedValue))
             {
                 result = null;
                 return false;
@@ -1092,4 +1418,92 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
 
         return true;
     }
+}
+
+/// <summary>
+///     Extension methods for logging the decoding of the FIDO Metadata Service blob.
+/// </summary>
+public static partial class DefaultFidoMetadataDecoderLoggingExtensions
+{
+    /// <summary>
+    ///     The FIDO Metadata Service blob (no: {No}) doesn't contain the 'entries' member
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the blob.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service blob (no: {No}) doesn't contain the 'entries' member")]
+    public static partial void WarnEntriesMissing(this ILogger logger, long no);
+
+    /// <summary>
+    ///     The 'nextUpdate' member of the FIDO Metadata Service blob (no: {No}) contains the value '{NextUpdate}' that is not an ISO-8601 formatted date and will be ignored
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the blob.</param>
+    /// <param name="nextUpdate">The value of the 'nextUpdate' member.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'nextUpdate' member of the FIDO Metadata Service blob (no: {No}) contains the value '{NextUpdate}' that is not an ISO-8601 formatted date and will be ignored")]
+    public static partial void WarnNextUpdateIgnored(this ILogger logger, long no, string nextUpdate);
+
+    /// <summary>
+    ///     The entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was skipped because its '{Member}' member is missing or invalid
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="index">The zero-based index of the entry in the 'entries' array of the blob.</param>
+    /// <param name="identifier">The identifier (aaguid, aaid or the first attestationCertificateKeyIdentifiers element) of the entry.</param>
+    /// <param name="member">The path of the member of the entry that is missing or invalid.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was skipped because its '{Member}' member is missing or invalid")]
+    public static partial void WarnEntrySkipped(this ILogger logger, int index, string identifier, string member);
+
+    /// <summary>
+    ///     The entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was skipped because an error occurred during its decoding
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">Exception.</param>
+    /// <param name="index">The zero-based index of the entry in the 'entries' array of the blob.</param>
+    /// <param name="identifier">The identifier (aaguid, aaid or the first attestationCertificateKeyIdentifiers element) of the entry.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was skipped because an error occurred during its decoding")]
+    public static partial void WarnEntrySkippedDueToException(this ILogger logger, Exception exception, int index, string identifier);
+
+    /// <summary>
+    ///     The status report #{StatusReportIndex} of the entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was ignored because its 'status' member contains the unknown value '{Status}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="index">The zero-based index of the entry in the 'entries' array of the blob.</param>
+    /// <param name="identifier">The identifier (aaguid, aaid or the first attestationCertificateKeyIdentifiers element) of the entry.</param>
+    /// <param name="statusReportIndex">The zero-based index of the status report in the 'statusReports' array of the entry.</param>
+    /// <param name="status">The value of the 'status' member of the status report.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The status report #{StatusReportIndex} of the entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was ignored because its 'status' member contains the unknown value '{Status}'")]
+    public static partial void WarnStatusReportIgnored(this ILogger logger, int index, string identifier, int statusReportIndex, string status);
+
+    /// <summary>
+    ///     None of the {Total} entries of the FIDO Metadata Service blob (no: {No}) could be decoded
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the blob.</param>
+    /// <param name="total">The total number of entries in the blob.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "None of the {Total} entries of the FIDO Metadata Service blob (no: {No}) could be decoded")]
+    public static partial void WarnNoEntriesDecoded(this ILogger logger, long no, int total);
+
+    /// <summary>
+    ///     {Decoded} of {Total} entries of the FIDO Metadata Service blob (no: {No}) were decoded, {Skipped} entries were skipped
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the blob.</param>
+    /// <param name="decoded">The number of successfully decoded entries.</param>
+    /// <param name="total">The total number of entries in the blob.</param>
+    /// <param name="skipped">The number of skipped entries.</param>
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "{Decoded} of {Total} entries of the FIDO Metadata Service blob (no: {No}) were decoded, {Skipped} entries were skipped")]
+    public static partial void InfoEntriesSkipped(this ILogger logger, long no, int decoded, int total, int skipped);
 }

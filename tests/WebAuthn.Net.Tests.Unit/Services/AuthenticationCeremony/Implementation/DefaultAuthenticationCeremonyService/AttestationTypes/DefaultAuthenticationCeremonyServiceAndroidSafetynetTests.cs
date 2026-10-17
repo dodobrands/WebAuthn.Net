@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Globalization;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
@@ -19,6 +21,20 @@ public class DefaultAuthenticationCeremonyServiceAndroidSafetynetTests : Abstrac
     protected override Uri GetRelyingPartyAddress()
     {
         return new("https://goose-wondrous-overly.ngrok-free.app", UriKind.Absolute);
+    }
+
+    protected override void ConfigureWebAuthnOptions(WebAuthnOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        // The SafetyNet attestation used by this fixture was recorded in October 2023, and its x5c chain goes through the intermediate "GTS CA 1D4",
+        // which Google revoked on 2025-04-03 (cessationOfOperation). macOS reports it as revoked even in Offline mode (via Apple's Valid database),
+        // so the revocation check is disabled for this historical attestation; otherwise the test fails on macOS only.
+        var configureChain = options.X509ChainValidation.OnValidateAttestationTrustPathChain;
+        options.X509ChainValidation.OnValidateAttestationTrustPathChain = chain =>
+        {
+            configureChain(chain);
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        };
     }
 
     [SetUp]

@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 ///     Status Report
 /// </summary>
 /// <remarks>
-///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#sctn-stat-rep">FIDO Metadata Service - StatusReport dictionary</a>
+///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-stat-rep">FIDO Metadata Service - StatusReport dictionary</a>
 /// </remarks>
 public class StatusReport
 {
@@ -34,11 +34,11 @@ public class StatusReport
     /// <param name="sunsetDate">Date since when the status wil expire, if applicable. If no date is given, the status is assumed to not have a scheduled expiry.</param>
     /// <param name="fipsRevision">
     ///     The revision number of the FIPS 140 specification, e.g. "3" in the case of FIPS 140-3. This entry MUST be present if and only if the
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*.
     /// </param>
     /// <param name="fipsPhysicalSecurityLevel">
     ///     In the case the status represents a FIPS certification, this field contains the "physical security level" of the FIPS certification. This entry MUST be present if and only if the
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
     /// </param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="status" /> contains a value that is not defined in <see cref="AuthenticatorStatus" /></exception>
     public StatusReport(
@@ -96,7 +96,7 @@ public class StatusReport
     ///         For example, if the status would be USER_VERIFICATION_BYPASS, the authenticatorVersion indicates the vulnerable firmware version of the authenticator. Similarly, if the status would be UPDATE_AVAILABLE, the authenticatorVersion indicates the updated firmware version
     ///         that is available now. If the status would be SELF_ASSERTION_SUBMITTED, the authenticatorVersion indicates the firmware version that the self assertion was based on.
     ///     </para>
-    ///     <para>An authenticator’s current firmware version can be found in the attestation certificate in extension id-fido-gen-ce-fw-version (OID 1.3.6.1.4.1.45724.1.1.5).</para>
+    ///     <para>The firmware version of the authenticator providing the attestation can be found in the attestation certificate in extension id-fido-gen-ce-fw-version (OID 1.3.6.1.4.1.45724.1.1.5).</para>
     /// </remarks>
     public ulong? AuthenticatorVersion { get; }
 
@@ -104,7 +104,7 @@ public class StatusReport
     ///     DER <a href="https://www.itu.int/rec/T-REC-X.690-200811-S">[ITU-X690-2008]</a> PKIX certificate value related to the current status, if applicable.
     /// </summary>
     /// <remarks>
-    ///     As an example, this could be an Batch Attestation Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (USER_KEY_REMOTE_COMPROMISE).
+    ///     As an example, this could be an Batch Attestation Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (USER_KEY_REMOTE_COMPROMISE).
     /// </remarks>
     public byte[]? BatchCertificate { get; }
 
@@ -112,7 +112,7 @@ public class StatusReport
     ///     DER <a href="https://www.itu.int/rec/T-REC-X.690-200811-S">[ITU-X690-2008]</a> PKIX certificate value related to the current status, if applicable. This field will typically not be present if field "batchCertificate" is present.
     /// </summary>
     /// <remarks>
-    ///     As an example, this could be an Attestation Root Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1-ps-20250521.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (ATTESTATION_KEY_COMPROMISE).
+    ///     As an example, this could be an Attestation Root Certificate (see <a href="https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.html">[FIDOMetadataStatement]</a>) related to a set of compromised authenticators (ATTESTATION_KEY_COMPROMISE).
     /// </remarks>
     public byte[]? Certificate { get; }
 
@@ -159,14 +159,15 @@ public class StatusReport
     public DateTimeOffset? SunsetDate { get; }
 
     /// <summary>
-    ///     The revision number of the FIPS 140 specification, e.g. "3" in the case of FIPS 140-3. This entry MUST be present if and only if the <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of
+    ///     The revision number of the FIPS 140 specification, e.g. "3" in the case of FIPS 140-3. This entry MUST be present if and only if the <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one
+    ///     of
     ///     FIPS140_CERTIFIED_L*.
     /// </summary>
     public ulong? FipsRevision { get; }
 
     /// <summary>
     ///     In the case the status represents a FIPS certification, this field contains the "physical security level" of the FIPS certification. This entry MUST be present if and only if the
-    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1-ps-20250521.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
+    ///     <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#dom-statusreport-status">"status"</a> entry is one of FIPS140_CERTIFIED_L*. It MUST reflect the physical security level which might deviate from the overall level.
     /// </summary>
     public ulong? FipsPhysicalSecurityLevel { get; }
 }

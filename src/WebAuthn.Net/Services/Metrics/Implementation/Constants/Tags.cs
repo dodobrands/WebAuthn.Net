@@ -9,4 +9,14 @@ public static class Tags
     ///     Operation status.
     /// </summary>
     public const string Status = "status";
+
+    /// <summary>
+    ///     The reason why an element was skipped.
+    /// </summary>
+    public const string Reason = "reason";
+
+    /// <summary>
+    ///     The value of the 'status' member of a status report of the FIDO Metadata Service blob.
+    /// </summary>
+    public const string AuthenticatorStatus = "authenticator_status";
 }
