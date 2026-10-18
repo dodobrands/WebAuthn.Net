@@ -1,18 +1,38 @@
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
-///     <para>11.2.5.4 TPMI_ALG_ECC_SCHEME, based on TPM_ALG_ID (UINT16) - TPM_ALG_!ALG.ax,TPM_ALG_!ALG.am, +TPM_ALG_NULL</para>
+///     <para>11.2.5.4 TPMI_ALG_ECC_SCHEME, based on TPM_ALG_ID (UINT16) - TPM_ALG_ECDSA, TPM_ALG_ECDAA, TPM_ALG_SM2, TPM_ALG_ECSCHNORR, TPM_ALG_EDDSA, TPM_ALG_HASH_EDDSA, TPM_ALG_ECDH, TPM_ALG_ECMQV, +TPM_ALG_NULL</para>
+///     <para>
+///         The members are the wire-format vocabulary of TPMI_ALG_ECC_SCHEME (Table 200).
+///         Which of them is acceptable for a given key depends on the key's sign/decrypt/restricted attributes (Table 229, reference SchemeChecks); the decoder applies those rules.
+///         <see cref="TpmAlgEddsa" /> and <see cref="TpmAlgHashEddsa" /> are always rejected by the decoder: they are defined only for the Edwards curves, which <see cref="TpmiEccCurve" /> does not include.
+///     </para>
 /// </summary>
 /// <remarks>
 ///     <para>
 ///         <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library</a>
 ///     </para>
 ///     <para>
-///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TPM-2.0-1.83-Part-2-Structures.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
+///         <a href="https://cdn.trustedcomputinggroup.org/production/Trusted_Platform_Module_2_0_Library_Part_2_Structures_Version_185_pub_c0a962a931.pdf">TPM 2.0 Library - Part 2: Structures, Version 185, March 12, 2026</a>
 ///     </para>
 /// </remarks>
 public enum TpmiAlgEccScheme : ushort
 {
+    // 11.2.5.4 TPMI_ALG_ECC_SCHEME
+    // Table 200 — Definition of (TPM_ALG_ID) {ECC} TPMI_ALG_ECC_SCHEME Type
+    // | Values             | Comments
+    // | TPM_ALG_ECDSA      |
+    // | TPM_ALG_ECDAA      |
+    // | TPM_ALG_SM2        |
+    // | TPM_ALG_ECSCHNORR  |
+    // | TPM_ALG_EDDSA      |
+    // | TPM_ALG_HASH_EDDSA |
+    // | TPM_ALG_ECDH       |
+    // | TPM_ALG_SM2        |
+    // | TPM_ALG_ECMQV      |
+    // | +TPM_ALG_NULL      |
+    // | #TPM_RC_SCHEME     |
+
     /// <summary>
     ///     Null algorithm
     /// </summary>
@@ -41,7 +61,7 @@ public enum TpmiAlgEccScheme : ushort
     TpmAlgEcdaa = 0x001A,
 
     /// <summary>
-    /// Depending on context, either an elliptic-curve based signature algorithm, an encryption scheme or a key exchange protocol
+    /// SM2 - depending on context, either an elliptic-curve based signature algorithm, an encryption scheme or a key exchange protocol
     /// </summary>
     /// <remarks>
     /// <para>TPM_ALG_SM2</para>
@@ -68,6 +88,7 @@ public enum TpmiAlgEccScheme : ushort
     /// <remarks>
     /// <para>TPM_ALG_EDDSA</para>
     /// <para>RFC 8032</para>
+    /// <para>Defined only for the Edwards curves (TPM_ECC_CURVE_25519, TPM_ECC_CURVE_448), which <see cref="TpmiEccCurve" /> does not include; always rejected by the decoder.</para>
     /// </remarks>
     TpmAlgEddsa = 0x0060,
 
@@ -75,17 +96,19 @@ public enum TpmiAlgEccScheme : ushort
     /// Edwards-curve Digital Signature Algorithm (HashEdDSA)
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_EDDSA_PH</para>
+    /// <para>TPM_ALG_HASH_EDDSA</para>
     /// <para>RFC 8032</para>
+    /// <para>Note: Earlier TCG specifications used the name TPM_ALG_EDDSA_PH.</para>
+    /// <para>Defined only for the Edwards curves (TPM_ECC_CURVE_25519, TPM_ECC_CURVE_448), which <see cref="TpmiEccCurve" /> does not include; always rejected by the decoder.</para>
     /// </remarks>
-    TpmAlgEddsaPh = 0x0061,
+    TpmAlgHashEddsa = 0x0061,
 
     /// <summary>
-    /// <para>Edwards-curve Digital Signature Algorithm (HashEdDSA)</para>
+    /// <para>Elliptic Curve Diffie-Hellman</para>
     /// <para>
     /// Based on context, this can be one of:
     ///     <list type="bullet">
-    ///         <item>Elliptic Curve Cryptography Cofactor Diffie-Hellman (ECC CDH) Primitive" defined in 5.7.1.2 of SP 800-56A</item>
+    ///         <item>“Elliptic Curve Cryptography Cofactor Diffie-Hellman (ECC CDH) Primitive” defined in 5.7.1.2 of SP 800-56A</item>
     ///         <item>X25519 or X448 as defined in clause 5 of RFC 7748</item>
     ///     </list>
     /// </para>
@@ -98,7 +121,7 @@ public enum TpmiAlgEccScheme : ushort
     TpmAlgEcdh = 0x0019,
 
     /// <summary>
-    /// Full MQV, C(2e, 2s, ECC MQV)” defined in 6.1.1.4
+    /// “Full MQV, C(2e, 2s, ECC MQV)” defined in 6.1.1.4 of SP 800-56A
     /// </summary>
     /// <remarks>
     /// <para>TPM_ALG_ECMQV</para>

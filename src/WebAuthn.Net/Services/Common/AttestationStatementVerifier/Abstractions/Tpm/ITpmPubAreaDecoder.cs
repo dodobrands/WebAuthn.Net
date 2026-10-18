@@ -5,7 +5,7 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 
 /// <summary>
-///     Decoder of the TPMT_PUBLIC structure, defined in the <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (section 12.2.4)</a>, from binary into a typed representation.
+///     Decoder of the TPMT_PUBLIC structure, defined in the <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures, Version 185 specification (clause 12.2.4, Table 235)</a>, from binary into a typed representation.
 /// </summary>
 public interface ITpmPubAreaDecoder
 {

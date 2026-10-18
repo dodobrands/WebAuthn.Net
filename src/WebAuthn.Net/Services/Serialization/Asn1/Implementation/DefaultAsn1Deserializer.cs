@@ -167,18 +167,18 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
     {
         var sequenceItems = new List<AbstractAsn1Element>();
         var sequenceReader = reader.ReadSequence(tag);
+        // Every element is consumed by Read(); an end-of-contents octet pair (EndOfContents, which only occurs in BER indefinite-length encodings)
+        // is reported as a failure by ReadUniversal. Comparing only the tag number here would leave any element with tag number 0
+        // (e.g. a context-specific [0] such as an otherName GeneralName) unconsumed and loop forever.
         while (sequenceReader.HasData)
         {
-            if (sequenceReader.PeekTag().TagValue != (int) UniversalTagNumber.EndOfContents)
+            var innerObject = Read(sequenceReader);
+            if (innerObject.HasError)
             {
-                var innerObject = Read(sequenceReader);
-                if (innerObject.HasError)
-                {
-                    return Result<Asn1Sequence>.Fail();
-                }
-
-                sequenceItems.Add(innerObject.Ok);
+                return Result<Asn1Sequence>.Fail();
             }
+
+            sequenceItems.Add(innerObject.Ok);
         }
 
         return Result<Asn1Sequence>.Success(new(tag, sequenceItems.ToArray()));
@@ -190,18 +190,16 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
     {
         var setItems = new List<AbstractAsn1Element>();
         var setReader = reader.ReadSetOf(tag);
+        // See ReadSequence: every element is consumed by Read(), EndOfContents is reported as a failure there.
         while (setReader.HasData)
         {
-            if (setReader.PeekTag().TagValue != (int) UniversalTagNumber.EndOfContents)
+            var innerObject = Read(setReader);
+            if (innerObject.HasError)
             {
-                var innerObject = Read(setReader);
-                if (innerObject.HasError)
-                {
-                    return Result<Asn1Set>.Fail();
-                }
-
-                setItems.Add(innerObject.Ok);
+                return Result<Asn1Set>.Fail();
             }
+
+            setItems.Add(innerObject.Ok);
         }
 
         return Result<Asn1Set>.Success(new(tag, setItems.ToArray()));
