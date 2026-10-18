@@ -22,19 +22,19 @@ These steps need to be performed only if you have not done them before.
 ### Starting the FIDO Conformance test
 
 1. Launch the FIDO Conformance Tools
-2. From the available test options, select `"FIDO2 Server - MDS3 Tests"`
-   ![FIDO2 Server - MDS3 Tests](docs/images/mds-tests.jpg)
+2. From the available test options, select `"FIDO2 Server Tests"` by clicking the `"RUN"` button on its tile.
+   ![FIDO2 Server Tests](docs/images/mds-tests.png)
 3. In the `"SELECT TESTS TO RUN"` section, enable all available options
-   ![SELECT TESTS TO RUN - options](docs/images/select-tests.jpg)
-4. In the `"TESTS CONFIGURATION"` section, also enable all available options
-   ![TESTS CONFIGURATION - options](docs/images/tests-config.jpg)
+   ![SELECT TESTS TO RUN - options](docs/images/select-tests.png)
+4. In the `"TESTS CONFIGURATION"` section, enable all options under `"Server support for OPTIONAL algorithms and attestations"`
+   ![TESTS CONFIGURATION - options](docs/images/tests-config.png)
 5. In the `"TESTS CONFIGURATION"` section, specify the application URL (by default `https://localhost:5000`)
-   ![TESTS CONFIGURATION - application URL](docs/images/tests-config-url.jpg)
-6. Download the test metadata by clicking on the `"Download test metadata"` button.
-   ![Download test metadata - button](docs/images/tests-config-download-metadata.jpg)
+   ![TESTS CONFIGURATION - application URL](docs/images/tests-config-url.png)
+6. Download the test metadata by clicking on the `"DOWNLOAD TEST METADATA"` button.
+   ![DOWNLOAD TEST METADATA - button](docs/images/tests-config-download-metadata.png)
 7. In the archive with test metadata (`metadata.zip`), there will be a `metadataStatements` folder containing json files. Move them to the `demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/MetadataStatements` folder. A file that cannot be deserialized into a metadata statement is skipped with a warning in the application log. Values of `vendorPrototypeConfigCommands` outside the uint64 range, which the FIDO Conformance Tools currently ship in one of the statements, are tolerated by the library: such a value is ignored with a warning, and the rest of the statement is used.
-8. Click the `"MDS3 test server"` button.
-   ![MDS3 test server - button](docs/images/mds-server.jpg)
+8. Click the `"MDS3 TEST SERVER"` button in the `"DOCUMENTATION"` section.
+   ![MDS3 TEST SERVER - button](docs/images/mds-server.png)
 9. On the page that opens, in the `"Server endpoint"` field, enter the application address (by default `https://localhost:5000`).
    ![MDS3 test server - Server endpoint](docs/images/mds-server-endpoint.jpg)
 10. Click the `"Download root certificate"` button. Place the downloaded certificate (`MDS3ROOT.crt`) in the `demo/WebAuthn.Net.Demo.FidoConformance/ConformanceMetadata/RootCertificate` folder.
@@ -45,9 +45,9 @@ These steps need to be performed only if you have not done them before.
 12. Execute the instructions from the section ["Starting the test application"](#starting-the-test-application).
     ![Starting the test application](docs/images/app-started.jpg)
 13. Press the `"RUN"` button.
-    ![run button](docs/images/tests-run.jpg)
+    ![RUN button](docs/images/tests-run.png)
 14. All tests should complete successfully.
-    ![results](docs/images/results.jpg)
+    ![results](docs/images/results.png)
 
 ### Starting the test application
 
