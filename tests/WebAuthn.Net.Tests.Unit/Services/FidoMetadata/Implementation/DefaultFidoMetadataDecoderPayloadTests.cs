@@ -19,6 +19,7 @@ public class DefaultFidoMetadataDecoderPayloadTests
     private static readonly ulong[] ExpectedAuthenticatorConfigCommands = [2, 3];
     private static readonly string[] ExpectedTransportsForReset = ["usb", "nfc"];
     private static readonly string[] ExpectedIgnoredStatusReports = [UnknownStatus];
+    private static readonly ulong[] ExpectedValidVendorPrototypeConfigCommands = [1, ulong.MaxValue];
 
     private DefaultFidoMetadataDecoder Decoder { get; set; } = null!;
     private FakeLogger<DefaultFidoMetadataDecoder> Logger { get; set; } = null!;
@@ -61,6 +62,7 @@ public class DefaultFidoMetadataDecoderPayloadTests
         Assert.That(Counters.FailedDecodeEnds, Is.Zero);
         Assert.That(Counters.SkippedEntries, Is.Empty);
         Assert.That(Counters.IgnoredStatusReports, Is.Empty);
+        Assert.That(Counters.IgnoredValues, Is.Empty);
     }
 
     [TestCase("NOT_FIDO_CERTIFIED", AuthenticatorStatus.NOT_FIDO_CERTIFIED)]
@@ -403,6 +405,53 @@ public class DefaultFidoMetadataDecoderPayloadTests
         Assert.That(getInfo?.MaxPINLength, Is.EqualTo(63UL));
         Assert.That(getInfo?.EncCredStoreState, Is.EqualTo("44556677"));
         Assert.That(getInfo?.AuthenticatorConfigCommands, Is.EqualTo(ExpectedAuthenticatorConfigCommands));
+    }
+
+    [Test]
+    public void DefaultFidoMetadataDecoder_Decode_WhenVendorPrototypeConfigCommandIsNotUInt64()
+    {
+        // https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#vendorPrototype
+        // vendorCommandId is a 64-bit unsigned integer, but the FIDO Conformance Tools serialize 0xFFFFFFFFFFFFFFFF through a JavaScript number,
+        // which results in 18446744073709552000 - a value outside the uint64 range. Such a value must not invalidate the whole entry.
+        var payload = FakeMetadataBlobPayloadJsonFactory.Create(static x =>
+        {
+            var getInfo = FakeMetadataBlobPayloadJsonFactory.GetAuthenticatorGetInfo(x);
+            getInfo["vendorPrototypeConfigCommands"] = new JsonArray(
+                JsonNode.Parse("18446744073709552000"),
+                1,
+                JsonNode.Parse("18446744073709551615"),
+                -1,
+                2.5,
+                "3",
+                null);
+        });
+
+        var decoded = DecodeSuccessfully(payload);
+
+        var getInfo = decoded.Entries.Single().MetadataStatement?.AuthenticatorGetInfo;
+        Assert.That(getInfo?.VendorPrototypeConfigCommands, Is.EqualTo(ExpectedValidVendorPrototypeConfigCommands));
+        Assert.That(Logger.Entries, Has.Count.EqualTo(5));
+        Assert.That(Logger.Entries.Select(static x => x.Level), Is.All.EqualTo(LogLevel.Warning));
+        Assert.That(Logger.Entries[0].Message, Does.Contain("18446744073709552000"));
+        Assert.That(Logger.Entries[0].Message, Does.Contain(FakeMetadataBlobPayloadJsonFactory.Aaguid));
+        Assert.That(Counters.IgnoredValues, Has.Count.EqualTo(5));
+        Assert.That(Counters.IgnoredValues, Is.All.EqualTo("metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands[]"));
+        Assert.That(Counters.SkippedEntries, Is.Empty);
+        Assert.That(Counters.SuccessfulDecodeEnds, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void DefaultFidoMetadataDecoder_Decode_WhenVendorPrototypeConfigCommandsIsEmpty()
+    {
+        var payload = FakeMetadataBlobPayloadJsonFactory.Create(static x => FakeMetadataBlobPayloadJsonFactory.GetAuthenticatorGetInfo(x)["vendorPrototypeConfigCommands"] = new JsonArray());
+
+        var decoded = DecodeSuccessfully(payload);
+
+        var getInfo = decoded.Entries.Single().MetadataStatement?.AuthenticatorGetInfo;
+        Assert.That(getInfo?.VendorPrototypeConfigCommands, Is.Not.Null);
+        Assert.That(getInfo?.VendorPrototypeConfigCommands, Is.Empty);
+        Assert.That(Logger.Entries, Is.Empty);
+        Assert.That(Counters.IgnoredValues, Is.Empty);
     }
 
     [TestCase("531126d6e717415c93203d9aa6981239")]

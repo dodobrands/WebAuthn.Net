@@ -19,4 +19,9 @@ public static class Tags
     ///     The value of the 'status' member of a status report of the FIDO Metadata Service blob.
     /// </summary>
     public const string AuthenticatorStatus = "authenticator_status";
+
+    /// <summary>
+    ///     The path of a member of an entry of the FIDO Metadata Service blob.
+    /// </summary>
+    public const string Member = "member";
 }

@@ -6,6 +6,7 @@ namespace WebAuthn.Net.DSL.Fakes;
 public class FakeFidoMetadataCounters : IFidoMetadataCounters
 {
     private readonly List<string> _ignoredStatusReports = new();
+    private readonly List<string> _ignoredValues = new();
     private readonly List<string> _skippedEntries = new();
 
     public int DecodeStarts { get; private set; }
@@ -17,6 +18,8 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
     public IReadOnlyList<string> SkippedEntries => _skippedEntries;
 
     public IReadOnlyList<string> IgnoredStatusReports => _ignoredStatusReports;
+
+    public IReadOnlyList<string> IgnoredValues => _ignoredValues;
 
     public void IncrementDecodeStart()
     {
@@ -48,5 +51,10 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
     public void IncrementStatusReportIgnored(string status)
     {
         _ignoredStatusReports.Add(status);
+    }
+
+    public void IncrementValueIgnored(string member)
+    {
+        _ignoredValues.Add(member);
     }
 }

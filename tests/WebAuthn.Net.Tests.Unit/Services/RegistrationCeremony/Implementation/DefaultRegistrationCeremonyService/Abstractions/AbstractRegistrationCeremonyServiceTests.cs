@@ -110,7 +110,8 @@ public abstract class AbstractRegistrationCeremonyServiceTests
                 Options,
                 safeJsonDeserializer,
                 fakeFidoHttpClientProvider.Client,
-                new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)));
+                new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)),
+                NullLogger<DefaultFidoMetadataProvider>.Instance);
             var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);
             if (downloadMetadataResult.HasError)
             {

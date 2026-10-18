@@ -199,8 +199,22 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     {
         if (disposing)
         {
-            PeriodicBackgroundUpdateTask?.Dispose();
-            StoppingCts?.Dispose();
+            // The host disposes the hosted services without stopping them when it fails to start (for example, when the port is already in use).
+            // In this case the periodic background task is still running, and a Task can be disposed only when it is completed,
+            // so the task is cancelled first and disposed only if it has already completed.
+            var stoppingCts = StoppingCts;
+            if (stoppingCts is not null && !stoppingCts.IsCancellationRequested)
+            {
+                stoppingCts.Cancel();
+            }
+
+            var periodicBackgroundUpdateTask = PeriodicBackgroundUpdateTask;
+            if (periodicBackgroundUpdateTask is { IsCompleted: true })
+            {
+                periodicBackgroundUpdateTask.Dispose();
+            }
+
+            stoppingCts?.Dispose();
         }
     }
 }

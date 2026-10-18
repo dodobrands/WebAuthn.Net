@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 
@@ -11,20 +12,33 @@ namespace WebAuthn.Net.Services.Static;
 public static class X509TrustChainValidator
 {
     /// <summary>
-    ///     Validates a certificate chain that signed the blob obtained from the FIDO Metadata Service.
+    ///     Builds and validates the certificate chain of the JWS (JWT) token of a blob obtained from the FIDO Metadata Service and returns the built chain,
+    ///     so that the caller can perform additional validation of its elements (for example, a custom revocation check).
     /// </summary>
-    /// <param name="rootCertificates">Root CA certificates for the rest of the certificate chain.</param>
-    /// <param name="trustPath">The chain of intermediate certificates.</param>
+    /// <param name="rootCertificates">Root CA certificates.</param>
+    /// <param name="trustPath">Certificates from the JWS (JWT) token header in the order they appear in the header (the first certificate is the one that signed the token).</param>
     /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
+    /// <param name="chain">
+    ///     Output parameter. The successfully built chain if the method returns <see langword="true" />, otherwise - <see langword="null" />.
+    ///     The caller is responsible for disposing the returned chain.
+    /// </param>
+    /// <param name="chainStatus">
+    ///     Output parameter. The status of the built chain: an empty array if the chain is valid or could not be built because of the invalid arguments,
+    ///     otherwise - the flags describing why the chain is invalid (for example, <see cref="X509ChainStatusFlags.RevocationStatusUnknown" />).
+    /// </param>
     /// <returns><see langword="true" /> if the certificate chain is valid, otherwise - <see langword="false" />.</returns>
-    public static bool IsFidoMetadataBlobJwtChainValid(
+    public static bool TryBuildFidoMetadataBlobJwtChain(
         X509Certificate2[] rootCertificates,
         X509Certificate2[] trustPath,
-        Action<X509Chain>? configureChain)
+        Action<X509Chain>? configureChain,
+        [NotNullWhen(true)] out X509Chain? chain,
+        out X509ChainStatus[] chainStatus)
     {
         // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         if (!(rootCertificates?.Length > 0))
         {
+            chain = null;
+            chainStatus = Array.Empty<X509ChainStatus>();
             return false;
         }
 
@@ -32,28 +46,49 @@ public static class X509TrustChainValidator
         // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         if (!(trustPath?.Length > 0))
         {
+            chain = null;
+            chainStatus = Array.Empty<X509ChainStatus>();
             return false;
         }
 
-        using var chain = new X509Chain();
-        if (configureChain is not null)
+        var builtChain = new X509Chain();
+        try
         {
-            configureChain(chain);
+            if (configureChain is not null)
+            {
+                configureChain(builtChain);
+            }
+
+            var certificateToValidate = trustPath[0];
+            var additionalCertificates = trustPath.Skip(1);
+            foreach (var additionalCertificate in additionalCertificates)
+            {
+                builtChain.ChainPolicy.ExtraStore.Add(additionalCertificate);
+            }
+
+            foreach (var rootCertificate in rootCertificates)
+            {
+                builtChain.ChainPolicy.CustomTrustStore.Add(rootCertificate);
+            }
+
+            if (builtChain.Build(certificateToValidate))
+            {
+                chain = builtChain;
+                chainStatus = Array.Empty<X509ChainStatus>();
+                return true;
+            }
+
+            chainStatus = builtChain.ChainStatus;
+        }
+        catch
+        {
+            builtChain.Dispose();
+            throw;
         }
 
-        var certificateToValidate = trustPath[0];
-        var additionalCertificates = trustPath.Skip(1);
-        foreach (var additionalCertificate in additionalCertificates)
-        {
-            chain.ChainPolicy.ExtraStore.Add(additionalCertificate);
-        }
-
-        foreach (var rootCertificate in rootCertificates)
-        {
-            chain.ChainPolicy.CustomTrustStore.Add(rootCertificate);
-        }
-
-        return chain.Build(certificateToValidate);
+        builtChain.Dispose();
+        chain = null;
+        return false;
     }
 
     /// <summary>

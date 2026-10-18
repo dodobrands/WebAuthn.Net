@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
@@ -26,12 +27,17 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 ///         and a warning is logged with the identifier of the skipped entry. Skipped entries do not affect the decoding of other entries.
 ///     </para>
 ///     <para>
-///         The only exception is the <c>status</c> member of a status report: according to the
+///         There are two exceptions. The first one is the <c>status</c> member of a status report: according to the
 ///         <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-authnr-stat">AuthenticatorStatus enum</a> section, FIDO Servers MUST silently ignore all unknown <see cref="AuthenticatorStatus" /> values.
 ///         Therefore, a status report with a status unknown to the library is ignored, and the rest of the entry is decoded as usual.
 ///     </para>
 ///     <para>
-///         Skipped entries and ignored status reports are not only logged, but also counted by <see cref="IFidoMetadataCounters" />, so that the problems of decoding the blob are visible in the monitoring.
+///         The second one is the <c>vendorPrototypeConfigCommands</c> member of <c>authenticatorGetInfo</c>: its values are 64-bit unsigned integers, but some producers of metadata statements
+///         serialize them through double-precision floating-point numbers and emit values outside the uint64 range. Such a value carries no security-relevant information about the authenticator,
+///         so only the invalid value is ignored, and the rest of the entry is decoded as usual.
+///     </para>
+///     <para>
+///         Skipped entries, ignored status reports and ignored values are not only logged, but also counted by <see cref="IFidoMetadataCounters" />, so that the problems of decoding the blob are visible in the monitoring.
 ///     </para>
 ///     <para>
 ///         The decoding of the whole blob fails only if the payload itself is invalid (for example, the <c>entries</c> member is missing) or if the blob contains entries, but none of them could be decoded.
@@ -358,7 +364,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         }
 
         MetadataStatement? metadataStatement = null;
-        if (entry.MetadataStatement is not null && !TryDecodeMetadataStatement(entry.MetadataStatement, out metadataStatement, out var failedMetadataStatementMember))
+        if (entry.MetadataStatement is not null && !TryDecodeMetadataStatement(index, identifier, entry.MetadataStatement, out metadataStatement, out var failedMetadataStatementMember))
         {
             result = null;
             failedMember = $"metadataStatement.{failedMetadataStatementMember}";
@@ -410,7 +416,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    private bool TryDecodeMetadataStatement(MetadataStatementJSON metadataStatement, [NotNullWhen(true)] out MetadataStatement? result, [NotNullWhen(false)] out string? failedMember)
+    private bool TryDecodeMetadataStatement(int index, string identifier, MetadataStatementJSON metadataStatement, [NotNullWhen(true)] out MetadataStatement? result, [NotNullWhen(false)] out string? failedMember)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (metadataStatement is null)
@@ -547,7 +553,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         }
 
         AuthenticatorGetInfo? authenticatorGetInfo = null;
-        if (metadataStatement.AuthenticatorGetInfo is not null && !TryDecodeAuthenticatorGetInfo(metadataStatement.AuthenticatorGetInfo, out authenticatorGetInfo, out var failedAuthenticatorGetInfoMember))
+        if (metadataStatement.AuthenticatorGetInfo is not null && !TryDecodeAuthenticatorGetInfo(index, identifier, metadataStatement.AuthenticatorGetInfo, out authenticatorGetInfo, out var failedAuthenticatorGetInfoMember))
         {
             result = null;
             failedMember = $"authenticatorGetInfo.{failedAuthenticatorGetInfoMember}";
@@ -1019,7 +1025,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         return true;
     }
 
-    private static bool TryDecodeAuthenticatorGetInfo(AuthenticatorGetInfoJSON authenticatorGetInfo, [NotNullWhen(true)] out AuthenticatorGetInfo? result, [NotNullWhen(false)] out string? failedMember)
+    private bool TryDecodeAuthenticatorGetInfo(int index, string identifier, AuthenticatorGetInfoJSON authenticatorGetInfo, [NotNullWhen(true)] out AuthenticatorGetInfo? result, [NotNullWhen(false)] out string? failedMember)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (authenticatorGetInfo is null)
@@ -1074,6 +1080,8 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             }
         }
 
+        var vendorPrototypeConfigCommands = DecodeVendorPrototypeConfigCommands(index, identifier, authenticatorGetInfo.VendorPrototypeConfigCommands);
+
         result = new(
             authenticatorGetInfo.Versions,
             authenticatorGetInfo.Extensions,
@@ -1095,7 +1103,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             authenticatorGetInfo.UvModality,
             authenticatorGetInfo.Certifications,
             authenticatorGetInfo.RemainingDiscoverableCredentials,
-            authenticatorGetInfo.VendorPrototypeConfigCommands,
+            vendorPrototypeConfigCommands,
             authenticatorGetInfo.AttestationFormats,
             authenticatorGetInfo.UvCountSinceLastPinEntry,
             authenticatorGetInfo.LongTouchForReset,
@@ -1108,6 +1116,51 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             authenticatorGetInfo.AuthenticatorConfigCommands);
         failedMember = null;
         return true;
+    }
+
+    private ulong[]? DecodeVendorPrototypeConfigCommands(int index, string identifier, JsonElement[]? vendorPrototypeConfigCommands)
+    {
+        if (vendorPrototypeConfigCommands is null)
+        {
+            return null;
+        }
+
+        // https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorGetInfo
+        // vendorPrototypeConfigCommands (0x15) - Array of Unsigned Integers - Optional
+        // https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#vendorPrototype
+        // vendorCommandId is a 64-bit unsigned integer, but some producers of metadata statements (for example, the JavaScript-based FIDO Conformance Tools)
+        // serialize it through an IEEE 754 double, which turns 0xFFFFFFFFFFFFFFFF into 18446744073709552000 - a value outside the uint64 range.
+        // The list of vendor prototype commands says nothing about the security of the authenticator, so instead of rejecting the whole entry,
+        // only the invalid value is ignored. The ignored value is logged and counted so that the problem is visible in the monitoring.
+        var result = new List<ulong>(vendorPrototypeConfigCommands.Length);
+        for (var i = 0; i < vendorPrototypeConfigCommands.Length; i++)
+        {
+            var vendorCommand = vendorPrototypeConfigCommands[i];
+            if (vendorCommand.ValueKind == JsonValueKind.Number && vendorCommand.TryGetUInt64(out var vendorCommandId))
+            {
+                result.Add(vendorCommandId);
+                continue;
+            }
+
+            Logger.WarnVendorPrototypeConfigCommandIgnored(index, identifier, i, GetRawTextForLog(vendorCommand));
+            Counters.IncrementValueIgnored("metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands[]");
+        }
+
+        return result.ToArray();
+    }
+
+    private static string GetRawTextForLog(JsonElement element)
+    {
+        const int maxLength = 64;
+        if (element.ValueKind == JsonValueKind.Undefined)
+        {
+            return "undefined";
+        }
+
+        var rawText = element.GetRawText();
+        return rawText.Length <= maxLength
+            ? rawText
+            : rawText[..maxLength] + "...";
     }
 
     private static bool TryDecodeAuthenticatorGetInfoAaguid(string aaguid, [NotNullWhen(true)] out Guid? result)
@@ -1482,6 +1535,19 @@ public static partial class DefaultFidoMetadataDecoderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "The status report #{StatusReportIndex} of the entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was ignored because its 'status' member contains the unknown value '{Status}'")]
     public static partial void WarnStatusReportIgnored(this ILogger logger, int index, string identifier, int statusReportIndex, string status);
+
+    /// <summary>
+    ///     The value #{ValueIndex} ({Value}) of the 'metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands' member of the entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was ignored because it is not an unsigned 64-bit integer
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="index">The zero-based index of the entry in the 'entries' array of the blob.</param>
+    /// <param name="identifier">The identifier (aaguid, aaid or the first attestationCertificateKeyIdentifiers element) of the entry.</param>
+    /// <param name="valueIndex">The zero-based index of the value in the 'vendorPrototypeConfigCommands' array.</param>
+    /// <param name="value">The raw JSON text of the ignored value.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The value #{ValueIndex} ({Value}) of the 'metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands' member of the entry #{Index} ({Identifier}) of the FIDO Metadata Service blob was ignored because it is not an unsigned 64-bit integer")]
+    public static partial void WarnVendorPrototypeConfigCommandIgnored(this ILogger logger, int index, string identifier, int valueIndex, string value);
 
     /// <summary>
     ///     None of the {Total} entries of the FIDO Metadata Service blob (no: {No}) could be decoded

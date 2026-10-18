@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Polly;
 using WebAuthn.Net.Configuration.Options;
@@ -14,6 +15,7 @@ namespace WebAuthn.Net.Demo.FidoConformance.Services.ConformanceMetadata;
 
 public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProvider
 {
+    private readonly ConformanceCrlRevocationChecker _crlRevocationChecker;
     private readonly ResiliencePipeline<Result<MetadataBLOBPayloadJSON>> _resiliencePipeline;
 
     public LocalFilesFidoMetadataProviderForMdsTests(
@@ -21,10 +23,14 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
         ISafeJsonSerializer safeJsonSerializer,
         IFidoMetadataHttpClient metadataHttpClient,
         ITimeProvider timeProvider,
+        ILogger<DefaultFidoMetadataProvider> logger,
+        ConformanceCrlRevocationChecker crlRevocationChecker,
         ResiliencePipeline<Result<MetadataBLOBPayloadJSON>> resiliencePipeline)
-        : base(options, safeJsonSerializer, metadataHttpClient, timeProvider)
+        : base(options, safeJsonSerializer, metadataHttpClient, timeProvider, logger)
     {
+        ArgumentNullException.ThrowIfNull(crlRevocationChecker);
         ArgumentNullException.ThrowIfNull(resiliencePipeline);
+        _crlRevocationChecker = crlRevocationChecker;
         _resiliencePipeline = resiliencePipeline;
     }
 
@@ -36,6 +42,13 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
             this,
             cancellationToken);
         return result;
+    }
+
+    // The chain engine is configured not to check the revocation (see ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain),
+    // so the revocation of every certificate of the blob signing chain is checked here against the CRLs from their distribution points.
+    protected override Task<bool> ValidateJwtCertificateChainAsync(X509Chain chain, CancellationToken cancellationToken)
+    {
+        return _crlRevocationChecker.IsChainNotRevokedAsync(chain, cancellationToken);
     }
 
     private async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsyncCore(CancellationToken cancellationToken)
@@ -89,7 +102,7 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
     }
 
 
-    private static MetadataBLOBPayloadEntryJSON[] GetMetadataStatements()
+    private MetadataBLOBPayloadEntryJSON[] GetMetadataStatements()
     {
         var result = new List<MetadataBLOBPayloadEntryJSON>();
 
@@ -106,10 +119,22 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
             foreach (var json in jsons)
             {
                 var fileContent = File.ReadAllText(json.FullName);
-                var metadataStatement = JsonSerializer.Deserialize<MetadataStatementJSON>(fileContent);
+                MetadataStatementJSON? metadataStatement;
+                try
+                {
+                    metadataStatement = JsonSerializer.Deserialize<MetadataStatementJSON>(fileContent);
+                }
+                catch (JsonException exception)
+                {
+                    // A single malformed metadata statement must not prevent the other statements from being loaded.
+                    Logger.WarnMetadataStatementFileSkipped(exception, json.FullName);
+                    continue;
+                }
+
                 if (metadataStatement is null)
                 {
-                    throw new InvalidOperationException($"The JSON file \"{json.FullName}\" does not contain a valid set of metadata ({nameof(MetadataStatementJSON)})");
+                    Logger.WarnMetadataStatementFileEmpty(json.FullName);
+                    continue;
                 }
 
                 var entry = new MetadataBLOBPayloadEntryJSON(
@@ -143,6 +168,7 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
             }
         }
 
+        Logger.InfoMetadataStatementsLoaded(result.Count, jsons?.Length ?? 0);
         return result.ToArray();
     }
 
@@ -201,4 +227,25 @@ public class LocalFilesFidoMetadataProviderForMdsTests : DefaultFidoMetadataProv
 
         return conformanceMetadata;
     }
+}
+
+/// <summary>
+///     Extension methods for logging the loading of the metadata statements from the local files.
+/// </summary>
+public static partial class LocalFilesFidoMetadataProviderForMdsTestsLoggingExtensions
+{
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The metadata statement file '{File}' was skipped because it can't be deserialized into MetadataStatementJSON")]
+    public static partial void WarnMetadataStatementFileSkipped(this ILogger logger, Exception exception, string file);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The metadata statement file '{File}' was skipped because it is empty")]
+    public static partial void WarnMetadataStatementFileEmpty(this ILogger logger, string file);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "{Loaded} of {Total} metadata statement files were loaded and merged into the FIDO Metadata Service blob")]
+    public static partial void InfoMetadataStatementsLoaded(this ILogger logger, int loaded, int total);
 }
