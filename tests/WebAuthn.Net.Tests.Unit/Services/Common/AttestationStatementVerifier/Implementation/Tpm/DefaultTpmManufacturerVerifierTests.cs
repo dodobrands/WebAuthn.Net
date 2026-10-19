@@ -14,11 +14,12 @@ public class DefaultTpmManufacturerVerifierTests
     [TestCase(TpmManufacturers.Intel)]
     [TestCase(TpmManufacturers.Microsoft)]
     [TestCase(TpmManufacturers.Nationz)]
+    [TestCase(TpmManufacturers.NSING)] // also added to the TCG TPM Vendor ID Registry after Version 1.06 Revision 0.94
     [TestCase(TpmManufacturers.NuvotonTechnology)]
+    [TestCase(TpmManufacturers.Qualcomm)]
     [TestCase(TpmManufacturers.STMicroelectronics)]
     // vendors added to the TCG TPM Vendor ID Registry after Version 1.06 Revision 0.94 (the revision the library used before Version 1.08)
     [TestCase(TpmManufacturers.Arm)]
-    [TestCase(TpmManufacturers.NSING)]
     [TestCase(TpmManufacturers.SecEdge)]
     [TestCase(TpmManufacturers.Wisekey)]
     // identifier corrected to the uppercase form mandated by the EK Credential Profile
@@ -73,7 +74,9 @@ public class DefaultTpmManufacturerVerifierTests
             Assert.That(verifier.IsValid(TpmManufacturers.Intel).Ok, Is.EquivalentTo(TpmRoots.Intel));
             Assert.That(verifier.IsValid(TpmManufacturers.Microsoft).Ok, Is.EquivalentTo(TpmRoots.Microsoft));
             Assert.That(verifier.IsValid(TpmManufacturers.Nationz).Ok, Is.EquivalentTo(TpmRoots.Nationz));
+            Assert.That(verifier.IsValid(TpmManufacturers.NSING).Ok, Is.EquivalentTo(TpmRoots.NSING));
             Assert.That(verifier.IsValid(TpmManufacturers.NuvotonTechnology).Ok, Is.EquivalentTo(TpmRoots.NuvotonTechnology));
+            Assert.That(verifier.IsValid(TpmManufacturers.Qualcomm).Ok, Is.EquivalentTo(TpmRoots.Qualcomm));
             Assert.That(verifier.IsValid(TpmManufacturers.STMicroelectronics).Ok, Is.EquivalentTo(TpmRoots.STMicroelectronics));
         });
     }

@@ -38,7 +38,9 @@ public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
         { TpmManufacturers.Intel, TpmRoots.Intel },
         { TpmManufacturers.Microsoft, TpmRoots.Microsoft },
         { TpmManufacturers.Nationz, TpmRoots.Nationz },
+        { TpmManufacturers.NSING, TpmRoots.NSING },
         { TpmManufacturers.NuvotonTechnology, TpmRoots.NuvotonTechnology },
+        { TpmManufacturers.Qualcomm, TpmRoots.Qualcomm },
         { TpmManufacturers.STMicroelectronics, TpmRoots.STMicroelectronics },
         // every other vendor of the registry - the Microsoft TPM roots, to which the AIK certificates seen in practice chain
         { TpmManufacturers.AntGroup, TpmRoots.Microsoft },
@@ -54,8 +56,6 @@ public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
         { TpmManufacturers.IBM, TpmRoots.Microsoft },
         { TpmManufacturers.Lenovo, TpmRoots.Microsoft },
         { TpmManufacturers.NationalSemiconductor, TpmRoots.Microsoft },
-        { TpmManufacturers.NSING, TpmRoots.Microsoft },
-        { TpmManufacturers.Qualcomm, TpmRoots.Microsoft },
         { TpmManufacturers.Samsung, TpmRoots.Microsoft },
         { TpmManufacturers.SecEdge, TpmRoots.Microsoft },
         { TpmManufacturers.Sinosun, TpmRoots.Microsoft },
