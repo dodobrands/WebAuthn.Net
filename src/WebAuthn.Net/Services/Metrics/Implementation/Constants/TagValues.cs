@@ -19,4 +19,14 @@ public static class TagValues
     ///     An element was skipped because an error occurred during its processing.
     /// </summary>
     public const string ReasonException = "exception";
+
+    /// <summary>
+    ///     The anomaly was tolerated: the data was accepted despite it.
+    /// </summary>
+    public const string OutcomeTolerated = "tolerated";
+
+    /// <summary>
+    ///     The anomaly caused the data to be rejected.
+    /// </summary>
+    public const string OutcomeRejected = "rejected";
 }

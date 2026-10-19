@@ -9,14 +9,16 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 
 /// <summary>
-///     Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a>.
+///     Verifier of the <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a> (WebAuthn Level 3 §8.3 "TPM Attestation Statement Format"),
+///     including the <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-cert-requirements">TPM Attestation Statement Certificate Requirements</a> (§8.3.1).
 /// </summary>
 /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
 public interface ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
     /// <summary>
-    ///     Asynchronously verifies the <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a>.
+    ///     Asynchronously verifies the <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a> by performing the verification procedure of WebAuthn Level 3 §8.3.
+    ///     The first step of that procedure (CBOR decoding of attStmt and conformance to the tpmStmtFormat syntax) is performed by the attestation statement decoder that produced <paramref name="attStmt" />.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="attStmt">Decoded <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a>.</param>

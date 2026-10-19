@@ -10,6 +10,24 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 /// <summary>
 ///     Embedded root certificates for the <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a>.
 /// </summary>
+/// <remarks>
+///     <para>
+///         Each vendor folder (RootCertificates/&lt;Vendor&gt;) holds the vendor's published Endorsement Key (EK) CA certificates plus the Microsoft TPM root certificates
+///         (Microsoft TPM Root Certificate Authority 2014, Microsoft Pluton Root CA 2021). The vendor certificates are self-signed roots, except in the STMicroelectronics folder,
+///         which holds the STMicroelectronics EK CAs issued by GlobalSign ("STM TPM EK Root CA", "STM TPM ECC Root CA 01") together with the GlobalSign Trusted Platform Module roots that issued them.
+///     </para>
+///     <para>
+///         The vendor roots come from the Microsoft TrustedTpm package (<a href="https://go.microsoft.com/fwlink/?linkid=2097925">https://go.microsoft.com/fwlink/?linkid=2097925</a>);
+///         only self-signed, unexpired TPM 2.0 roots are kept, so the TPM 1.2 roots of the package (Infineon "IFX TPM EK Root CA" chain, Nuvoton "NTC TPM EK Root CA" and RSA "Nuvoton TPM Root CA x0xx" roots)
+///         and the intermediate CAs it files under RootCA are not embedded. The package ships the NSING Technologies roots in its NationZ folder;
+///         they are kept in the NSING folder because NSING has a TCG vendor identifier of its own (<see cref="TpmManufacturers.NSING" />).
+///     </para>
+///     <para>
+///         WebAuthn TPM attestation conveys Attestation Identity Key (AIK) certificates, which are issued by attestation (privacy) CAs rather than by the EK CAs:
+///         in practice (Windows Hello) they are issued by intermediate CAs that chain to Microsoft TPM Root Certificate Authority 2014,
+///         and the FIDO Metadata Service can contribute further roots for the authenticator's aaguid. The vendor EK roots are kept as additional trust anchors.
+///     </para>
+/// </remarks>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public static class TpmRoots
 {
@@ -44,9 +62,19 @@ public static class TpmRoots
     public static readonly byte[][] Nationz = GetRoots("Nationz");
 
     /// <summary>
+    ///     NSING Technologies Pte. Ltd.
+    /// </summary>
+    public static readonly byte[][] NSING = GetRoots("NSING");
+
+    /// <summary>
     ///     Nuvoton Technology
     /// </summary>
     public static readonly byte[][] NuvotonTechnology = GetRoots("NuvotonTechnology");
+
+    /// <summary>
+    ///     Qualcomm
+    /// </summary>
+    public static readonly byte[][] Qualcomm = GetRoots("Qualcomm");
 
     /// <summary>
     ///     STMicroelectronics International NV

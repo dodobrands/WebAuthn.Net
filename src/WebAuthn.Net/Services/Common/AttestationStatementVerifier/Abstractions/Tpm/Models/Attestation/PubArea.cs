@@ -4,15 +4,16 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
 
 /// <summary>
-///     <para>12.2.4 TPMT_PUBLIC</para>
+///     <para>12.2.4 TPMT_PUBLIC (Table 235)</para>
 ///     <para>The structure used by the TPM to represent the credential public key.</para>
+///     <para>The Name of the object is nameAlg concatenated with the digest of this structure using nameAlg (Part 1 v185, Clause 13, Table 9).</para>
 /// </summary>
 /// <remarks>
 ///     <para>
 ///         <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library</a>
 ///     </para>
 ///     <para>
-///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
+///         <a href="https://cdn.trustedcomputinggroup.org/production/Trusted_Platform_Module_2_0_Library_Part_2_Structures_Version_185_pub_c0a962a931.pdf">TPM 2.0 Library - Part 2: Structures, Version 185, March 12, 2026</a>
 ///     </para>
 /// </remarks>
 public class PubArea

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
@@ -141,8 +142,14 @@ public class AuthenticatorGetInfoJSON
     ///     </para>
     /// </param>
     /// <param name="vendorPrototypeConfigCommands">
-    ///     If present the authenticator supports the <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorConfig">authenticatorConfig</a>
-    ///     <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#vendorPrototype">vendorPrototype</a> subcommand, and its value is a list of authenticatorConfig vendorCommandId values supported, which MAY be empty.
+    ///     <para>
+    ///         If present the authenticator supports the <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorConfig">authenticatorConfig</a>
+    ///         <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#vendorPrototype">vendorPrototype</a> subcommand, and its value is a list of authenticatorConfig vendorCommandId values supported, which MAY be empty.
+    ///     </para>
+    ///     <para>
+    ///         The values are kept as raw JSON values: vendorCommandId is an unsigned 64-bit integer, but some producers of metadata statements serialize it through a double-precision floating-point number
+    ///         and emit values outside the uint64 range. The values are validated by <see cref="IFidoMetadataDecoder" />, which ignores the invalid ones instead of rejecting the whole metadata statement.
+    ///     </para>
     /// </param>
     /// <param name="attestationFormats">
     ///     <para>List of supported attestation formats. Authenticators that support multiple attestation formats, not counting "none", MUST set this field. Otherwise it is optional.</para>
@@ -243,7 +250,7 @@ public class AuthenticatorGetInfoJSON
         ulong? uvModality,
         Dictionary<string, int>? certifications,
         ulong? remainingDiscoverableCredentials,
-        ulong[]? vendorPrototypeConfigCommands,
+        JsonElement[]? vendorPrototypeConfigCommands,
         string[]? attestationFormats,
         ulong? uvCountSinceLastPinEntry,
         bool? longTouchForReset,
@@ -501,12 +508,18 @@ public class AuthenticatorGetInfoJSON
     public ulong? RemainingDiscoverableCredentials { get; }
 
     /// <summary>
-    ///     If present the authenticator supports the <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorConfig">authenticatorConfig</a>
-    ///     <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#vendorPrototype">vendorPrototype</a> subcommand, and its value is a list of authenticatorConfig vendorCommandId values supported, which MAY be empty.
+    ///     <para>
+    ///         If present the authenticator supports the <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#authenticatorConfig">authenticatorConfig</a>
+    ///         <a href="https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#vendorPrototype">vendorPrototype</a> subcommand, and its value is a list of authenticatorConfig vendorCommandId values supported, which MAY be empty.
+    ///     </para>
+    ///     <para>
+    ///         The values are kept as raw JSON values: vendorCommandId is an unsigned 64-bit integer, but some producers of metadata statements serialize it through a double-precision floating-point number
+    ///         and emit values outside the uint64 range. The values are validated by <see cref="IFidoMetadataDecoder" />, which ignores the invalid ones instead of rejecting the whole metadata statement.
+    ///     </para>
     /// </summary>
     [JsonPropertyName("vendorPrototypeConfigCommands")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public ulong[]? VendorPrototypeConfigCommands { get; }
+    public JsonElement[]? VendorPrototypeConfigCommands { get; }
 
     /// <summary>
     ///     <para>List of supported attestation formats. Authenticators that support multiple attestation formats, not counting "none", MUST set this field. Otherwise it is optional.</para>

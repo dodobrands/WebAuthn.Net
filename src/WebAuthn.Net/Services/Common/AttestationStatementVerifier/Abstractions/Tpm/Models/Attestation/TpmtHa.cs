@@ -3,24 +3,26 @@
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
 
 /// <summary>
-///     <para>10.3.2 TPMT_HA</para>
+///     <para>10.2.2 TPMT_HA</para>
 ///     <para>The basic hash-agile structure used in the TPM specification.</para>
+///     <para>When transmitted, only the number of octets indicated by hashAlg is sent, so the length of the digest is fixed by the hash algorithm (Table 88).</para>
 /// </summary>
 /// <remarks>
 ///     <para>
 ///         <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library</a>
 ///     </para>
 ///     <para>
-///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
+///         <a href="https://cdn.trustedcomputinggroup.org/production/Trusted_Platform_Module_2_0_Library_Part_2_Structures_Version_185_pub_c0a962a931.pdf">TPM 2.0 Library - Part 2: Structures, Version 185, March 12, 2026</a>
 ///     </para>
 /// </remarks>
 public class TpmtHa
 {
-    // 10.3.2 TPMT_HA
-    // Table 79 shows the basic hash-agile structure used in this specification.
+    // 10.2.2 TPMT_HA
+    // Table 89 shows the basic hash-agile structure used in this specification.
     // To handle hash agility, this structure uses the hashAlg parameter to indicate the algorithm used to compute the digest and,
     // by implication, the size of the digest.
-    // Table 79 — Definition of TPMT_HA Structure <IN/OUT>
+    // When transmitted, only the number of octets indicated by hashAlg is sent.
+    // Table 89: Definition of TPMT_HA Structure
     // | Parameter        | Type           | Description
     // | hashAlg          | +TPMI_ALG_HASH | selector of the hash contained in the digest that implies the size of the digest
     // | [hashAlg] digest | TPMU_HA        | the digest data

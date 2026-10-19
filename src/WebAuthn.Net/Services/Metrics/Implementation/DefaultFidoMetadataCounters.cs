@@ -33,6 +33,10 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
             "webauthn.mds.decode.status_reports.ignored",
             null,
             "The number of status reports of the FIDO Metadata Service blob that were ignored during decoding because they contain a status unknown to the library");
+        ValuesIgnoredCounter = Meter.CreateCounter<long>(
+            "webauthn.mds.decode.values.ignored",
+            null,
+            "The number of values of the FIDO Metadata Service blob entries that were ignored during decoding because they are invalid, but not essential for the entry");
     }
 
     /// <summary>
@@ -59,6 +63,11 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
     ///     Counter for the status reports of the FIDO Metadata Service blob that were ignored during decoding.
     /// </summary>
     protected Counter<long> StatusReportsIgnoredCounter { get; }
+
+    /// <summary>
+    ///     Counter for the values of the FIDO Metadata Service blob entries that were ignored during decoding.
+    /// </summary>
+    protected Counter<long> ValuesIgnoredCounter { get; }
 
     /// <inheritdoc />
     public void Dispose()
@@ -117,6 +126,17 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
             new TagList
             {
                 new(Tags.AuthenticatorStatus, status)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementValueIgnored(string member)
+    {
+        ValuesIgnoredCounter.Add(
+            1L,
+            new TagList
+            {
+                new(Tags.Member, member)
             });
     }
 

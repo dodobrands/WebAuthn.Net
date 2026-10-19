@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
@@ -15,6 +17,26 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAut
 
 public class DefaultAuthenticationCeremonyServiceTpmTests : AbstractAuthenticationCeremonyServiceTests
 {
+    // The certificates of the test vectors (the Windows Hello AIK and its EUS-AMD-KEYID intermediate CA) expire on 2028-04-14:
+    // the ceremonies run at a fixed time within their validity, and the attestation trust path is validated at that time as well.
+    private static readonly DateTimeOffset CurrentTime = DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture);
+
+    protected override DateTimeOffset GetCurrentTime()
+    {
+        return CurrentTime;
+    }
+
+    protected override void ConfigureWebAuthnOptions(WebAuthnOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var configureAttestationTrustPathChain = options.X509ChainValidation.OnValidateAttestationTrustPathChain;
+        options.X509ChainValidation.OnValidateAttestationTrustPathChain = chain =>
+        {
+            configureAttestationTrustPathChain(chain);
+            chain.ChainPolicy.VerificationTime = CurrentTime.UtcDateTime;
+        };
+    }
+
     protected override Uri GetRelyingPartyAddress()
     {
         return new("https://vanbukin-pc.local", UriKind.Absolute);

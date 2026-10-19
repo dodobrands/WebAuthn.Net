@@ -34,4 +34,10 @@ public interface IFidoMetadataCounters
     /// </summary>
     /// <param name="status">The unknown value of the <c>status</c> member of the status report.</param>
     void IncrementStatusReportIgnored(string status);
+
+    /// <summary>
+    ///     Increments the counter of the values of the FIDO Metadata Service blob entries that were ignored during decoding because they are invalid, but not essential for the entry (for example, a vendorCommandId outside the uint64 range).
+    /// </summary>
+    /// <param name="member">The path of the member of the entry whose value was ignored, without array indices (for example, <c>metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands[]</c>).</param>
+    void IncrementValueIgnored(string member);
 }

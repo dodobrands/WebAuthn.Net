@@ -81,7 +81,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var rpIdProvider = new FakeRelyingPartyIdProvider(rpAddress);
         var rpOriginProvider = new FakeRelyingPartyOriginProvider(rpAddress);
         var challengeGenerator = new DefaultChallengeGenerator();
-        TimeProvider = new(DateTimeOffset.UtcNow);
+        TimeProvider = new(GetCurrentTime());
 
         var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder(
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
@@ -115,7 +115,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
                 Options,
                 safeJsonDeserializer,
                 fakeFidoHttpClientProvider.Client,
-                new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)));
+                new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)),
+                NullLogger<DefaultFidoMetadataProvider>.Instance);
             var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);
             if (downloadMetadataResult.HasError)
             {
@@ -154,6 +155,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             digitalSignatureVerifier,
             asn1Deserializer,
             metadataSearchService);
+        RegistrationCounters = new();
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             new DefaultTpmPubAreaDecoder(),
@@ -161,7 +163,9 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             digitalSignatureVerifier,
             tpmManufacturerVerifier,
             asn1Deserializer,
-            metadataSearchService);
+            metadataSearchService,
+            RegistrationCounters,
+            NullLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
@@ -217,7 +221,6 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
 
-        RegistrationCounters = new();
         AuthenticationCounters = new();
 
         RegistrationCeremonyService = new(
@@ -272,6 +275,12 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
 
     protected virtual void ConfigureWebAuthnOptions(WebAuthnOptions options)
     {
+    }
+
+    // the time the ceremonies run at; test vectors whose certificates expire override it with a fixed time
+    protected virtual DateTimeOffset GetCurrentTime()
+    {
+        return DateTimeOffset.UtcNow;
     }
 
     protected abstract Uri GetRelyingPartyAddress();

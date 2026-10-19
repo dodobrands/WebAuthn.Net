@@ -1,7 +1,7 @@
 ﻿namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
 
 /// <summary>
-///     <para>10.12.11 TPMU_ATTEST</para>
+///     <para>10.11.11 TPMU_ATTEST</para>
 ///     <para>The type-specific attestation information.</para>
 /// </summary>
 /// <remarks>
@@ -9,14 +9,14 @@
 ///         <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library</a>
 ///     </para>
 ///     <para>
-///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
+///         <a href="https://cdn.trustedcomputinggroup.org/production/Trusted_Platform_Module_2_0_Library_Part_2_Structures_Version_185_pub_c0a962a931.pdf">TPM 2.0 Library - Part 2: Structures, Version 185, March 12, 2026</a>
 ///     </para>
 /// </remarks>
 public class Attested
 {
     // According to the WebAuthn specification, only TPM_ST_ATTEST_CERTIFY is allowed
-    // 10.12.11 TPMU_ATTEST
-    // Table 131 — Definition of TPMU_ATTEST Union <OUT>
+    // 10.11.11 TPMU_ATTEST
+    // Table 153: Definition of TPMU_ATTEST Union
     // | Parameter | Type              | Selector
     // | certify   | TPMS_CERTIFY_INFO | TPM_ST_ATTEST_CERTIFY
 

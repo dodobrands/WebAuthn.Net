@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using Polly;
 using WebAuthn.Net.Demo.FidoConformance.Services;
 using WebAuthn.Net.Demo.FidoConformance.Services.ConformanceMetadata;
@@ -22,6 +22,11 @@ public static class Program
         var builder = WebApplication.CreateBuilder(args);
         //builder.Services.AddSingleton<RequestLoggingMiddleware>();
         builder.Services.AddSingleton<LocalFilesFidoMetadataHttpClientDelegatingHandler>();
+        // The .NET chain engine on macOS doesn't download CRLs at all and on Linux downloads them only from http:// URLs,
+        // while the MDS3 test server publishes CRL-only revocation information over HTTPS.
+        // Therefore the revocation of the blob signing chain is checked by ConformanceCrlRevocationChecker instead of the chain engine.
+        builder.Services.AddHttpClient(ConformanceCrlRevocationChecker.HttpClientName, static client => client.Timeout = TimeSpan.FromSeconds(10));
+        builder.Services.AddSingleton<ConformanceCrlRevocationChecker>();
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();
@@ -44,6 +49,7 @@ public static class Program
             {
                 options.AttestationTypes.None.IsAcceptable = true;
                 options.AttestationTypes.Self.IsAcceptable = true;
+                options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
             },
             static fidoHttp =>
             {
@@ -68,6 +74,7 @@ public static class Program
         //     {
         //         options.AttestationTypes.None.IsAcceptable = true;
         //         options.AttestationTypes.Self.IsAcceptable = true;
+        //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //     },
         //     static fidoHttp =>
         //     {
@@ -96,6 +103,7 @@ public static class Program
         //     {
         //         options.AttestationTypes.None.IsAcceptable = true;
         //         options.AttestationTypes.Self.IsAcceptable = true;
+        //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //     },
         //     static fidoHttp =>
         //     {
@@ -124,6 +132,7 @@ public static class Program
         //     {
         //         options.AttestationTypes.None.IsAcceptable = true;
         //         options.AttestationTypes.Self.IsAcceptable = true;
+        //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //     },
         //     static fidoHttp =>
         //     {

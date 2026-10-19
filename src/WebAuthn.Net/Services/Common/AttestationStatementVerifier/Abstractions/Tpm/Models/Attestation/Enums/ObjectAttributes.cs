@@ -3,10 +3,15 @@
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
 
 /// <summary>
-///     <para>8.3 TPMA_OBJECT (UINT32) - Object Attributes</para>
+///     <para>8.3 TPMA_OBJECT (UINT32) - Object Attributes (Table 37)</para>
 ///     <para>
 ///         This attribute structure indicates an object's use, its authorization types, and its relationship to other objects.
 ///         The state of the attributes is determined when the object is created and they are never changed by the TPM.
+///     </para>
+///     <para>
+///         Bits 0, 15:12 and 31:20 are reserved and "shall be zero"; the decoder rejects a pubArea with any of them SET, mirroring TPMA_OBJECT_Unmarshal of the reference implementation (TPM_RC_RESERVED_BITS).
+///         Table 37 additionally reserves bit 3, but the reference implementation keeps it unreserved (a stale TPMA_OBJECT_fixedFirmware definition), so the decoder tolerates it;
+///         the TPM attestation statement verifier reports such a pubArea as a tolerated anomaly. The value of bit 3 is preserved in the decoded attributes although it has no named member.
 ///     </para>
 /// </summary>
 /// <remarks>
@@ -14,7 +19,7 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions
 ///         <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library</a>
 ///     </para>
 ///     <para>
-///         <a href="https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf">TPM 2.0 Library - Part 2: Structures, Family "2.0", Level 00 Revision 01.59, November 8, 2019</a>
+///         <a href="https://cdn.trustedcomputinggroup.org/production/Trusted_Platform_Module_2_0_Library_Part_2_Structures_Version_185_pub_c0a962a931.pdf">TPM 2.0 Library - Part 2: Structures, Version 185, March 12, 2026</a>
 ///     </para>
 /// </remarks>
 [Flags]
@@ -65,7 +70,7 @@ public enum ObjectAttributes : uint
     ///             <term>
     ///                 <see langword="true" />
     ///             </term>
-    ///             <description>The parent of the object may not change.</description>
+    ///             <description>The parent of the object may not change</description>
     ///         </item>
     ///         <item>
     ///             <term>
@@ -137,6 +142,42 @@ public enum ObjectAttributes : uint
     ///             <term>
     ///                 <see langword="true" />
     ///             </term>
+    ///             <description>The object exists only within a firmware-limited hierarchy.</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="false" />
+    ///             </term>
+    ///             <description>The object can exist outside a firmware-limited hierarchy.</description>
+    ///         </item>
+    ///     </list>
+    /// </summary>
+    FirmwareLimited = 1 << 8,
+
+    /// <summary>
+    ///     <list type="table">
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="true" />
+    ///             </term>
+    ///             <description>The object exists only within an SVN-limited hierarchy.</description>
+    ///         </item>
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="false" />
+    ///             </term>
+    ///             <description>The object can exist outside an SVN-limited hierarchy.</description>
+    ///         </item>
+    ///     </list>
+    /// </summary>
+    SvnLimited = 1 << 9,
+
+    /// <summary>
+    ///     <list type="table">
+    ///         <item>
+    ///             <term>
+    ///                 <see langword="true" />
+    ///             </term>
     ///             <description>The object is not subject to dictionary attack protections.</description>
     ///         </item>
     ///         <item>
@@ -201,6 +242,9 @@ public enum ObjectAttributes : uint
     ///         </item>
     ///     </list>
     /// </summary>
+    /// <remarks>
+    ///     Version 185 deprecated support for keys with both sign and decrypt SET. See Part 0.
+    /// </remarks>
     Decrypt = 1 << 17,
 
     /// <summary>
@@ -209,7 +253,7 @@ public enum ObjectAttributes : uint
     ///             <term>
     ///                 <see langword="true" />
     ///             </term>
-    ///             <description>For a symmetric cipher object, the private portion of the key may be used to encrypt. For other objects, the private portion of the key may be used to sign.</description>
+    ///             <description>For a symmetric block cipher key, the private portion of the key may be used to encrypt. For other keys, the private portion of the key may be used to sign.</description>
     ///         </item>
     ///         <item>
     ///             <term>
@@ -219,6 +263,9 @@ public enum ObjectAttributes : uint
     ///         </item>
     ///     </list>
     /// </summary>
+    /// <remarks>
+    ///     Version 185 deprecated support for keys with both sign and decrypt SET. See Part 0.
+    /// </remarks>
     SignEncrypt = 1 << 18,
 
     /// <summary>
@@ -227,18 +274,19 @@ public enum ObjectAttributes : uint
     ///             <term>
     ///                 <see langword="true" />
     ///             </term>
-    ///             <description>An asymmetric key that may not be used to sign with TPM2_Sign().</description>
+    ///             <description>An asymmetric key that may not be used to sign with TPM2_Sign(), TPM2_SignDigest(), or TPM2_SignSequenceComplete().</description>
     ///         </item>
     ///         <item>
     ///             <term>
     ///                 <see langword="false" />
     ///             </term>
-    ///             <description>: A key that may be used with TPM2_Sign() if sign is SET</description>
+    ///             <description>A key that may be used with TPM2_Sign(), TPM2_SignDigest(), or TPM2_SignSequenceComplete() if sign is SET.</description>
     ///         </item>
     ///     </list>
     /// </summary>
     /// <remarks>
-    ///     Note: This attribute only has significance if sign is SET.
+    ///     <para>Note: This attribute only has significance if sign is SET.</para>
+    ///     <para>Note: This attribute does not prevent the key from being used with other commands, such as TPM2_Quote().</para>
     /// </remarks>
     X509Sign = 1 << 19
 }

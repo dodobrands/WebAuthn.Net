@@ -161,7 +161,21 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
             return false;
         }
 
-        value = verCborTextString.RawValue;
+        // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
+        // tpmStmtFormat = { ver: "2.0", ... }
+        // The CDDL fixes 'ver' ("The version of the TPM specification to which the signature conforms.") to the literal "2.0",
+        // and the first step of the verification procedure requires attStmt to conform to that syntax - any other value (e.g. "1.2") is rejected here.
+        var ver = verCborTextString.RawValue;
+        if (!string.Equals(ver, "2.0", StringComparison.Ordinal))
+        {
+            // the value is untrusted input, so only its beginning is logged
+            const int maxLoggedLength = 64;
+            Logger.TpmVerValueUnsupported(ver.Length <= maxLoggedLength ? ver : ver[..maxLoggedLength] + "...");
+            value = null;
+            return false;
+        }
+
+        value = ver;
         return true;
     }
 
@@ -372,6 +386,16 @@ public static partial class DefaultTpmAttestationStatementDecoderLoggingExtensio
         Level = LogLevel.Warning,
         Message = "The 'ver' value in the 'attStmt' map contains an invalid data type")]
     public static partial void TpmVerValueInvalidDataType(this ILogger logger);
+
+    /// <summary>
+    ///     The 'ver' value in the 'attStmt' map is not supported: {Ver}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="ver">The 'ver' value that was received (only "2.0" is supported), truncated to 64 characters.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'ver' value in the 'attStmt' map is not supported: {Ver}")]
+    public static partial void TpmVerValueUnsupported(this ILogger logger, string ver);
 
     /// <summary>
     ///     Failed to find the 'x5c' key in 'attStmt'

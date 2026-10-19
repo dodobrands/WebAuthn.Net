@@ -13,7 +13,10 @@ public static class X509CertificateInMemoryLoader
     /// </summary>
     /// <param name="bytes">x509v3 certificate in binary format (DER).</param>
     /// <param name="certificate">Output parameter. The x509v3 certificate, materialized into the built-in .NET type <see cref="X509Certificate2" /> if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
-    /// <returns><see langword="true" /> if it was possible to load the x509v3 certificate into the EphemeralKeySet (materializing it into <see cref="X509Certificate2" />), and also if the loaded certificate has a valid public key (ECDSA or RSA), otherwise - <see langword="false" />.</returns>
+    /// <returns>
+    ///     <see langword="true" /> if it was possible to load the x509v3 certificate into the EphemeralKeySet (materializing it into <see cref="X509Certificate2" />), its validity period, subject and extensions can be read,
+    ///     and the loaded certificate has a valid public key (ECDSA or RSA), otherwise - <see langword="false" />.
+    /// </returns>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public static bool TryLoad(byte[] bytes, [NotNullWhen(true)] out X509Certificate2? certificate)
     {
@@ -25,6 +28,13 @@ public static class X509CertificateInMemoryLoader
 #else
             cert = X509CertificateLoader.LoadCertificate(bytes);
 #endif
+            // Some parts of the certificate are decoded lazily, and the platforms differ in what they validate when loading:
+            // on Linux, for example, a certificate whose validity time does not follow RFC 5280 loads, but reading NotBefore / NotAfter throws CryptographicException.
+            // They are read here, so that a malformed certificate is rejected by this method instead of throwing later in the code that uses it.
+            _ = cert.NotBefore;
+            _ = cert.NotAfter;
+            _ = cert.SubjectName.RawData;
+            _ = cert.Extensions;
             if (cert.GetRSAPublicKey() is { } rsaPublicKey)
             {
                 rsaPublicKey.Dispose();

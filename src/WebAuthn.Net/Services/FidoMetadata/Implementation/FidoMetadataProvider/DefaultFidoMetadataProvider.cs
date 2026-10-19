@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -33,21 +34,25 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
     /// <param name="metadataHttpClient">An HTTP client for retrieving blob with metadata from the FIDO Metadata Service.</param>
     /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataProvider(
         IOptionsMonitor<WebAuthnOptions> options,
         ISafeJsonSerializer safeJsonSerializer,
         IFidoMetadataHttpClient metadataHttpClient,
-        ITimeProvider timeProvider)
+        ITimeProvider timeProvider,
+        ILogger<DefaultFidoMetadataProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(safeJsonSerializer);
         ArgumentNullException.ThrowIfNull(metadataHttpClient);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         SafeJsonSerializer = safeJsonSerializer;
         MetadataHttpClient = metadataHttpClient;
         TimeProvider = timeProvider;
+        Logger = logger;
     }
 
     /// <summary>
@@ -70,7 +75,15 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     /// </summary>
     protected ITimeProvider TimeProvider { get; }
 
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultFidoMetadataProvider> Logger { get; }
+
     /// <inheritdoc />
+    /// <remarks>
+    ///     Every reason for which the blob is rejected is logged at the <see cref="LogLevel.Warning" /> level, because a silently rejected blob would leave the FIDO metadata stale without any visible cause.
+    /// </remarks>
     public virtual async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -80,23 +93,20 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         {
             var rawMetadata = await MetadataHttpClient.DownloadMetadataAsync(cancellationToken);
             var jwt = new JsonWebToken(rawMetadata);
-            if (!TryGetRawCertificates(jwt, out var headerCertificates))
+            if (!TryGetRawCertificates(jwt, out var headerCertificates) || headerCertificates.Length == 0)
             {
-                return Result<MetadataBLOBPayloadJSON>.Fail();
-            }
-
-            if (headerCertificates.Length == 0)
-            {
+                Logger.WarnJwtHeaderCertificatesMissing();
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             var jwtCertificates = new List<X509Certificate2>();
-            foreach (var certBytes in headerCertificates)
+            for (var i = 0; i < headerCertificates.Length; i++)
             {
-                if (!X509CertificateInMemoryLoader.TryLoad(certBytes, out var jwtCertificate))
+                if (!X509CertificateInMemoryLoader.TryLoad(headerCertificates[i], out var jwtCertificate))
                 {
                     jwtCertificate?.Dispose();
+                    Logger.WarnJwtHeaderCertificateInvalid(i);
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
 
@@ -104,6 +114,12 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 jwtCertificates.Add(jwtCertificate);
                 if (currentDate < jwtCertificate.NotBefore || currentDate > jwtCertificate.NotAfter)
                 {
+                    Logger.WarnJwtHeaderCertificateNotValidNow(
+                        i,
+                        jwtCertificate.Subject,
+                        jwtCertificate.NotBefore.ToUniversalTime(),
+                        jwtCertificate.NotAfter.ToUniversalTime(),
+                        currentDate);
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
             }
@@ -112,15 +128,18 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             var fidoRootCertificates = GetEmbeddedFidoRootCertificates();
             if (fidoRootCertificates.Count == 0)
             {
+                Logger.WarnRootCertificatesMissing();
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
             var rootCertificates = new List<X509Certificate2>();
+            var rootCertificateIndex = 0;
             foreach (var fidoRootCertBytes in fidoRootCertificates)
             {
                 if (!X509CertificateInMemoryLoader.TryLoad(fidoRootCertBytes, out var fidoRootCertificate))
                 {
                     fidoRootCertificate?.Dispose();
+                    Logger.WarnRootCertificateInvalid(rootCertificateIndex);
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
 
@@ -129,6 +148,14 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 {
                     rootCertificates.Add(fidoRootCertificate);
                 }
+
+                rootCertificateIndex++;
+            }
+
+            if (rootCertificates.Count == 0)
+            {
+                Logger.WarnRootCertificatesNotValidNow(fidoRootCertificates.Count, currentDate);
+                return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
             var securityKeys = new List<SecurityKey>();
@@ -147,27 +174,46 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 }
                 else
                 {
+                    Logger.WarnJwtHeaderCertificateUnsupportedPublicKey(jwtCertificate.Subject);
                     return Result<MetadataBLOBPayloadJSON>.Fail();
                 }
             }
 
-            var isJwtCertificateValid = X509TrustChainValidator.IsFidoMetadataBlobJwtChainValid(
-                rootCertificates.ToArray(),
-                jwtCertificates.ToArray(),
-                Options.CurrentValue.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain);
-            if (!isJwtCertificateValid)
+            X509Chain? jwtCertificateChain = null;
+            try
             {
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                if (!X509TrustChainValidator.TryBuildFidoMetadataBlobJwtChain(
+                        rootCertificates.ToArray(),
+                        jwtCertificates.ToArray(),
+                        Options.CurrentValue.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain,
+                        out jwtCertificateChain,
+                        out var chainStatus))
+                {
+                    Logger.WarnJwtCertificateChainInvalid(FormatChainStatus(chainStatus));
+                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                }
+
+                if (!await ValidateJwtCertificateChainAsync(jwtCertificateChain, cancellationToken))
+                {
+                    Logger.WarnJwtCertificateChainRejected();
+                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                }
+            }
+            finally
+            {
+                jwtCertificateChain?.Dispose();
             }
 
             var jwtValidationResult = await JwtValidator.ValidateAsync(rawMetadata, securityKeys, cancellationToken);
             if (!jwtValidationResult.IsValid)
             {
+                Logger.WarnJwtSignatureInvalid(jwtValidationResult.Exception);
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
             if (!Base64Url.TryDecode(jwt.EncodedPayload, out var jwtPayloadBytes))
             {
+                Logger.WarnJwtPayloadNotBase64Url();
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
@@ -175,9 +221,11 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             var blobPayloadResult = SafeJsonSerializer.DeserializeNonNullable<MetadataBLOBPayloadJSON>(payload);
             if (blobPayloadResult.HasError)
             {
+                Logger.WarnJwtPayloadDeserializationFailed();
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
+            Logger.DebugMetadataDownloaded(blobPayloadResult.Ok.No, blobPayloadResult.Ok.Entries?.Length ?? 0);
             return Result<MetadataBLOBPayloadJSON>.Success(blobPayloadResult.Ok);
         }
         finally
@@ -192,6 +240,61 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 certificateToDispose.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    ///     Performs additional validation of the successfully built signing certificate chain of the blob obtained from the FIDO Metadata Service.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The default implementation accepts every chain, because the chain has already been validated according to
+    ///         <see cref="X509ChainValidationOptions.OnValidateFidoMetadataBlobJwtChain" />.
+    ///     </para>
+    ///     <para>
+    ///         Override this method to apply checks that the <see cref="X509Chain" /> engine of the platform can't perform itself, for example,
+    ///         a revocation check against CRLs that the platform doesn't download (the .NET chain engine on macOS doesn't download CRLs at all,
+    ///         and on Linux it downloads them only from <c>http://</c> URLs). In such a case, configure <see cref="X509ChainPolicy.RevocationMode" />
+    ///         to <see cref="X509RevocationMode.NoCheck" /> in <see cref="X509ChainValidationOptions.OnValidateFidoMetadataBlobJwtChain" /> and check the revocation here.
+    ///     </para>
+    /// </remarks>
+    /// <param name="chain">The successfully built signing certificate chain of the blob. The chain is disposed by the caller after this method completes.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns><see langword="true" /> if the chain is acceptable and the blob can be used, otherwise - <see langword="false" /> (the blob is rejected).</returns>
+    protected virtual Task<bool> ValidateJwtCertificateChainAsync(X509Chain chain, CancellationToken cancellationToken)
+    {
+        return Task.FromResult(true);
+    }
+
+    /// <summary>
+    ///     Formats the status of an X509 certificate chain for logging.
+    /// </summary>
+    /// <param name="chainStatus">The status of the chain.</param>
+    /// <returns>A human-readable description of the chain status flags.</returns>
+    protected static string FormatChainStatus(X509ChainStatus[] chainStatus)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (chainStatus is null || chainStatus.Length == 0)
+        {
+            return "<no chain status flags were reported>";
+        }
+
+        var result = new StringBuilder();
+        foreach (var status in chainStatus)
+        {
+            if (result.Length > 0)
+            {
+                result.Append("; ");
+            }
+
+            result.Append(status.Status.ToString());
+            var information = status.StatusInformation?.Trim();
+            if (!string.IsNullOrEmpty(information))
+            {
+                result.Append(" (").Append(information).Append(')');
+            }
+        }
+
+        return result.ToString();
     }
 
     /// <summary>
@@ -298,4 +401,141 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     {
         return new(FidoMetadataRoots.GlobalSign);
     }
+}
+
+/// <summary>
+///     Extension methods for logging the retrieval of the FIDO Metadata Service blob.
+/// </summary>
+public static partial class DefaultFidoMetadataProviderLoggingExtensions
+{
+    /// <summary>
+    ///     The JWT header of the FIDO Metadata Service blob doesn't contain a valid 'x5c' member with the signing certificates
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The JWT header of the FIDO Metadata Service blob doesn't contain a valid 'x5c' member with the signing certificates")]
+    public static partial void WarnJwtHeaderCertificatesMissing(this ILogger logger);
+
+    /// <summary>
+    ///     The certificate #{Index} from the 'x5c' member of the FIDO Metadata Service blob JWT header can't be loaded as an X509v3 certificate with an ECDSA or RSA public key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="index">The zero-based index of the certificate in the 'x5c' member.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The certificate #{Index} from the 'x5c' member of the FIDO Metadata Service blob JWT header can't be loaded as an X509v3 certificate with an ECDSA or RSA public key")]
+    public static partial void WarnJwtHeaderCertificateInvalid(this ILogger logger, int index);
+
+    /// <summary>
+    ///     The certificate #{Index} ('{Subject}') from the 'x5c' member of the FIDO Metadata Service blob JWT header is not valid at the current time {Now}: its validity period is from {NotBefore} to {NotAfter}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="index">The zero-based index of the certificate in the 'x5c' member.</param>
+    /// <param name="subject">The subject of the certificate.</param>
+    /// <param name="notBefore">The start of the validity period of the certificate (UTC).</param>
+    /// <param name="notAfter">The end of the validity period of the certificate (UTC).</param>
+    /// <param name="now">The current time (UTC).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The certificate #{Index} ('{Subject}') from the 'x5c' member of the FIDO Metadata Service blob JWT header is not valid at the current time {Now:O}: its validity period is from {NotBefore:O} to {NotAfter:O}")]
+    public static partial void WarnJwtHeaderCertificateNotValidNow(this ILogger logger, int index, string subject, DateTime notBefore, DateTime notAfter, DateTimeOffset now);
+
+    /// <summary>
+    ///     There are no root certificates for validating the signing certificate chain of the FIDO Metadata Service blob
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "There are no root certificates for validating the signing certificate chain of the FIDO Metadata Service blob")]
+    public static partial void WarnRootCertificatesMissing(this ILogger logger);
+
+    /// <summary>
+    ///     The root certificate #{Index} for validating the signing certificate chain of the FIDO Metadata Service blob can't be loaded as an X509v3 certificate with an ECDSA or RSA public key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="index">The zero-based index of the root certificate in the collection of root certificates.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The root certificate #{Index} for validating the signing certificate chain of the FIDO Metadata Service blob can't be loaded as an X509v3 certificate with an ECDSA or RSA public key")]
+    public static partial void WarnRootCertificateInvalid(this ILogger logger, int index);
+
+    /// <summary>
+    ///     None of the {Total} root certificates for validating the signing certificate chain of the FIDO Metadata Service blob is valid at the current time {Now}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="total">The total number of root certificates.</param>
+    /// <param name="now">The current time (UTC).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "None of the {Total} root certificates for validating the signing certificate chain of the FIDO Metadata Service blob is valid at the current time {Now:O}")]
+    public static partial void WarnRootCertificatesNotValidNow(this ILogger logger, int total, DateTimeOffset now);
+
+    /// <summary>
+    ///     The certificate '{Subject}' from the 'x5c' member of the FIDO Metadata Service blob JWT header contains neither an ECDSA nor an RSA public key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="subject">The subject of the certificate.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The certificate '{Subject}' from the 'x5c' member of the FIDO Metadata Service blob JWT header contains neither an ECDSA nor an RSA public key")]
+    public static partial void WarnJwtHeaderCertificateUnsupportedPublicKey(this ILogger logger, string subject);
+
+    /// <summary>
+    ///     The signing certificate chain of the FIDO Metadata Service blob is invalid: {ChainStatus}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="chainStatus">The description of the X509 chain status flags.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The signing certificate chain of the FIDO Metadata Service blob is invalid: {ChainStatus}")]
+    public static partial void WarnJwtCertificateChainInvalid(this ILogger logger, string chainStatus);
+
+    /// <summary>
+    ///     The signing certificate chain of the FIDO Metadata Service blob was rejected by the additional validation
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The signing certificate chain of the FIDO Metadata Service blob was rejected by the additional validation")]
+    public static partial void WarnJwtCertificateChainRejected(this ILogger logger);
+
+    /// <summary>
+    ///     The signature of the FIDO Metadata Service blob JWT is invalid
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception describing why the signature validation failed, if any.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The signature of the FIDO Metadata Service blob JWT is invalid")]
+    public static partial void WarnJwtSignatureInvalid(this ILogger logger, Exception? exception);
+
+    /// <summary>
+    ///     The payload of the FIDO Metadata Service blob JWT is not a valid base64url string
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The payload of the FIDO Metadata Service blob JWT is not a valid base64url string")]
+    public static partial void WarnJwtPayloadNotBase64Url(this ILogger logger);
+
+    /// <summary>
+    ///     The payload of the FIDO Metadata Service blob JWT can't be deserialized into MetadataBLOBPayloadJSON
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The payload of the FIDO Metadata Service blob JWT can't be deserialized into MetadataBLOBPayloadJSON")]
+    public static partial void WarnJwtPayloadDeserializationFailed(this ILogger logger);
+
+    /// <summary>
+    ///     The FIDO Metadata Service blob (no: {No}) with {Entries} entries was downloaded and its signature was verified
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the blob.</param>
+    /// <param name="entries">The number of entries in the blob.</param>
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "The FIDO Metadata Service blob (no: {No}) with {Entries} entries was downloaded and its signature was verified")]
+    public static partial void DebugMetadataDownloaded(this ILogger logger, long no, int entries);
 }

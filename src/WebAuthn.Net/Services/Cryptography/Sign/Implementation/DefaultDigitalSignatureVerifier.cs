@@ -25,7 +25,21 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
             return false;
         }
 
-        switch (kty.Value)
+        // The certificate and its key come from the client. Extracting, exporting or importing an unusable public key throws CryptographicException
+        // (for example, an EC point that is not on the curve) - that is an invalid signature, not an error.
+        try
+        {
+            return IsValidCertificateSignCore(certificate, alg, kty.Value, dataToVerify, signature);
+        }
+        catch (CryptographicException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidCertificateSignCore(X509Certificate2 certificate, CoseAlgorithm alg, CoseKeyType kty, byte[] dataToVerify, byte[] signature)
+    {
+        switch (kty)
         {
             case CoseKeyType.EC2:
                 {
@@ -119,22 +133,30 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
     public virtual bool IsValidCoseKeySign(AbstractCoseKey coseKey, byte[] dataToVerify, byte[] signature)
     {
         ArgumentNullException.ThrowIfNull(coseKey);
-        switch (coseKey.Kty)
+        // Importing an unusable public key throws CryptographicException (for example, an EC point that is not on the curve) - that is an invalid signature, not an error.
+        try
         {
-            case CoseKeyType.EC2:
-                {
-                    return IsValidCoseKeySignEc2(coseKey, dataToVerify, signature);
-                }
-            case CoseKeyType.RSA:
-                {
-                    return IsValidCoseKeySignRsa(coseKey, dataToVerify, signature);
-                }
-            case CoseKeyType.OKP:
-                {
-                    return IsValidCoseKeySignOkp(coseKey, dataToVerify, signature);
-                }
-            default:
-                return false;
+            switch (coseKey.Kty)
+            {
+                case CoseKeyType.EC2:
+                    {
+                        return IsValidCoseKeySignEc2(coseKey, dataToVerify, signature);
+                    }
+                case CoseKeyType.RSA:
+                    {
+                        return IsValidCoseKeySignRsa(coseKey, dataToVerify, signature);
+                    }
+                case CoseKeyType.OKP:
+                    {
+                        return IsValidCoseKeySignOkp(coseKey, dataToVerify, signature);
+                    }
+                default:
+                    return false;
+            }
+        }
+        catch (CryptographicException)
+        {
+            return false;
         }
     }
 
@@ -251,7 +273,8 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
 
     private static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEc2EllipticCurve? coseCurve)
     {
-        if (string.IsNullOrEmpty(ecCurve.Oid.Value))
+        // A key with explicit curve parameters (the certificate does not name its curve) has no Oid; only the named NIST curves are supported.
+        if (!ecCurve.IsNamed || string.IsNullOrEmpty(ecCurve.Oid.Value))
         {
             coseCurve = null;
             return false;
