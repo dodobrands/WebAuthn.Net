@@ -5,7 +5,7 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 
 /// <summary>
-///     Decoder of the TPMS_ATTEST structure over which the above signature was computed, as specified in <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (section 10.11.12, Version 185)</a>.
+///     Decoder of the TPMS_ATTEST structure over which the attestation signature of a TPM attestation statement (the certInfo field) was computed, as specified in <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (section 10.11.12, Version 185)</a>.
 /// </summary>
 public interface ITpmCertInfoDecoder
 {

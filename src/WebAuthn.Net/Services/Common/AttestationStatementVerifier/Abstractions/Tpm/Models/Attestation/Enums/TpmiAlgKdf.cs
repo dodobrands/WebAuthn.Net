@@ -33,59 +33,60 @@ public enum TpmiAlgKdf : ushort
     // | #TPM_RC_KDF            |
 
     /// <summary>
-    ///     Null algorithm
+    ///     Hash-based mask-generation function
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_NULL</para>
-    /// <para>TCG TPM 2.0 library specification</para>
-    /// </remarks>
-    TpmAlgNull = 0x0010,
-
-    /// <summary>
-    /// Hash-based mask-generation function
-    /// </summary>
-    /// <remarks>
-    /// <para>TPM_ALG_MGF1</para>
-    /// <para>IEEE Std 1363-2000</para>
-    /// <para>IEEE Std 1363a-2004</para>
+    ///     <para>TPM_ALG_MGF1</para>
+    ///     <para>IEEE Std 1363-2000</para>
+    ///     <para>IEEE Std 1363a-2004</para>
     /// </remarks>
     TpmAlgMgf1 = 0x0007,
 
     /// <summary>
-    /// HMAC-based Extract-and-Expand Key Derivation Function
+    ///     Null algorithm
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_HKDF</para>
-    /// <para>IETF RFC 5869</para>
-    /// <para>Added to TPMI_ALG_KDF in version 185 (Table 82); not present in the V184 reference implementation.</para>
+    ///     <para>TPM_ALG_NULL</para>
+    ///     <para>TCG TPM 2.0 library specification</para>
+    /// </remarks>
+    TpmAlgNull = 0x0010,
+
+    /// <summary>
+    ///     HMAC-based Extract-and-Expand Key Derivation Function
+    /// </summary>
+    /// <remarks>
+    ///     <para>TPM_ALG_HKDF</para>
+    ///     <para>IETF RFC 5869</para>
+    ///     <para>Added to TPMI_ALG_KDF in version 185 (Table 82); not present in the V184 reference implementation.</para>
     /// </remarks>
     TpmAlgHkdf = 0x001F,
 
     /// <summary>
-    /// Concatenation key derivation function (approved alternative 1) clause 5.8.1
+    ///     A key derivation method: "(Cofactor) One-Pass Diffie-Hellman, C(1e, 1s, ECC CDH)" from SP 800-56A, using the concatenation format for FixedInfo.
+    ///     The key derivation method (KDM) used is the "One-Step Key Derivation" from SP 800-56C, where the Auxiliary Function is HMAC (Option 2).
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_KDF1_SP800_56A</para>
-    /// <para>NIST SP800-56A</para>
+    ///     <para>TPM_ALG_KDF1_SP800_56A</para>
+    ///     <para>NIST SP 800-56A, NIST SP 800-56C</para>
     /// </remarks>
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    TpmAlgKdf1Sp800_56a = 0x0020,
+    TpmAlgKdf1Sp800_56A = 0x0020,
 
     /// <summary>
-    /// Key derivation function KDF2 clause 13.2
+    ///     Key derivation function KDF2 clause 13.2
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_KDF2</para>
-    /// <para>IEEE Std 1363a-2004</para>
+    ///     <para>TPM_ALG_KDF2</para>
+    ///     <para>IEEE Std 1363a-2004</para>
     /// </remarks>
     TpmAlgKdf2 = 0x0021,
 
     /// <summary>
-    /// A key derivation method clause 5.1 KDF in Counter Mode
+    ///     A key derivation method clause 5.1 KDF in Counter Mode
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_KDF1_SP800_108</para>
-    /// <para>NIST SP800-108</para>
+    ///     <para>TPM_ALG_KDF1_SP800_108</para>
+    ///     <para>NIST SP 800-108</para>
     /// </remarks>
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     TpmAlgKdf1Sp800_108 = 0x0022

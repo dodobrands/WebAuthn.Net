@@ -31,44 +31,44 @@ public enum TpmiAlgRsaScheme : ushort
     ///     Null algorithm
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_NULL</para>
-    /// <para>TCG TPM 2.0 library specification</para>
+    ///     <para>TPM_ALG_NULL</para>
+    ///     <para>TCG TPM 2.0 library specification</para>
     /// </remarks>
     TpmAlgNull = 0x0010,
 
     /// <summary>
-    /// A signature algorithm defined in clause 8.2 (RSASSA-PKCS1-v1_5)
+    ///     A signature algorithm defined in clause 8.2 (RSASSA-PKCS1-v1_5)
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_RSASSA</para>
-    /// <para>IETF RFC 8017</para>
+    ///     <para>TPM_ALG_RSASSA</para>
+    ///     <para>IETF RFC 8017</para>
     /// </remarks>
     TpmAlgRsassa = 0x0014,
 
     /// <summary>
-    /// A padding algorithm defined in clause 7.2 (RSAES-PKCS1-v1_5)
+    ///     A padding algorithm defined in clause 7.2 (RSAES-PKCS1-v1_5)
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_RSAES</para>
-    /// <para>RFC 8017</para>
+    ///     <para>TPM_ALG_RSAES</para>
+    ///     <para>RFC 8017</para>
     /// </remarks>
     TpmAlgRsaes = 0x0015,
 
     /// <summary>
-    /// A signature algorithm defined in clause 8.1 (RSASSA-PSS)
+    ///     A signature algorithm defined in clause 8.1 (RSASSA-PSS)
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_RSAPSS</para>
-    /// <para>IETF RFC 8017</para>
+    ///     <para>TPM_ALG_RSAPSS</para>
+    ///     <para>IETF RFC 8017</para>
     /// </remarks>
     TpmAlgRsapss = 0x0016,
 
     /// <summary>
-    /// A padding algorithm defined in clause 7.1 (RSAES_OAEP)
+    ///     A padding algorithm defined in clause 7.1 (RSAES_OAEP)
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_OAEP</para>
-    /// <para>RFC 8017</para>
+    ///     <para>TPM_ALG_OAEP</para>
+    ///     <para>RFC 8017</para>
     /// </remarks>
     TpmAlgOaep = 0x0017
 }

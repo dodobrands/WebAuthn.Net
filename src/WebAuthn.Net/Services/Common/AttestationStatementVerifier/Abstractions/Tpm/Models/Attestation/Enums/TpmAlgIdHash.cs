@@ -12,8 +12,10 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions
 ///         Membership does not mean that this library can compute the digest; that is decided separately by the code that hashes.
 ///     </para>
 ///     <para>
-///         TPM_ALG_NULL is deliberately not a member. The fields decoded with this type (nameAlg of TPMT_PUBLIC, hashAlg of TPMS_SCHEME_HASH and TPMS_SCHEME_ECDAA)
-///         are unmarshaled by the reference implementation with TPMI_ALG_HASH_Unmarshal(flag = 0), which rejects TPM_ALG_NULL and unknown identifiers (TPM_RC_HASH).
+///         TPM_ALG_NULL is deliberately not a member. The fields decoded with this type are unmarshaled by the reference implementation with TPMI_ALG_HASH_Unmarshal(),
+///         which rejects unknown identifiers (TPM_RC_HASH) and rejects TPM_ALG_NULL unless the "+" flag is set:
+///         hashAlg of TPMS_SCHEME_HASH and TPMS_SCHEME_ECDAA always without the flag, nameAlg of TPMT_PUBLIC without it except in TPM2_LoadExternal().
+///         A WebAuthn credential key can be certified by TPM2_Certify() only if it was created or loaded with its sensitive area, and PublicAttributesValidation() rejects a TPM_ALG_NULL nameAlg for such an object.
 ///     </para>
 /// </summary>
 /// <remarks>
@@ -55,7 +57,7 @@ public enum TpmAlgIdHash : ushort
     /// </summary>
     /// <remarks>
     ///     <para>ISO/IEC 10118-3</para>
-    ///     <para>Deprecated in version 185 (see Part 0), still produced by deployed TPMs.</para>
+    ///     <para>Deprecated in version 184 (see Part 0 v185, 3.1.1.2), still produced by deployed TPMs.</para>
     /// </remarks>
     Sha1 = 0x0004,
 

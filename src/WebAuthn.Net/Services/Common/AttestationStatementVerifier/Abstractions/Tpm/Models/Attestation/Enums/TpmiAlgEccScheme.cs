@@ -37,95 +37,95 @@ public enum TpmiAlgEccScheme : ushort
     ///     Null algorithm
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_NULL</para>
-    /// <para>TCG TPM 2.0 library specification</para>
+    ///     <para>TPM_ALG_NULL</para>
+    ///     <para>TCG TPM 2.0 library specification</para>
     /// </remarks>
     TpmAlgNull = 0x0010,
 
     /// <summary>
-    /// Signature algorithm using elliptic curve cryptography (ECC) (Non-deterministic ECDSA)
+    ///     Signature algorithm using elliptic curve cryptography (ECC) (Non-deterministic ECDSA)
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_ECDSA</para>
-    /// <para>ISO/IEC 14888-3</para>
+    ///     <para>TPM_ALG_ECDSA</para>
+    ///     <para>ISO/IEC 14888-3</para>
     /// </remarks>
     TpmAlgEcdsa = 0x0018,
 
     /// <summary>
-    /// Elliptic-curve based, anonymous signing scheme
+    ///     <para>Elliptic Curve Diffie-Hellman</para>
+    ///     <para>
+    ///         Based on context, this can be one of:
+    ///         <list type="bullet">
+    ///             <item>"Elliptic Curve Cryptography Cofactor Diffie-Hellman (ECC CDH) Primitive" defined in 5.7.1.2 of SP 800-56A</item>
+    ///             <item>X25519 or X448 as defined in clause 5 of RFC 7748</item>
+    ///         </list>
+    ///     </para>
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_ECDAA</para>
-    /// <para>TCG TPM 2.0 library specification</para>
-    /// </remarks>
-    TpmAlgEcdaa = 0x001A,
-
-    /// <summary>
-    /// SM2 - depending on context, either an elliptic-curve based signature algorithm, an encryption scheme or a key exchange protocol
-    /// </summary>
-    /// <remarks>
-    /// <para>TPM_ALG_SM2</para>
-    /// <para>GB/T 32918.1-2016</para>
-    /// <para>GB/T 32918.2-2016</para>
-    /// <para>GB/T 32918.3-2016</para>
-    /// <para>GB/T 32918.4-2016</para>
-    /// <para>GB/T 32918.5-2017</para>
-    /// </remarks>
-    TpmAlgSm2 = 0x001B,
-
-    /// <summary>
-    /// Elliptic-curve based Schnorr signature
-    /// </summary>
-    /// <remarks>
-    /// <para>TPM_ALG_ECSCHNORR</para>
-    /// <para>TCG TPM 2.0 library specification</para>
-    /// </remarks>
-    TpmAlgEcschnorr = 0x001C,
-
-    /// <summary>
-    /// Edwards-curve Digital Signature Algorithm (PureEdDSA)
-    /// </summary>
-    /// <remarks>
-    /// <para>TPM_ALG_EDDSA</para>
-    /// <para>RFC 8032</para>
-    /// <para>Defined only for the Edwards curves (TPM_ECC_CURVE_25519, TPM_ECC_CURVE_448), which <see cref="TpmiEccCurve" /> does not include; always rejected by the decoder.</para>
-    /// </remarks>
-    TpmAlgEddsa = 0x0060,
-
-    /// <summary>
-    /// Edwards-curve Digital Signature Algorithm (HashEdDSA)
-    /// </summary>
-    /// <remarks>
-    /// <para>TPM_ALG_HASH_EDDSA</para>
-    /// <para>RFC 8032</para>
-    /// <para>Note: Earlier TCG specifications used the name TPM_ALG_EDDSA_PH.</para>
-    /// <para>Defined only for the Edwards curves (TPM_ECC_CURVE_25519, TPM_ECC_CURVE_448), which <see cref="TpmiEccCurve" /> does not include; always rejected by the decoder.</para>
-    /// </remarks>
-    TpmAlgHashEddsa = 0x0061,
-
-    /// <summary>
-    /// <para>Elliptic Curve Diffie-Hellman</para>
-    /// <para>
-    /// Based on context, this can be one of:
-    ///     <list type="bullet">
-    ///         <item>“Elliptic Curve Cryptography Cofactor Diffie-Hellman (ECC CDH) Primitive” defined in 5.7.1.2 of SP 800-56A</item>
-    ///         <item>X25519 or X448 as defined in clause 5 of RFC 7748</item>
-    ///     </list>
-    /// </para>
-    /// </summary>
-    /// <remarks>
-    /// <para>TPM_ALG_ECDH</para>
-    /// <para>NIST SP 800-56A</para>
-    /// <para>IETF RFC 7748</para>
+    ///     <para>TPM_ALG_ECDH</para>
+    ///     <para>NIST SP 800-56A</para>
+    ///     <para>IETF RFC 7748</para>
     /// </remarks>
     TpmAlgEcdh = 0x0019,
 
     /// <summary>
-    /// “Full MQV, C(2e, 2s, ECC MQV)” defined in 6.1.1.4 of SP 800-56A
+    ///     Elliptic-curve based, anonymous signing scheme
     /// </summary>
     /// <remarks>
-    /// <para>TPM_ALG_ECMQV</para>
-    /// <para>NIST SP 800-56A</para>
+    ///     <para>TPM_ALG_ECDAA</para>
+    ///     <para>TCG TPM 2.0 library specification</para>
     /// </remarks>
-    TpmAlgEcmqv = 0x001D
+    TpmAlgEcdaa = 0x001A,
+
+    /// <summary>
+    ///     SM2 - depending on context, either an elliptic-curve based signature algorithm, an encryption scheme or a key exchange protocol
+    /// </summary>
+    /// <remarks>
+    ///     <para>TPM_ALG_SM2</para>
+    ///     <para>GB/T 32918.1-2016</para>
+    ///     <para>GB/T 32918.2-2016</para>
+    ///     <para>GB/T 32918.3-2016</para>
+    ///     <para>GB/T 32918.4-2016</para>
+    ///     <para>GB/T 32918.5-2017</para>
+    /// </remarks>
+    TpmAlgSm2 = 0x001B,
+
+    /// <summary>
+    ///     Elliptic-curve based Schnorr signature
+    /// </summary>
+    /// <remarks>
+    ///     <para>TPM_ALG_ECSCHNORR</para>
+    ///     <para>TCG TPM 2.0 library specification</para>
+    /// </remarks>
+    TpmAlgEcschnorr = 0x001C,
+
+    /// <summary>
+    ///     "Full MQV, C(2e, 2s, ECC MQV)" defined in 6.1.1.4 of SP 800-56A
+    /// </summary>
+    /// <remarks>
+    ///     <para>TPM_ALG_ECMQV</para>
+    ///     <para>NIST SP 800-56A</para>
+    /// </remarks>
+    TpmAlgEcmqv = 0x001D,
+
+    /// <summary>
+    ///     Edwards-curve Digital Signature Algorithm (PureEdDSA)
+    /// </summary>
+    /// <remarks>
+    ///     <para>TPM_ALG_EDDSA</para>
+    ///     <para>RFC 8032</para>
+    ///     <para>Defined only for the Edwards curves (TPM_ECC_CURVE_25519, TPM_ECC_CURVE_448), which <see cref="TpmiEccCurve" /> does not include; always rejected by the decoder.</para>
+    /// </remarks>
+    TpmAlgEddsa = 0x0060,
+
+    /// <summary>
+    ///     Edwards-curve Digital Signature Algorithm (HashEdDSA)
+    /// </summary>
+    /// <remarks>
+    ///     <para>TPM_ALG_HASH_EDDSA</para>
+    ///     <para>RFC 8032</para>
+    ///     <para>Note: Earlier TCG specifications used the name TPM_ALG_EDDSA_PH.</para>
+    ///     <para>Defined only for the Edwards curves (TPM_ECC_CURVE_25519, TPM_ECC_CURVE_448), which <see cref="TpmiEccCurve" /> does not include; always rejected by the decoder.</para>
+    /// </remarks>
+    TpmAlgHashEddsa = 0x0061
 }

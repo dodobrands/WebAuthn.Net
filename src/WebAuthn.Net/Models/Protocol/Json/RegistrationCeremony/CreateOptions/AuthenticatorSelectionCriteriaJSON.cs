@@ -30,13 +30,13 @@ public class AuthenticatorSelectionCriteriaJSON
     /// </param>
     /// <param name="residentKey">
     ///     Specifies the extent to which the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a> desires to create a <a href="https://www.w3.org/TR/webauthn-3/#client-side-discoverable-credential">client-side discoverable credential</a>.
-    ///     For historical reasons the naming retains the deprecated “resident” terminology. The value SHOULD be a member of <a href="https://www.w3.org/TR/webauthn-3/#enumdef-residentkeyrequirement">ResidentKeyRequirement</a> but
+    ///     For historical reasons the naming retains the deprecated "resident" terminology. The value SHOULD be a member of <a href="https://www.w3.org/TR/webauthn-3/#enumdef-residentkeyrequirement">ResidentKeyRequirement</a> but
     ///     <a href="https://www.w3.org/TR/webauthn-3/#client-platform">client platforms</a> MUST ignore unknown values, treating an unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>. If no value is given then the effective value is
     ///     <a href="https://www.w3.org/TR/webauthn-3/#dom-residentkeyrequirement-required">required</a> if <a href="https://www.w3.org/TR/webauthn-3/#dom-authenticatorselectioncriteria-requireresidentkey">requireResidentKey</a> is true or
     ///     <a href="https://www.w3.org/TR/webauthn-3/#dom-residentkeyrequirement-discouraged">discouraged</a> if it is false or absent.
     /// </param>
     /// <param name="requireResidentKey">
-    ///     This member is retained for backwards compatibility with WebAuthn Level 1 and, for historical reasons, its naming retains the deprecated “resident” terminology for
+    ///     This member is retained for backwards compatibility with WebAuthn Level 1 and, for historical reasons, its naming retains the deprecated "resident" terminology for
     ///     <a href="https://www.w3.org/TR/webauthn-3/#discoverable-credential">discoverable credentials</a>. <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Parties</a> SHOULD set it to true if, and only if,
     ///     <a href="https://www.w3.org/TR/webauthn-3/#dom-authenticatorselectioncriteria-residentkey">residentKey</a> is set to <a href="https://www.w3.org/TR/webauthn-3/#dom-residentkeyrequirement-required">required</a>.
     /// </param>
@@ -73,7 +73,7 @@ public class AuthenticatorSelectionCriteriaJSON
     /// <summary>
     ///     <para>
     ///         Specifies the extent to which the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a> desires to create a <a href="https://www.w3.org/TR/webauthn-3/#client-side-discoverable-credential">client-side discoverable credential</a>. For historical
-    ///         reasons the naming retains the deprecated “resident” terminology. The value SHOULD be a member of <a href="https://www.w3.org/TR/webauthn-3/#enumdef-residentkeyrequirement">ResidentKeyRequirement</a> but
+    ///         reasons the naming retains the deprecated "resident" terminology. The value SHOULD be a member of <a href="https://www.w3.org/TR/webauthn-3/#enumdef-residentkeyrequirement">ResidentKeyRequirement</a> but
     ///         <a href="https://www.w3.org/TR/webauthn-3/#client-platform">client platforms</a> MUST ignore unknown values, treating an unknown value as if the <a href="https://infra.spec.whatwg.org/#map-exists">member does not exist</a>. If no value is given then the effective value
     ///         is <a href="https://www.w3.org/TR/webauthn-3/#dom-residentkeyrequirement-required">required</a> if <a href="https://www.w3.org/TR/webauthn-3/#dom-authenticatorselectioncriteria-requireresidentkey">requireResidentKey</a> is true or
     ///         <a href="https://www.w3.org/TR/webauthn-3/#dom-residentkeyrequirement-discouraged">discouraged</a> if it is false or absent.
@@ -88,7 +88,7 @@ public class AuthenticatorSelectionCriteriaJSON
     public string? ResidentKey { get; }
 
     /// <summary>
-    ///     This member is retained for backwards compatibility with WebAuthn Level 1 and, for historical reasons, its naming retains the deprecated “resident” terminology for <a href="https://www.w3.org/TR/webauthn-3/#discoverable-credential">discoverable credentials</a>.
+    ///     This member is retained for backwards compatibility with WebAuthn Level 1 and, for historical reasons, its naming retains the deprecated "resident" terminology for <a href="https://www.w3.org/TR/webauthn-3/#discoverable-credential">discoverable credentials</a>.
     ///     <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Parties</a> SHOULD set it to true if, and only if, <a href="https://www.w3.org/TR/webauthn-3/#dom-authenticatorselectioncriteria-residentkey">residentKey</a> is set to
     ///     <a href="https://www.w3.org/TR/webauthn-3/#dom-residentkeyrequirement-required">required</a>.
     /// </summary>

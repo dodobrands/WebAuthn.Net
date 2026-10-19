@@ -26,12 +26,12 @@ public class TpmAttestationStatement : AbstractAttestationStatement
     ///     </para>
     ///     <para>
     ///         Note: WebAuthn describes 'sig' as a TPMT_SIGNATURE (TPM 2.0 Library Part 2 v185 §11.3.6), but authenticators (Windows Hello), the FIDO conformance tools and interoperable relying-party libraries put the bare signature value here,
-    ///         encoded per <a href="https://www.w3.org/TR/webauthn-3/#sctn-signature-attestation-types">WebAuthn §6.5.6</a> (PKCS#1 v1.5 or PSS for RSA, a DER-encoded ECDSA-Sig-Value for ECDSA); this library verifies it as such.
+    ///         encoded per <a href="https://www.w3.org/TR/webauthn-3/#sctn-signature-attestation-types">WebAuthn §6.5.5</a> (PKCS#1 v1.5 or PSS for RSA, a DER-encoded ECDSA-Sig-Value for ECDSA); this library verifies it as such.
     ///     </para>
     /// </param>
     /// <param name="certInfo">
     ///     The TPMS_ATTEST structure over which the above signature was computed, as specified in <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">[TPMv2-Part2]</a>
-    ///     (TPM 2.0 Library Part 2 v185 §10.11.12; §10.12.8 in the rev 01.38 edition cited by WebAuthn L3). The TPM2B_ATTEST size prefix is not included.
+    ///     (TPM 2.0 Library Part 2 v185 §10.11.12; WebAuthn L3 cites section 10.12.8 of an older revision). The TPM2B_ATTEST size prefix is not included.
     /// </param>
     /// <param name="pubArea">
     ///     The TPMT_PUBLIC structure (see <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">[TPMv2-Part2]</a>, TPM 2.0 Library Part 2 v185 §12.2.4, Table 235) used by the TPM to represent the credential public key.
@@ -109,14 +109,14 @@ public class TpmAttestationStatement : AbstractAttestationStatement
     ///     </para>
     ///     <para>
     ///         Note: WebAuthn describes 'sig' as a TPMT_SIGNATURE (TPM 2.0 Library Part 2 v185 §11.3.6), but authenticators (Windows Hello), the FIDO conformance tools and interoperable relying-party libraries put the bare signature value here,
-    ///         encoded per <a href="https://www.w3.org/TR/webauthn-3/#sctn-signature-attestation-types">WebAuthn §6.5.6</a> (PKCS#1 v1.5 or PSS for RSA, a DER-encoded ECDSA-Sig-Value for ECDSA); this library verifies it as such.
+    ///         encoded per <a href="https://www.w3.org/TR/webauthn-3/#sctn-signature-attestation-types">WebAuthn §6.5.5</a> (PKCS#1 v1.5 or PSS for RSA, a DER-encoded ECDSA-Sig-Value for ECDSA); this library verifies it as such.
     ///     </para>
     /// </summary>
     public byte[] Sig { get; }
 
     /// <summary>
     ///     The TPMS_ATTEST structure over which the above signature was computed, as specified in <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">[TPMv2-Part2]</a>
-    ///     (TPM 2.0 Library Part 2 v185 §10.11.12; §10.12.8 in the rev 01.38 edition cited by WebAuthn L3). The TPM2B_ATTEST size prefix is not included.
+    ///     (TPM 2.0 Library Part 2 v185 §10.11.12; WebAuthn L3 cites section 10.12.8 of an older revision). The TPM2B_ATTEST size prefix is not included.
     /// </summary>
     public byte[] CertInfo { get; }
 

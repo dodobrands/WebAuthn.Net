@@ -81,7 +81,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var rpIdProvider = new FakeRelyingPartyIdProvider(rpAddress);
         var rpOriginProvider = new FakeRelyingPartyOriginProvider(rpAddress);
         var challengeGenerator = new DefaultChallengeGenerator();
-        TimeProvider = new(DateTimeOffset.UtcNow);
+        TimeProvider = new(GetCurrentTime());
 
         var publicKeyCredentialCreationOptionsEncoder = new DefaultPublicKeyCredentialCreationOptionsEncoder(
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
@@ -155,6 +155,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             digitalSignatureVerifier,
             asn1Deserializer,
             metadataSearchService);
+        RegistrationCounters = new();
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             new DefaultTpmPubAreaDecoder(),
@@ -162,7 +163,9 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             digitalSignatureVerifier,
             tpmManufacturerVerifier,
             asn1Deserializer,
-            metadataSearchService);
+            metadataSearchService,
+            RegistrationCounters,
+            NullLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
@@ -218,7 +221,6 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
 
-        RegistrationCounters = new();
         AuthenticationCounters = new();
 
         RegistrationCeremonyService = new(
@@ -273,6 +275,12 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
 
     protected virtual void ConfigureWebAuthnOptions(WebAuthnOptions options)
     {
+    }
+
+    // the time the ceremonies run at; test vectors whose certificates expire override it with a fixed time
+    protected virtual DateTimeOffset GetCurrentTime()
+    {
+        return DateTimeOffset.UtcNow;
     }
 
     protected abstract Uri GetRelyingPartyAddress();

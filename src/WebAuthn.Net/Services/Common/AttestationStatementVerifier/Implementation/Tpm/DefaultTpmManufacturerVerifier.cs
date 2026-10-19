@@ -17,10 +17,13 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 ///         The simulator and test identifiers of Table 3 and the identifier used by the FIDO conformance tools (id:FFFFF1D0) are not known to this implementation; an unknown manufacturer is a failure.
 ///     </para>
 ///     <para>
-///         The identifier is compared case-insensitively: the TCG EK Credential Profile (§3.1.2) mandates uppercase hexadecimal digits, but the registry itself prints some identifiers in lowercase.
+///         The TCG EK Credential Profile (§3.1.2) defines the value as the lowercase characters "id:" followed by the 4-byte vendor identifier written as 8 hexadecimal digits with the characters 0-9 and A-F.
+///         The "id:" prefix is compared exactly; the hexadecimal digits are compared case-insensitively, because the registry itself prints some identifiers in lowercase
+///         (<see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> reports a value with lowercase digits as a tolerated anomaly).
 ///     </para>
 ///     <para>
-///         Vendors with embedded root certificates of their own (see <see cref="TpmRoots" />) get those roots; every other known vendor gets the Microsoft TPM roots, which issue the AIK certificates seen in practice.
+///         Vendors with embedded root certificates of their own (see <see cref="TpmRoots" />) get those roots; every other known vendor gets the Microsoft TPM roots
+///         (Microsoft TPM Root Certificate Authority 2014, which the AIK certificates of Windows issued through intermediate CAs chain to, and Microsoft Pluton Root CA 2021).
 ///     </para>
 /// </remarks>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
@@ -37,7 +40,7 @@ public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
         { TpmManufacturers.Nationz, TpmRoots.Nationz },
         { TpmManufacturers.NuvotonTechnology, TpmRoots.NuvotonTechnology },
         { TpmManufacturers.STMicroelectronics, TpmRoots.STMicroelectronics },
-        // every other vendor of the registry - the Microsoft TPM roots, which issue the AIK certificates seen in practice
+        // every other vendor of the registry - the Microsoft TPM roots, to which the AIK certificates seen in practice chain
         { TpmManufacturers.AntGroup, TpmRoots.Microsoft },
         { TpmManufacturers.Arm, TpmRoots.Microsoft },
         { TpmManufacturers.Broadcom, TpmRoots.Microsoft },
@@ -65,7 +68,9 @@ public class DefaultTpmManufacturerVerifier : ITpmManufacturerVerifier
     /// <inheritdoc />
     public virtual Result<UniqueByteArraysCollection?> IsValid(string tpmManufacturer)
     {
-        if (string.IsNullOrEmpty(tpmManufacturer))
+        // TCG EK Credential Profile 2.7, §3.1.2: the identifier "is appended after the lower-case ASCII characters 'id:'".
+        // The prefix is compared exactly, the dictionary compares the hexadecimal digits that follow it case-insensitively.
+        if (string.IsNullOrEmpty(tpmManufacturer) || !tpmManufacturer.StartsWith("id:", StringComparison.Ordinal))
         {
             return Result<UniqueByteArraysCollection?>.Fail();
         }

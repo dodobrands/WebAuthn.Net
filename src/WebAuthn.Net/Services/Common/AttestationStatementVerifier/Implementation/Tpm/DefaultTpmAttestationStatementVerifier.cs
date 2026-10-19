@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -15,12 +16,14 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.Attestatio
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm.Models.Attestation.Enums;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Constants;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -37,12 +40,25 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationStatementVerifier<TContext>
     where TContext : class, IWebAuthnContext
 {
-    // TCG EK Credential Profile for TPM Family 2.0, Level 0, Version 2.7, §3.1.2 "TPM Device Attributes":
+    // TCG EK Credential Profile for TPM Family 2.0, Level 0, Version 2.7, clause 4 "X.509 ASN.1 Structures and OIDs":
     // tcg ::= { joint-iso-itu-t(2) international-organizations(23) tcg(133) }, tcg-attribute ::= { tcg 2 },
     // tcg-at-tpmManufacturer ::= { tcg-attribute 1 }, tcg-at-tpmModel ::= { tcg-attribute 2 }, tcg-at-tpmVersion ::= { tcg-attribute 3 }
+    // (the attributes themselves are defined in §3.1.2 "TPM Device Attributes")
     private const string TpmManufacturerOid = "2.23.133.2.1";
     private const string TpmModelOid = "2.23.133.2.2";
     private const string TpmVersionOid = "2.23.133.2.3";
+
+    // RFC 5280 §4.2.1.6: id-ce-subjectAltName ::= { id-ce 17 }
+    private const string SubjectAlternativeNameOid = "2.5.29.17";
+
+    // RFC 4108 §5: id-on-hardwareModuleName ::= { id-on 4 } - the HardwareModuleName otherName that WebAuthn says SHOULD NOT be in the Subject Alternative Name of the AIK certificate
+    private const string HardwareModuleNameOid = "1.3.6.1.5.5.7.8.4";
+
+    // TPM 2.0 Library Part 2 v185, 8.3 TPMA_OBJECT (Table 37): bit 3 is reserved, but the reference implementation does not reject it (see DefaultTpmPubAreaDecoder)
+    private const uint ObjectAttributeReservedBit3 = 1u << 3;
+
+    // untrusted values are truncated to this length in log messages
+    private const int MaxLoggedValueLength = 64;
 
     // RFC 5280 §4.1.2.6: an empty subject is an empty RDNSequence, i.e. an empty SEQUENCE in DER.
     private static ReadOnlySpan<byte> EmptyRdnSequence => "0\0"u8;
@@ -59,12 +75,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     /// </param>
     /// <param name="tpmCertInfoDecoder">
     ///     Decoder of the TPMS_ATTEST structure over which the attestation signature was computed, as specified in the
-    ///     <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (Part 2 v185 §10.11.12; §10.12.8 in the rev 01.38 edition cited by WebAuthn L3)</a>.
+    ///     <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (Part 2 v185 §10.11.12; WebAuthn L3 cites section 10.12.8 of an older revision)</a>.
     /// </param>
     /// <param name="signatureVerifier">Digital signature verifier.</param>
     /// <param name="tpmManufacturerVerifier">Verifier of TPM module manufacturer.</param>
     /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
     /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <param name="counters">Counters for registration ceremony metrics, used to count the anomalies found while verifying the attestation statement.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultTpmAttestationStatementVerifier(
         ITimeProvider timeProvider,
@@ -73,7 +91,9 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         IDigitalSignatureVerifier signatureVerifier,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
         IAsn1Deserializer asn1Deserializer,
-        IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService,
+        IRegistrationCeremonyCounters counters,
+        ILogger<DefaultTpmAttestationStatementVerifier<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(tpmPubAreaDecoder);
@@ -82,6 +102,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         ArgumentNullException.ThrowIfNull(tpmManufacturerVerifier);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
+        ArgumentNullException.ThrowIfNull(counters);
+        ArgumentNullException.ThrowIfNull(logger);
         TimeProvider = timeProvider;
         TpmPubAreaDecoder = tpmPubAreaDecoder;
         TpmCertInfoDecoder = tpmCertInfoDecoder;
@@ -89,6 +111,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         TpmManufacturerVerifier = tpmManufacturerVerifier;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
+        Counters = counters;
+        Logger = logger;
     }
 
     /// <summary>
@@ -103,7 +127,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
 
     /// <summary>
     ///     Decoder of the TPMS_ATTEST structure over which the attestation signature was computed, as specified in the
-    ///     <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (Part 2 v185 §10.11.12; §10.12.8 in the rev 01.38 edition cited by WebAuthn L3)</a>.
+    ///     <a href="https://trustedcomputinggroup.org/resource/tpm-library-specification/">TPM 2.0 Library Part 2: Structures specification (Part 2 v185 §10.11.12; WebAuthn L3 cites section 10.12.8 of an older revision)</a>.
     /// </summary>
     protected ITpmCertInfoDecoder TpmCertInfoDecoder { get; }
 
@@ -127,6 +151,17 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
 
+    /// <summary>
+    ///     Counters for registration ceremony metrics, used to count the anomalies found while verifying the attestation statement
+    ///     (see <see cref="TpmAttestationStatementAnomalies" />).
+    /// </summary>
+    protected IRegistrationCeremonyCounters Counters { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultTpmAttestationStatementVerifier<TContext>> Logger { get; }
+
     /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
         TContext context,
@@ -137,7 +172,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     {
         // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
         // §8.3 "TPM Attestation Statement Format" - "Verification procedure"
-        // (the steps below are quoted from "Web Authentication: An API for accessing Public Key Credentials Level 3", W3C Recommendation, 25 August 2026)
+        // (the steps below are quoted from "Web Authentication: An API for accessing Public Key Credentials - Level 3", W3C Recommendation, 25 August 2026;
+        // the Recommendation writes them as unnumbered paragraphs and two bulleted lists, the numbers 1-5 and 4.1-5.5 are only used by this library to refer to them)
         // Given the verification procedure inputs attStmt, authenticatorData and clientDataHash, the verification procedure is as follows:
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -146,7 +182,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
 
         // 1. Verify that attStmt is valid CBOR conforming to the syntax defined above and perform CBOR decoding on it to extract the contained fields.
         // Performed by the attestation statement decoder (DefaultTpmAttestationStatementDecoder) that produced 'attStmt':
-        // it enforces the tpmStmtFormat syntax, i.e. ver == "2.0", a COSEAlgorithmIdentifier in 'alg', and the presence and types of 'x5c', 'sig', 'certInfo' and 'pubArea'.
+        // it requires ver == "2.0", a COSEAlgorithmIdentifier in 'alg', and byte strings in 'x5c', 'sig', 'certInfo' and 'pubArea' (members not in the syntax are ignored).
+        // The syntax also requires at least one certificate (aikCert) in 'x5c', which is verified in step 4.1 ("Verify that x5c is present").
 
         // 2. Verify that the public key specified by the parameters and unique fields of pubArea
         // is identical to the credentialPublicKey in the attestedCredentialData in authenticatorData.
@@ -154,12 +191,21 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         var pubAreaResult = TpmPubAreaDecoder.Decode(attStmt.PubArea);
         if (pubAreaResult.HasError)
         {
+            Logger.TpmPubAreaInvalid();
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
         var pubArea = pubAreaResult.Ok;
+        // The decoder tolerates the reserved TPMA_OBJECT bit 3 like the reference implementation does (see DefaultTpmPubAreaDecoder); the deviation is reported.
+        if (((uint) pubArea.ObjectAttributes & ObjectAttributeReservedBit3) != 0)
+        {
+            Logger.TpmPubAreaReservedObjectAttributeBit3Set();
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.PubAreaReservedBit3, true);
+        }
+
         if (!PubAreaKeySameAsAttestedCredentialData(pubArea, authenticatorData.AttestedCredentialData.CredentialPublicKey))
         {
+            Logger.TpmPubAreaKeyMismatch();
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
@@ -167,8 +213,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         var attToBeSigned = Concat(authenticatorData.Raw, clientDataHash);
 
         // 4. Verify integrity of certInfo
-        // 5. Validate that certInfo is valid
-        // 6. If successful, return implementation-specific values representing attestation type AttCA and attestation trust path x5c.
+        // 5. Validate that certInfo is valid (its last item: if successful, return implementation-specific values representing attestation type AttCA and attestation trust path x5c)
         return await ValidateCertInfoAsync(context, attStmt, authenticatorData, pubArea, attToBeSigned, cancellationToken);
     }
 
@@ -201,7 +246,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     }
 
     /// <summary>
-    ///     Performs steps 4 ("Verify integrity of certInfo"), 5 ("Validate that certInfo is valid") and 6 (return the attestation type AttCA and the attestation trust path x5c)
+    ///     Performs the steps "Verify integrity of certInfo" and "Validate that certInfo is valid" (including its last item: return the attestation type AttCA and the attestation trust path x5c)
     ///     of the <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement verification procedure</a>.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
@@ -227,12 +272,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
 
         // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
-        // §8.3 "TPM Attestation Statement Format" - "Verification procedure" (W3C Recommendation, 25 August 2026)
+        // §8.3 "TPM Attestation Statement Format" - "Verification procedure" (W3C Recommendation, 25 August 2026; the step numbers are this library's, see VerifyAsync)
 
         // 4. Verify integrity of certInfo
         // 4.1 Verify that x5c is present.
         if (attStmt.X5C.Length == 0)
         {
+            Logger.TpmX5CEmpty();
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
@@ -247,6 +293,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
                 if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
                 {
                     x5CCert?.Dispose();
+                    Logger.TpmX5CCertificateInvalid();
                     return Result<VerifiedAttestationStatement>.Fail();
                 }
 
@@ -256,6 +303,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
                 // (Packed, Android Key and TPM alike); the attestation trust path validator repeats it while building the chain.
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
+                    Logger.TpmX5CCertificateNotValidNow();
                     return Result<VerifiedAttestationStatement>.Fail();
                 }
             }
@@ -264,6 +312,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
 
             // 4.2 Verify that aikCert meets the requirements in §8.3.1 TPM Attestation Statement Certificate Requirements.
             // https://www.w3.org/TR/webauthn-3/#sctn-tpm-cert-requirements
+            // (IsTpmAttestationStatementCertificateRequirementsSatisfied logs the requirement that is not met)
             if (!IsTpmAttestationStatementCertificateRequirementsSatisfied(aikCert, out var manufacturerRootCertificates))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
@@ -274,27 +323,31 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             var aaguidResult = GetAaguidIfExists(aikCert);
             if (aaguidResult.HasError)
             {
+                Logger.TpmAikCertificateAaguidExtensionInvalid();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (aaguidResult.Ok.HasValue && aaguidResult.Ok.Value != authenticatorData.AttestedCredentialData.Aaguid)
             {
+                Logger.TpmAikCertificateAaguidMismatch();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 4.4 Verify the sig is a valid signature over certInfo using the attestation public key in aikCert with the algorithm specified in alg.
             // NOTE: WebAuthn describes 'sig' as "a TPMT_SIGNATURE structure as specified in [TPMv2-Part2] section 11.3.4" (Part 2 v185 §11.3.6, Table 219),
             // but authenticators (Windows Hello), the FIDO conformance tools and interoperable relying-party libraries put the bare signature value there,
-            // encoded per WebAuthn §6.5.6 "Signature Formats for Packed Attestation, FIDO U2F Attestation, and Assertion Signatures"
+            // encoded per WebAuthn §6.5.5 "Signature Formats for Packed Attestation, FIDO U2F Attestation, and Assertion Signatures"
             // (PKCS#1 v1.5 or PSS for RSA, a DER-encoded ECDSA-Sig-Value for ECDSA), and this library verifies it as such.
             // The signature covers the raw 'certInfo' bytes, i.e. the TPMS_ATTEST structure exactly as received.
             if (!SignatureVerifier.IsValidCertificateSign(aikCert, attStmt.Alg, attStmt.CertInfo, attStmt.Sig))
             {
+                Logger.TpmSignatureInvalid();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 5. Validate that certInfo is valid:
-            // Note: certInfo is a TPMS_ATTEST structure (TPM 2.0 Library Part 2 v185 §10.11.12, Table 154; §10.12.8 in the rev 01.38 edition cited by WebAuthn L3).
+            // Note: certInfo is a TPMS_ATTEST structure (TPM 2.0 Library Part 2 v185 §10.11.12, Table 154). WebAuthn L3 cites [TPMv2-Part2] section 10.12.8 for it,
+            // which does not match the revisions available for comparison (in revision 1.59, 10.12.8 is TPMS_NV_CERTIFY_INFO and TPMS_ATTEST is 10.12.12).
             // 5.1 Verify that magic is set to TPM_GENERATED_VALUE.
             // 5.2 Verify that type is set to TPM_ST_ATTEST_CERTIFY.
             // Both are enforced by ITpmCertInfoDecoder.Decode (DefaultTpmCertInfoDecoder): a TPMS_ATTEST whose 'magic' is not TPM_GENERATED_VALUE (0xff544347)
@@ -302,6 +355,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             var certInfoResult = TpmCertInfoDecoder.Decode(attStmt.CertInfo);
             if (certInfoResult.HasError)
             {
+                Logger.TpmCertInfoInvalid();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -310,11 +364,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             // 5.3 Verify that extraData is set to the hash of attToBeSigned using the hash algorithm employed in "alg".
             if (!attStmt.Alg.TryComputeHash(attToBeSigned, out var attToBeSignedHash))
             {
+                Logger.TpmAlgHashNotSupported((int) attStmt.Alg);
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!certInfo.ExtraData.AsSpan().SequenceEqual(attToBeSignedHash.AsSpan()))
             {
+                Logger.TpmExtraDataMismatch();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -329,23 +385,32 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             var name = certInfo.Attested.Certify.Name;
             if (name.Digest is null || name.Digest.HashAlg != pubArea.NameAlg)
             {
+                Logger.TpmNameAlgMismatch();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
-            // A nameAlg this library cannot compute (e.g. TPM_ALG_SM3_256) makes the Name unverifiable - fail closed.
-            if (!TryComputeHash(pubArea.NameAlg, attStmt.PubArea, out var pubAreaHash) || !pubAreaHash.AsSpan().SequenceEqual(name.Digest.Digest.AsSpan()))
+            // A nameAlg this library cannot compute (e.g. TPM_ALG_SM3_256) makes the Name unverifiable - fail closed, and report that the library is behind the specification.
+            if (!TryComputeHash(pubArea.NameAlg, attStmt.PubArea, out var pubAreaHash))
             {
+                Logger.TpmNameAlgNotSupported(pubArea.NameAlg);
+                Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.PubAreaNameAlgNotSupported, false);
+                return Result<VerifiedAttestationStatement>.Fail();
+            }
+
+            if (!pubAreaHash.AsSpan().SequenceEqual(name.Digest.Digest.AsSpan()))
+            {
+                Logger.TpmNameMismatch();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // Note: The remaining fields in the "Standard Attestation Structure" [TPMv2-Part1] section 31.2 (Part 1 v185 §28.2, Table 38),
             // i.e., qualifiedSigner, clockInfo and firmwareVersion are ignored.
             // Depending on the properties of the aikCert key used, these fields may be obfuscated. If valid, these MAY be used as an input to risk engines.
-            // Precisely: clockInfo.resetCount, clockInfo.restartCount and firmwareVersion are obfuscated (with a value derived from the signing key's Qualified Name)
-            // when the AIK is not in the Endorsement or Platform hierarchy - TPM 2.0 Library Part 1 v185 §28.3, Part 3 v185 §18.1,
-            // reference implementation Attest_spt.c (FillInAttestInfo); clockInfo.clock and clockInfo.safe are not obfuscated.
+            // Precisely: when the AIK is not in the Endorsement or Platform hierarchy, clockInfo.resetCount, clockInfo.restartCount and firmwareVersion are obfuscated
+            // with a value derived (KDFa) from a secret of the TPM (shProof) and the signing key's Qualified Name, so a verifier cannot remove the obfuscation -
+            // TPM 2.0 Library Part 1 v185 §33.7 (§28.3), Part 3 v185 §18.1, reference implementation Attest_spt.c (FillInAttestInfo); clockInfo.clock and clockInfo.safe are not obfuscated.
 
-            // 6. If successful, return implementation-specific values representing attestation type AttCA and attestation trust path x5c.
+            // 5.5 If successful, return implementation-specific values representing attestation type AttCA and attestation trust path x5c.
             // The acceptable trust anchors are the embedded root certificates of the TPM manufacturer (see TpmRoots) and, when the FIDO Metadata Service
             // entry for the aaguid lists the "attca" attestation type, the root certificates of that entry.
             var acceptableTrustAnchorsResult = await GetAcceptableTrustAnchorsAsync(
@@ -465,12 +530,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
-        // §8.3.1 "TPM Attestation Statement Certificate Requirements" (W3C Recommendation, 25 August 2026)
+        // §8.3.1 "TPM Attestation Statement Certificate Requirements" (W3C Recommendation, 25 August 2026; the Recommendation writes the requirements as a bulleted list,
+        // the numbers 1)-6) are only used by this library to refer to them)
         // https://www.w3.org/TR/webauthn-3/#sctn-tpm-cert-requirements
         // TPM attestation certificate MUST have the following fields/extensions:
         // 1) Version MUST be set to 3.
         if (aikCert.Version != 3)
         {
+            Logger.TpmAikCertificateRequirementNotMet("version");
             manufacturerRootCertificates = null;
             return false;
         }
@@ -480,6 +547,16 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // The DER of the name is compared directly instead of decoding SubjectName.Name: the X.500 string form is produced lazily and throws CryptographicException for a malformed name.
         if (!aikCert.SubjectName.RawData.AsSpan().SequenceEqual(EmptyRdnSequence))
         {
+            Logger.TpmAikCertificateRequirementNotMet("subject");
+            manufacturerRootCertificates = null;
+            return false;
+        }
+
+        // RFC 5280 §4.2: "A certificate MUST NOT include more than one instance of a particular extension."
+        // Several instances of the extensions checked below (Subject Alternative Name, Extended Key Usage, Basic Constraints, id-fido-gen-ce-aaguid) would make the checks ambiguous.
+        if (HasDuplicateExtensions(aikCert.Extensions))
+        {
+            Logger.TpmAikCertificateRequirementNotMet("unique extensions");
             manufacturerRootCertificates = null;
             return false;
         }
@@ -490,26 +567,46 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // (WebAuthn L3 cites Version 2.5 Revision 2; the SAN requirements are unchanged between the two editions.)
         // Note: Previous versions of [TPMv2-EK-Profile] allowed the inclusion of an optional attribute, called HardwareModuleName, that contains the TPM serial number
         // in the EK certificate. HardwareModuleName SHOULD NOT be placed in the attestation certificate Subject Alternative Name.
-        // (A HardwareModuleName otherName, if present, is ignored by the SAN parser.)
+        // (A HardwareModuleName otherName, if present, is ignored by the SAN parser and reported as a tolerated anomaly.)
         if (!TryGetAikCertSubjectAlternativeName(aikCert, out var san))
         {
+            Logger.TpmAikCertificateRequirementNotMet("subject alternative name");
             manufacturerRootCertificates = null;
             return false;
         }
 
-        // The TPMManufacturer attribute must name a vendor from the TCG TPM Vendor ID Registry; the manufacturer verifier also supplies the embedded root certificates for that vendor.
-        // Rejecting unknown manufacturers is a library policy, not a §8.3.1 requirement.
+        // EK Credential Profile 2.7, §3.2.9: "This extension MUST be critical if subject is empty" (RFC 5280 §4.2.1.6 requires the same), and the subject of the AIK certificate is empty.
+        // A non-critical extension is tolerated (the attributes are the same either way), but the deviation is reported.
+        if (aikCert.Extensions.FirstOrDefault(static x => x.Oid?.Value is SubjectAlternativeNameOid) is { Critical: false })
+        {
+            Logger.TpmAikCertificateSanNotCritical();
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AikCertificateSanNotCritical, true);
+        }
+
+        // EK Credential Profile 2.7, §3.2.9 and §3.1.2: the TPMManufacturer attribute is the vendor identifier from the TCG TPM Vendor ID Registry ("id:" followed by 8 hexadecimal digits).
+        // The manufacturer verifier checks it against the library's copy of the registry (see TpmManufacturers) and also supplies the embedded root certificates for that vendor.
+        // A vendor added to the registry after that copy was made is rejected until the library is updated, so an unknown manufacturer is reported as an anomaly.
         var manufacturerVerification = TpmManufacturerVerifier.IsValid(san.TpmManufacturer);
         if (manufacturerVerification.HasError)
         {
+            Logger.TpmAikCertificateManufacturerUnknown(TruncateForLog(san.TpmManufacturer));
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AikCertificateManufacturerUnknown, false);
             manufacturerRootCertificates = null;
             return false;
+        }
+
+        // §3.1.2: the hexadecimal digits are "the characters 0-9 and A-F"; a known vendor identifier with lowercase digits is tolerated, but reported.
+        if (!IsCanonicalTpmManufacturer(san.TpmManufacturer))
+        {
+            Logger.TpmAikCertificateManufacturerNotCanonical(TruncateForLog(san.TpmManufacturer));
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AikCertificateManufacturerNotCanonical, true);
         }
 
         // 4) The Extended Key Usage extension MUST contain the OID 2.23.133.8.3
         // ("joint-iso-itu-t(2) internationalorganizations(23) 133 tcg-kp(8) tcg-kp-AIKCertificate(3)").
         if (!AikCertExtendedKeyUsageExists(aikCert.Extensions))
         {
+            Logger.TpmAikCertificateRequirementNotMet("extended key usage");
             manufacturerRootCertificates = null;
             return false;
         }
@@ -517,6 +614,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         // 5) The Basic Constraints extension MUST have the CA component set to false.
         if (!IsBasicExtensionsCaComponentFalse(aikCert.Extensions))
         {
+            Logger.TpmAikCertificateRequirementNotMet("basic constraints");
             manufacturerRootCertificates = null;
             return false;
         }
@@ -539,7 +637,6 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         X509Certificate2 aikCert,
         [NotNullWhen(true)] out AikCertSubjectAlternativeName? san)
     {
-        const string subjectAlternativeNameOid = "2.5.29.17";
         if (aikCert is null)
         {
             san = null;
@@ -547,7 +644,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         }
 
         // RawData of an X509Extension is the content of the extnValue OCTET STRING, i.e. the DER-encoded GeneralNames.
-        var sanExtension = aikCert.Extensions.FirstOrDefault(x => x.Oid?.Value == subjectAlternativeNameOid);
+        var sanExtension = aikCert.Extensions.FirstOrDefault(static x => x.Oid?.Value is SubjectAlternativeNameOid);
         if (sanExtension is null)
         {
             san = null;
@@ -583,14 +680,20 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     }
 
     /// <summary>
-    ///     Decodes the value of the Subject Alternative Name (SAN) certificate extension and extracts the TPM device attributes (TPMManufacturer, TPMModel and TPMVersion) from its directoryName.
+    ///     Decodes the value of the Subject Alternative Name (SAN) certificate extension and extracts the TPM device attributes (TPMManufacturer, TPMModel and TPMVersion) from its directoryName(s).
     /// </summary>
-    /// <param name="extension">The value of the Subject Alternative Name (SAN) certificate extension: the content of the extnValue OCTET STRING, i.e. DER-encoded GeneralNames.</param>
+    /// <param name="extension">
+    ///     The value of the Subject Alternative Name (SAN) certificate extension: the content of the extnValue OCTET STRING, i.e. DER-encoded GeneralNames
+    ///     (a bare RDNSequence, the layout of the certificate example of the TCG EK Credential Profile, is tolerated).
+    /// </param>
     /// <param name="values">
     ///     Output parameter. If the method returns <see langword="true" /> - it must not be <see langword="null" /> and contains the TPM device attributes as a dictionary keyed by the attribute type OID
     ///     (2.23.133.2.1 - TPMManufacturer, 2.23.133.2.2 - TPMModel, 2.23.133.2.3 - TPMVersion).
     /// </param>
-    /// <returns><see langword="true" /> if the extension is a well-formed GeneralNames with a directoryName that carries all three TPM device attributes as UTF8Strings without conflicting duplicates, otherwise - <see langword="false" />.</returns>
+    /// <returns>
+    ///     <see langword="true" /> if the extension is a well-formed GeneralNames (or RDNSequence) whose directoryName(s) carry all three TPM device attributes as non-empty UTF8Strings without conflicting duplicates,
+    ///     otherwise - <see langword="false" />.
+    /// </returns>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
     protected virtual bool TryParseSanExtensionValues(byte[] extension, [NotNullWhen(true)] out Dictionary<string, string>? values)
     {
@@ -607,6 +710,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         //     uniformResourceIdentifier [6] IA5String,
         //     iPAddress                 [7] OCTET STRING,
         //     registeredID              [8] OBJECT IDENTIFIER }
+        // OtherName ::= SEQUENCE { type-id OBJECT IDENTIFIER, value [0] EXPLICIT ANY DEFINED BY type-id }
         // Name is a CHOICE, so directoryName [4] is EXPLICITLY tagged: a constructed context-specific [4] element that wraps the complete Name encoding.
         // ITU-T X.501 / RFC 5280 §4.1.2.4:
         // Name ::= CHOICE { rdnSequence RDNSequence }
@@ -618,14 +722,14 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         //
         // TCG EK Credential Profile for TPM Family 2.0, Level 0, Version 2.7 (2026-03-16), §3.2.9 "Subject Alternative Name":
         // "The issuer MUST include TPM manufacturer, TPM part number and TPM firmware version, using the directoryName-form within the GeneralName structure."
-        // §3.1.2 "TPM Device Attributes" (ASN.1 module):
+        // §3.1.2 "TPM Device Attributes":
         // TPMManufacturer ATTRIBUTE ::= { WITH SYNTAX UTF8String (SIZE (1..STRMAX)) ID tcg-at-tpmManufacturer } -- 2.23.133.2.1, "id:" + 8 uppercase hex digits of the TCG vendor ID (e.g. id:414D4400)
         // TPMModel        ATTRIBUTE ::= { WITH SYNTAX UTF8String (SIZE (1..STRMAX)) ID tcg-at-tpmModel }        -- 2.23.133.2.2, vendor-specific part number (e.g. AMD)
         // TPMVersion      ATTRIBUTE ::= { WITH SYNTAX UTF8String (SIZE (1..STRMAX)) ID tcg-at-tpmVersion }      -- 2.23.133.2.3, "id:" + 8 uppercase hex digits of the firmware version (e.g. id:00030001)
-        // The values MUST be UTF8String; other string types are not accepted here.
+        // The values MUST be non-empty UTF8Strings; other string types are not accepted here. The upper bound STRMAX is not fixed by the profile (§3.1.1: "STRMAX SHOULD NOT exceed a value of 256") and is not checked.
         //
         // Encodings seen in the wild (all handled by the strict walk below, which accepts any number of attributes per RDN and any order of RDNs and attributes):
-        // (1) EK Credential Profile Appendix A example and the Windows Hello / AMD fTPM AIK certificates - three single-valued RDNs:
+        // (1) the Windows Hello / AMD fTPM AIK certificates of the test vectors - three single-valued RDNs:
         //     SEQUENCE (GeneralNames)
         //       [4] (directoryName, constructed)
         //         SEQUENCE (RDNSequence)
@@ -640,8 +744,15 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         //             SEQUENCE { OBJECT IDENTIFIER 2.23.133.2.3, UTF8String "id:13" }
         //             SEQUENCE { OBJECT IDENTIFIER 2.23.133.2.2, UTF8String "NPCT6xx" }
         //             SEQUENCE { OBJECT IDENTIFIER 2.23.133.2.1, UTF8String "id:FFFFF1D0" } }
-        // (3) additional GeneralNames before or after the directoryName, e.g. the legacy HardwareModuleName otherName ([0], type-id 1.3.6.1.5.5.7.8.4)
-        //     that EK Credential Profile versions before 2.1 allowed and WebAuthn says SHOULD NOT be present - every GeneralName other than directoryName is ignored.
+        // (3) the certificate example of the EK Credential Profile (Appendix A of version 2.5 Revision 2, Appendix B of version 2.7) - a bare RDNSequence, without the GeneralNames and [4] wrappers:
+        //     SEQUENCE (RDNSequence)
+        //       SET { SEQUENCE { OBJECT IDENTIFIER 2.23.133.2.1, UTF8String "id:54434700" } }
+        //       SET { SEQUENCE { OBJECT IDENTIFIER 2.23.133.2.2, UTF8String "ABCDEF123456" } }
+        //       SET { SEQUENCE { OBJECT IDENTIFIER 2.23.133.2.3, UTF8String "id:00010023" } }
+        //     This contradicts the normative text of §3.2.9 (and RFC 5280), but issuers that copied the example may produce it, so it is tolerated and reported as an anomaly.
+        //     It cannot be confused with GeneralNames: every GeneralName alternative is context-specific, while the first element of an RDNSequence is a SET.
+        // (4) additional GeneralNames before or after the directoryName, e.g. the legacy HardwareModuleName otherName ([0], type-id 1.3.6.1.5.5.7.8.4)
+        //     that version 2.0 of the EK Credential Profile allowed and WebAuthn says SHOULD NOT be present - every GeneralName other than directoryName is ignored (HardwareModuleName is reported).
         //
         // The walk is exception-free and DER-strict: every element is located with AsnDecoder.TryReadEncodedValue (definite, minimal lengths), the SET OF is validated with
         // AsnDecoder.ReadSetOf (DER sort order) and the leaves are decoded with AsnDecoder.ReadObjectIdentifier / ReadCharacterString, with AsnContentException turned into 'false'.
@@ -652,7 +763,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
-        // GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
+        // GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName (or, tolerated, RDNSequence ::= SEQUENCE OF RelativeDistinguishedName)
         if (!TryReadElement(extension, out var generalNamesTag, out var generalNames, out var generalNamesLength)
             || generalNamesLength != extension.Length
             || generalNamesTag != Asn1Tag.Sequence
@@ -661,25 +772,48 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
+        var anomalies = new SanAnomalies();
         var accumulator = new Dictionary<string, string>(3, StringComparer.Ordinal);
-        while (!generalNames.IsEmpty)
+        if (TryReadElement(generalNames, out var firstElementTag, out _, out _) && firstElementTag == Asn1Tag.SetOf)
         {
-            if (!TryReadElement(generalNames, out var generalNameTag, out var generalName, out var generalNameLength))
+            // encoding (3): the whole extension value is the Name (RDNSequence) that a directoryName would wrap
+            if (!TryCollectTpmDeviceAttributes(extension, accumulator, anomalies))
             {
                 return false;
             }
 
-            // only directoryName [4] carries the TPM device attributes; every other GeneralName alternative is ignored
-            if (generalNameTag.TagClass == TagClass.ContextSpecific && generalNameTag.TagValue == 4)
+            anomalies.WithoutGeneralNames = true;
+        }
+        else
+        {
+            while (!generalNames.IsEmpty)
             {
-                // EXPLICIT tagging: a primitive [4] cannot wrap a Name
-                if (!generalNameTag.IsConstructed || !TryCollectTpmDeviceAttributes(generalName, accumulator))
+                if (!TryReadElement(generalNames, out var generalNameTag, out var generalName, out var generalNameLength))
                 {
                     return false;
                 }
-            }
 
-            generalNames = generalNames[generalNameLength..];
+                if (generalNameTag.TagClass == TagClass.ContextSpecific && generalNameTag.TagValue == 4)
+                {
+                    // directoryName [4] carries the TPM device attributes.
+                    // EXPLICIT tagging: a primitive [4] cannot wrap a Name.
+                    if (!generalNameTag.IsConstructed || !TryCollectTpmDeviceAttributes(generalName, accumulator, anomalies))
+                    {
+                        return false;
+                    }
+                }
+                else if (generalNameTag.TagClass == TagClass.ContextSpecific && generalNameTag.TagValue == 0 && generalNameTag.IsConstructed)
+                {
+                    // otherName [0] is IMPLICITLY tagged: its content starts with the type-id. It is ignored like every other GeneralName alternative; HardwareModuleName is reported.
+                    if (TryReadObjectIdentifier(generalName, out var typeId, out _) && string.Equals(typeId, HardwareModuleNameOid, StringComparison.Ordinal))
+                    {
+                        anomalies.HardwareModuleName = true;
+                    }
+                }
+
+                // every other GeneralName alternative is ignored
+                generalNames = generalNames[generalNameLength..];
+            }
         }
 
         if (!accumulator.ContainsKey(TpmManufacturerOid) || !accumulator.ContainsKey(TpmModelOid) || !accumulator.ContainsKey(TpmVersionOid))
@@ -687,17 +821,45 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
+        ReportSanAnomalies(anomalies);
         values = accumulator;
         return true;
     }
 
     /// <summary>
-    ///     Walks the content of a directoryName GeneralName (an EXPLICITLY tagged [4] Name) and collects the TPM device attributes of its RDNSequence into <paramref name="accumulator" />.
+    ///     Reports the tolerated anomalies of a successfully parsed Subject Alternative Name extension with a Warning log entry and the attestation statement anomaly counter.
     /// </summary>
-    /// <param name="name">The content of the directoryName element: the complete encoding of the Name (RDNSequence).</param>
+    /// <param name="anomalies">The anomalies found while parsing the extension.</param>
+    private void ReportSanAnomalies(SanAnomalies anomalies)
+    {
+        if (anomalies.WithoutGeneralNames)
+        {
+            Logger.TpmAikCertificateSanWithoutGeneralNames();
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AikCertificateSanWithoutGeneralNames, true);
+        }
+
+        if (anomalies.HardwareModuleName)
+        {
+            Logger.TpmAikCertificateSanHardwareModuleName();
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AikCertificateSanHardwareModuleName, true);
+        }
+
+        if (anomalies.DuplicateAttribute)
+        {
+            Logger.TpmAikCertificateSanDuplicateAttribute();
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AikCertificateSanDuplicateAttribute, true);
+        }
+    }
+
+    /// <summary>
+    ///     Walks a Name (RDNSequence) - the content of a directoryName GeneralName, or the whole value of a Subject Alternative Name extension in the layout of the EK Credential Profile example -
+    ///     and collects its TPM device attributes into <paramref name="accumulator" />.
+    /// </summary>
+    /// <param name="name">The complete encoding of the Name (RDNSequence).</param>
     /// <param name="accumulator">The TPM device attributes collected so far, keyed by the attribute type OID.</param>
-    /// <returns><see langword="true" /> if the content is a well-formed RDNSequence whose TPM device attributes are UTF8Strings that do not conflict with already collected values, otherwise - <see langword="false" />.</returns>
-    private static bool TryCollectTpmDeviceAttributes(ReadOnlySpan<byte> name, Dictionary<string, string> accumulator)
+    /// <param name="anomalies">The tolerated anomalies found so far.</param>
+    /// <returns><see langword="true" /> if the content is a well-formed RDNSequence whose TPM device attributes are non-empty UTF8Strings that do not conflict with already collected values, otherwise - <see langword="false" />.</returns>
+    private static bool TryCollectTpmDeviceAttributes(ReadOnlySpan<byte> name, Dictionary<string, string> accumulator, SanAnomalies anomalies)
     {
         // Name ::= CHOICE { rdnSequence RDNSequence }
         // RDNSequence ::= SEQUENCE OF RelativeDistinguishedName - the [4] wrapper must contain exactly one element, the RDNSequence
@@ -739,7 +901,7 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
                     return false;
                 }
 
-                if (!TryCollectTpmDeviceAttribute(attributeType, attributeValueTag, attributeValue, accumulator))
+                if (!TryCollectTpmDeviceAttribute(attributeType, attributeValueTag, attributeValue, accumulator, anomalies))
                 {
                     return false;
                 }
@@ -756,8 +918,9 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     /// <param name="attributeValueTag">The tag of the attribute value element.</param>
     /// <param name="attributeValue">The complete encoding of the attribute value element.</param>
     /// <param name="accumulator">The TPM device attributes collected so far, keyed by the attribute type OID.</param>
-    /// <returns><see langword="false" /> if the attribute is a TPM device attribute whose value is not a UTF8String or differs from an already collected value of the same type, otherwise - <see langword="true" />.</returns>
-    private static bool TryCollectTpmDeviceAttribute(string attributeType, Asn1Tag attributeValueTag, ReadOnlySpan<byte> attributeValue, Dictionary<string, string> accumulator)
+    /// <param name="anomalies">The tolerated anomalies found so far.</param>
+    /// <returns><see langword="false" /> if the attribute is a TPM device attribute whose value is not a non-empty UTF8String or differs from an already collected value of the same type, otherwise - <see langword="true" />.</returns>
+    private static bool TryCollectTpmDeviceAttribute(string attributeType, Asn1Tag attributeValueTag, ReadOnlySpan<byte> attributeValue, Dictionary<string, string> accumulator, SanAnomalies anomalies)
     {
         if (attributeType is not (TpmManufacturerOid or TpmModelOid or TpmVersionOid))
         {
@@ -782,14 +945,82 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return false;
         }
 
+        // SIZE (1..STRMAX): an empty value is not a valid TPM device attribute
+        if (value.Length == 0)
+        {
+            return false;
+        }
+
         if (accumulator.TryGetValue(attributeType, out var existingValue))
         {
-            // an identical duplicate is tolerated, a conflicting one is not
-            return string.Equals(existingValue, value, StringComparison.Ordinal);
+            // an identical duplicate is tolerated (and reported), a conflicting one is not
+            if (!string.Equals(existingValue, value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            anomalies.DuplicateAttribute = true;
+            return true;
         }
 
         accumulator.Add(attributeType, value);
         return true;
+    }
+
+    /// <summary>
+    ///     Checks whether a TPMManufacturer value has the canonical form of TCG EK Credential Profile 2.7, §3.1.2: "id:" followed by 8 hexadecimal digits written with the characters 0-9 and A-F.
+    /// </summary>
+    /// <param name="tpmManufacturer">The TPMManufacturer value.</param>
+    /// <returns><see langword="true" /> if the value is in the canonical form, otherwise - <see langword="false" />.</returns>
+    private static bool IsCanonicalTpmManufacturer(string tpmManufacturer)
+    {
+        const string prefix = "id:";
+        if (tpmManufacturer.Length != prefix.Length + 8 || !tpmManufacturer.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (var character in tpmManufacturer.AsSpan(prefix.Length))
+        {
+            if (character is not ((>= '0' and <= '9') or (>= 'A' and <= 'F')))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Checks whether a certificate contains more than one instance of the same extension (RFC 5280 §4.2).
+    /// </summary>
+    /// <param name="extensions">The extensions of the certificate.</param>
+    /// <returns><see langword="true" /> if an extension OID occurs more than once, otherwise - <see langword="false" />.</returns>
+    private static bool HasDuplicateExtensions(X509ExtensionCollection extensions)
+    {
+        var oids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var extension in extensions)
+        {
+            var oid = extension.Oid?.Value;
+            if (oid is not null && !oids.Add(oid))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Truncates an untrusted value before it is written to a log message.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    /// <returns>The value, truncated to <see cref="MaxLoggedValueLength" /> characters.</returns>
+    private static string TruncateForLog(string value)
+    {
+        return value.Length <= MaxLoggedValueLength
+            ? value
+            : value[..MaxLoggedValueLength] + "...";
     }
 
     /// <summary>
@@ -948,11 +1179,13 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             return Result<Guid?>.Fail();
         }
 
-        // If the related attestation root certificate is used for multiple authenticator models,
+        // §8.3 only requires that the value of the id-fido-gen-ce-aaguid extension matches the aaguid in authenticatorData.
+        // The extension itself is defined in §8.2.1 (Packed Attestation Statement Certificate Requirements):
+        // "If the related attestation root certificate is used for multiple authenticator models,
         // the Extension OID 1.3.6.1.4.1.45724.1.1.4 (id-fido-gen-ce-aaguid) MUST be present,
         // containing the AAGUID as a 16-byte OCTET STRING. The extension MUST NOT be marked as critical.
         // Note that an X.509 Extension encodes the DER-encoding of the value in an OCTET STRING.
-        // Thus, the AAGUID MUST be wrapped in two OCTET STRINGS to be valid.
+        // Thus, the AAGUID MUST be wrapped in two OCTET STRINGS to be valid."
         var extension = aikCert.Extensions.FirstOrDefault(static x => x.Oid?.Value is "1.3.6.1.4.1.45724.1.1.4"); // id-fido-gen-ce-aaguid
         if (extension is not null)
         {
@@ -961,15 +1194,16 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
                 return Result<Guid?>.Fail();
             }
 
-            // The extension value must be exactly one primitive OCTET STRING (the inner wrapper of the AAGUID); anything else is rejected before it reaches the deserializer.
-            if (!AsnDecoder.TryReadEncodedValue(extension.RawData, AsnEncodingRules.BER, out var aaguidTag, out _, out _, out var aaguidBytesConsumed)
+            // The extension value must be exactly one primitive OCTET STRING (the inner wrapper of the AAGUID), DER-encoded like the certificate that carries it
+            // (definite, minimal length); anything else - a constructed (BER) OCTET STRING, trailing bytes - is rejected before it reaches the deserializer.
+            if (!AsnDecoder.TryReadEncodedValue(extension.RawData, AsnEncodingRules.DER, out var aaguidTag, out _, out _, out var aaguidBytesConsumed)
                 || aaguidBytesConsumed != extension.RawData.Length
-                || !aaguidTag.HasSameClassAndValue(Asn1Tag.PrimitiveOctetString))
+                || aaguidTag != Asn1Tag.PrimitiveOctetString)
             {
                 return Result<Guid?>.Fail();
             }
 
-            var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.BER);
+            var deserializeResult = Asn1Deserializer.Deserialize(extension.RawData, AsnEncodingRules.DER);
             if (deserializeResult.HasError)
             {
                 return Result<Guid?>.Fail();
@@ -1129,7 +1363,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     protected virtual bool TryComputeHash(TpmAlgIdHash tpmAlg, byte[] message, [NotNullWhen(true)] out byte[]? hash)
     {
         // TpmAlgIdHash lists every TPMI_ALG_HASH identifier (TPM 2.0 Library Part 2 v185, Table 77); only the SHA-1 / SHA-2 family is computed here.
-        // SHA-1 is kept because deployed Windows TPM AIK chains still use it; SHA256_192, SM3_256, SHA3-* and SHAKE256-* are reported as not computable (fail closed).
+        // This method computes the Name of the pubArea with its nameAlg. SHA-1 is deprecated since version 184 of the specification, but a TPM may still create keys with
+        // a SHA-1 nameAlg; SHA256_192, SM3_256, SHA3-* and SHAKE256-* are reported as not computable, and the verifier fails closed (and reports the anomaly).
         switch (tpmAlg)
         {
             case TpmAlgIdHash.Sha1:
@@ -1206,4 +1441,234 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
         b.CopyTo(result.AsSpan(a.Length));
         return result;
     }
+
+    /// <summary>
+    ///     The tolerated anomalies found while parsing the Subject Alternative Name extension of the AIK certificate.
+    /// </summary>
+    private sealed class SanAnomalies
+    {
+        /// <summary>
+        ///     The extension value is a bare RDNSequence instead of GeneralNames (the layout of the EK Credential Profile example).
+        /// </summary>
+        public bool WithoutGeneralNames { get; set; }
+
+        /// <summary>
+        ///     The extension contains a HardwareModuleName otherName.
+        /// </summary>
+        public bool HardwareModuleName { get; set; }
+
+        /// <summary>
+        ///     The extension contains the same TPM device attribute more than once, with the same value.
+        /// </summary>
+        public bool DuplicateAttribute { get; set; }
+    }
+}
+
+/// <summary>
+///     Extension methods for logging the TPM attestation statement verifier.
+/// </summary>
+public static partial class DefaultTpmAttestationStatementVerifierLoggingExtensions
+{
+    /// <summary>
+    ///     The 'pubArea' of the TPM attestation statement is not a valid TPMT_PUBLIC structure of a credential key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'pubArea' of the TPM attestation statement is not a valid TPMT_PUBLIC structure of a credential key")]
+    public static partial void TpmPubAreaInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The 'pubArea' of the TPM attestation statement has the reserved TPMA_OBJECT bit 3 SET; tolerated as in the TCG reference implementation
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'pubArea' of the TPM attestation statement has the reserved TPMA_OBJECT bit 3 SET; tolerated as in the TCG reference implementation")]
+    public static partial void TpmPubAreaReservedObjectAttributeBit3Set(this ILogger logger);
+
+    /// <summary>
+    ///     The public key in the 'pubArea' of the TPM attestation statement is not identical to the credential public key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The public key in the 'pubArea' of the TPM attestation statement is not identical to the credential public key")]
+    public static partial void TpmPubAreaKeyMismatch(this ILogger logger);
+
+    /// <summary>
+    ///     The 'x5c' of the TPM attestation statement is empty
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' of the TPM attestation statement is empty")]
+    public static partial void TpmX5CEmpty(this ILogger logger);
+
+    /// <summary>
+    ///     Failed to load a certificate from the 'x5c' of the TPM attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to load a certificate from the 'x5c' of the TPM attestation statement")]
+    public static partial void TpmX5CCertificateInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     A certificate from the 'x5c' of the TPM attestation statement is not valid at the current time
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A certificate from the 'x5c' of the TPM attestation statement is not valid at the current time")]
+    public static partial void TpmX5CCertificateNotValidNow(this ILogger logger);
+
+    /// <summary>
+    ///     The AIK certificate of the TPM attestation statement does not meet the TPM Attestation Statement Certificate Requirements: {Requirement}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="requirement">The requirement that is not met.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The AIK certificate of the TPM attestation statement does not meet the TPM Attestation Statement Certificate Requirements: {Requirement}")]
+    public static partial void TpmAikCertificateRequirementNotMet(this ILogger logger, string requirement);
+
+    /// <summary>
+    ///     The Subject Alternative Name extension of the AIK certificate is not critical although the subject is empty; tolerated
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Subject Alternative Name extension of the AIK certificate is not critical although the subject is empty; tolerated")]
+    public static partial void TpmAikCertificateSanNotCritical(this ILogger logger);
+
+    /// <summary>
+    ///     The Subject Alternative Name extension of the AIK certificate is a bare RDNSequence instead of GeneralNames (the layout of the EK Credential Profile example); tolerated
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Subject Alternative Name extension of the AIK certificate is a bare RDNSequence instead of GeneralNames (the layout of the EK Credential Profile example); tolerated")]
+    public static partial void TpmAikCertificateSanWithoutGeneralNames(this ILogger logger);
+
+    /// <summary>
+    ///     The Subject Alternative Name extension of the AIK certificate contains a HardwareModuleName, which SHOULD NOT be present; ignored
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Subject Alternative Name extension of the AIK certificate contains a HardwareModuleName, which SHOULD NOT be present; ignored")]
+    public static partial void TpmAikCertificateSanHardwareModuleName(this ILogger logger);
+
+    /// <summary>
+    ///     The Subject Alternative Name extension of the AIK certificate contains a TPM device attribute more than once (with the same value); tolerated
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Subject Alternative Name extension of the AIK certificate contains a TPM device attribute more than once (with the same value); tolerated")]
+    public static partial void TpmAikCertificateSanDuplicateAttribute(this ILogger logger);
+
+    /// <summary>
+    ///     The TPMManufacturer '{TpmManufacturer}' of the AIK certificate is not a vendor identifier known to the library (TCG TPM Vendor ID Registry)
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="tpmManufacturer">The TPMManufacturer value (truncated).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The TPMManufacturer '{TpmManufacturer}' of the AIK certificate is not a vendor identifier known to the library (TCG TPM Vendor ID Registry)")]
+    public static partial void TpmAikCertificateManufacturerUnknown(this ILogger logger, string tpmManufacturer);
+
+    /// <summary>
+    ///     The TPMManufacturer '{TpmManufacturer}' of the AIK certificate is not in the canonical form 'id:' followed by 8 uppercase hexadecimal digits; tolerated
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="tpmManufacturer">The TPMManufacturer value (truncated).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The TPMManufacturer '{TpmManufacturer}' of the AIK certificate is not in the canonical form 'id:' followed by 8 uppercase hexadecimal digits; tolerated")]
+    public static partial void TpmAikCertificateManufacturerNotCanonical(this ILogger logger, string tpmManufacturer);
+
+    /// <summary>
+    ///     The id-fido-gen-ce-aaguid extension of the AIK certificate is invalid
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The id-fido-gen-ce-aaguid extension of the AIK certificate is invalid")]
+    public static partial void TpmAikCertificateAaguidExtensionInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The aaguid in the id-fido-gen-ce-aaguid extension of the AIK certificate does not match the aaguid in the authenticator data
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The aaguid in the id-fido-gen-ce-aaguid extension of the AIK certificate does not match the aaguid in the authenticator data")]
+    public static partial void TpmAikCertificateAaguidMismatch(this ILogger logger);
+
+    /// <summary>
+    ///     The 'sig' of the TPM attestation statement is not a valid signature over 'certInfo' made with the AIK certificate and 'alg'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'sig' of the TPM attestation statement is not a valid signature over 'certInfo' made with the AIK certificate and 'alg'")]
+    public static partial void TpmSignatureInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The 'certInfo' of the TPM attestation statement is not a valid TPMS_ATTEST structure generated by TPM2_Certify()
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'certInfo' of the TPM attestation statement is not a valid TPMS_ATTEST structure generated by TPM2_Certify()")]
+    public static partial void TpmCertInfoInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The hash algorithm of the 'alg' {Alg} of the TPM attestation statement cannot be computed
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="alg">The COSEAlgorithmIdentifier.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The hash algorithm of the 'alg' {Alg} of the TPM attestation statement cannot be computed")]
+    public static partial void TpmAlgHashNotSupported(this ILogger logger, int alg);
+
+    /// <summary>
+    ///     The 'extraData' of the 'certInfo' of the TPM attestation statement is not the hash of attToBeSigned
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'extraData' of the 'certInfo' of the TPM attestation statement is not the hash of attToBeSigned")]
+    public static partial void TpmExtraDataMismatch(this ILogger logger);
+
+    /// <summary>
+    ///     The Name in the 'certInfo' of the TPM attestation statement is not a digest computed with the nameAlg of the 'pubArea'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Name in the 'certInfo' of the TPM attestation statement is not a digest computed with the nameAlg of the 'pubArea'")]
+    public static partial void TpmNameAlgMismatch(this ILogger logger);
+
+    /// <summary>
+    ///     The nameAlg {NameAlg} of the 'pubArea' of the TPM attestation statement is not supported by the library, the Name cannot be verified
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="nameAlg">The nameAlg of the pubArea.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The nameAlg {NameAlg} of the 'pubArea' of the TPM attestation statement is not supported by the library, the Name cannot be verified")]
+    public static partial void TpmNameAlgNotSupported(this ILogger logger, TpmAlgIdHash nameAlg);
+
+    /// <summary>
+    ///     The Name in the 'certInfo' of the TPM attestation statement is not the Name of the 'pubArea'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Name in the 'certInfo' of the TPM attestation statement is not the Name of the 'pubArea'")]
+    public static partial void TpmNameMismatch(this ILogger logger);
 }

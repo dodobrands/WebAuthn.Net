@@ -18,7 +18,7 @@ public interface ITpmAttestationStatementVerifier<TContext>
 {
     /// <summary>
     ///     Asynchronously verifies the <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a> by performing the verification procedure of WebAuthn Level 3 §8.3.
-    ///     Step 1 of that procedure (CBOR decoding of attStmt and conformance to the tpmStmtFormat syntax) is performed by the attestation statement decoder that produced <paramref name="attStmt" />.
+    ///     The first step of that procedure (CBOR decoding of attStmt and conformance to the tpmStmtFormat syntax) is performed by the attestation statement decoder that produced <paramref name="attStmt" />.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="attStmt">Decoded <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a>.</param>

@@ -12,11 +12,13 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 /// </summary>
 /// <remarks>
 ///     <para>
-///         Each vendor folder (RootCertificates/&lt;Vendor&gt;) holds the vendor's published Endorsement Key (EK) root CA certificates plus the Microsoft TPM root certificates
-///         (Microsoft TPM Root Certificate Authority 2014, Microsoft Pluton Root CA 2021).
+///         Each vendor folder (RootCertificates/&lt;Vendor&gt;) holds the vendor's published Endorsement Key (EK) CA certificates plus the Microsoft TPM root certificates
+///         (Microsoft TPM Root Certificate Authority 2014, Microsoft Pluton Root CA 2021). The vendor certificates are self-signed roots, except in the STMicroelectronics folder,
+///         which holds the STMicroelectronics EK CAs issued by GlobalSign ("STM TPM EK Root CA", "STM TPM ECC Root CA 01") together with the GlobalSign Trusted Platform Module roots that issued them.
 ///     </para>
 ///     <para>
-///         WebAuthn TPM attestation conveys Attestation Identity Key (AIK) certificates, which are issued by attestation (privacy) CAs rather than by the EK CAs: in practice they chain to the Microsoft TPM roots (Windows Hello),
+///         WebAuthn TPM attestation conveys Attestation Identity Key (AIK) certificates, which are issued by attestation (privacy) CAs rather than by the EK CAs:
+///         in practice (Windows Hello) they are issued by intermediate CAs that chain to Microsoft TPM Root Certificate Authority 2014,
 ///         and the FIDO Metadata Service can contribute further roots for the authenticator's aaguid. The vendor EK roots are kept as additional trust anchors.
 ///     </para>
 /// </remarks>

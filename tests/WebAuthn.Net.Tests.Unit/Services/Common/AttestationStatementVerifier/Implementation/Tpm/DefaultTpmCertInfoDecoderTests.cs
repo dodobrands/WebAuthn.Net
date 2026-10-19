@@ -22,7 +22,7 @@ public class DefaultTpmCertInfoDecoderTests
     // obfuscated values, as in the real test vectors (the Windows AIK is not in the Endorsement or Platform hierarchy)
     private const uint ResetCount = 0xcddf6e18;
     private const uint RestartCount = 0x07a22498;
-    private const ulong FirmwareVersion = 0x0000000200000000UL;
+    private const ulong FirmwareVersion = 0xbc3d664e3f110a24UL;
 
     [Test]
     public void DecodeTpm2BName_DecodesEmptyName_WhenSizeIsZero()
@@ -112,9 +112,11 @@ public class DefaultTpmCertInfoDecoderTests
     public void DecodeTpm2BName_Fails_WhenSizeIsBetweenOneAndThree(int size)
     {
         var decoder = new DefaultTpmCertInfoDecoder();
-        // enough trailing octets for any of these sizes, so the rejection is caused by the size rule and not by a truncated buffer
+        // Enough trailing octets for any of these sizes, so the rejection is not caused by a truncated buffer, and a valid hashAlg (TPM_ALG_SHA256) at the start of the Name.
+        // A Name of 1 octet cannot even hold a hashAlg (the "size < 4" rule keeps the decoder from reading it); 2 or 3 octets cannot hold a digest.
         var bytes = new byte[2 + 4];
         BinaryPrimitives.WriteUInt16BigEndian(bytes, (ushort) size);
+        BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(2), TpmAlgSha256);
         Span<byte> buffer = bytes;
 
         var result = decoder.DecodeTpm2BName(ref buffer);
@@ -126,7 +128,7 @@ public class DefaultTpmCertInfoDecoderTests
     [TestCase(5, 0x000B, 3)]
     // size 35: TPM_ALG_SHA256 followed by 33 octets
     [TestCase(35, 0x000B, 33)]
-    // size 67: TPM_ALG_SHA512 followed by 65 octets (also larger than sizeof(TPMU_NAME))
+    // size 67: TPM_ALG_SHA512 followed by 65 octets (also larger than sizeof(TPMU_NAME), which is 66 in the specification)
     [TestCase(67, 0x000D, 65)]
     // size 22 with TPM_ALG_SHA256: a SHA-256 Name is 34 octets
     [TestCase(22, 0x000B, 20)]
@@ -171,6 +173,18 @@ public class DefaultTpmCertInfoDecoderTests
     {
         var decoder = new DefaultTpmCertInfoDecoder();
         Span<byte> buffer = BuildName(34, TpmAlgSha256, Pattern(10));
+
+        var result = decoder.DecodeTpm2BName(ref buffer);
+
+        Assert.That(result.HasError, Is.True);
+    }
+
+    [Test]
+    public void DecodeTpm2BName_Fails_WhenHandleIsTruncated()
+    {
+        var decoder = new DefaultTpmCertInfoDecoder();
+        // size 4 (a handle), but only 2 of its 4 octets are present
+        Span<byte> buffer = new byte[] { 0x00, 0x04, 0x40, 0x00 };
 
         var result = decoder.DecodeTpm2BName(ref buffer);
 
@@ -269,9 +283,76 @@ public class DefaultTpmCertInfoDecoderTests
         var decoder = new DefaultTpmCertInfoDecoder();
         var certInfo = BuildCertInfo(Pattern(20));
 
-        var result = decoder.Decode(certInfo.AsSpan(0, certInfo.Length - 1));
+        for (var length = 0; length < certInfo.Length; length++)
+        {
+            var result = decoder.Decode(certInfo.AsSpan(0, length));
+            Assert.That(result.HasError, Is.True, $"A certInfo truncated to {length} bytes must not decode");
+        }
+    }
 
-        Assert.That(result.HasError, Is.True);
+    [Test]
+    public void Decode_DecodesSafeNo_WhenSafeIsZero()
+    {
+        var decoder = new DefaultTpmCertInfoDecoder();
+        var certInfo = BuildCertInfo(Pattern(20), safe: 0x00);
+
+        var result = decoder.Decode(certInfo);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.Safe, Is.False);
+        });
+    }
+
+    [Test]
+    public void Decode_DecodesCertInfo_WhenQualifiedSignerIsEmpty()
+    {
+        // an anonymous (ECDAA) signing scheme, or a signing key whose nameAlg is TPM_ALG_NULL (FillInAttestInfo)
+        var decoder = new DefaultTpmCertInfoDecoder();
+        var certInfo = BuildCertInfo(Pattern(20), qualifiedSigner: new byte[] { 0x00, 0x00 });
+
+        var result = decoder.Decode(certInfo);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.QualifiedSigner.Digest, Is.Null);
+            Assert.That(result.Ok?.QualifiedSigner.Handle, Is.Null);
+        });
+    }
+
+    [Test]
+    public void Decode_DecodesCertInfo_WhenQualifiedSignerIsTpmRhNull()
+    {
+        // signHandle TPM_RH_NULL: FillInAttestInfo puts the handle TPM_RH_NULL (0x40000007) into qualifiedSigner
+        var decoder = new DefaultTpmCertInfoDecoder();
+        var certInfo = BuildCertInfo(Pattern(20), qualifiedSigner: new byte[] { 0x00, 0x04, 0x40, 0x00, 0x00, 0x07 });
+
+        var result = decoder.Decode(certInfo);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.QualifiedSigner.Handle?.Handle, Is.EqualTo(0x40000007u));
+        });
+    }
+
+    [Test]
+    public void Decode_DecodesCertInfo_WhenCertifiedNameIsEmpty()
+    {
+        // the decoder accepts an empty Name; the verifier rejects it because it is not the digest Name of pubArea
+        var decoder = new DefaultTpmCertInfoDecoder();
+        var certInfo = BuildCertInfo(Pattern(20), certifiedName: new byte[] { 0x00, 0x00 });
+
+        var result = decoder.Decode(certInfo);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.Attested.Certify.Name.Digest, Is.Null);
+            Assert.That(result.Ok?.Attested.Certify.Name.Handle, Is.Null);
+        });
     }
 
     [Test]
@@ -331,14 +412,20 @@ public class DefaultTpmCertInfoDecoderTests
     }
 
     // TPMS_ATTEST (TPM 2.0 Library Part 2, Version 185, Table 154) with type = TPM_ST_ATTEST_CERTIFY;
-    // every Name is TPM_ALG_SHA256 || 32 octets, as in the real test vectors
-    private static byte[] BuildCertInfo(byte[] extraData, uint magic = TpmGeneratedValue, ushort type = TpmStAttestCertify, byte safe = 0x01)
+    // unless overridden, every Name is TPM_ALG_SHA256 || 32 octets, as in the real test vectors
+    private static byte[] BuildCertInfo(
+        byte[] extraData,
+        uint magic = TpmGeneratedValue,
+        ushort type = TpmStAttestCertify,
+        byte safe = 0x01,
+        byte[]? qualifiedSigner = null,
+        byte[]? certifiedName = null)
     {
         var name = BuildName(34, TpmAlgSha256, Pattern(32));
         var result = new List<byte>();
         AddBigEndian(result, magic, 4); // magic
         AddBigEndian(result, type, 2); // type
-        result.AddRange(name); // qualifiedSigner
+        result.AddRange(qualifiedSigner ?? name); // qualifiedSigner
         AddBigEndian(result, (ulong) extraData.Length, 2); // extraData.size
         result.AddRange(extraData); // extraData.buffer
         AddBigEndian(result, Clock, 8); // clockInfo.clock
@@ -346,7 +433,7 @@ public class DefaultTpmCertInfoDecoderTests
         AddBigEndian(result, RestartCount, 4); // clockInfo.restartCount
         result.Add(safe); // clockInfo.safe
         AddBigEndian(result, FirmwareVersion, 8); // firmwareVersion
-        result.AddRange(name); // attested.certify.name
+        result.AddRange(certifiedName ?? name); // attested.certify.name
         result.AddRange(name); // attested.certify.qualifiedName
         return result.ToArray();
     }

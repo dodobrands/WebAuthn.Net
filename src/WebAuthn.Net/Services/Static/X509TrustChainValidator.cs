@@ -12,6 +12,49 @@ namespace WebAuthn.Net.Services.Static;
 public static class X509TrustChainValidator
 {
     /// <summary>
+    ///     Validates a certificate chain that signed the blob obtained from the FIDO Metadata Service.
+    /// </summary>
+    /// <param name="rootCertificates">Root CA certificates for the rest of the certificate chain.</param>
+    /// <param name="trustPath">Certificates from the JWS (JWT) token header in the order they appear in the header (the first certificate is the one that signed the token).</param>
+    /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
+    /// <returns><see langword="true" /> if the certificate chain is valid, otherwise - <see langword="false" />.</returns>
+    public static bool IsFidoMetadataBlobJwtChainValid(
+        X509Certificate2[] rootCertificates,
+        X509Certificate2[] trustPath,
+        Action<X509Chain>? configureChain)
+    {
+        return IsFidoMetadataBlobJwtChainValid(rootCertificates, trustPath, configureChain, out _);
+    }
+
+    /// <summary>
+    ///     Validates a certificate chain that signed the blob obtained from the FIDO Metadata Service and returns the status of the built chain.
+    /// </summary>
+    /// <param name="rootCertificates">Root CA certificates for the rest of the certificate chain.</param>
+    /// <param name="trustPath">Certificates from the JWS (JWT) token header in the order they appear in the header (the first certificate is the one that signed the token).</param>
+    /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
+    /// <param name="chainStatus">
+    ///     Output parameter. The status of the built chain: an empty array if the chain is valid or could not be built because of the invalid arguments,
+    ///     otherwise - the flags describing why the chain is invalid (for example, <see cref="X509ChainStatusFlags.RevocationStatusUnknown" />).
+    /// </param>
+    /// <returns><see langword="true" /> if the certificate chain is valid, otherwise - <see langword="false" />.</returns>
+    public static bool IsFidoMetadataBlobJwtChainValid(
+        X509Certificate2[] rootCertificates,
+        X509Certificate2[] trustPath,
+        Action<X509Chain>? configureChain,
+        out X509ChainStatus[] chainStatus)
+    {
+        X509Chain? chain = null;
+        try
+        {
+            return TryBuildFidoMetadataBlobJwtChain(rootCertificates, trustPath, configureChain, out chain, out chainStatus);
+        }
+        finally
+        {
+            chain?.Dispose();
+        }
+    }
+
+    /// <summary>
     ///     Builds and validates the certificate chain of the JWS (JWT) token of a blob obtained from the FIDO Metadata Service and returns the built chain,
     ///     so that the caller can perform additional validation of its elements (for example, a custom revocation check).
     /// </summary>
@@ -154,6 +197,7 @@ public static class X509TrustChainValidator
                     return false;
                 }
 
+                certificatesToDispose.Add(additionalCertificate);
                 chain.ChainPolicy.ExtraStore.Add(additionalCertificate);
             }
 

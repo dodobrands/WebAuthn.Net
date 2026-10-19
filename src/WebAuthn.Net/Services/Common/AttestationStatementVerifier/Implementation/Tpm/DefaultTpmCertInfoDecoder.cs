@@ -47,9 +47,8 @@ public class DefaultTpmCertInfoDecoder : ITpmCertInfoDecoder
 
         var magic = BinaryPrimitives.ReadUInt32BigEndian(rawMagic);
         // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
-        // "TPM Attestation Statement Format"
-        // Validate that certInfo is valid:
-        // 1) Verify that magic is set to TPM_GENERATED_VALUE.
+        // "TPM Attestation Statement Format" - "Validate that certInfo is valid:"
+        // "Verify that magic is set to TPM_GENERATED_VALUE." (step 5.1 in the numbering used by DefaultTpmAttestationStatementVerifier)
         if (magic != 0xff544347)
         {
             return Result<CertInfo>.Fail();
@@ -79,17 +78,18 @@ public class DefaultTpmCertInfoDecoder : ITpmCertInfoDecoder
         }
 
         var type = BinaryPrimitives.ReadUInt16BigEndian(rawType);
-        // "TPM Attestation Statement Format"
         // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
-        // Validate that certInfo is valid:
-        // 2) Verify that type is set to TPM_ST_ATTEST_CERTIFY.
+        // "TPM Attestation Statement Format" - "Validate that certInfo is valid:"
+        // "Verify that type is set to TPM_ST_ATTEST_CERTIFY." (step 5.2 in the numbering used by DefaultTpmAttestationStatementVerifier)
         if (type != 0x8017)
         {
             return Result<CertInfo>.Fail();
         }
 
         // qualifiedSigner
-        // Qualified Name of the signing key. An Empty Buffer for an anonymous (ECDAA) signing scheme; TPM_RH_NULL (size 4) when signed with the NULL key. Ignored by WebAuthn.
+        // Qualified Name of the signing key. Ignored by WebAuthn.
+        // FillInAttestInfo() puts the handle TPM_RH_NULL (size 4) there when signHandle is TPM_RH_NULL (the attestation is then unsigned),
+        // and an Empty Buffer for an anonymous (ECDAA) signing scheme or a signing key whose nameAlg is TPM_ALG_NULL.
         // 10.4.3 TPM2B_NAME
         // This buffer holds a Name for any entity type.
         // The type of Name in the structure is determined by context and the size parameter.
@@ -113,10 +113,13 @@ public class DefaultTpmCertInfoDecoder : ITpmCertInfoDecoder
         // | Parameter                      | Type   | Description
         // | size                           | UINT16 | size in octets of the buffer field; may be 0
         // | buffer[size]{:sizeof(TPMT_HA)} | BYTE   |
-        // The buffer is bounded by sizeof(TPMT_HA) = sizeof(TPM_ALG_ID) + sizeof(TPMU_HA) = 2 + 64 octets (Part 2 v185, Tables 88, 89 and 91).
+        // The buffer is bounded by sizeof(TPMT_HA) = sizeof(TPM_ALG_ID) + sizeof(TPMU_HA) (Part 2 v185, Tables 88, 89 and 91).
         // The reference implementation declares TPM2B_DATA as { UINT16 size; BYTE buffer[sizeof(TPMT_HA)]; } and TPM2B_DATA_Unmarshal returns TPM_RC_SIZE for a larger size,
-        // so a qualifyingData larger than that never enters the TPM, and TPM2_Certify() copies it into extraData unchanged (FillInAttestInfo).
-        // NOTE: 64 is the largest digest in Table 88 (TPMU_HA); the bound would have to grow if the TCG Algorithm Registry added a larger digest.
+        // so a qualifyingData larger than that never enters the TPM, and TPM2_Certify() copies it into extraData unchanged (FillInAttestInfo),
+        // except for an anonymous (ECDAA) signing scheme, for which extraData is an Empty Buffer.
+        // sizeof(TPMU_HA) is the size of the largest digest the TPM implements: 48 octets in the default reference profile (SHA-512 disabled), 64 octets when SHA-512 or SHA3-512 is implemented.
+        // 66 = 2 + 64 is therefore the bound for every TPM; the largest digest in Table 88 (TPMU_HA) is 64 octets,
+        // and the bound would have to grow if the TCG Algorithm Registry added a larger digest.
         const int maxExtraDataSize = 66;
         if (!TryConsume(ref buffer, 2, out var rawExtraDataSize))
         {
@@ -324,8 +327,9 @@ public class DefaultTpmCertInfoDecoder : ITpmCertInfoDecoder
 
         // Otherwise, the size shall be the size of a TPM_ALG_ID plus the size of the digest produced by the indicated hash algorithm (Part 2 v185, 10.4.3 TPM2B_NAME).
         // When transmitted, only the number of octets indicated by hashAlg is sent (Part 2 v185, 10.2.2 TPMT_HA), and Table 88 (TPMU_HA) fixes the digest size per algorithm.
-        // The reference implementation marshals exactly that many octets (TPMU_HA_Marshal) and builds a Name as nameAlg || H_nameAlg(publicArea) with size = 2 + digestSize (ObjectComputeName),
-        // so a Name of any other size cannot have been produced by a TPM.
+        // TPM2B_NAME_Marshal() writes the Name as plain bytes; the reference implementation builds every digest Name with size = 2 + digestSize:
+        // ObjectComputeName() (Name = nameAlg || H_nameAlg(publicArea)) and ComputeQualifiedName() (QN = nameAlg || H_nameAlg(parent QN || Name)),
+        // so a digest Name of any other size cannot have been produced by a TPM.
         var hashAlg = (TpmAlgIdHash) BinaryPrimitives.ReadUInt16BigEndian(rawName[..2]);
         if (!TryGetDigestSize(hashAlg, out var digestSize) || size != 2 + digestSize)
         {

@@ -16,8 +16,11 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 ///     <para>
 ///         The decoder parses exactly what WebAuthn needs from a TPMT_PUBLIC (TPM 2.0 Library Part 2: Structures, Version 185, clause 12.2.4, Table 235)
 ///         and applies the cheap sanity checks the reference implementation performs when a public area is unmarshaled (TPMT_PUBLIC_Unmarshal and its callees),
-///         validated (PublicAttributesValidation, SchemeChecks) and loaded (CryptValidateKeys), so that a malformed or crafted pubArea is reported as a failed <see cref="Result{TOk}" />
-///         instead of surfacing later as an exception from the .NET cryptographic primitives.
+///         validated (the rules of PublicAttributesValidation that do not depend on the parent of the object, SchemeChecks) and loaded (CryptValidateKeys),
+///         so that a malformed or crafted pubArea is reported as a failed <see cref="Result{TOk}" /> instead of surfacing later as an exception from the .NET cryptographic primitives.
+///     </para>
+///     <para>
+///         On top of these checks, only keys that can be a WebAuthn credential key are accepted: RSA or ECC signing keys that TPM2_Sign() can use ("sign" SET, "x509sign" CLEAR) and that are not parents (Storage Keys).
 ///     </para>
 ///     <para>
 ///         Reference implementation: <a href="https://github.com/TrustedComputingGroup/TPM/tree/3b1f0e623f244abe2015df9e3ba86de5c9118524">TrustedComputingGroup/TPM, V184 (commit 3b1f0e6)</a>.
@@ -30,15 +33,15 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
     // TpmTypes.h still defines TPMA_OBJECT_fixedFirmware as (1 << 3), a stale leftover of the unpublished revisions 169-177
     // (fixedFirmware moved to bit 8 and was renamed firmwareLimited in revision 178; the define is referenced nowhere else in the reference tree).
     // Every published revision (1.59, 1.83, 184, 185) reserves bit 3, so the mask of the published Table 37 would be 0xFFF0F009.
-    // The reference implementation takes precedence here: bit 3 is tolerated.
+    // The reference implementation takes precedence here: bit 3 is tolerated (DefaultTpmAttestationStatementVerifier reports a pubArea with bit 3 SET as a tolerated anomaly).
     // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/support/Marshal.c#L329
     // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/include/tpm_public/TpmTypes.h#L983
     private const uint ReservedObjectAttributeBits = 0xFFF0F001u;
 
     /// <inheritdoc />
-    public virtual Result<PubArea> Decode(Span<byte> publicArea)
+    public virtual Result<PubArea> Decode(Span<byte> bytes)
     {
-        var buffer = publicArea;
+        var buffer = bytes;
         // "publicArea"
         // 12.2.4 TPMT_PUBLIC
         // Table 235 defines the public area structure. The Name of the object is nameAlg concatenated with the digest of this structure using nameAlg.
@@ -160,10 +163,10 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // |       |                      | CLEAR (0): Key usage is not restricted to use on special formats.
         // |    17 | decrypt              | SET (1): The private portion of the key may be used to decrypt.
         // |       |                      | CLEAR (0): The private portion of the key may not be used to decrypt.
-        // |       |                      |  NOTE: Version 185 deprecated support for keys with both "sign" and "decrypt"
+        // |       |                      |  NOTE: Version 185 deprecated support for keys with both "sign" and "decrypt" SET. See Part 0.
         // |    18 | sign / encrypt       | SET (1): For a symmetric block cipher key, the private portion of the key may be used to encrypt. For other keys, the private portion of the key may be used to sign.
         // |       |                      | CLEAR (0): The private portion of the key may not be used to "sign" or "encrypt".
-        // |       |                      |  NOTE: Version 185 deprecated support for keys with both "sign" and "decrypt"
+        // |       |                      |  NOTE: Version 185 deprecated support for keys with both "sign" and "decrypt" SET. See Part 0.
         // |    19 | x509sign             | SET (1): An asymmetric key that may not be used to sign with TPM2_Sign(), TPM2_SignDigest(), or TPM2_SignSequenceComplete().
         // |       |                      | CLEAR (0): A key that may be used with TPM2_Sign(), TPM2_SignDigest, or TPM2_SignSequenceComplete() if sign is SET.
         // |       |                      |  NOTE: This attribute only has significance if sign is SET.
@@ -182,6 +185,32 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         }
 
         var objectAttributes = (ObjectAttributes) rawAttributes;
+
+        // PublicAttributesValidation() also enforces attribute combinations that do not depend on the parent of the object.
+        // A TPM applies it to every object it creates and to every object it loads together with its sensitive area (ObjectLoad()),
+        // and only such an object can be the subject of TPM2_Certify(): the authValue and the authPolicy of an object whose public area alone was loaded
+        // cannot be used to authorize it (IsAuthValueAvailable() and IsAuthPolicyAvailable() require publicOnly CLEAR).
+        // - 8.3.3.2 fixedTPM: if the parent is fixedTPM, fixedTPM shall equal fixedParent; if the parent is not fixedTPM, fixedTPM shall be CLEAR - so fixedTPM SET requires fixedParent SET.
+        // - 8.3.3.11 encryptedDuplication: "This attribute shall not be SET in any object that has fixedTPM SET."
+        // - 8.3.3.8 firmwareLimited, 8.3.3.9 svnLimited: may only be SET if fixedTPM is SET.
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/command/Object/Object_spt.c#L603
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/subsystem/Object.c#L310
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/main/SessionProcess.c#L258
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/main/SessionProcess.c#L415
+        var fixedTpm = (objectAttributes & ObjectAttributes.FixedTpm) == ObjectAttributes.FixedTpm;
+        var fixedParent = (objectAttributes & ObjectAttributes.FixedParent) == ObjectAttributes.FixedParent;
+        var encryptedDuplication = (objectAttributes & ObjectAttributes.EncryptedDuplication) == ObjectAttributes.EncryptedDuplication;
+        var firmwareLimited = (objectAttributes & ObjectAttributes.FirmwareLimited) == ObjectAttributes.FirmwareLimited;
+        var svnLimited = (objectAttributes & ObjectAttributes.SvnLimited) == ObjectAttributes.SvnLimited;
+        if (fixedTpm && (!fixedParent || encryptedDuplication))
+        {
+            return Result<PubArea>.Fail();
+        }
+
+        if ((firmwareLimited || svnLimited) && !fixedTpm)
+        {
+            return Result<PubArea>.Fail();
+        }
 
         // ---------------------------------------
         // "publicArea"."authPolicy"
@@ -244,8 +273,13 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
 
         // ---------------------------------------
         // Cross-field checks that need both "parameters" and "unique".
-        // CryptValidateKeys() is called for a public-only object load (TPM2_LoadExternal() via ObjectLoad()) and for every created key.
+        // CryptValidateKeys() enforces them when an object is loaded: ObjectLoad() calls it for TPM2_LoadExternal(), for TPM2_Import() and for TPM2_Load() under a parent that is not fixedTPM.
+        // A key created by the TPM satisfies them by construction:
+        // - RSA: Part 2 v185, 11.2.4.8 (Table 196): "All primes are required to have exactly half the number of significant bits as the public modulus,
+        //   and the square of each prime is required to have the same number of significant bits as the public modulus", so the modulus has exactly keyBits significant bits;
+        // - ECC: Part 1 v185, 44.5.3: "In ECC points returned by the TPM, the x and y values, if non-empty, are required to be the size of their associated curve".
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/crypt/CryptUtil.c#L1679
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/subsystem/Object.c#L310
         if (publicParmsResult.Ok is RsaParms rsaParms && uniqueResult.Ok is RsaUnique rsaUnique)
         {
             // CryptValidateKeys():
@@ -321,16 +355,20 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         //   Support for both sign and decrypt on the same key was deprecated in version 185. See Part 0.
 
         var canSign = (objectAttributes & ObjectAttributes.SignEncrypt) == ObjectAttributes.SignEncrypt;
+        var x509Sign = (objectAttributes & ObjectAttributes.X509Sign) == ObjectAttributes.X509Sign;
 
         // "decrypt + sign (2)" for "rsaDetail" and "eccDetail": one of them shall be set.
         // PublicAttributesValidation(): "only a data object may have both sign and decrypt CLEAR" (TPM_RC_ATTRIBUTES for any type other than TPM_ALG_KEYEDHASH).
-        // Beyond that, a WebAuthn credential key must be able to sign assertions, which a TPM only does with a key whose "sign" attribute is SET:
-        // Part 3 v185, clause 20.5.1 (TPM2_Sign): "If the sign attribute is not SET in the key referenced by handle, then the TPM shall return TPM_RC_KEY".
-        // A decrypt-only key can therefore never be the credential key and is rejected here (this check subsumes the "neither" case).
+        // Beyond that, a WebAuthn credential key must be able to sign assertions, which a TPM only does with a key whose "sign" attribute is SET and whose "x509sign" attribute is CLEAR:
+        // Part 3 v185, clause 20.5.1 (TPM2_Sign): "The x509sign attribute of keyHandle may not be SET (TPM_RC_ATTRIBUTES)" and
+        // "If the sign attribute is not SET in the key referenced by handle, then the TPM shall return TPM_RC_KEY".
+        // Part 2 v185, 8.3.3.15: an "x509sign" key "may not be used as the signing key in TPM2_Sign(), TPM2_SignSequenceComplete(), and TPM2_SignDigest()".
+        // A decrypt-only key (this check subsumes the "neither" case) and an "x509sign" key can therefore never be the credential key and are rejected here.
         // "decrypt" SET in addition to "sign" is tolerated: Windows Hello creates RSA credential keys with sign | decrypt (restricted CLEAR, scheme TPM_ALG_NULL),
-        // the scheme/attribute rules for that combination are applied in DecodeRsaParms() / DecodeEccParms(). "restricted" signing keys are tolerated as well. "x509sign" is not checked.
+        // the scheme/attribute rules for that combination are applied in DecodeRsaParms() / DecodeEccParms(). "restricted" signing keys are tolerated as well.
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/command/Object/Object_spt.c#L603
-        if (!canSign)
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/command/Signature/Sign.c#L44
+        if (!canSign || x509Sign)
         {
             return Result<AbstractPublicParms>.Fail();
         }
@@ -411,7 +449,15 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // Part 1 v185, clause 22.1.4: "A restricted decryption key is often referred to in this specification as a Storage Key."
         // Such a key must have "sign" CLEAR (8.3.3.14: sign "shall not be SET if decrypt and restricted are both SET";
         // PublicAttributesValidation(): sign == decrypt with restricted SET -> TPM_RC_ATTRIBUTES), so it can never be a WebAuthn credential key.
+        // This check also rejects the combination restricted | sign | decrypt, which PublicAttributesValidation() rejects as well ("a restricted key cannot have both SET or both CLEAR").
         if (restricted && decrypt)
+        {
+            return Result<RsaParms>.Fail();
+        }
+
+        // A key that cannot sign can never be a WebAuthn credential key. DecodePublicParms() already rejects it; the check is repeated here (and in DecodeEccParms())
+        // so that both type-specific decoders apply the same policy when they are called from a subclass that overrides DecodePublicParms().
+        if (!sign)
         {
             return Result<RsaParms>.Fail();
         }
@@ -428,6 +474,8 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // | [algorithm]mode    | TPMU_SYM_MODE        | Default mode. When used in the parameter area of a parent object, this shall be TPM_ALG_CFB.
         // | [algorithm]details | TPMU_SYM_DETAILS     | Contains the additional algorithm details, if any
         // SchemeChecks(): "For an asymmetric key that is not a parent, the symmetric algorithms must be TPM_ALG_NULL" (TPM_RC_SYMMETRIC).
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/command/Object/Object_spt.c#L406
+        // TPMT_SYM_DEF_OBJECT_Unmarshal(): TPM_ALG_NULL selects no keyBits, mode and details.
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/support/Marshal.c#L3112
 
         // TPMI_ALG_SYM_OBJECT is TPM_ALG_ID, TPM_ALG_ID is UINT16
@@ -490,42 +538,33 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // - sign == decrypt -> the scheme must be TPM_ALG_NULL ("there is no way to specify both a sign and a decrypt scheme in the key");
         // - sign only -> a signing scheme (CryptIsAsymSignScheme(TPM_ALG_RSA): TPM_ALG_RSASSA, TPM_ALG_RSAPSS), or TPM_ALG_NULL if the key is not restricted;
         // - decrypt only -> TPM_ALG_NULL, or a decryption scheme (CryptIsAsymDecryptScheme(TPM_ALG_RSA): TPM_ALG_RSAES, TPM_ALG_OAEP) if the key is not restricted.
-        // A WebAuthn credential key has "sign" SET (DecodePublicParms()) and is not a restricted decryption key (checked above), so only three cases are reachable:
+        // A WebAuthn credential key has "sign" SET and is not a restricted decryption key (both checked above), so only three cases are reachable:
         // sign + decrypt (restricted CLEAR, scheme TPM_ALG_NULL), restricted signing key (TPM_ALG_RSAPSS / TPM_ALG_RSASSA) and unrestricted signing key (TPM_ALG_RSAPSS / TPM_ALG_RSASSA / TPM_ALG_NULL).
-        // A decrypt-only key cannot sign and is rejected.
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/command/Object/Object_spt.c#L406
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/crypt/CryptUtil.c#L1248
-        if (sign && decrypt)
+        if (decrypt)
         {
-            // when both "sign" and "decrypt" are SET, restricted shall be CLEAR and "scheme" shall be TPM_ALG_NULL
-            if (restricted || scheme != TpmiAlgRsaScheme.TpmAlgNull)
+            // "sign" and "decrypt" are both SET (and "restricted" is CLEAR, checked above): "scheme" shall be TPM_ALG_NULL
+            if (scheme != TpmiAlgRsaScheme.TpmAlgNull)
             {
                 return Result<RsaParms>.Fail();
             }
         }
-        else if (sign)
+        else if (restricted)
         {
-            if (restricted)
+            // for a restricted signing key, either TPM_ALG_RSAPSS or TPM_ALG_RSASSA
+            if (scheme != TpmiAlgRsaScheme.TpmAlgRsapss && scheme != TpmiAlgRsaScheme.TpmAlgRsassa)
             {
-                // for a restricted signing key, either TPM_ALG_RSAPSS or TPM_ALG_RSASSA
-                if (scheme != TpmiAlgRsaScheme.TpmAlgRsapss && scheme != TpmiAlgRsaScheme.TpmAlgRsassa)
-                {
-                    return Result<RsaParms>.Fail();
-                }
-            }
-            else
-            {
-                // for an unrestricted signing key, either TPM_ALG_RSAPSS TPM_ALG_RSASSA or TPM_ALG_NULL
-                if (scheme != TpmiAlgRsaScheme.TpmAlgRsapss && scheme != TpmiAlgRsaScheme.TpmAlgRsassa && scheme != TpmiAlgRsaScheme.TpmAlgNull)
-                {
-                    return Result<RsaParms>.Fail();
-                }
+                return Result<RsaParms>.Fail();
             }
         }
         else
         {
-            // a decryption key (or a key with neither attribute) can never be a WebAuthn credential key
-            return Result<RsaParms>.Fail();
+            // for an unrestricted signing key, either TPM_ALG_RSAPSS TPM_ALG_RSASSA or TPM_ALG_NULL
+            if (scheme != TpmiAlgRsaScheme.TpmAlgRsapss && scheme != TpmiAlgRsaScheme.TpmAlgRsassa && scheme != TpmiAlgRsaScheme.TpmAlgNull)
+            {
+                return Result<RsaParms>.Fail();
+            }
         }
 
         // ---------------------------------------
@@ -616,27 +655,33 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         //  that loads both the public and private portions of an RSA key.
         //  This would allow the TPM to validate signatures using the smaller key but would prevent
         //  the TPM from using the smaller key size for any other purpose.
-        // Definition of {RSA} (TPM_KEY_BITS) TPMI_RSA_KEY_BITS Type
+        // Table 195 — Definition of {RSA} (TPM_KEY_BITS) TPMI_RSA_KEY_BITS Type
         // | Parameter           | Description
-        // | $RSA_KEY_SIZES_BITS | The number of bits in the supported key
+        // | $RSA_KEY_SIZES_BITS | the number of bits in the supported key
         // | #TPM_RC_VALUE       | error when key size is not supported
-        // 5.3 Miscellaneous Types
-        // Table 5 defines types either for compatibility with previous versions of this specification or for clarity of this specification.
-        // Definition of Types for Documentation Clarity
+        // 5.3.1 Key Size Types
+        // Table 5 defines types that are used to express the sizes of keys.
+        // Table 5 — Definition of Types for TPM_KEY_BITS
         // | Type   | Name         | Description
-        // | UINT16 | TPM_KEY_BITS | A key size in bits
+        // | UINT16 | TPM_KEY_BITS | a key size in bits
         //
-        // TPMI_RSA_KEY_BITS_Unmarshal() accepts only the compiled-in set $RSA_KEY_SIZES_BITS (TPM_RC_VALUE otherwise); in the reference profile (TpmProfile_Common.h) these are 1024, 2048, 3072 and 4096 (16384 is disabled).
-        // The supported set is implementation-defined, so the decoder stays tolerant: a non-zero whole number of octets within the range the specification enumerates (up to 16384 bits).
+        // TPMI_RSA_KEY_BITS_Unmarshal() accepts only the compiled-in set $RSA_KEY_SIZES_BITS (TPM_RC_VALUE otherwise); in the reference profile (TpmProfile_Common.h)
+        // these are 1024, 2048, 3072 and 4096 (16384 can be enabled at compile time and is the largest size the reference implementation supports),
+        // and the reference key generation only produces multiples of 1024 bits (CryptRsaGenerateKey()).
+        // The specification does not enumerate the sizes (the supported set is implementation-defined), so the decoder stays tolerant:
+        // a whole number of octets from 1024 to 16384 bits. Smaller keys are only allowed for public-only objects loaded with TPM2_LoadExternal() (see the note above),
+        // which can never be certified by TPM2_Certify() (see Decode()), so a WebAuthn credential key is never smaller than 1024 bits.
         // The length of the modulus is checked against keyBits in Decode() once "unique" has been decoded.
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/support/Marshal.c#L4180
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/TpmConfiguration/TpmConfiguration/TpmProfile_Common.h#L66
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/crypt/CryptRsa.c#L1310
         if (!TryConsume(ref buffer, 2, out var rawKeyBits))
         {
             return Result<RsaParms>.Fail();
         }
 
         var keyBits = BinaryPrimitives.ReadUInt16BigEndian(rawKeyBits);
-        if (keyBits == 0 || keyBits % 8 != 0 || keyBits > 16384)
+        if (keyBits < 1024 || keyBits > 16384 || keyBits % 8 != 0)
         {
             return Result<RsaParms>.Fail();
         }
@@ -706,7 +751,15 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // Part 1 v185, clause 22.1.4: "A restricted decryption key is often referred to in this specification as a Storage Key."
         // Such a key must have "sign" CLEAR (8.3.3.14: sign "shall not be SET if decrypt and restricted are both SET";
         // PublicAttributesValidation(): sign == decrypt with restricted SET -> TPM_RC_ATTRIBUTES), so it can never be a WebAuthn credential key.
+        // This check also rejects the combination restricted | sign | decrypt, which PublicAttributesValidation() rejects as well ("a restricted key cannot have both SET or both CLEAR").
         if (restricted && decrypt)
+        {
+            return Result<EccParms>.Fail();
+        }
+
+        // A key that cannot sign can never be a WebAuthn credential key. DecodePublicParms() already rejects it; the check is repeated here (and in DecodeRsaParms())
+        // so that both type-specific decoders apply the same policy when they are called from a subclass that overrides DecodePublicParms().
+        if (!sign)
         {
             return Result<EccParms>.Fail();
         }
@@ -723,6 +776,8 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // | [algorithm]mode    | TPMU_SYM_MODE        | Default mode. When used in the parameter area of a parent object, this shall be TPM_ALG_CFB.
         // | [algorithm]details | TPMU_SYM_DETAILS     | Contains the additional algorithm details, if any
         // SchemeChecks(): "For an asymmetric key that is not a parent, the symmetric algorithms must be TPM_ALG_NULL" (TPM_RC_SYMMETRIC).
+        // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/command/Object/Object_spt.c#L406
+        // TPMT_SYM_DEF_OBJECT_Unmarshal(): TPM_ALG_NULL selects no keyBits, mode and details.
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/support/Marshal.c#L3112
 
         // TPMI_ALG_SYM_OBJECT is TPM_ALG_ID, TPM_ALG_ID is UINT16
@@ -793,74 +848,48 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // Scheme/attribute rules, a mirror of SchemeChecks() of the reference implementation for TPM_ALG_ECC:
         // - CryptIsAsymSignScheme(TPM_ALG_ECC): TPM_ALG_ECDSA, TPM_ALG_ECDAA, TPM_ALG_ECSCHNORR, TPM_ALG_SM2;
         // - CryptIsAsymDecryptScheme(TPM_ALG_ECC): TPM_ALG_ECDH, TPM_ALG_SM2, TPM_ALG_ECMQV;
-        // - sign == decrypt -> the scheme must be TPM_ALG_NULL; sign only -> a signing scheme, or TPM_ALG_NULL if the key is not restricted;
-        //   decrypt only -> TPM_ALG_NULL, or a key exchange scheme if the key is not restricted;
-        // - PublicAttributesValidation(): sign == decrypt with restricted SET -> TPM_RC_ATTRIBUTES.
+        // - sign == decrypt -> the scheme must be TPM_ALG_NULL ("there is no way to specify both a sign and a decrypt scheme in the key");
+        //   sign only -> a signing scheme, or TPM_ALG_NULL if the key is not restricted; decrypt only -> TPM_ALG_NULL, or a key exchange scheme if the key is not restricted.
+        // A WebAuthn credential key has "sign" SET and is not a restricted decryption key (both checked above), so only three cases are reachable:
+        // sign + decrypt (restricted CLEAR, scheme TPM_ALG_NULL), restricted signing key (a signing scheme) and unrestricted signing key (a signing scheme or TPM_ALG_NULL).
+        // The key exchange schemes TPM_ALG_ECDH and TPM_ALG_ECMQV are therefore never accepted, and TPM_ALG_SM2 only as the signing scheme of a key whose "decrypt" is CLEAR.
         // TPM_ALG_EDDSA and TPM_ALG_HASH_EDDSA are in neither set (ALG_EDDSA is disabled in the reference profile) and are only defined for the Edwards curves
         // (TPM_ECC_CURVE_25519, TPM_ECC_CURVE_448), which are not supported by this library, so they are rejected outright.
         // Their [scheme]details also differ between the specification versions (TPMS_EMPTY in v185 Table 202, TPMS_SCHEME_HASH in the V184 reference implementation), which does not matter once they are refused.
         // The curve-mandated signing scheme (CryptGetCurveSignScheme(), the "sign" field of TPMS_ALGORITHM_DETAIL_ECC, Table 204) is TPM_ALG_NULL for every NIST curve, so no curve/scheme pairing check is needed.
-        // Since a WebAuthn credential key has "sign" SET (DecodePublicParms()), the decrypt-only cases of this matrix (TPM_ALG_ECDH, TPM_ALG_ECMQV, TPM_ALG_SM2 key exchange) always end up rejected; the matrix is kept faithful anyway.
+        // A key whose scheme is not TPM_ALG_NULL only signs with that scheme (Part 3 v185, 20.5.1: "If the scheme of keyHandle is not TPM_ALG_NULL, then inScheme shall either be the same scheme as keyHandle or TPM_ALG_NULL").
+        // Neither WebAuthn nor the TPM specification relates that scheme to the COSE algorithm of the credential public key, so it is not compared with it:
+        // a key restricted to TPM_ALG_ECDAA, TPM_ALG_ECSCHNORR or TPM_ALG_SM2 is a valid TPM signing key and is accepted, but its assertions (ECDSA signatures for a COSE EC2 key) can never be verified.
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/command/Object/Object_spt.c#L406
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/crypt/CryptUtil.c#L1248
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/crypt/CryptUtil.c#L1361
-        switch (scheme)
+        var isSigningScheme = scheme is TpmiAlgEccScheme.TpmAlgEcdsa
+            or TpmiAlgEccScheme.TpmAlgEcdaa
+            or TpmiAlgEccScheme.TpmAlgEcschnorr
+            or TpmiAlgEccScheme.TpmAlgSm2;
+        if (decrypt)
         {
-            case TpmiAlgEccScheme.TpmAlgNull:
-                {
-                    // a restricted signing key must name its signing scheme
-                    if (sign && !decrypt && restricted)
-                    {
-                        return Result<EccParms>.Fail();
-                    }
-
-                    break;
-                }
-            case TpmiAlgEccScheme.TpmAlgEcdsa:
-            case TpmiAlgEccScheme.TpmAlgEcdaa:
-            case TpmiAlgEccScheme.TpmAlgEcschnorr:
-                {
-                    // signing schemes: "sign" SET and "decrypt" CLEAR
-                    if (!sign || decrypt)
-                    {
-                        return Result<EccParms>.Fail();
-                    }
-
-                    break;
-                }
-            case TpmiAlgEccScheme.TpmAlgSm2:
-                {
-                    // both a signing and a key exchange scheme: exactly one of "sign" / "decrypt"
-                    if (sign == decrypt)
-                    {
-                        return Result<EccParms>.Fail();
-                    }
-
-                    break;
-                }
-            case TpmiAlgEccScheme.TpmAlgEcdh:
-            case TpmiAlgEccScheme.TpmAlgEcmqv:
-                {
-                    // key exchange schemes: "decrypt" SET and "sign" CLEAR
-                    if (!decrypt || sign)
-                    {
-                        return Result<EccParms>.Fail();
-                    }
-
-                    break;
-                }
-            case TpmiAlgEccScheme.TpmAlgEddsa:
-            case TpmiAlgEccScheme.TpmAlgHashEddsa:
-            default:
-                {
-                    return Result<EccParms>.Fail();
-                }
+            // "sign" and "decrypt" are both SET (and "restricted" is CLEAR, checked above): "scheme" shall be TPM_ALG_NULL
+            if (scheme != TpmiAlgEccScheme.TpmAlgNull)
+            {
+                return Result<EccParms>.Fail();
+            }
         }
-
-        // when both "sign" and "decrypt" are SET, restricted shall be CLEAR and "scheme" shall be TPM_ALG_NULL
-        if (sign && decrypt && (restricted || scheme != TpmiAlgEccScheme.TpmAlgNull))
+        else if (restricted)
         {
-            return Result<EccParms>.Fail();
+            // a restricted signing key must name its signing scheme
+            if (!isSigningScheme)
+            {
+                return Result<EccParms>.Fail();
+            }
+        }
+        else
+        {
+            // an unrestricted signing key: a signing scheme or TPM_ALG_NULL
+            if (!isSigningScheme && scheme != TpmiAlgEccScheme.TpmAlgNull)
+            {
+                return Result<EccParms>.Fail();
+            }
         }
 
         // ---------------------------------------
@@ -881,6 +910,8 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // | TPMS_SCHEME_HASH | TPMS_KEY_SCHEME_ECMQV
         // (Earlier specification versions defined this union as TPMU_ASYM_SCHEME, shared by RSA and ECC; the V184 reference implementation still marshals through TPMU_ASYM_SCHEME_Marshal
         // and marshals TPM_ALG_EDDSA / TPM_ALG_EDDSA_PH details as TPMS_SCHEME_HASH, unlike the TPMS_EMPTY of v185 Table 202.)
+        // v185 Table 202 has no member for TPM_ALG_SM2, TPM_ALG_ECDH and TPM_ALG_ECMQV although Table 200 allows them as selectors;
+        // the reference implementation marshals all three as TPMS_SCHEME_HASH (the signature scheme TPMS_SIG_SCHEME_SM2 and the key exchange schemes of Table 185), and so does this decoder.
 
         // Common TPMU_ASYM_SCHEME marshal reference logic
         // https://github.com/TrustedComputingGroup/TPM/blob/3b1f0e623f244abe2015df9e3ba86de5c9118524/TPMCmd/tpm/src/support/Marshal.c#L3938
@@ -948,13 +979,9 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         //     return UINT16_Marshal((UINT16*)(source), (buffer), (size));
         // }
 
-        // TPM_ALG_EDDSA and TPM_ALG_HASH_EDDSA never reach this point (rejected above).
-        if (scheme is TpmiAlgEccScheme.TpmAlgEcdsa
-            or TpmiAlgEccScheme.TpmAlgEcdaa
-            or TpmiAlgEccScheme.TpmAlgSm2
-            or TpmiAlgEccScheme.TpmAlgEcschnorr
-            or TpmiAlgEccScheme.TpmAlgEcdh
-            or TpmiAlgEccScheme.TpmAlgEcmqv)
+        // Only TPM_ALG_NULL (no details) and the signing schemes reach this point: TPM_ALG_ECDH, TPM_ALG_ECMQV, TPM_ALG_EDDSA and TPM_ALG_HASH_EDDSA are rejected above.
+        // Every signing scheme carries a TPMS_SCHEME_HASH; TPM_ALG_ECDAA carries a TPMS_SCHEME_ECDAA (the same hashAlg, followed by a count).
+        if (isSigningScheme)
         {
             // 11.1.17 TPMS_SCHEME_HASH (Table 173) / 11.1.18 TPMS_SCHEME_ECDAA (Table 174)
             // | Parameter | Type          | Description
@@ -991,11 +1018,26 @@ public class DefaultTpmPubAreaDecoder : ITpmPubAreaDecoder
         // ------------------------------------
         // "publicArea"."[TPM_ALG_ECC]parameters"."eccDetail"."curveID"
         // 11.2.5.5 TPMI_ECC_CURVE
-        // Table 201 — Definition of {ECC} (TPM_ECC_CURVE) TPMI_ECC_CURVE Type
-        // | Parameter     | Description
-        // | $ECC_CURVES   | the list of implemented curves
-        // | +TPM_ECC_NONE |
-        // | #TPM_RC_CURVE | error when curve is not supported
+        // Table 201 enumerates the ECC curves implemented by the TPM.
+        // Numeric values of TPM_ECC_x correspond to the numeric values of TCG_ECC_x from the TCG Algorithm Registry.
+        // Table 201 — Definition of (ECC) (TPM_ECC_CURVE) TPMI_ECC_CURVE Type
+        // | Parameter           | Value  | Comment
+        // | +TPM_ECC_NONE       | 0x0000 |
+        // | TPM_ECC_NIST_P192   | 0x0001 |
+        // | TPM_ECC_NIST_P224   | 0x0002 |
+        // | TPM_ECC_NIST_P256   | 0x0003 |
+        // | TPM_ECC_NIST_P384   | 0x0004 |
+        // | TPM_ECC_NIST_P521   | 0x0005 |
+        // | TPM_ECC_BN_P256     | 0x0010 | curve to support ECDAA
+        // | TPM_ECC_BN_P638     | 0x0011 | curve to support ECDAA
+        // | TPM_ECC_SM2_P256    | 0x0020 |
+        // | TPM_ECC_BP_P256_R1  | 0x0030 | Brainpool
+        // | TPM_ECC_BP_P384_R1  | 0x0031 | Brainpool
+        // | TPM_ECC_BP_P512_R1  | 0x0032 | Brainpool
+        // | TPM_ECC_CURVE_25519 | 0x0040 | curve to support EdDSA
+        // | TPM_ECC_CURVE_448   | 0x0041 | curve to support EdDSA
+        // | #TPM_RC_CURVE       |        | error when curve is not supported
+        // A TPM only accepts the subset of these curves it implements (TPMI_ECC_CURVE_Unmarshal() accepts the curves enabled at compile time, ECC_NIST_P256 etc.).
 
         // 6.4 TPM_ECC_CURVE
         // The TCG maintains a registry of all curves that have an assigned curve identifier.

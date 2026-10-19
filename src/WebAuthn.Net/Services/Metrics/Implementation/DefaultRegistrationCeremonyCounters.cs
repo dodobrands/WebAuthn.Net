@@ -34,6 +34,10 @@ public class DefaultRegistrationCeremonyCounters : IRegistrationCeremonyCounters
             "webauthn.reg.complete.end",
             null,
             "The number of completions of the method responsible for the completion of the registration ceremony (IRegistrationCeremonyService.CompleteCeremonyAsync))");
+        AttestationStatementAnomaliesCounter = Meter.CreateCounter<long>(
+            "webauthn.reg.attestation.anomalies",
+            null,
+            "The number of anomalies found while verifying attestation statements: deviations from the specifications that were tolerated, and values unknown to the library that caused the attestation statement to be rejected");
     }
 
     /// <summary>
@@ -60,6 +64,11 @@ public class DefaultRegistrationCeremonyCounters : IRegistrationCeremonyCounters
     ///     The completion counter of the method responsible for the completion of the registration ceremony <see cref="IRegistrationCeremonyService" />.<see cref="IRegistrationCeremonyService.CompleteCeremonyAsync" />.
     /// </summary>
     protected Counter<long> CompleteCeremonyEndCounter { get; }
+
+    /// <summary>
+    ///     Counter for the anomalies found while verifying attestation statements during the registration ceremony.
+    /// </summary>
+    protected Counter<long> AttestationStatementAnomaliesCounter { get; }
 
     /// <inheritdoc />
     public void Dispose()
@@ -105,6 +114,22 @@ public class DefaultRegistrationCeremonyCounters : IRegistrationCeremonyCounters
             new TagList
             {
                 new(Tags.Status, status)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementAttestationStatementAnomaly(string fmt, string anomaly, bool tolerated)
+    {
+        var outcome = tolerated
+            ? TagValues.OutcomeTolerated
+            : TagValues.OutcomeRejected;
+        AttestationStatementAnomaliesCounter.Add(
+            1L,
+            new TagList
+            {
+                new(Tags.AttestationStatementFormat, fmt),
+                new(Tags.Anomaly, anomaly),
+                new(Tags.Outcome, outcome)
             });
     }
 

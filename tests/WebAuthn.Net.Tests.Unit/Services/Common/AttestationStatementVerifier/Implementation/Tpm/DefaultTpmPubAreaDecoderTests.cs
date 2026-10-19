@@ -45,7 +45,6 @@ public class DefaultTpmPubAreaDecoderTests
     // ECC vector offsets
     private const int EccCurveIdOffset = 46;
     private const int EccKdfOffset = 48;
-    private const int EccKdfDetailsOffset = 50;
     private const int EccXSizeOffset = 50;
     private const int EccXOffset = 52;
     private const int EccYSizeOffset = 84;
@@ -55,9 +54,15 @@ public class DefaultTpmPubAreaDecoderTests
     // TPMA_OBJECT values of the vectors
     private const uint RsaObjectAttributes = 0x00060472; // fixedTPM | fixedParent | sensitiveDataOrigin | userWithAuth | noDA | decrypt | sign
     private const uint EccObjectAttributes = 0x00040072; // fixedTPM | fixedParent | sensitiveDataOrigin | userWithAuth | sign
+    private const uint FixedTpmBit = 1u << 1;
+    private const uint FixedParentBit = 1u << 4;
+    private const uint FirmwareLimitedBit = 1u << 8;
+    private const uint SvnLimitedBit = 1u << 9;
+    private const uint EncryptedDuplicationBit = 1u << 11;
     private const uint RestrictedBit = 1u << 16;
     private const uint DecryptBit = 1u << 17;
     private const uint SignBit = 1u << 18;
+    private const uint X509SignBit = 1u << 19;
 
     // TPM_ALG_ID values used by the mutations
     private const ushort TpmAlgNull = 0x0010;
@@ -157,7 +162,8 @@ public class DefaultTpmPubAreaDecoderTests
     [TestCase(EccPubAreaHex)]
     public void DefaultTpmPubAreaDecoder_Fails_WhenNameAlgIsNull(string pubAreaHex)
     {
-        var pubArea = WithUInt16(Convert.FromHexString(pubAreaHex), NameAlgOffset, TpmAlgNull);
+        // with an empty authPolicy, so that only the nameAlg rule can reject it (a 32-byte authPolicy would also fail the authPolicy size rule)
+        var pubArea = WithUInt16(WithEmptyAuthPolicy(Convert.FromHexString(pubAreaHex)), NameAlgOffset, TpmAlgNull);
 
         AssertFails(pubArea);
     }
@@ -167,7 +173,8 @@ public class DefaultTpmPubAreaDecoderTests
     [TestCase(EccPubAreaHex, 0xFFFF)]
     public void DefaultTpmPubAreaDecoder_Fails_WhenNameAlgIsUnknown(string pubAreaHex, int nameAlg)
     {
-        var pubArea = WithUInt16(Convert.FromHexString(pubAreaHex), NameAlgOffset, (ushort) nameAlg);
+        // with an empty authPolicy, so that only the nameAlg rule can reject it
+        var pubArea = WithUInt16(WithEmptyAuthPolicy(Convert.FromHexString(pubAreaHex)), NameAlgOffset, (ushort) nameAlg);
 
         AssertFails(pubArea);
     }
@@ -179,7 +186,17 @@ public class DefaultTpmPubAreaDecoderTests
     [TestCase(RsaPubAreaHex, 1u << 31)]
     [TestCase(EccPubAreaHex, 1u << 0)]
     [TestCase(EccPubAreaHex, 1u << 13)]
+    [TestCase(EccPubAreaHex, 1u << 14)]
+    [TestCase(EccPubAreaHex, 1u << 21)]
+    [TestCase(EccPubAreaHex, 1u << 22)]
+    [TestCase(EccPubAreaHex, 1u << 23)]
     [TestCase(EccPubAreaHex, 1u << 24)]
+    [TestCase(EccPubAreaHex, 1u << 25)]
+    [TestCase(EccPubAreaHex, 1u << 26)]
+    [TestCase(EccPubAreaHex, 1u << 27)]
+    [TestCase(EccPubAreaHex, 1u << 28)]
+    [TestCase(EccPubAreaHex, 1u << 29)]
+    [TestCase(EccPubAreaHex, 1u << 30)]
     public void DefaultTpmPubAreaDecoder_Fails_WhenReservedObjectAttributeBitIsSet(string pubAreaHex, uint reservedBit)
     {
         var source = Convert.FromHexString(pubAreaHex);
@@ -262,7 +279,7 @@ public class DefaultTpmPubAreaDecoderTests
     [TestCase(EccPubAreaHex)]
     public void DefaultTpmPubAreaDecoder_Succeeds_WhenNameAlgIsSha1AndAuthPolicyIsSha1Sized(string pubAreaHex)
     {
-        // SHA-1 is deprecated in version 185 but still produced by deployed TPMs; a 20-byte policy matches its digest size
+        // SHA-1 is deprecated since version 184 but still produced by deployed TPMs; a 20-byte policy matches its digest size
         var source = Convert.FromHexString(pubAreaHex);
         var pubArea = WithUInt16(WithUInt16(Remove(source, AuthPolicyOffset, AuthPolicyLength - 20), AuthPolicySizeOffset, 20), NameAlgOffset, TpmAlgSha1);
 
@@ -452,8 +469,10 @@ public class DefaultTpmPubAreaDecoderTests
     [Test]
     public void DefaultTpmPubAreaDecoder_Fails_WhenRsaSignOnlyKeyHasOaepScheme()
     {
+        // TPM_ALG_OAEP carries a TPMS_SCHEME_HASH, which the decoder never reads (it rejects the decryption scheme first).
+        // The details are left out on purpose: with them, the hashAlg would be misread as keyBits and the keyBits rule would reject the input instead of the scheme rule.
         var source = WithUInt32(Convert.FromHexString(RsaPubAreaHex), ObjectAttributesOffset, RsaObjectAttributes & ~DecryptBit);
-        var pubArea = InsertUInt16(WithUInt16(source, SchemeOffset, TpmAlgOaep), SchemeDetailsOffset, TpmAlgSha256);
+        var pubArea = WithUInt16(source, SchemeOffset, TpmAlgOaep);
 
         AssertFails(pubArea);
     }
@@ -554,8 +573,10 @@ public class DefaultTpmPubAreaDecoderTests
     [TestCase(TpmAlgHkdf)]
     public void DefaultTpmPubAreaDecoder_Fails_WhenEccKdfIsNotNull(int kdf)
     {
-        // every non-NULL kdf carries a TPMS_SCHEME_HASH (hashAlg) as its details
-        var pubArea = InsertUInt16(WithUInt16(Convert.FromHexString(EccPubAreaHex), EccKdfOffset, (ushort) kdf), EccKdfDetailsOffset, TpmAlgSha256);
+        // Every non-NULL kdf carries a TPMS_SCHEME_HASH (hashAlg) as its details, which the decoder never reads (it rejects the selector first).
+        // The details are left out on purpose: with them, the bytes after the selector would be misread as x.size and a later check would reject the input,
+        // so the test would pass even without the "kdf shall be TPM_ALG_NULL" rule; without them, only that rule rejects it.
+        var pubArea = WithUInt16(Convert.FromHexString(EccPubAreaHex), EccKdfOffset, (ushort) kdf);
 
         AssertFails(pubArea);
     }
@@ -694,7 +715,200 @@ public class DefaultTpmPubAreaDecoderTests
     }
 
     // ---------------------------------------------------------------------------------------------
+    // TPMA_OBJECT combinations (PublicAttributesValidation rules that do not depend on the parent)
+
+    [TestCase(1u << 2)] // stClear
+    [TestCase(1u << 7)] // adminWithPolicy
+    [TestCase(1u << 8)] // firmwareLimited (the vector is fixedTPM)
+    [TestCase(1u << 9)] // svnLimited (the vector is fixedTPM)
+    [TestCase(1u << 10)] // noDA
+    public void DefaultTpmPubAreaDecoder_Succeeds_WhenValidObjectAttributeIsSet(uint attribute)
+    {
+        var pubArea = WithUInt32(Convert.FromHexString(EccPubAreaHex), ObjectAttributesOffset, EccObjectAttributes | attribute);
+
+        var decoded = DecodeSuccessfully(pubArea);
+
+        Assert.That((uint) decoded.ObjectAttributes & attribute, Is.EqualTo(attribute));
+    }
+
+    [TestCase(EccObjectAttributes & ~FixedParentBit)] // fixedTPM without fixedParent
+    [TestCase(EccObjectAttributes | EncryptedDuplicationBit)] // fixedTPM with encryptedDuplication
+    [TestCase((EccObjectAttributes & ~FixedTpmBit) | FirmwareLimitedBit)] // firmwareLimited without fixedTPM
+    [TestCase((EccObjectAttributes & ~FixedTpmBit) | SvnLimitedBit)] // svnLimited without fixedTPM
+    public void DefaultTpmPubAreaDecoder_Fails_WhenObjectAttributesCannotBeProducedByTpm(uint attributes)
+    {
+        // TPM 2.0 Part 2 v185 8.3.3.2 / 8.3.3.8 / 8.3.3.9 / 8.3.3.11; reference PublicAttributesValidation()
+        var pubArea = WithUInt32(Convert.FromHexString(EccPubAreaHex), ObjectAttributesOffset, attributes);
+
+        AssertFails(pubArea);
+    }
+
+    [TestCase(EccObjectAttributes & ~FixedTpmBit)] // fixedParent without fixedTPM: a key under a parent that is not fixedTPM
+    [TestCase((EccObjectAttributes & ~FixedTpmBit & ~FixedParentBit) | EncryptedDuplicationBit)] // a duplicable key with encryptedDuplication
+    public void DefaultTpmPubAreaDecoder_Succeeds_WhenObjectAttributesAreValidWithoutFixedTpm(uint attributes)
+    {
+        var pubArea = WithUInt32(Convert.FromHexString(EccPubAreaHex), ObjectAttributesOffset, attributes);
+
+        var decoded = DecodeSuccessfully(pubArea);
+
+        Assert.That(decoded.ObjectAttributes & ObjectAttributes.FixedTpm, Is.EqualTo((ObjectAttributes) 0));
+    }
+
+    [TestCase(RsaPubAreaHex)]
+    [TestCase(EccPubAreaHex)]
+    public void DefaultTpmPubAreaDecoder_Fails_WhenX509SignIsSet(string pubAreaHex)
+    {
+        // Part 2 v185 8.3.3.15: an x509sign key may not be used by TPM2_Sign(), so it can never sign a WebAuthn assertion
+        var source = Convert.FromHexString(pubAreaHex);
+        var attributes = BinaryPrimitives.ReadUInt32BigEndian(source.AsSpan(ObjectAttributesOffset, 4));
+        var pubArea = WithUInt32(source, ObjectAttributesOffset, attributes | X509SignBit);
+
+        AssertFails(pubArea);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // RSA keyBits with a modulus of the matching length, so that only the keyBits rule decides
+
+    [TestCase(512)]
+    [TestCase(1016)]
+    public void DefaultTpmPubAreaDecoder_Fails_WhenRsaKeyBitsAreBelow1024(int keyBits)
+    {
+        AssertFails(BuildRsaPubArea((ushort) keyBits, Modulus(keyBits / 8)));
+    }
+
+    [Test]
+    public void DefaultTpmPubAreaDecoder_Fails_WhenRsaKeyBitsExceed16384()
+    {
+        AssertFails(BuildRsaPubArea(16392, Modulus(2049)));
+    }
+
+    [Test]
+    public void DefaultTpmPubAreaDecoder_Fails_WhenRsaKeyBitsAreNotAWholeNumberOfOctets()
+    {
+        // 2044 / 8 = 255 octets (integer division), so the modulus length would match without the "whole number of octets" rule
+        AssertFails(BuildRsaPubArea(2044, Modulus(255)));
+    }
+
+    [TestCase(1024)]
+    [TestCase(1032)]
+    [TestCase(16384)]
+    public void DefaultTpmPubAreaDecoder_Succeeds_WhenRsaKeyBitsAreSupported(int keyBits)
+    {
+        var decoded = DecodeSuccessfully(BuildRsaPubArea((ushort) keyBits, Modulus(keyBits / 8)));
+
+        Assert.That(((RsaParms) decoded.Parameters).KeyBits, Is.EqualTo(keyBits));
+    }
+
+    [Test]
+    public void DefaultTpmPubAreaDecoder_Succeeds_WhenRsaModulusFirstByteIs0x80()
+    {
+        var pubArea = WithByte(Convert.FromHexString(RsaPubAreaHex), RsaModulusOffset, 0x80);
+
+        DecodeSuccessfully(pubArea);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // ECC curves other than P-256
+
+    [TestCase(0x0004, 48)] // TPM_ECC_NIST_P384
+    [TestCase(0x0005, 66)] // TPM_ECC_NIST_P521
+    public void DefaultTpmPubAreaDecoder_Succeeds_WhenEccCoordinatesHaveTheSizeOfTheCurve(int curveId, int coordinateSize)
+    {
+        var decoded = DecodeSuccessfully(BuildEccPubArea((ushort) curveId, Pattern(coordinateSize, 1), Pattern(coordinateSize, 2)));
+
+        Assert.That(((EccParms) decoded.Parameters).CurveId, Is.EqualTo((TpmiEccCurve) curveId));
+    }
+
+    [TestCase(0x0004, 47)]
+    [TestCase(0x0004, 49)]
+    [TestCase(0x0005, 65)] // 521 bits fit into 65.125 octets: the TPM pads the coordinates to 66 octets (Part 1 v185, 44.5.3)
+    [TestCase(0x0005, 67)]
+    public void DefaultTpmPubAreaDecoder_Fails_WhenEccCoordinatesDoNotHaveTheSizeOfTheCurve(int curveId, int coordinateSize)
+    {
+        AssertFails(BuildEccPubArea((ushort) curveId, Pattern(coordinateSize, 1), Pattern(coordinateSize, 2)));
+    }
+
+    [Test]
+    public void DefaultTpmPubAreaDecoder_Fails_WhenEccYIsEmpty()
+    {
+        var source = Convert.FromHexString(EccPubAreaHex);
+        var pubArea = WithUInt16(Remove(source, EccYOffset, EccCoordinateLength), EccYSizeOffset, 0);
+
+        AssertFails(pubArea);
+    }
+
+    [Test]
+    public void DefaultTpmPubAreaDecoder_Fails_WhenEccEcdaaSchemeEndsBeforeCount()
+    {
+        // TPMS_SCHEME_ECDAA: hashAlg followed by the UINT16 count - the input ends right after hashAlg
+        var source = Convert.FromHexString(EccPubAreaHex);
+        var pubArea = InsertUInt16(WithUInt16(source, SchemeOffset, TpmAlgEcdaa), SchemeDetailsOffset, TpmAlgSha256).AsSpan(0, SchemeDetailsOffset + 2).ToArray();
+
+        AssertFails(pubArea);
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Helpers
+
+    private static byte[] WithEmptyAuthPolicy(byte[] pubArea)
+    {
+        return WithUInt16(Remove(pubArea, AuthPolicyOffset, AuthPolicyLength), AuthPolicySizeOffset, 0);
+    }
+
+    // TPMT_PUBLIC of an RSA sign-only key: nameAlg SHA-256, empty authPolicy, scheme TPM_ALG_NULL, default exponent
+    private static byte[] BuildRsaPubArea(ushort keyBits, byte[] modulus)
+    {
+        var pubArea = new byte[2 + 2 + 4 + 2 + 2 + 2 + 2 + 4 + 2 + modulus.Length];
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(0), 0x0001); // TPM_ALG_RSA
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(2), TpmAlgSha256);
+        BinaryPrimitives.WriteUInt32BigEndian(pubArea.AsSpan(4), RsaObjectAttributes & ~DecryptBit);
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(8), 0); // authPolicy
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(10), TpmAlgNull); // symmetric
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(12), TpmAlgNull); // scheme
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(14), keyBits);
+        BinaryPrimitives.WriteUInt32BigEndian(pubArea.AsSpan(16), 0); // exponent
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(20), (ushort) modulus.Length);
+        modulus.CopyTo(pubArea.AsSpan(22));
+        return pubArea;
+    }
+
+    // TPMT_PUBLIC of an ECC sign-only key: nameAlg SHA-256, empty authPolicy, scheme and kdf TPM_ALG_NULL
+    private static byte[] BuildEccPubArea(ushort curveId, byte[] x, byte[] y)
+    {
+        var pubArea = new byte[2 + 2 + 4 + 2 + 2 + 2 + 2 + 2 + 2 + x.Length + 2 + y.Length];
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(0), 0x0023); // TPM_ALG_ECC
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(2), TpmAlgSha256);
+        BinaryPrimitives.WriteUInt32BigEndian(pubArea.AsSpan(4), EccObjectAttributes);
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(8), 0); // authPolicy
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(10), TpmAlgNull); // symmetric
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(12), TpmAlgNull); // scheme
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(14), curveId);
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(16), TpmAlgNull); // kdf
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(18), (ushort) x.Length);
+        x.CopyTo(pubArea.AsSpan(20));
+        BinaryPrimitives.WriteUInt16BigEndian(pubArea.AsSpan(20 + x.Length), (ushort) y.Length);
+        y.CopyTo(pubArea.AsSpan(22 + x.Length));
+        return pubArea;
+    }
+
+    // an RSA modulus of the given length with the most significant bit SET
+    private static byte[] Modulus(int length)
+    {
+        var modulus = Pattern(length, 3);
+        modulus[0] = 0xC5;
+        return modulus;
+    }
+
+    private static byte[] Pattern(int length, int seed)
+    {
+        var result = new byte[length];
+        for (var i = 0; i < length; i++)
+        {
+            result[i] = (byte) (seed + i);
+        }
+
+        return result;
+    }
 
     private PubArea DecodeSuccessfully(byte[] pubArea)
     {

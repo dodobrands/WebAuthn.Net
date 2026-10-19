@@ -10,7 +10,8 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions
 ///     </para>
 ///     <para>
 ///         Bits 0, 15:12 and 31:20 are reserved and "shall be zero"; the decoder rejects a pubArea with any of them SET, mirroring TPMA_OBJECT_Unmarshal of the reference implementation (TPM_RC_RESERVED_BITS).
-///         Table 37 additionally reserves bit 3, but the reference implementation keeps it unreserved (a stale TPMA_OBJECT_fixedFirmware definition), so the decoder tolerates it.
+///         Table 37 additionally reserves bit 3, but the reference implementation keeps it unreserved (a stale TPMA_OBJECT_fixedFirmware definition), so the decoder tolerates it;
+///         the TPM attestation statement verifier reports such a pubArea as a tolerated anomaly. The value of bit 3 is preserved in the decoded attributes although it has no named member.
 ///     </para>
 /// </summary>
 /// <remarks>
@@ -242,7 +243,7 @@ public enum ObjectAttributes : uint
     ///     </list>
     /// </summary>
     /// <remarks>
-    /// Version 185 deprecated support for keys with both sign and decrypt SET.
+    ///     Version 185 deprecated support for keys with both sign and decrypt SET. See Part 0.
     /// </remarks>
     Decrypt = 1 << 17,
 
@@ -263,7 +264,7 @@ public enum ObjectAttributes : uint
     ///     </list>
     /// </summary>
     /// <remarks>
-    /// Version 185 deprecated support for keys with both sign and decrypt SET.
+    ///     Version 185 deprecated support for keys with both sign and decrypt SET. See Part 0.
     /// </remarks>
     SignEncrypt = 1 << 18,
 

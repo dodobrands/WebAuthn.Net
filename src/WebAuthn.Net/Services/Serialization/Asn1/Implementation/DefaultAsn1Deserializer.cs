@@ -14,6 +14,12 @@ namespace WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 /// </summary>
 public class DefaultAsn1Deserializer : IAsn1Deserializer
 {
+    // The structures decoded with this deserializer (X.509 extension values such as the Android Key attestation KeyDescription, the Apple nonce,
+    // the id-fido-gen-ce-aaguid OCTET STRING, a TBSCertificate) nest universal SEQUENCE / SET elements only a few levels deep
+    // (context-specific, application and private elements are not descended into). The recursive descent stops at this depth, so that crafted input
+    // cannot cause a stack overflow, which cannot be caught and terminates the process.
+    private const int MaxNestingDepth = 32;
+
     /// <summary>
     ///     Constructs <see cref="DefaultAsn1Deserializer" />.
     /// </summary>
@@ -42,7 +48,7 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
                 return Result<AbstractAsn1Element?>.Success(null);
             }
 
-            var rootResult = Read(reader);
+            var rootResult = Read(reader, 1);
             if (rootResult.HasError)
             {
                 return Result<AbstractAsn1Element?>.Fail();
@@ -58,12 +64,17 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
         }
     }
 
-    private static Result<AbstractAsn1Element> Read(AsnReader reader)
+    private static Result<AbstractAsn1Element> Read(AsnReader reader, int depth)
     {
+        if (depth > MaxNestingDepth)
+        {
+            return Result<AbstractAsn1Element>.Fail();
+        }
+
         var tag = reader.PeekTag();
         return tag.TagClass switch
         {
-            TagClass.Universal => ReadUniversal(reader, tag),
+            TagClass.Universal => ReadUniversal(reader, tag, depth),
             TagClass.Application => ReadNonUniversal(reader, tag),
             TagClass.ContextSpecific => ReadNonUniversal(reader, tag),
             TagClass.Private => ReadNonUniversal(reader, tag),
@@ -71,7 +82,7 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
         };
     }
 
-    private static Result<AbstractAsn1Element> ReadUniversal(AsnReader reader, Asn1Tag tag)
+    private static Result<AbstractAsn1Element> ReadUniversal(AsnReader reader, Asn1Tag tag, int depth)
     {
         var tagValue = (UniversalTagNumber) tag.TagValue;
         return tagValue switch
@@ -91,8 +102,8 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
             UniversalTagNumber.UTF8String => Transform(ReadUtf8String(reader, tag)),
             UniversalTagNumber.RelativeObjectIdentifier => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.Time => Transform(ReadRaw(reader, tag)),
-            UniversalTagNumber.Sequence => Transform(ReadSequence(reader, tag)),
-            UniversalTagNumber.Set => Transform(ReadSet(reader, tag)),
+            UniversalTagNumber.Sequence => Transform(ReadSequence(reader, tag, depth)),
+            UniversalTagNumber.Set => Transform(ReadSet(reader, tag, depth)),
             UniversalTagNumber.NumericString => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.PrintableString => Transform(ReadRaw(reader, tag)),
             UniversalTagNumber.T61String => Transform(ReadRaw(reader, tag)),
@@ -163,7 +174,8 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
 
     private static Result<Asn1Sequence> ReadSequence(
         AsnReader reader,
-        Asn1Tag tag)
+        Asn1Tag tag,
+        int depth)
     {
         var sequenceItems = new List<AbstractAsn1Element>();
         var sequenceReader = reader.ReadSequence(tag);
@@ -172,7 +184,7 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
         // (e.g. a context-specific [0] such as an otherName GeneralName) unconsumed and loop forever.
         while (sequenceReader.HasData)
         {
-            var innerObject = Read(sequenceReader);
+            var innerObject = Read(sequenceReader, depth + 1);
             if (innerObject.HasError)
             {
                 return Result<Asn1Sequence>.Fail();
@@ -186,14 +198,15 @@ public class DefaultAsn1Deserializer : IAsn1Deserializer
 
     private static Result<Asn1Set> ReadSet(
         AsnReader reader,
-        Asn1Tag tag)
+        Asn1Tag tag,
+        int depth)
     {
         var setItems = new List<AbstractAsn1Element>();
         var setReader = reader.ReadSetOf(tag);
         // See ReadSequence: every element is consumed by Read(), EndOfContents is reported as a failure there.
         while (setReader.HasData)
         {
-            var innerObject = Read(setReader);
+            var innerObject = Read(setReader, depth + 1);
             if (innerObject.HasError)
             {
                 return Result<Asn1Set>.Fail();

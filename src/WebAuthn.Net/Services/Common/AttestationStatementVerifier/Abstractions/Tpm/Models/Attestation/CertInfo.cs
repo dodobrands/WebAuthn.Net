@@ -19,7 +19,7 @@ public class CertInfo
     /// <summary>
     ///     Constructs <see cref="CertInfo" />.
     /// </summary>
-    /// <param name="qualifiedSigner">Qualified Name of the signing key. An Empty Buffer for an anonymous (ECDAA) signing scheme; TPM_RH_NULL (size 4) when signed with the NULL key. Ignored by WebAuthn.</param>
+    /// <param name="qualifiedSigner">Qualified Name of the signing key. The handle TPM_RH_NULL (size 4) when signHandle is TPM_RH_NULL (an unsigned attestation); an Empty Buffer for an anonymous (ECDAA) signing scheme or a signing key whose nameAlg is TPM_ALG_NULL. Ignored by WebAuthn.</param>
     /// <param name="extraData">External information supplied by caller.</param>
     /// <param name="clock">
     ///     <para>10.11.12 TPMS_ATTEST - clockInfo.</para>
@@ -65,7 +65,7 @@ public class CertInfo
 
     /// <summary>
     ///     <para>Qualified Name of the signing key.</para>
-    ///     <para>An Empty Buffer for an anonymous (ECDAA) signing scheme; TPM_RH_NULL (size 4) when signed with the NULL key. Ignored by WebAuthn.</para>
+    ///     <para>The handle TPM_RH_NULL (size 4) when signHandle is TPM_RH_NULL (an unsigned attestation); an Empty Buffer for an anonymous (ECDAA) signing scheme or a signing key whose nameAlg is TPM_ALG_NULL. Ignored by WebAuthn.</para>
     /// </summary>
     public Tpm2BName QualifiedSigner { get; }
 
