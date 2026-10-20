@@ -238,31 +238,10 @@
         "reason": "float is not used in WebAuthn"
     },
     {
-        "cbor": "9A==",
-        "hex": "f4",
-        "roundtrip": true,
-        "decoded": false,
-        "reason": "float is not used in WebAuthn"
-    },
-    {
-        "cbor": "9Q==",
-        "hex": "f5",
-        "roundtrip": true,
-        "decoded": true,
-        "reason": "float is not used in WebAuthn"
-    },
-    {
-        "cbor": "9g==",
-        "hex": "f6",
-        "roundtrip": true,
-        "decoded": null,
-        "reason": "float is not used in WebAuthn"
-    },
-    {
         "cbor": "9w==",
         "hex": "f7",
         "roundtrip": true,
         "diagnostic": "undefined",
-        "reason": "float is not used in WebAuthn"
+        "reason": "the 'undefined' simple value is not used in WebAuthn"
     }
 ]

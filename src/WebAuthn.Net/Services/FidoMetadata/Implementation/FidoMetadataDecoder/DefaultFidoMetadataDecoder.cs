@@ -1157,10 +1157,8 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
             return "undefined";
         }
 
-        var rawText = element.GetRawText();
-        return rawText.Length <= maxLength
-            ? rawText
-            : rawText[..maxLength] + "...";
+        // the raw text of a (pretty-printed) element may contain line breaks, which must not split the log record
+        return LogValue.Sanitize(element.GetRawText(), maxLength);
     }
 
     private static bool TryDecodeAuthenticatorGetInfoAaguid(string aaguid, [NotNullWhen(true)] out Guid? result)

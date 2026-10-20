@@ -105,8 +105,11 @@ public class DefaultFidoU2FAttestationStatementDecoder : IFidoU2FAttestationStat
             result[i] = cborArrayItemByteString.RawValue;
         }
 
+        // https://www.w3.org/TR/webauthn-3/#sctn-fido-u2f-attestation
+        // x5c: [ attestnCert: bytes ] - "A single element array containing the attestation certificate in X.509 format."
         if (result.Length != 1)
         {
+            Logger.FidoU2Fx5CNotSingleElement(result.Length);
             value = null;
             return false;
         }
@@ -183,4 +186,14 @@ public static partial class DefaultFidoU2FAttestationStatementDecoderLoggingExte
         Level = LogLevel.Warning,
         Message = "One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type")]
     public static partial void FidoU2Fx5CValueInvalidElementDataType(this ILogger logger);
+
+    /// <summary>
+    ///     The 'x5c' array in the 'attStmt' contains {Count} elements, but the FIDO U2F attestation statement requires exactly one (the attestation certificate)
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="count">The number of elements in 'x5c'.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' array in the 'attStmt' contains {Count} elements, but the FIDO U2F attestation statement requires exactly one (the attestation certificate)")]
+    public static partial void FidoU2Fx5CNotSingleElement(this ILogger logger, int count);
 }

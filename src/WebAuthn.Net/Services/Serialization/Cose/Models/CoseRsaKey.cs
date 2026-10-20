@@ -66,22 +66,31 @@ public class CoseRsaKey : AbstractCoseKey
             return false;
         }
 
-        using var certRsa = certificate.GetRSAPublicKey();
-        if (certRsa is null)
+        // The certificate comes from the client. A public key that the platform cannot extract or export throws CryptographicException
+        // (for example, a malformed key in the SubjectPublicKeyInfo) - that is a key that does not match, not an error.
+        try
+        {
+            using var certRsa = certificate.GetRSAPublicKey();
+            if (certRsa is null)
+            {
+                return false;
+            }
+
+            var certParams = certRsa.ExportParameters(false);
+            var certModulus = certParams.Modulus;
+            var certExponent = certParams.Exponent;
+            if (certModulus is null || certExponent is null)
+            {
+                return false;
+            }
+
+            return certModulus.AsSpan().SequenceEqual(ModulusN.AsSpan())
+                   && certExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
+        }
+        catch (CryptographicException)
         {
             return false;
         }
-
-        var certParams = certRsa.ExportParameters(false);
-        var certModulus = certParams.Modulus;
-        var certExponent = certParams.Exponent;
-        if (certModulus is null || certExponent is null)
-        {
-            return false;
-        }
-
-        return certModulus.AsSpan().SequenceEqual(ModulusN.AsSpan())
-               && certExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
     }
 
     /// <inheritdoc />
@@ -92,16 +101,24 @@ public class CoseRsaKey : AbstractCoseKey
             return false;
         }
 
-        var algParams = alg.ExportParameters(false);
-        var algModulus = algParams.Modulus;
-        var algExponent = algParams.Exponent;
-        if (algModulus is null || algExponent is null)
+        // The key comes from the client. A public key that the platform cannot export throws CryptographicException - that is a key that does not match, not an error.
+        try
+        {
+            var algParams = alg.ExportParameters(false);
+            var algModulus = algParams.Modulus;
+            var algExponent = algParams.Exponent;
+            if (algModulus is null || algExponent is null)
+            {
+                return false;
+            }
+
+            return algModulus.AsSpan().SequenceEqual(ModulusN.AsSpan())
+                   && algExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
+        }
+        catch (CryptographicException)
         {
             return false;
         }
-
-        return algModulus.AsSpan().SequenceEqual(ModulusN.AsSpan())
-               && algExponent.AsSpan().SequenceEqual(ExponentE.AsSpan());
     }
 
     /// <inheritdoc />

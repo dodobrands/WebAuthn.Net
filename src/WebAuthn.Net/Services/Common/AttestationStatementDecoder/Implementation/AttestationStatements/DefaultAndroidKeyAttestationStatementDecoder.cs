@@ -16,6 +16,11 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementatio
 public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestationStatementDecoder
 {
     /// <summary>
+    ///     The maximum number of certificates accepted in 'x5c': a legitimate attestation trust path (credCert and its certificate chain) is far shorter, and every certificate is loaded and parsed by the verifier before any signature is verified.
+    /// </summary>
+    protected const int MaxX5CCertificates = 16;
+
+    /// <summary>
     ///     Constructs <see cref="DefaultAndroidKeyAttestationStatementDecoder" />.
     /// </summary>
     /// <param name="logger">Logger.</param>
@@ -138,6 +143,13 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
         }
 
         var cborArrayItems = x5CborArray.RawValue;
+        if (cborArrayItems.Length > MaxX5CCertificates)
+        {
+            Logger.AndroidKeyX5CTooManyElements(cborArrayItems.Length, MaxX5CCertificates);
+            value = null;
+            return false;
+        }
+
         var result = new byte[cborArrayItems.Length][];
         for (var i = 0; i < cborArrayItems.Length; i++)
         {
@@ -269,4 +281,15 @@ public static partial class DefaultAndroidKeyAttestationStatementDecoderLoggingE
         Level = LogLevel.Warning,
         Message = "One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type")]
     public static partial void AndroidKeyX5CValueInvalidElementDataType(this ILogger logger);
+
+    /// <summary>
+    ///     The 'x5c' array in the 'attStmt' contains {Count} elements, which exceeds the maximum of {MaxCount}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="count">The number of elements in 'x5c'.</param>
+    /// <param name="maxCount">The maximum number of elements accepted in 'x5c'.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' array in the 'attStmt' contains {Count} elements, which exceeds the maximum of {MaxCount}")]
+    public static partial void AndroidKeyX5CTooManyElements(this ILogger logger, int count, int maxCount);
 }

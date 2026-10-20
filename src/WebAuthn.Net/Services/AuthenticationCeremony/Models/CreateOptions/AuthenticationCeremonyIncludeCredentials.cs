@@ -91,6 +91,6 @@ public class AuthenticationCeremonyIncludeCredentials
     public static AuthenticationCeremonyIncludeCredentials ManuallySpecified(AuthenticationCeremonyPublicKeyCredentialDescriptor[] keysToInclude)
     {
         ArgumentNullException.ThrowIfNull(keysToInclude);
-        return new(true, false, keysToInclude);
+        return new(false, true, keysToInclude);
     }
 }

@@ -137,6 +137,12 @@ public static class X509TrustChainValidator
     /// <summary>
     ///     Validates the certificate chain of the attestation trust path received during the WebAuthn ceremony.
     /// </summary>
+    /// <remarks>
+    ///     The <paramref name="trustPath" /> is supplied by the client, i.e. it is untrusted input. Before <paramref name="configureChain" /> is called, the chain policy is set to
+    ///     <see cref="X509ChainTrustMode.CustomRootTrust" /> (only <paramref name="rootCertificates" /> are trust anchors), <see cref="X509ChainPolicy.DisableCertificateDownloads" /> is set to <see langword="true" />
+    ///     and <see cref="X509ChainPolicy.RevocationMode" /> to <see cref="X509RevocationMode.NoCheck" />, so that the chain engine never fetches issuer certificates, CRLs or OCSP responses from the URLs
+    ///     embedded in the client-supplied certificates; a custom <paramref name="configureChain" /> delegate has to opt in explicitly to change this.
+    /// </remarks>
     /// <param name="rootCertificates">Root CA certificates.</param>
     /// <param name="trustPath">Intermediate certificates of the attestation trust path.</param>
     /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
@@ -163,6 +169,15 @@ public static class X509TrustChainValidator
         var certificatesToDispose = new List<X509Certificate2>();
         try
         {
+            // Safe defaults for an attacker-controlled chain, applied before the delegate so that a custom delegate has to opt in explicitly:
+            // - the trust anchors are only the provided root certificates (the system store is not consulted);
+            // - the chain engine must not download missing issuer certificates from the Authority Information Access URLs of the client-supplied certificates
+            //   (the download is performed synchronously and blocks for UrlRetrievalTimeout per unreachable URL);
+            // - the chain engine must not fetch CRLs or OCSP responses either: the .NET default is Online, and on macOS any revocation checking (Offline too) lets the chain engine
+            //   use the network for the whole evaluation, including the issuer certificate downloads, regardless of DisableCertificateDownloads.
+            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            chain.ChainPolicy.DisableCertificateDownloads = true;
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
             if (configureChain is not null)
             {
                 configureChain(chain);

@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -39,18 +40,22 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     /// <param name="timeProvider">Current time provider.</param>
     /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
     /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoU2FAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IAsn1Deserializer asn1Deserializer,
-        IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService,
+        ILogger<DefaultFidoU2FAttestationStatementVerifier<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
+        ArgumentNullException.ThrowIfNull(logger);
         TimeProvider = timeProvider;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
+        Logger = logger;
     }
 
     /// <summary>
@@ -67,6 +72,11 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     ///     A service for searching in the data provided by the FIDO Metadata Service.
     /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultFidoU2FAttestationStatementVerifier<TContext>> Logger { get; }
 
     /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
@@ -90,6 +100,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
 
         if (attStmt.X5C.Length != 1)
         {
+            Logger.FidoU2FX5CNotSingleElement(attStmt.X5C.Length);
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
@@ -101,17 +112,20 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             if (!X509CertificateInMemoryLoader.TryLoad(rawAttCert, out attCert))
             {
                 attCert?.Dispose();
+                Logger.FidoU2FAttCertInvalid();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             if (currentDate < attCert.NotBefore || currentDate > attCert.NotAfter)
             {
+                Logger.FidoU2FAttCertNotValidNow();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             if (!IsValidPublicKeyParameters(attCert, out var attCertEcParameters))
             {
+                Logger.FidoU2FAttCertPublicKeyNotP256();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -121,6 +135,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             var credentialId = authenticatorData.AttestedCredentialData.CredentialId;
             if (authenticatorData.AttestedCredentialData.CredentialPublicKey is not CoseEc2Key credentialPublicKey)
             {
+                Logger.FidoU2FCredentialPublicKeyNotEc2();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -128,6 +143,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             // to Raw ANSI X9.62 public key format (see ALG_KEY_ECC_X962_RAW in Section 3.6.2 Public Key Representation Formats of [FIDO-Registry]).
             if (!TryConvertCoseKeyToPublicKeyU2F(credentialPublicKey, out var publicKeyU2F))
             {
+                Logger.FidoU2FCredentialPublicKeyCoordinatesInvalid(credentialPublicKey.X.Length, credentialPublicKey.Y.Length);
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -137,21 +153,14 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
 
             // 6) Verify the 'sig' using 'verificationData' and the certificate public key per section 4.1.4 of [SEC1]
             // with SHA-256 as the hash function used in step two.
-            using var ecdsa = ECDsa.Create(new ECParameters
+            if (!IsValidSignature(attCertEcParameters.Value, verificationData, attStmt.Sig))
             {
-                Curve = ECCurve.NamedCurves.nistP256,
-                Q = new()
-                {
-                    X = attCertEcParameters.Value.Q.X,
-                    Y = attCertEcParameters.Value.Q.Y
-                }
-            });
-            if (!ecdsa.VerifyData(verificationData, attStmt.Sig, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
-            {
+                Logger.FidoU2FSignatureInvalid();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 7) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether 'attStmt' conveys a Basic or AttCA attestation.
+            // (GetAttestationTypeAsync logs why the attestation type could not be determined)
             var attestationTypeResult = await GetAttestationTypeAsync(
                 context,
                 attCert,
@@ -173,6 +182,41 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         finally
         {
             attCert?.Dispose();
+        }
+    }
+
+    /// <summary>
+    ///     Verifies the 'sig' using 'verificationData' and the certificate public key per section 4.1.4 of [SEC1] with SHA-256 as the hash function used in step two.
+    /// </summary>
+    /// <param name="attCertEcParameters">The P-256 public key parameters of the attestation certificate.</param>
+    /// <param name="verificationData">The data over which the signature was calculated.</param>
+    /// <param name="sig">The <a href="https://www.w3.org/TR/webauthn-3/#attestation-signature">attestation signature</a>, a DER-encoded ECDSA-Sig-Value.</param>
+    /// <returns><see langword="true" /> if the signature is valid, otherwise - <see langword="false" />.</returns>
+    protected virtual bool IsValidSignature(ECParameters attCertEcParameters, ReadOnlySpan<byte> verificationData, byte[] sig)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (sig is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var ecdsa = ECDsa.Create(new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                Q = new()
+                {
+                    X = attCertEcParameters.Q.X,
+                    Y = attCertEcParameters.Q.Y
+                }
+            });
+            return ecdsa.VerifyData(verificationData, sig, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
+        }
+        catch (CryptographicException)
+        {
+            // the key and the signature come from the client: a point the platform refuses or a signature it cannot parse is a verification failure, not an exception
+            return false;
         }
     }
 
@@ -216,6 +260,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             return Result<FidoU2FAttestationTypeResult>.Success(new(AttestationType.Basic, rootCertificates));
         }
 
+        Logger.FidoU2FMetadataAttestationTypesNotSupported();
         return Result<FidoU2FAttestationTypeResult>.Fail();
     }
 
@@ -249,12 +294,15 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             {
                 return Result<FidoMetadataResult>.Success(aaguidResult);
             }
+
+            Logger.FidoU2FMetadataNotFoundByAaguid(authenticatorData.AttestedCredentialData.Aaguid);
         }
         else
         {
             var embeddedAaguidResult = GetAaguidIfExists(attCert);
             if (embeddedAaguidResult.HasError)
             {
+                Logger.FidoU2FAttCertAaguidExtensionInvalid();
                 return Result<FidoMetadataResult>.Fail();
             }
 
@@ -270,7 +318,27 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                     return Result<FidoMetadataResult>.Success(embeddedAaguidMetadata);
                 }
 
+                Logger.FidoU2FMetadataNotFoundByAaguid(embeddedAaguid.Value);
                 return Result<FidoMetadataResult>.Fail();
+            }
+
+            // FIDO Metadata Statement §3.1: 'attestationCertificateKeyIdentifiers' - "A list of the attestation certificate public key identifiers encoded as hex string.
+            // This value MUST be calculated according to method 1 for computing the keyIdentifier as defined in [RFC5280] section 4.2.1.2."
+            // The identifier is a hash of the public key, so it is computed from the certificate itself (the attestation certificates of U2F authenticators usually carry no Subject Key Identifier extension);
+            // the value of a Subject Key Identifier extension, if there is one, is tried as a fallback (it is normally the same hash, but a vendor may have used another method).
+            if (!TryComputeAttestationCertificateKeyIdentifier(attCert, out var computedKeyIdentifier))
+            {
+                Logger.FidoU2FAttCertKeyIdentifierNotComputable();
+                return Result<FidoMetadataResult>.Fail();
+            }
+
+            var computedKeyIdentifierMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
+                context,
+                computedKeyIdentifier,
+                cancellationToken);
+            if (computedKeyIdentifierMetadata is not null)
+            {
+                return Result<FidoMetadataResult>.Success(computedKeyIdentifierMetadata);
             }
 
             var embeddedSkiResult = GetSubjectKeyIdentifierIfExists(attCert);
@@ -280,7 +348,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             }
 
             var embeddedSki = embeddedSkiResult.Ok;
-            if (embeddedSki is not null)
+            if (embeddedSki is not null && !embeddedSki.AsSpan().SequenceEqual(computedKeyIdentifier))
             {
                 var embeddedSkiMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
                     context,
@@ -290,12 +358,42 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                 {
                     return Result<FidoMetadataResult>.Success(embeddedSkiMetadata);
                 }
-
-                return Result<FidoMetadataResult>.Fail();
             }
+
+            Logger.FidoU2FMetadataNotFoundByKeyIdentifier(Convert.ToHexString(computedKeyIdentifier));
         }
 
         return Result<FidoMetadataResult>.Fail();
+    }
+
+    /// <summary>
+    ///     Computes the attestation certificate key identifier used by the FIDO Metadata Service ('attestationCertificateKeyIdentifiers'): the keyIdentifier of method (1) of
+    ///     <a href="https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.2">RFC 5280 §4.2.1.2</a>, i.e. the 160-bit SHA-1 hash of the value of the BIT STRING subjectPublicKey (excluding the tag, length, and number of unused bits).
+    /// </summary>
+    /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
+    /// <param name="keyIdentifier">Output parameter. If the method returns <see langword="true" /> - the 20-byte key identifier, otherwise - <see langword="null" />.</param>
+    /// <returns><see langword="true" /> if the identifier was computed, otherwise (the public key of the certificate cannot be read) - <see langword="false" />.</returns>
+    [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "RFC 5280 §4.2.1.2 method (1) defines the key identifier as a SHA-1 hash; it is a lookup key for the FIDO Metadata Service, not a security hash")]
+    protected virtual bool TryComputeAttestationCertificateKeyIdentifier(X509Certificate2 attCert, [NotNullWhen(true)] out byte[]? keyIdentifier)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (attCert is null)
+        {
+            keyIdentifier = null;
+            return false;
+        }
+
+        try
+        {
+            // PublicKey.EncodedKeyValue holds the value of the subjectPublicKey BIT STRING without the tag, length and unused-bits octet
+            keyIdentifier = SHA1.HashData(attCert.PublicKey.EncodedKeyValue.RawData);
+            return true;
+        }
+        catch (CryptographicException)
+        {
+            keyIdentifier = null;
+            return false;
+        }
     }
 
     /// <summary>
@@ -314,14 +412,22 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             return Result<byte[]?>.Fail();
         }
 
-        var subjectKeyIdentifierExtension = attCert.Extensions.FirstOrDefault(x => x is X509SubjectKeyIdentifierExtension);
+        var subjectKeyIdentifierExtension = attCert.Extensions.FirstOrDefault(static x => x is X509SubjectKeyIdentifierExtension);
         if (subjectKeyIdentifierExtension is X509SubjectKeyIdentifierExtension skiExtension)
         {
-            var hexSki = skiExtension.SubjectKeyIdentifier;
-            if (!string.IsNullOrEmpty(hexSki))
+            try
             {
-                var binarySki = Convert.FromHexString(hexSki);
-                return Result<byte[]?>.Success(binarySki);
+                // the typed extension decodes its value lazily and throws for a malformed value; the certificate is client-supplied, so this is a failure, not an exception
+                var binarySki = skiExtension.SubjectKeyIdentifierBytes;
+                if (binarySki.Length > 0)
+                {
+                    return Result<byte[]?>.Success(binarySki.ToArray());
+                }
+            }
+            catch (CryptographicException exception)
+            {
+                Logger.FidoU2FAttCertSubjectKeyIdentifierMalformed(exception);
+                return Result<byte[]?>.Fail();
             }
         }
 
@@ -399,15 +505,27 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             return false;
         }
 
-        var ecDsaPubKey = attCert.GetECDsaPublicKey();
+        using var ecDsaPubKey = attCert.GetECDsaPublicKey();
         if (ecDsaPubKey is null)
         {
             attCertEcParameters = null;
             return false;
         }
 
-        var parameters = ecDsaPubKey.ExportParameters(false);
-        if (parameters.Curve.Oid.Value != ECCurve.NamedCurves.nistP256.Oid.Value)
+        ECParameters parameters;
+        try
+        {
+            parameters = ecDsaPubKey.ExportParameters(false);
+        }
+        catch (CryptographicException)
+        {
+            attCertEcParameters = null;
+            return false;
+        }
+
+        // A key with explicit curve parameters (RFC 3279 §2.3.5 'specifiedCurve') has no OID: ECCurve.Oid is null unless the curve is a named one.
+        // Only the named P-256 curve is acceptable, so such a key is rejected (instead of dereferencing the null OID).
+        if (!parameters.Curve.IsNamed || parameters.Curve.Oid?.Value != ECCurve.NamedCurves.nistP256.Oid.Value)
         {
             attCertEcParameters = null;
             return false;
@@ -486,9 +604,137 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
         a.CopyTo(result);
         b.CopyTo(result.AsSpan(a.Length));
         c.CopyTo(result.AsSpan(a.Length + b.Length));
-        c.CopyTo(result.AsSpan(a.Length + b.Length));
         d.CopyTo(result.AsSpan(a.Length + b.Length + c.Length));
         e.CopyTo(result.AsSpan(a.Length + b.Length + c.Length + d.Length));
         return result;
     }
+}
+
+/// <summary>
+///     Extension methods for logging the FIDO U2F attestation statement verifier.
+/// </summary>
+public static partial class DefaultFidoU2FAttestationStatementVerifierLoggingExtensions
+{
+    /// <summary>
+    ///     The 'x5c' of the FIDO U2F attestation statement contains {Count} element(s), but exactly one (attCert) is expected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="count">The number of elements in 'x5c'.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' of the FIDO U2F attestation statement contains {Count} element(s), but exactly one (attCert) is expected")]
+    public static partial void FidoU2FX5CNotSingleElement(this ILogger logger, int count);
+
+    /// <summary>
+    ///     Failed to load the attCert of the FIDO U2F attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to load the attCert of the FIDO U2F attestation statement")]
+    public static partial void FidoU2FAttCertInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The attCert of the FIDO U2F attestation statement is not valid at the current time
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The attCert of the FIDO U2F attestation statement is not valid at the current time")]
+    public static partial void FidoU2FAttCertNotValidNow(this ILogger logger);
+
+    /// <summary>
+    ///     The public key of the attCert of the FIDO U2F attestation statement is not an Elliptic Curve public key over the named P-256 curve
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The public key of the attCert of the FIDO U2F attestation statement is not an Elliptic Curve public key over the named P-256 curve")]
+    public static partial void FidoU2FAttCertPublicKeyNotP256(this ILogger logger);
+
+    /// <summary>
+    ///     The credential public key of the FIDO U2F attestation statement is not an EC2 COSE key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The credential public key of the FIDO U2F attestation statement is not an EC2 COSE key")]
+    public static partial void FidoU2FCredentialPublicKeyNotEc2(this ILogger logger);
+
+    /// <summary>
+    ///     The coordinates of the credential public key of the FIDO U2F attestation statement are {XLength} and {YLength} byte(s) long, but 32 bytes each are expected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="xLength">The length of the x coordinate.</param>
+    /// <param name="yLength">The length of the y coordinate.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The coordinates of the credential public key of the FIDO U2F attestation statement are {XLength} and {YLength} byte(s) long, but 32 bytes each are expected")]
+    public static partial void FidoU2FCredentialPublicKeyCoordinatesInvalid(this ILogger logger, int xLength, int yLength);
+
+    /// <summary>
+    ///     The 'sig' of the FIDO U2F attestation statement is not a valid signature over verificationData made with the public key of attCert
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'sig' of the FIDO U2F attestation statement is not a valid signature over verificationData made with the public key of attCert")]
+    public static partial void FidoU2FSignatureInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The FIDO Metadata Service has no trusted metadata for the aaguid {Aaguid} of the FIDO U2F attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service has no trusted metadata for the aaguid {Aaguid} of the FIDO U2F attestation statement")]
+    public static partial void FidoU2FMetadataNotFoundByAaguid(this ILogger logger, Guid aaguid);
+
+    /// <summary>
+    ///     The id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement is invalid
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement is invalid")]
+    public static partial void FidoU2FAttCertAaguidExtensionInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The RFC 5280 §4.2.1.2 key identifier of the attCert of the FIDO U2F attestation statement cannot be computed: the public key cannot be read
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The RFC 5280 §4.2.1.2 key identifier of the attCert of the FIDO U2F attestation statement cannot be computed: the public key cannot be read")]
+    public static partial void FidoU2FAttCertKeyIdentifierNotComputable(this ILogger logger);
+
+    /// <summary>
+    ///     The Subject Key Identifier extension of the attCert of the FIDO U2F attestation statement is malformed
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception thrown while decoding the extension.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Subject Key Identifier extension of the attCert of the FIDO U2F attestation statement is malformed")]
+    public static partial void FidoU2FAttCertSubjectKeyIdentifierMalformed(this ILogger logger, Exception exception);
+
+    /// <summary>
+    ///     The FIDO Metadata Service has no trusted metadata for the attestation certificate key identifier {KeyIdentifier} of the FIDO U2F attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="keyIdentifier">The RFC 5280 §4.2.1.2 method (1) key identifier of the attCert, as a hex string.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service has no trusted metadata for the attestation certificate key identifier {KeyIdentifier} of the FIDO U2F attestation statement")]
+    public static partial void FidoU2FMetadataNotFoundByKeyIdentifier(this ILogger logger, string keyIdentifier);
+
+    /// <summary>
+    ///     The metadata of the authenticator lists no attestation type that a FIDO U2F attestation statement can convey (attca or basic_full)
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The metadata of the authenticator lists no attestation type that a FIDO U2F attestation statement can convey (attca or basic_full)")]
+    public static partial void FidoU2FMetadataAttestationTypesNotSupported(this ILogger logger);
 }

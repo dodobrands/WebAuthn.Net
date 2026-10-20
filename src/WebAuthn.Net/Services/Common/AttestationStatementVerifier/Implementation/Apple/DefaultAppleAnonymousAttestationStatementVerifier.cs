@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -18,7 +19,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
-using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Apple;
@@ -35,13 +35,19 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     /// </summary>
     /// <param name="timeProvider">Current time provider.</param>
     /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
-    public DefaultAppleAnonymousAttestationStatementVerifier(ITimeProvider timeProvider, IAsn1Deserializer asn1Deserializer)
+    public DefaultAppleAnonymousAttestationStatementVerifier(
+        ITimeProvider timeProvider,
+        IAsn1Deserializer asn1Deserializer,
+        ILogger<DefaultAppleAnonymousAttestationStatementVerifier<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
+        ArgumentNullException.ThrowIfNull(logger);
         TimeProvider = timeProvider;
         Asn1Deserializer = asn1Deserializer;
+        Logger = logger;
     }
 
     /// <summary>
@@ -53,6 +59,11 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
     ///     ASN.1 format deserializer.
     /// </summary>
     protected IAsn1Deserializer Asn1Deserializer { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultAppleAnonymousAttestationStatementVerifier<TContext>> Logger { get; }
 
     /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
@@ -76,6 +87,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
             if (attStmt.X5C.Length < 2)
             {
+                Logger.AppleX5CTooShort(attStmt.X5C.Length);
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -85,6 +97,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
                 if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
                 {
                     x5CCert?.Dispose();
+                    Logger.AppleX5CCertificateInvalid();
                     return Result<VerifiedAttestationStatement>.Fail();
                 }
 
@@ -92,6 +105,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
                 x5CCertificates.Add(x5CCert);
                 if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                 {
+                    Logger.AppleX5CCertificateNotValidNow();
                     return Result<VerifiedAttestationStatement>.Fail();
                 }
             }
@@ -102,6 +116,7 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
             // 3) Perform SHA-256 hash of nonceToHash to produce nonce.
             var nonce = SHA256.HashData(nonceToHash);
             // 4) Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
+            // (TryGetNonce logs the reason when the extension is missing or malformed)
             if (!TryGetNonce(credCert, out var certificateNonce))
             {
                 return Result<VerifiedAttestationStatement>.Fail();
@@ -109,12 +124,14 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
 
             if (!nonce.AsSpan().SequenceEqual(certificateNonce.AsSpan()))
             {
+                Logger.AppleNonceMismatch();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // 5) Verify that the credential public key equals the Subject Public Key of 'credCert'.
             if (!authenticatorData.AttestedCredentialData.CredentialPublicKey.Matches(credCert))
             {
+                Logger.AppleCredentialPublicKeyMismatch();
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -182,79 +199,44 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         }
 
         // Verify that nonce equals the value of the extension with OID 1.2.840.113635.100.8.2 in credCert.
-        var extensionData = credCert.Extensions.FirstOrDefault(x => x.Oid?.Value == "1.2.840.113635.100.8.2");
+        var extensionData = credCert.Extensions.FirstOrDefault(static x => x.Oid?.Value == "1.2.840.113635.100.8.2");
         if (extensionData is null)
         {
+            Logger.AppleNonceExtensionNotFound();
             certificateNonce = null;
             return false;
         }
 
-        var deserializeResult = Asn1Deserializer.Deserialize(extensionData.RawData, AsnEncodingRules.DER);
-        if (deserializeResult.HasError)
+        // The extension value (the content of the extnValue OCTET STRING, which is what X509Extension.RawData holds) has the following structure:
+        // SEQUENCE {
+        //   [1] EXPLICIT OCTET STRING (32 bytes) -- the nonce, SHA-256 of authenticatorData || clientDataHash
+        // }
+        // The value comes from a client-supplied certificate, so it is read with the strict DER reader and every deviation from this exact shape is a failure, not an exception.
+        try
         {
-            certificateNonce = null;
-            return false;
-        }
+            var reader = new AsnReader(extensionData.RawData, AsnEncodingRules.DER);
+            var sequence = reader.ReadSequence();
+            reader.ThrowIfNotEmpty();
+            var explicitNonce = sequence.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
+            sequence.ThrowIfNotEmpty();
+            var nonce = explicitNonce.ReadOctetString();
+            explicitNonce.ThrowIfNotEmpty();
+            if (nonce.Length != 32)
+            {
+                Logger.AppleNonceInvalidLength(nonce.Length);
+                certificateNonce = null;
+                return false;
+            }
 
-        if (deserializeResult.Ok is null)
+            certificateNonce = nonce;
+            return true;
+        }
+        catch (AsnContentException exception)
         {
+            Logger.AppleNonceExtensionMalformed(exception);
             certificateNonce = null;
             return false;
         }
-
-        // Certificate SEQUENCE (1 elem)
-        // //   tbsCertificate TBSCertificate [?] [1] (1 elem)
-        // //     serialNumber CertificateSerialNumber [?] OCTET STRING (32 byte) 2A2C4080A1705F7408A8FE78D211FF68871AEE73EF59EF8EE3C4DF3915A30484
-        var root = deserializeResult.Ok;
-        if (root is not Asn1Sequence certificate)
-        {
-            certificateNonce = null;
-            return false;
-        }
-
-        var tbsCertificateItem = certificate.Items[0];
-        if (tbsCertificateItem is not Asn1RawElement rawTbsCertificateItem || rawTbsCertificateItem.Tag.TagClass != TagClass.ContextSpecific)
-        {
-            certificateNonce = null;
-            return false;
-        }
-
-        var rawTbsCertificate = rawTbsCertificateItem.RawValue;
-        var asnReader = new AsnReader(rawTbsCertificate, AsnEncodingRules.DER);
-        if (!asnReader.HasData)
-        {
-            certificateNonce = null;
-            return false;
-        }
-
-        var tbsCertificateReader = asnReader.ReadSetOf(asnReader.PeekTag());
-        if (!tbsCertificateReader.HasData)
-        {
-            certificateNonce = null;
-            return false;
-        }
-
-        var tbsCertificateResult = Asn1Deserializer.Deserialize(tbsCertificateReader.ReadEncodedValue().ToArray(), AsnEncodingRules.DER);
-        if (tbsCertificateResult.HasError)
-        {
-            certificateNonce = null;
-            return false;
-        }
-
-        if (tbsCertificateResult.Ok is null)
-        {
-            certificateNonce = null;
-            return false;
-        }
-
-        if (tbsCertificateResult.Ok is not Asn1OctetString serialNumber)
-        {
-            certificateNonce = null;
-            return false;
-        }
-
-        certificateNonce = serialNumber.Value;
-        return true;
     }
 
     /// <summary>
@@ -270,4 +252,85 @@ public class DefaultAppleAnonymousAttestationStatementVerifier<TContext>
         b.CopyTo(result.AsSpan(a.Length));
         return result;
     }
+}
+
+/// <summary>
+///     Extension methods for logging the Apple Anonymous attestation statement verifier.
+/// </summary>
+public static partial class DefaultAppleAnonymousAttestationStatementVerifierLoggingExtensions
+{
+    /// <summary>
+    ///     The 'x5c' of the Apple Anonymous attestation statement contains {Count} certificate(s), but at least 2 (credCert and its chain) are expected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="count">The number of certificates in 'x5c'.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' of the Apple Anonymous attestation statement contains {Count} certificate(s), but at least 2 (credCert and its chain) are expected")]
+    public static partial void AppleX5CTooShort(this ILogger logger, int count);
+
+    /// <summary>
+    ///     Failed to load a certificate from the 'x5c' of the Apple Anonymous attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to load a certificate from the 'x5c' of the Apple Anonymous attestation statement")]
+    public static partial void AppleX5CCertificateInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     A certificate from the 'x5c' of the Apple Anonymous attestation statement is not valid at the current time
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A certificate from the 'x5c' of the Apple Anonymous attestation statement is not valid at the current time")]
+    public static partial void AppleX5CCertificateNotValidNow(this ILogger logger);
+
+    /// <summary>
+    ///     The credCert of the Apple Anonymous attestation statement does not contain the nonce extension (OID 1.2.840.113635.100.8.2)
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The credCert of the Apple Anonymous attestation statement does not contain the nonce extension (OID 1.2.840.113635.100.8.2)")]
+    public static partial void AppleNonceExtensionNotFound(this ILogger logger);
+
+    /// <summary>
+    ///     The nonce extension (OID 1.2.840.113635.100.8.2) of the credCert of the Apple Anonymous attestation statement is malformed: it is not a SEQUENCE whose only element is a [1] EXPLICIT OCTET STRING
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception thrown by the ASN.1 reader.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The nonce extension (OID 1.2.840.113635.100.8.2) of the credCert of the Apple Anonymous attestation statement is malformed: it is not a SEQUENCE whose only element is a [1] EXPLICIT OCTET STRING")]
+    public static partial void AppleNonceExtensionMalformed(this ILogger logger, Exception exception);
+
+    /// <summary>
+    ///     The nonce in the credCert of the Apple Anonymous attestation statement is {Length} byte(s) long, but a SHA-256 hash (32 bytes) is expected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="length">The length of the nonce.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The nonce in the credCert of the Apple Anonymous attestation statement is {Length} byte(s) long, but a SHA-256 hash (32 bytes) is expected")]
+    public static partial void AppleNonceInvalidLength(this ILogger logger, int length);
+
+    /// <summary>
+    ///     The nonce in the credCert of the Apple Anonymous attestation statement is not equal to SHA-256(authenticatorData || clientDataHash)
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The nonce in the credCert of the Apple Anonymous attestation statement is not equal to SHA-256(authenticatorData || clientDataHash)")]
+    public static partial void AppleNonceMismatch(this ILogger logger);
+
+    /// <summary>
+    ///     The credential public key is not equal to the Subject Public Key of the credCert of the Apple Anonymous attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The credential public key is not equal to the Subject Public Key of the credCert of the Apple Anonymous attestation statement")]
+    public static partial void AppleCredentialPublicKeyMismatch(this ILogger logger);
 }

@@ -21,6 +21,8 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
 
     public IReadOnlyList<string> IgnoredValues => _ignoredValues;
 
+    public int BlobsRejectedDueToRollback { get; private set; }
+
     public void IncrementDecodeStart()
     {
         DecodeStarts++;
@@ -56,5 +58,10 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
     public void IncrementValueIgnored(string member)
     {
         _ignoredValues.Add(member);
+    }
+
+    public void IncrementBlobRejectedDueToRollback()
+    {
+        BlobsRejectedDueToRollback++;
     }
 }

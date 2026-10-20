@@ -7,6 +7,7 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.Attestatio
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 
@@ -15,6 +16,11 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementatio
 /// </summary>
 public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatementDecoder
 {
+    /// <summary>
+    ///     The maximum number of certificates accepted in 'x5c': a legitimate attestation trust path (attestnCert and its intermediate CA certificates) is far shorter, and every certificate is loaded and parsed by the verifier before any signature is verified.
+    /// </summary>
+    protected const int MaxX5CCertificates = 16;
+
     /// <summary>
     ///     Constructs <see cref="DefaultPackedAttestationStatementDecoder" />.
     /// </summary>
@@ -53,9 +59,35 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
             return Result<PackedAttestationStatement>.Fail();
         }
 
+        ReportUnknownMembers(attStmt);
         var x5C = x5CResult.HasValue ? x5CResult.Value : null;
         var result = new PackedAttestationStatement(alg.Value, sig, x5C);
         return Result<PackedAttestationStatement>.Success(result);
+    }
+
+    /// <summary>
+    ///     Logs a Warning for every member of 'attStmt' that is not defined by the CDDL of the Packed attestation statement (alg, sig, x5c); such members are ignored (tolerated), not rejected.
+    /// </summary>
+    /// <param name="attStmt">The 'attStmt' map.</param>
+    protected virtual void ReportUnknownMembers(CborMap attStmt)
+    {
+        ArgumentNullException.ThrowIfNull(attStmt);
+        // https://www.w3.org/TR/webauthn-3/#sctn-packed-attestation
+        // packedStmtFormat = { alg: COSEAlgorithmIdentifier, sig: bytes, x5c: [ attestnCert: bytes, * (caCert: bytes) ] } // { alg: COSEAlgorithmIdentifier, sig: bytes }
+        // The map is closed, but unknown members (for example, the 'ecdaaKeyId' of WebAuthn Level 1/2) are tolerated for interoperability and only reported.
+        foreach (var key in attStmt.RawValue.Keys)
+        {
+            if (key is CborTextString { RawValue: "alg" or "sig" or "x5c" })
+            {
+                continue;
+            }
+
+            // the key is attacker-controlled: it is truncated and its control characters are replaced, so that it cannot forge log entries
+            var keyDescription = key is CborTextString textKey
+                ? LogValue.Sanitize(textKey.RawValue, 64)
+                : key.Type.ToString();
+            Logger.PackedUnknownMember(keyDescription);
+        }
     }
 
     private bool TryDecodeAlg(
@@ -138,6 +170,13 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         }
 
         var cborArrayItems = x5CborArray.RawValue;
+        if (cborArrayItems.Length > MaxX5CCertificates)
+        {
+            Logger.PackedX5CTooManyElements(cborArrayItems.Length, MaxX5CCertificates);
+            value = null;
+            return false;
+        }
+
         var result = new byte[cborArrayItems.Length][];
         for (var i = 0; i < cborArrayItems.Length; i++)
         {
@@ -289,4 +328,25 @@ public static partial class DefaultPackedAttestationStatementDecoderLoggingExten
         Level = LogLevel.Warning,
         Message = "One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type")]
     public static partial void PackedX5CValueInvalidElementDataType(this ILogger logger);
+
+    /// <summary>
+    ///     The 'x5c' array in the 'attStmt' contains {Count} elements, which exceeds the maximum of {MaxCount}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="count">The number of elements in 'x5c'.</param>
+    /// <param name="maxCount">The maximum number of elements accepted in 'x5c'.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' array in the 'attStmt' contains {Count} elements, which exceeds the maximum of {MaxCount}")]
+    public static partial void PackedX5CTooManyElements(this ILogger logger, int count, int maxCount);
+
+    /// <summary>
+    ///     The 'attStmt' of the Packed attestation statement contains a member that is not defined by its CDDL (alg, sig, x5c); the member is ignored: {Member}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="member">The key of the unknown member (truncated), or the CBOR type of the key when it is not a text string.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'attStmt' of the Packed attestation statement contains a member that is not defined by its CDDL (alg, sig, x5c); the member is ignored: {Member}")]
+    public static partial void PackedUnknownMember(this ILogger logger, string member);
 }

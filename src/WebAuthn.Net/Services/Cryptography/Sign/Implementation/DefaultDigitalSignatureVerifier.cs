@@ -61,7 +61,7 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
 
                     var keyParams = ecDsaPubKey.ExportParameters(false);
                     var curve = keyParams.Curve;
-                    if (!TryToCoseCurve(curve, out var coseCurve))
+                    if (!curve.TryToCoseEc2EllipticCurve(out var coseCurve))
                     {
                         return false;
                     }
@@ -155,6 +155,21 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
             }
         }
         catch (CryptographicException)
+        {
+            return false;
+        }
+        // EdDSA is verified by a P/Invoke into the native libsodium library (see Ed25519).
+        // On a host where the library cannot be loaded (no asset for the RID, a trimmed publish, a system library of another ABI) a signature cannot be verified:
+        // it is an invalid signature, not an exception that leaves the ceremony.
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        catch (BadImageFormatException)
         {
             return false;
         }
@@ -269,37 +284,6 @@ public class DefaultDigitalSignatureVerifier : IDigitalSignatureVerifier
         }
 
         return Ed25519.Verify(coseOkpKey.X, dataToVerify, signature);
-    }
-
-    private static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEc2EllipticCurve? coseCurve)
-    {
-        // A key with explicit curve parameters (the certificate does not name its curve) has no Oid; only the named NIST curves are supported.
-        if (!ecCurve.IsNamed || string.IsNullOrEmpty(ecCurve.Oid.Value))
-        {
-            coseCurve = null;
-            return false;
-        }
-
-        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP256.Oid.Value, StringComparison.Ordinal))
-        {
-            coseCurve = CoseEc2EllipticCurve.P256;
-            return true;
-        }
-
-        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value, StringComparison.Ordinal))
-        {
-            coseCurve = CoseEc2EllipticCurve.P384;
-            return true;
-        }
-
-        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP521.Oid.Value, StringComparison.Ordinal))
-        {
-            coseCurve = CoseEc2EllipticCurve.P521;
-            return true;
-        }
-
-        coseCurve = null;
-        return false;
     }
 
     private static bool TryToEcCurve(CoseEc2EllipticCurve coseEc2Curve, [NotNullWhen(true)] out ECCurve? ecCurve)

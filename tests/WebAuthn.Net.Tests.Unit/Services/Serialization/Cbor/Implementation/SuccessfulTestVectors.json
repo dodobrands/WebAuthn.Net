@@ -261,5 +261,31 @@
             "d": "D",
             "e": "E"
         }
+    },
+    {
+        "cbor": "9A==",
+        "hex": "f4",
+        "roundtrip": true,
+        "decoded": false
+    },
+    {
+        "cbor": "9Q==",
+        "hex": "f5",
+        "roundtrip": true,
+        "decoded": true
+    },
+    {
+        "cbor": "9g==",
+        "hex": "f6",
+        "roundtrip": true,
+        "decoded": null
+    },
+    {
+        "cbor": "oWtobWFjLXNlY3JldPU=",
+        "hex": "a16b686d61632d736563726574f5",
+        "roundtrip": true,
+        "decoded": {
+            "hmac-secret": true
+        }
     }
 ]

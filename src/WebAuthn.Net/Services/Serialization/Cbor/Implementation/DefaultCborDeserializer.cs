@@ -15,6 +15,10 @@ namespace WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 /// </summary>
 public class DefaultCborDeserializer : ICborDeserializer
 {
+    // The structures decoded with this deserializer (the attestationObject with its attStmt, a COSE_Key, the authData extensions map) nest only a few levels deep.
+    // The recursive descent stops at this depth, so that crafted input cannot cause a stack overflow, which cannot be caught and terminates the process.
+    private const int MaxNestingDepth = 32;
+
     /// <summary>
     ///     Constructs <see cref="DefaultCborDeserializer" />.
     /// </summary>
@@ -37,7 +41,7 @@ public class DefaultCborDeserializer : ICborDeserializer
         try
         {
             var reader = new CborReader(input, CborConformanceMode.Ctap2Canonical);
-            var rootResult = Read(reader);
+            var rootResult = Read(reader, 1);
             if (rootResult.HasError)
             {
                 return Result<CborRoot>.Fail();
@@ -60,8 +64,14 @@ public class DefaultCborDeserializer : ICborDeserializer
         return input.Length - reader.BytesRemaining;
     }
 
-    private Result<AbstractCborObject> Read(CborReader reader)
+    private Result<AbstractCborObject> Read(CborReader reader, int depth)
     {
+        if (depth > MaxNestingDepth)
+        {
+            Logger.NestingDepthExceeded(MaxNestingDepth);
+            return Result<AbstractCborObject>.Fail();
+        }
+
         var state = reader.PeekState();
         switch (state)
         {
@@ -108,7 +118,7 @@ public class DefaultCborDeserializer : ICborDeserializer
                 }
             case CborReaderState.StartArray:
                 {
-                    return Transform(ReadArray(reader));
+                    return Transform(ReadArray(reader, depth));
                 }
             case CborReaderState.EndArray:
                 {
@@ -117,7 +127,7 @@ public class DefaultCborDeserializer : ICborDeserializer
                 }
             case CborReaderState.StartMap:
                 {
-                    return Transform(ReadMap(reader));
+                    return Transform(ReadMap(reader, depth));
                 }
             case CborReaderState.EndMap:
                 {
@@ -128,6 +138,23 @@ public class DefaultCborDeserializer : ICborDeserializer
                 {
                     Logger.CborReaderTag();
                     return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.SimpleValue:
+            case CborReaderState.HalfPrecisionFloat:
+            case CborReaderState.SinglePrecisionFloat:
+            case CborReaderState.DoublePrecisionFloat:
+                {
+                    // Floating-point numbers and the simple values other than false, true and null (e.g. undefined) are not used in WebAuthn.
+                    Logger.UnsupportedSimpleValue();
+                    return Result<AbstractCborObject>.Fail();
+                }
+            case CborReaderState.Null:
+                {
+                    return Transform(ReadNull(reader));
+                }
+            case CborReaderState.Boolean:
+                {
+                    return Transform(ReadBoolean(reader));
                 }
             case CborReaderState.Finished:
                 {
@@ -178,7 +205,21 @@ public class DefaultCborDeserializer : ICborDeserializer
         return Result<CborTextString>.Success(result);
     }
 
-    private Result<CborArray> ReadArray(CborReader reader)
+    private static Result<CborBoolean> ReadBoolean(CborReader reader)
+    {
+        var value = reader.ReadBoolean();
+        var result = new CborBoolean(value);
+        return Result<CborBoolean>.Success(result);
+    }
+
+    private static Result<CborNull> ReadNull(CborReader reader)
+    {
+        reader.ReadNull();
+        var result = new CborNull();
+        return Result<CborNull>.Success(result);
+    }
+
+    private Result<CborArray> ReadArray(CborReader reader, int depth)
     {
         var count = reader.ReadStartArray();
         if (!count.HasValue)
@@ -191,7 +232,7 @@ public class DefaultCborDeserializer : ICborDeserializer
         CborReaderState state;
         while ((state = reader.PeekState()) is not (CborReaderState.EndArray or CborReaderState.Finished))
         {
-            var readResult = Read(reader);
+            var readResult = Read(reader, depth + 1);
             if (readResult.HasError)
             {
                 return Result<CborArray>.Fail();
@@ -209,7 +250,7 @@ public class DefaultCborDeserializer : ICborDeserializer
         return Result<CborArray>.Success(result);
     }
 
-    private Result<CborMap> ReadMap(CborReader reader)
+    private Result<CborMap> ReadMap(CborReader reader, int depth)
     {
         var count = reader.ReadStartMap();
         if (!count.HasValue)
@@ -222,13 +263,13 @@ public class DefaultCborDeserializer : ICborDeserializer
         CborReaderState state;
         while ((state = reader.PeekState()) is not (CborReaderState.EndMap or CborReaderState.Finished))
         {
-            var key = Read(reader);
+            var key = Read(reader, depth + 1);
             if (key.HasError)
             {
                 return Result<CborMap>.Fail();
             }
 
-            var value = Read(reader);
+            var value = Read(reader, depth + 1);
             if (value.HasError)
             {
                 return Result<CborMap>.Fail();
@@ -387,4 +428,14 @@ public static partial class DefaultCborDeserializerLoggingExtensions
         Level = LogLevel.Warning,
         Message = "Attempt to read unsupported CBOR simple value")]
     public static partial void UnsupportedSimpleValue(this ILogger logger);
+
+    /// <summary>
+    ///     The nesting depth of the CBOR data exceeds the maximum limit of {MaxNestingDepth}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="maxNestingDepth">The maximum allowed nesting depth.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The nesting depth of the CBOR data exceeds the maximum limit of {MaxNestingDepth}")]
+    public static partial void NestingDepthExceeded(this ILogger logger, int maxNestingDepth);
 }

@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
@@ -39,21 +41,25 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     /// <param name="signatureVerifier">Digital signature verifier.</param>
     /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
     /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultPackedAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IDigitalSignatureVerifier signatureVerifier,
         IAsn1Deserializer asn1Deserializer,
-        IFidoMetadataSearchService<TContext> fidoMetadataSearchService)
+        IFidoMetadataSearchService<TContext> fidoMetadataSearchService,
+        ILogger<DefaultPackedAttestationStatementVerifier<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
+        ArgumentNullException.ThrowIfNull(logger);
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
+        Logger = logger;
     }
 
     /// <summary>
@@ -75,6 +81,11 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     ///     A service for searching in the data provided by the FIDO Metadata Service.
     /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultPackedAttestationStatementVerifier<TContext>> Logger { get; }
 
     /// <inheritdoc />
     public virtual async Task<Result<VerifiedAttestationStatement>> VerifyAsync(
@@ -98,6 +109,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             {
                 if (attStmt.X5C.Length == 0)
                 {
+                    Logger.PackedX5CEmpty();
                     return Result<VerifiedAttestationStatement>.Fail();
                 }
 
@@ -108,6 +120,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
                     if (!X509CertificateInMemoryLoader.TryLoad(x5CBytes, out var x5CCert))
                     {
                         x5CCert?.Dispose();
+                        Logger.PackedX5CCertificateInvalid();
                         return Result<VerifiedAttestationStatement>.Fail();
                     }
 
@@ -115,11 +128,13 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
                     x5CCertificates.Add(x5CCert);
                     if (currentDate < x5CCert.NotBefore || currentDate > x5CCert.NotAfter)
                     {
+                        Logger.PackedX5CCertificateNotValidNow();
                         return Result<VerifiedAttestationStatement>.Fail();
                     }
 
                     if (IsRootCertificate(x5CCert))
                     {
+                        Logger.PackedX5CContainsSelfSignedCertificate();
                         return Result<VerifiedAttestationStatement>.Fail();
                     }
                 }
@@ -195,12 +210,14 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
         if (!SignatureVerifier.IsValidCertificateSign(attestnCert, attStmt.Alg, dataToVerify, attStmt.Sig))
         {
+            Logger.PackedSignatureInvalid();
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 2) Verify that 'attestnCert' meets the requirements in
         // "Certificate Requirements for Packed Attestation Statements"
         // https://www.w3.org/TR/webauthn-3/#sctn-packed-attestation-cert-requirements
+        // (IsAttestnCertValid logs the requirement that is not met)
         if (!IsAttestnCertValid(attestnCert, out var aaguid))
         {
             return Result<VerifiedAttestationStatement>.Fail();
@@ -210,10 +227,12 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // verify that the value of this extension matches the 'aaguid' in 'authenticatorData'.
         if (aaguid.HasValue && authenticatorData.AttestedCredentialData.Aaguid != aaguid.Value)
         {
+            Logger.PackedAttestnCertAaguidMismatch();
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
         // 4) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether attStmt conveys a Basic or AttCA attestation.
+        // (GetAttestationTypeAsync logs why the attestation type could not be determined)
         var attestationTypeResult = await GetAttestationTypeAsync(
             context,
             attestnCert,
@@ -258,6 +277,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             cancellationToken);
         if (metadata is null)
         {
+            Logger.PackedMetadataNotFound(authenticatorData.AttestedCredentialData.Aaguid);
             return Result<FidoPackedAttestationTypeResult>.Fail();
         }
 
@@ -282,6 +302,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             return Result<FidoPackedAttestationTypeResult>.Success(new(AttestationType.Self, rootCertificates));
         }
 
+        Logger.PackedMetadataAttestationTypesNotSupported(authenticatorData.AttestedCredentialData.Aaguid);
         return Result<FidoPackedAttestationTypeResult>.Fail();
     }
 
@@ -307,6 +328,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 1) Validate that 'alg' matches the algorithm of the 'credentialPublicKey' in 'authenticatorData'.
         if (attStmt.Alg != authenticatorData.AttestedCredentialData.CredentialPublicKey.Alg)
         {
+            Logger.PackedSelfAlgMismatch((int) attStmt.Alg, (int) authenticatorData.AttestedCredentialData.CredentialPublicKey.Alg);
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
@@ -315,6 +337,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         var dataToVerify = Concat(authenticatorData.Raw, clientDataHash);
         if (!SignatureVerifier.IsValidCoseKeySign(authenticatorData.AttestedCredentialData.CredentialPublicKey, dataToVerify, attStmt.Sig))
         {
+            Logger.PackedSelfSignatureInvalid();
             return Result<VerifiedAttestationStatement>.Fail();
         }
 
@@ -351,6 +374,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 1 - Version MUST be set to 3 (which is indicated by an ASN.1 INTEGER with value 2).
         if (attestnCert.Version != 3)
         {
+            Logger.PackedAttestnCertRequirementNotMet("version");
             aaguid = null;
             return false;
         }
@@ -362,6 +386,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // Subject-CN - A UTF8String of the vendor's choosing
         if (!IsValidSubject(attestnCert.SubjectName))
         {
+            Logger.PackedAttestnCertRequirementNotMet("subject");
             aaguid = null;
             return false;
         }
@@ -373,6 +398,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         var aaguidResult = GetAaguidIfExists(attestnCert);
         if (aaguidResult.HasError)
         {
+            Logger.PackedAttestnCertRequirementNotMet("id-fido-gen-ce-aaguid extension");
             aaguid = null;
             return false;
         }
@@ -380,6 +406,7 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // 4 - The Basic Constraints extension MUST have the CA component set to false.
         if (!IsBasicExtensionsCaComponentFalse(attestnCert))
         {
+            Logger.PackedAttestnCertRequirementNotMet("basic constraints");
             aaguid = null;
             return false;
         }
@@ -410,7 +437,18 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         // Subject-CN - A UTF8String of the vendor's choosing
 
         // form the string for splitting using new lines to avoid issues with commas
-        var subjectString = subjectName.Decode(X500DistinguishedNameFlags.UseNewLines);
+        string subjectString;
+        try
+        {
+            subjectString = subjectName.Decode(X500DistinguishedNameFlags.UseNewLines);
+        }
+        catch (CryptographicException exception)
+        {
+            // the subject comes from a client-supplied certificate: a name that the platform loaded but the decoder cannot represent is a failed requirement, not an exception
+            Logger.PackedAttestnCertSubjectMalformed(exception);
+            return false;
+        }
+
         var subjectMap = new Dictionary<string, string>(4);
 
         foreach (var line in subjectString.AsSpan().EnumerateLines())
@@ -545,9 +583,18 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         var extension = attestnCert.Extensions.FirstOrDefault(static e => e.Oid?.Value is "2.5.29.19");
         if (extension is X509BasicConstraintsExtension basicExtension)
         {
-            var isCaCert = basicExtension.CertificateAuthority;
-            var isCaComponentFalse = !isCaCert;
-            return isCaComponentFalse;
+            try
+            {
+                // the typed extension decodes its value lazily and throws for a malformed value; the certificate is client-supplied, so this is a failed requirement, not an exception
+                var isCaCert = basicExtension.CertificateAuthority;
+                var isCaComponentFalse = !isCaCert;
+                return isCaComponentFalse;
+            }
+            catch (CryptographicException exception)
+            {
+                Logger.PackedAttestnCertBasicConstraintsMalformed(exception);
+                return false;
+            }
         }
 
         return false;
@@ -566,4 +613,134 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
         b.CopyTo(result.AsSpan(a.Length));
         return result;
     }
+}
+
+/// <summary>
+///     Extension methods for logging the Packed attestation statement verifier.
+/// </summary>
+public static partial class DefaultPackedAttestationStatementVerifierLoggingExtensions
+{
+    /// <summary>
+    ///     The 'x5c' of the Packed attestation statement is present but empty
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' of the Packed attestation statement is present but empty")]
+    public static partial void PackedX5CEmpty(this ILogger logger);
+
+    /// <summary>
+    ///     Failed to load a certificate from the 'x5c' of the Packed attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to load a certificate from the 'x5c' of the Packed attestation statement")]
+    public static partial void PackedX5CCertificateInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     A certificate from the 'x5c' of the Packed attestation statement is not valid at the current time
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A certificate from the 'x5c' of the Packed attestation statement is not valid at the current time")]
+    public static partial void PackedX5CCertificateNotValidNow(this ILogger logger);
+
+    /// <summary>
+    ///     The 'x5c' of the Packed attestation statement contains a self-signed (root) certificate
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' of the Packed attestation statement contains a self-signed (root) certificate")]
+    public static partial void PackedX5CContainsSelfSignedCertificate(this ILogger logger);
+
+    /// <summary>
+    ///     The 'sig' of the Packed attestation statement is not a valid signature over authenticatorData || clientDataHash made with the attestation public key of attestnCert and the algorithm 'alg'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'sig' of the Packed attestation statement is not a valid signature over authenticatorData || clientDataHash made with the attestation public key of attestnCert and the algorithm 'alg'")]
+    public static partial void PackedSignatureInvalid(this ILogger logger);
+
+    /// <summary>
+    ///     The attestnCert of the Packed attestation statement does not meet the Packed Attestation Statement Certificate Requirements: {Requirement}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="requirement">The requirement that is not met.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The attestnCert of the Packed attestation statement does not meet the Packed Attestation Statement Certificate Requirements: {Requirement}")]
+    public static partial void PackedAttestnCertRequirementNotMet(this ILogger logger, string requirement);
+
+    /// <summary>
+    ///     The subject of the attestnCert of the Packed attestation statement cannot be decoded
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception thrown while decoding the subject.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The subject of the attestnCert of the Packed attestation statement cannot be decoded")]
+    public static partial void PackedAttestnCertSubjectMalformed(this ILogger logger, Exception exception);
+
+    /// <summary>
+    ///     The Basic Constraints extension of the attestnCert of the Packed attestation statement is malformed
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception thrown while decoding the extension.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The Basic Constraints extension of the attestnCert of the Packed attestation statement is malformed")]
+    public static partial void PackedAttestnCertBasicConstraintsMalformed(this ILogger logger, Exception exception);
+
+    /// <summary>
+    ///     The id-fido-gen-ce-aaguid extension of the attestnCert of the Packed attestation statement does not match the aaguid in authenticatorData
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The id-fido-gen-ce-aaguid extension of the attestnCert of the Packed attestation statement does not match the aaguid in authenticatorData")]
+    public static partial void PackedAttestnCertAaguidMismatch(this ILogger logger);
+
+    /// <summary>
+    ///     The FIDO Metadata Service has no trusted metadata for the aaguid {Aaguid} of the Packed attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service has no trusted metadata for the aaguid {Aaguid} of the Packed attestation statement")]
+    public static partial void PackedMetadataNotFound(this ILogger logger, Guid aaguid);
+
+    /// <summary>
+    ///     The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca, basic_full or basic_surrogate)
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca, basic_full or basic_surrogate)")]
+    public static partial void PackedMetadataAttestationTypesNotSupported(this ILogger logger, Guid aaguid);
+
+    /// <summary>
+    ///     The 'alg' {Alg} of the Packed self attestation statement does not match the algorithm {CredentialPublicKeyAlg} of the credential public key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="alg">The 'alg' of the attestation statement.</param>
+    /// <param name="credentialPublicKeyAlg">The algorithm of the credential public key.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'alg' {Alg} of the Packed self attestation statement does not match the algorithm {CredentialPublicKeyAlg} of the credential public key")]
+    public static partial void PackedSelfAlgMismatch(this ILogger logger, int alg, int credentialPublicKeyAlg);
+
+    /// <summary>
+    ///     The 'sig' of the Packed self attestation statement is not a valid signature over authenticatorData || clientDataHash made with the credential public key
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'sig' of the Packed self attestation statement is not a valid signature over authenticatorData || clientDataHash made with the credential public key")]
+    public static partial void PackedSelfSignatureInvalid(this ILogger logger);
 }

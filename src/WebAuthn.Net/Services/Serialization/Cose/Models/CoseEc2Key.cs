@@ -95,23 +95,32 @@ public class CoseEc2Key : AbstractCoseKey
             return false;
         }
 
-        using var certEcdsa = certificate.GetECDsaPublicKey();
-        if (certEcdsa is null)
+        // The certificate comes from the client. A public key that the platform cannot extract or export throws CryptographicException
+        // (for example, an EC point that is not on the curve) - that is a key that does not match, not an error.
+        try
+        {
+            using var certEcdsa = certificate.GetECDsaPublicKey();
+            if (certEcdsa is null)
+            {
+                return false;
+            }
+
+            var certParams = certEcdsa.ExportParameters(false);
+            if (!TryToCoseCurve(certParams.Curve, out var certCurve))
+            {
+                return false;
+            }
+
+            var certX = certParams.Q.X;
+            var certY = certParams.Q.Y;
+            return certCurve.Value == Crv
+                   && certX.AsSpan().SequenceEqual(X.AsSpan())
+                   && certY.AsSpan().SequenceEqual(Y.AsSpan());
+        }
+        catch (CryptographicException)
         {
             return false;
         }
-
-        var certParams = certEcdsa.ExportParameters(false);
-        if (!TryToCoseCurve(certParams.Curve, out var certCurve))
-        {
-            return false;
-        }
-
-        var certX = certParams.Q.X;
-        var certY = certParams.Q.Y;
-        return certCurve.Value == Crv
-               && certX.AsSpan().SequenceEqual(X.AsSpan())
-               && certY.AsSpan().SequenceEqual(Y.AsSpan());
     }
 
     /// <inheritdoc />
@@ -122,17 +131,25 @@ public class CoseEc2Key : AbstractCoseKey
             return false;
         }
 
-        var algParams = alg.ExportParameters(false);
-        if (!TryToCoseCurve(algParams.Curve, out var algCurve))
+        // The key comes from the client. A public key that the platform cannot export throws CryptographicException - that is a key that does not match, not an error.
+        try
+        {
+            var algParams = alg.ExportParameters(false);
+            if (!TryToCoseCurve(algParams.Curve, out var algCurve))
+            {
+                return false;
+            }
+
+            var algX = algParams.Q.X;
+            var algY = algParams.Q.Y;
+            return algCurve.Value == Crv
+                   && algX.AsSpan().SequenceEqual(X.AsSpan())
+                   && algY.AsSpan().SequenceEqual(Y.AsSpan());
+        }
+        catch (CryptographicException)
         {
             return false;
         }
-
-        var algX = algParams.Q.X;
-        var algY = algParams.Q.Y;
-        return algCurve.Value == Crv
-               && algX.AsSpan().SequenceEqual(X.AsSpan())
-               && algY.AsSpan().SequenceEqual(Y.AsSpan());
     }
 
     /// <inheritdoc />
@@ -158,31 +175,7 @@ public class CoseEc2Key : AbstractCoseKey
     /// <returns><see langword="true" />, if the conversion was successful, otherwise - <see langword="false" />.</returns>
     protected static bool TryToCoseCurve(ECCurve ecCurve, [NotNullWhen(true)] out CoseEc2EllipticCurve? coseCurve)
     {
-        if (string.IsNullOrEmpty(ecCurve.Oid.Value))
-        {
-            coseCurve = null;
-            return false;
-        }
-
-        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP256.Oid.Value, StringComparison.Ordinal))
-        {
-            coseCurve = CoseEc2EllipticCurve.P256;
-            return true;
-        }
-
-        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value, StringComparison.Ordinal))
-        {
-            coseCurve = CoseEc2EllipticCurve.P384;
-            return true;
-        }
-
-        if (ecCurve.Oid.Value.Equals(ECCurve.NamedCurves.nistP521.Oid.Value, StringComparison.Ordinal))
-        {
-            coseCurve = CoseEc2EllipticCurve.P521;
-            return true;
-        }
-
-        coseCurve = null;
-        return false;
+        // A key with explicit curve parameters has no Oid (ECCurve.Oid is null unless the curve type is Named); the shared conversion checks that before reading it.
+        return ecCurve.TryToCoseEc2EllipticCurve(out coseCurve);
     }
 }

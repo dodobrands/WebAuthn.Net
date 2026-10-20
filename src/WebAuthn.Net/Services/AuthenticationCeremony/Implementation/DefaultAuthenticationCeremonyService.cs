@@ -274,6 +274,16 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
 
+            // https://www.w3.org/TR/webauthn-3/#sctn-cryptographic-challenges
+            // The challenge is valid only for the lifetime of the ceremony.
+            // Otherwise a captured response could be replayed for as long as the ceremony data can be read.
+            if (IsCeremonyExpired(authenticationCeremonyOptions))
+            {
+                Logger.AuthenticationCeremonyExpired();
+                Counters.IncrementCompleteCeremonyEnd(false);
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
+            }
+
             // https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion
             // In order to perform an authentication ceremony, the Relying Party MUST proceed as follows:
 
@@ -300,6 +310,17 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             }
 
             var credential = credentialResult.Ok;
+
+            // https://www.w3.org/TR/webauthn-3/#dom-publickeycredential-rawid
+            // 'credential.id' is the base64url encoding of 'credential.rawId', both represent the same credential ID.
+            // Step 5 checks 'credential.id' and step 6 looks up 'credential.rawId', so the client must not be able to make them differ.
+            if (!credential.Id.AsSpan().SequenceEqual(credential.RawId))
+            {
+                Logger.CredentialIdDoesNotMatchRawId();
+                Counters.IncrementCompleteCeremonyEnd(false);
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
+            }
+
             var response = credential.Response;
             // 4. Let 'clientExtensionResults' be the result of calling 'credential.getClientExtensionResults()'.
             // -- extensions NOT implemented. User may override current method to uport them.
@@ -445,7 +466,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // 10. Verify that the value of 'C.type' is the string 'webauthn.get'
             if (C.Type is not "webauthn.get")
             {
-                Logger.IncorrectClientDataType(C.Type);
+                Logger.IncorrectClientDataType(LogValue.Sanitize(C.Type));
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
@@ -463,7 +484,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var allowedOrigin = authenticationCeremonyOptions.ExpectedRp.Origins.FirstOrDefault(x => string.Equals(x, C.Origin, StringComparison.Ordinal));
             if (allowedOrigin is null)
             {
-                Logger.InvalidOrigin(C.Origin);
+                Logger.InvalidOrigin(LogValue.Sanitize(C.Origin));
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteAuthenticationCeremonyResult>.Fail();
             }
@@ -471,8 +492,16 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // 13. If 'C.crossOrigin' is present and set to 'true',
             // verify that the Relying Party expects this credential to be used within an iframe
             // that is not same-origin with its ancestors.
+            // ('C.topOrigin' was added in Level 3, so a client may send 'crossOrigin' without 'topOrigin'.)
+            if (C.CrossOrigin is true && C.TopOrigin is null && !authenticationCeremonyOptions.ExpectedRp.AllowIframe)
+            {
+                Logger.UnexpectedCrossOrigin();
+                Counters.IncrementCompleteCeremonyEnd(false);
+                return Result<CompleteAuthenticationCeremonyResult>.Fail();
+            }
+
             // 14. If 'C.topOrigin' is present:
-            if (C.CrossOrigin is true or null && C.TopOrigin is not null)
+            if (C.TopOrigin is not null)
             {
                 //   14.1 Verify that the Relying Party expects this credential to be used within an iframe
                 //        that is not same-origin with its ancestors.
@@ -483,16 +512,17 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                 {
                     if (!authenticationCeremonyOptions.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
                     {
-                        Logger.InvalidTopOrigin(C.TopOrigin);
+                        Logger.InvalidTopOrigin(LogValue.Sanitize(C.TopOrigin));
                         Counters.IncrementCompleteCeremonyEnd(false);
                         return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
                 }
                 else
                 {
+                    // A web application that does not wish to be embedded in a cross-origin iframe might require topOrigin to exactly equal origin.
                     if (!string.Equals(allowedOrigin, C.TopOrigin, StringComparison.Ordinal))
                     {
-                        Logger.InvalidTopOrigin(C.TopOrigin);
+                        Logger.InvalidTopOrigin(LogValue.Sanitize(C.TopOrigin));
                         Counters.IncrementCompleteCeremonyEnd(false);
                         return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
@@ -630,6 +660,9 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                         Counters.IncrementCompleteCeremonyEnd(false);
                         return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
+
+                    // The ceremony continues by Relying Party policy, but the signal of a possibly cloned authenticator must stay visible.
+                    Logger.SignCountNotIncreased(authData.SignCount, credentialRecord.SignCount);
                 }
             }
 
@@ -670,6 +703,9 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             // 25. If all the above steps are successful,
             // continue the authentication ceremony as appropriate.
             // Otherwise, fail the authentication ceremony.
+            // https://www.w3.org/TR/webauthn-3/#sctn-cryptographic-challenges
+            // The challenge is stored only until the operation is complete, so the same response cannot complete the ceremony again.
+            await CeremonyStorage.RemoveAsync(context, request.AuthenticationCeremonyId, cancellationToken);
             var successfulResult = new CompleteAuthenticationCeremonyResult(
                 recommendedActions,
                 credentialRecordUpdateResult.UserVerificationFlagMayBeUpdatedToTrue,
@@ -691,6 +727,17 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     {
         var expiresAtMilliseconds = createdAt.ToUnixTimeMilliseconds() + timeout;
         return DateTimeOffset.FromUnixTimeMilliseconds(expiresAtMilliseconds);
+    }
+
+    /// <summary>
+    ///     Checks whether the lifetime of the authentication ceremony is over, so it can no longer be completed.
+    /// </summary>
+    /// <param name="authenticationCeremonyParameters">Authentication ceremony parameters.</param>
+    /// <returns><see langword="true" /> if the authentication ceremony has expired, otherwise - <see langword="false" />.</returns>
+    protected virtual bool IsCeremonyExpired(AuthenticationCeremonyParameters authenticationCeremonyParameters)
+    {
+        ArgumentNullException.ThrowIfNull(authenticationCeremonyParameters);
+        return TimeProvider.GetPreciseUtcDateTime() > authenticationCeremonyParameters.ExpiresAt;
     }
 
     /// <summary>
@@ -932,6 +979,15 @@ public static partial class DefaultAuthenticationCeremonyServiceLoggingExtension
     public static partial void AuthenticationCeremonyNotFound(this ILogger logger);
 
     /// <summary>
+    ///     The authentication ceremony has expired and can no longer be completed
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The authentication ceremony has expired and can no longer be completed")]
+    public static partial void AuthenticationCeremonyExpired(this ILogger logger);
+
+    /// <summary>
     ///     Failed to decode AuthenticationResponseJSON
     /// </summary>
     /// <param name="logger">Logger.</param>
@@ -939,6 +995,24 @@ public static partial class DefaultAuthenticationCeremonyServiceLoggingExtension
         Level = LogLevel.Warning,
         Message = "Failed to decode AuthenticationResponseJSON")]
     public static partial void FailedToDecodeAuthenticationResponseJson(this ILogger logger);
+
+    /// <summary>
+    ///     The 'id' and 'rawId' of the credential don't represent the same credential ID
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'id' and 'rawId' of the credential don't represent the same credential ID")]
+    public static partial void CredentialIdDoesNotMatchRawId(this ILogger logger);
+
+    /// <summary>
+    ///     'clientData.crossOrigin' is true, but the Relying Party doesn't expect the credential to be used within a cross-origin iframe
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "'clientData.crossOrigin' is true, but the Relying Party doesn't expect the credential to be used within a cross-origin iframe")]
+    public static partial void UnexpectedCrossOrigin(this ILogger logger);
 
     /// <summary>
     ///     The received credential.id is not included in the list specified in options.allowCredentials
@@ -1122,6 +1196,17 @@ public static partial class DefaultAuthenticationCeremonyServiceLoggingExtension
         Level = LogLevel.Warning,
         Message = "The obtained signCount is less than or equal to the one that was saved earlier")]
     public static partial void AbortBySignCount(this ILogger logger);
+
+    /// <summary>
+    ///     The obtained signCount {ReceivedSignCount} is less than or equal to the saved one {StoredSignCount}, the authenticator may be cloned. The ceremony continues by Relying Party policy
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="receivedSignCount">The signCount obtained in the current authentication ceremony.</param>
+    /// <param name="storedSignCount">The signCount saved in the credential record.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The obtained signCount {ReceivedSignCount} is less than or equal to the saved one {StoredSignCount}, the authenticator may be cloned. The ceremony continues by Relying Party policy")]
+    public static partial void SignCountNotIncreased(this ILogger logger, uint receivedSignCount, uint storedSignCount);
 
     /// <summary>
     ///     Failed to update user credential record

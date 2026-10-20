@@ -29,6 +29,19 @@ public static class TpmAttestationStatementAnomalies
     public const string PubAreaNameAlgNotSupported = "pubarea.name_alg_not_supported";
 
     /// <summary>
+    ///     Tolerated by default, rejected when <see cref="DefaultTpmAttestationStatementVerifier{TContext}.IsTpmBoundCredentialKeyRequired" /> says so: the credential key of the pubArea is not bound to the TPM -
+    ///     at least one of fixedTPM, fixedParent and sensitiveDataOrigin is CLEAR in its objectAttributes (TPM 2.0 Library Part 2 v185 §8.3.3.2, §8.3.3.4 and §8.3.3.5).
+    ///     That is what a key imported with TPM2_Import() or loaded with TPM2_LoadExternal() looks like, so a copy of its private part may exist outside the TPM.
+    /// </summary>
+    public const string PubAreaKeyNotTpmBound = "pubarea.key_not_tpm_bound";
+
+    /// <summary>
+    ///     Tolerated: the nameAlg of the pubArea is TPM_ALG_SHA1 (deprecated since version 184 of the TPM 2.0 Library, Part 0 v185 §3.1.1.2), so the Name that binds certInfo to the pubArea is a SHA-1 digest.
+    ///     (An attestation signature with 'alg' RS1 is not an anomaly: Windows Hello signs certInfo with RS1 for every credential key type.)
+    /// </summary>
+    public const string PubAreaNameAlgSha1 = "pubarea.name_alg_sha1";
+
+    /// <summary>
     ///     Rejected: the TPMManufacturer attribute of the AIK certificate is not one of the vendor identifiers that this library knows (its copy of the TCG TPM Vendor ID Registry).
     /// </summary>
     public const string AikCertificateManufacturerUnknown = "aik.manufacturer_unknown";

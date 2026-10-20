@@ -149,7 +149,8 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             TimeProvider,
             digitalSignatureVerifier,
             asn1Deserializer,
-            metadataSearchService);
+            metadataSearchService,
+            NullLogger<DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         RegistrationCounters = new();
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
@@ -170,15 +171,18 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             safeJsonDeserializer,
-            metadataSearchService);
+            metadataSearchService,
+            NullLogger<DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             asn1Deserializer,
-            metadataSearchService);
+            metadataSearchService,
+            NullLogger<DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var noneVerifier = new DefaultNoneAttestationStatementVerifier<FakeWebAuthnContext>();
         var appleAnonymousVerifier = new DefaultAppleAnonymousAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
-            asn1Deserializer);
+            asn1Deserializer,
+            NullLogger<DefaultAppleAnonymousAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var attestationStatementVerifier = new DefaultAttestationStatementVerifier<FakeWebAuthnContext>(
             packedVerifier,
             tpmVerifier,
