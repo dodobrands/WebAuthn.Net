@@ -40,4 +40,9 @@ public interface IFidoMetadataCounters
     /// </summary>
     /// <param name="member">The path of the member of the entry whose value was ignored, without array indices (for example, <c>metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands[]</c>).</param>
     void IncrementValueIgnored(string member);
+
+    /// <summary>
+    ///     Increments the counter of the FIDO Metadata Service blobs that were rejected during ingestion because they would roll back the metadata in use to a blob with a lower serial number (the <c>no</c> member).
+    /// </summary>
+    void IncrementBlobRejectedDueToRollback();
 }

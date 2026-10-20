@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Serialization.Cbor;
@@ -22,6 +23,13 @@ namespace WebAuthn.Net.Services.Serialization.Cose.Implementation;
 /// </summary>
 public class DefaultCoseKeyDeserializer : ICoseKeyDeserializer
 {
+    // https://www.rfc-editor.org/rfc/rfc8230#section-6
+    // A key size of 2048 bits or larger MUST be used with these algorithms.
+    private const int MinRsaModulusBits = 2048;
+
+    // The largest RSA modulus the platforms verify signatures with (OpenSSL: OPENSSL_RSA_MAX_MODULUS_BITS, CNG: the RSA algorithm provider) - a larger key cannot be used, so it is rejected instead of being stored.
+    private const int MaxRsaModulusBits = 16384;
+
     /// <summary>
     ///     Constructs <see cref="DefaultCoseKeyDeserializer" />.
     /// </summary>
@@ -304,6 +312,11 @@ public class DefaultCoseKeyDeserializer : ICoseKeyDeserializer
             return Result<CoseEc2Key>.Fail();
         }
 
+        if (!IsValidEc2Coordinates(crv.Value, x, y))
+        {
+            return Result<CoseEc2Key>.Fail();
+        }
+
         var result = new CoseEc2Key(alg, crv.Value, x, y);
         return Result<CoseEc2Key>.Success(result);
     }
@@ -448,6 +461,11 @@ public class DefaultCoseKeyDeserializer : ICoseKeyDeserializer
             return Result<CoseRsaKey>.Fail();
         }
 
+        if (!IsValidRsaKeyParameters(modulusN, publicExponentE))
+        {
+            return Result<CoseRsaKey>.Fail();
+        }
+
         var result = new CoseRsaKey(alg, modulusN, publicExponentE);
         return Result<CoseRsaKey>.Success(result);
     }
@@ -533,6 +551,11 @@ public class DefaultCoseKeyDeserializer : ICoseKeyDeserializer
         if (cborCoseKey.Count > 0)
         {
             Logger.OkpUnrecognizedKeysRemainFailure();
+            return Result<CoseOkpKey>.Fail();
+        }
+
+        if (!IsValidOkpPublicKey(crv.Value, x))
+        {
             return Result<CoseOkpKey>.Fail();
         }
 
@@ -673,6 +696,160 @@ public class DefaultCoseKeyDeserializer : ICoseKeyDeserializer
 
         value = byteStringCborValue.RawValue;
         return true;
+    }
+
+    private bool IsValidEc2Coordinates(CoseEc2EllipticCurve crv, byte[] x, byte[] y)
+    {
+        // https://www.rfc-editor.org/rfc/rfc9053#section-7.1.1
+        // x: This contains the x-coordinate for the EC point. The integer is converted to a byte string as defined in [SEC1]. Leading zero octets MUST be preserved.
+        // y: This contains either the sign bit or the value of the y-coordinate for the EC point.
+        // When encoding the value y, the integer is converted to a byte string (as defined in [SEC1]) and encoded as a CBOR byte string. Leading zero octets MUST be preserved.
+        // https://www.secg.org/sec1-v2.pdf
+        // 2.3.5 Field-Element-to-Octet-String Conversion: a field element of F_p is converted to an octet string of length ⌈(log2 p)/8⌉ octets.
+        // That is 32 octets for P-256, 48 octets for P-384 and 66 octets for P-521 - every coordinate has exactly the length of the field element.
+        // A coordinate of another length is not a valid encoding: a shorter one has had its leading zero octets stripped, a longer one has been padded,
+        // and whether the platforms accept such a key when verifying a signature differs between them.
+        if (!TryGetEc2CoordinateLength(crv, out var coordinateLength))
+        {
+            Logger.NoCoordinateLengthForEc2Crv(crv);
+            return false;
+        }
+
+        if (x.Length != coordinateLength.Value || y.Length != coordinateLength.Value)
+        {
+            Logger.Ec2CoordinateLengthInvalid(crv, coordinateLength.Value, x.Length, y.Length);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetEc2CoordinateLength(CoseEc2EllipticCurve crv, [NotNullWhen(true)] out int? coordinateLength)
+    {
+        switch (crv)
+        {
+            case CoseEc2EllipticCurve.P256:
+                {
+                    coordinateLength = 32;
+                    return true;
+                }
+            case CoseEc2EllipticCurve.P384:
+                {
+                    coordinateLength = 48;
+                    return true;
+                }
+            case CoseEc2EllipticCurve.P521:
+                {
+                    coordinateLength = 66;
+                    return true;
+                }
+            default:
+                {
+                    coordinateLength = null;
+                    return false;
+                }
+        }
+    }
+
+    private bool IsValidRsaKeyParameters(byte[] modulusN, byte[] publicExponentE)
+    {
+        // https://www.rfc-editor.org/rfc/rfc8230#section-4
+        // All numeric key parameters are encoded in an unsigned big-endian representation as an octet sequence using the CBOR byte string type (major type 2).
+        // The octet sequence MUST utilize the minimum number of octets needed to represent the value.
+        // --------------------
+        // n: a leading 0x00 octet is not the minimum number of octets, and an empty byte string is not a modulus at all.
+        if (modulusN.Length == 0 || modulusN[0] == 0x00)
+        {
+            Logger.RsaModulusNNotMinimal();
+            return false;
+        }
+
+        // https://www.rfc-editor.org/rfc/rfc8230#section-6
+        // A key size of 2048 bits or larger MUST be used with these algorithms.
+        // --------------------
+        // The first octet is not 0x00, so the bit length of the modulus is determined by it.
+        var modulusBits = ((modulusN.Length - 1) * 8) + BitOperations.Log2(modulusN[0]) + 1;
+        if (modulusBits is < MinRsaModulusBits or > MaxRsaModulusBits)
+        {
+            Logger.RsaModulusNSizeInvalid(modulusBits, MinRsaModulusBits, MaxRsaModulusBits);
+            return false;
+        }
+
+        // e: the minimum number of octets, as for n.
+        if (publicExponentE.Length == 0 || publicExponentE[0] == 0x00)
+        {
+            Logger.RsaPublicExponentENotMinimal();
+            return false;
+        }
+
+        // https://www.rfc-editor.org/rfc/rfc8017#section-3.1
+        // the RSA public exponent e is an integer between 3 and n - 1 satisfying GCD(e,\lambda(n)) = 1, where \lambda(n) = LCM(r_1 - 1, ..., r_u - 1)
+        // --------------------
+        // \lambda(n) is even (every r_i is an odd prime), so e must be odd.
+        if ((publicExponentE[^1] & 0x01) == 0)
+        {
+            Logger.RsaPublicExponentEEven();
+            return false;
+        }
+
+        // With the minimum number of octets and an odd value, the only value not greater than 1 is the single octet 0x01.
+        if (publicExponentE.Length == 1 && publicExponentE[0] == 0x01)
+        {
+            Logger.RsaPublicExponentENotGreaterThanOne();
+            return false;
+        }
+
+        // e < n: both values use the minimum number of octets, so e must be shorter than n.
+        if (publicExponentE.Length >= modulusN.Length)
+        {
+            Logger.RsaPublicExponentENotShorterThanModulusN(publicExponentE.Length, modulusN.Length);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsValidOkpPublicKey(CoseOkpEllipticCurve crv, byte[] x)
+    {
+        // https://www.rfc-editor.org/rfc/rfc9053#section-7.2
+        // x: This contains the public key.
+        // https://www.rfc-editor.org/rfc/rfc8032#section-5.1.5
+        // The public key A is the encoding of the point [s]B.
+        // https://www.rfc-editor.org/rfc/rfc8032#section-5.1.2
+        // A curve point (x,y), with coordinates in the range 0 <= x,y < p, is coded as follows.
+        // First, encode the y-coordinate as a little-endian string of 32 octets. ... Copy the least significant bit of the x-coordinate to the most significant bit of the final octet.
+        // --------------------
+        // An Ed25519 public key is therefore exactly 32 octets long.
+        if (!TryGetOkpPublicKeyLength(crv, out var publicKeyLength))
+        {
+            Logger.NoPublicKeyLengthForOkpCrv(crv);
+            return false;
+        }
+
+        if (x.Length != publicKeyLength.Value)
+        {
+            Logger.OkpPublicKeyLengthInvalid(crv, publicKeyLength.Value, x.Length);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetOkpPublicKeyLength(CoseOkpEllipticCurve crv, [NotNullWhen(true)] out int? publicKeyLength)
+    {
+        switch (crv)
+        {
+            case CoseOkpEllipticCurve.Ed25519:
+                {
+                    publicKeyLength = 32;
+                    return true;
+                }
+            default:
+                {
+                    publicKeyLength = null;
+                    return false;
+                }
+        }
     }
 }
 
@@ -1012,4 +1189,108 @@ public static partial class DefaultCoseKeyDeserializerLoggingExtensions
         Level = LogLevel.Warning,
         Message = "The COSE_Key was not properly encoded in the OKP format, as the map still contains unrecognized keys after the necessary values have been extracted")]
     public static partial void OkpUnrecognizedKeysRemainFailure(this ILogger logger);
+
+    /// <summary>
+    ///     The length of a coordinate is not defined for 'crv': {crv} of the key in EC2 format
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="crv">The elliptic curve of the key in EC2 format for which the length of a coordinate is not defined.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The length of a coordinate is not defined for 'crv': {crv} of the key in EC2 format")]
+    public static partial void NoCoordinateLengthForEc2Crv(this ILogger logger, CoseEc2EllipticCurve crv);
+
+    /// <summary>
+    ///     The 'x' and 'y' coordinates of the key in EC2 format for 'crv': {crv} must each be exactly {expectedLength} bytes long (leading zero octets preserved), but 'x' is {xLength} bytes and 'y' is {yLength} bytes long
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="crv">The elliptic curve of the key in EC2 format.</param>
+    /// <param name="expectedLength">The length in bytes that each coordinate must have for the elliptic curve <paramref name="crv" />.</param>
+    /// <param name="xLength">The actual length in bytes of the 'x' coordinate.</param>
+    /// <param name="yLength">The actual length in bytes of the 'y' coordinate.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x' and 'y' coordinates of the key in EC2 format for 'crv': {crv} must each be exactly {expectedLength} bytes long (leading zero octets preserved), but 'x' is {xLength} bytes and 'y' is {yLength} bytes long")]
+    public static partial void Ec2CoordinateLengthInvalid(this ILogger logger, CoseEc2EllipticCurve crv, int expectedLength, int xLength, int yLength);
+
+    /// <summary>
+    ///     The 'n' of the key in RSA format must be encoded with the minimum number of octets, but it is empty or starts with a 0x00 octet
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'n' of the key in RSA format must be encoded with the minimum number of octets, but it is empty or starts with a 0x00 octet")]
+    public static partial void RsaModulusNNotMinimal(this ILogger logger);
+
+    /// <summary>
+    ///     The 'n' of the key in RSA format is {modulusBits} bits long, but must be between {minModulusBits} and {maxModulusBits} bits long
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="modulusBits">The actual length in bits of the modulus 'n'.</param>
+    /// <param name="minModulusBits">The minimum allowed length in bits of the modulus 'n'.</param>
+    /// <param name="maxModulusBits">The maximum allowed length in bits of the modulus 'n'.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'n' of the key in RSA format is {modulusBits} bits long, but must be between {minModulusBits} and {maxModulusBits} bits long")]
+    public static partial void RsaModulusNSizeInvalid(this ILogger logger, int modulusBits, int minModulusBits, int maxModulusBits);
+
+    /// <summary>
+    ///     The 'e' of the key in RSA format must be encoded with the minimum number of octets, but it is empty or starts with a 0x00 octet
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'e' of the key in RSA format must be encoded with the minimum number of octets, but it is empty or starts with a 0x00 octet")]
+    public static partial void RsaPublicExponentENotMinimal(this ILogger logger);
+
+    /// <summary>
+    ///     The 'e' of the key in RSA format must be odd
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'e' of the key in RSA format must be odd")]
+    public static partial void RsaPublicExponentEEven(this ILogger logger);
+
+    /// <summary>
+    ///     The 'e' of the key in RSA format must be greater than 1
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'e' of the key in RSA format must be greater than 1")]
+    public static partial void RsaPublicExponentENotGreaterThanOne(this ILogger logger);
+
+    /// <summary>
+    ///     The 'e' of the key in RSA format ({exponentLength} bytes) must be shorter than the 'n' ({modulusLength} bytes)
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exponentLength">The actual length in bytes of the public exponent 'e'.</param>
+    /// <param name="modulusLength">The actual length in bytes of the modulus 'n'.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'e' of the key in RSA format ({exponentLength} bytes) must be shorter than the 'n' ({modulusLength} bytes)")]
+    public static partial void RsaPublicExponentENotShorterThanModulusN(this ILogger logger, int exponentLength, int modulusLength);
+
+    /// <summary>
+    ///     The length of the public key is not defined for 'crv': {crv} of the key in OKP format
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="crv">The elliptic curve of the key in OKP format for which the length of the public key is not defined.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The length of the public key is not defined for 'crv': {crv} of the key in OKP format")]
+    public static partial void NoPublicKeyLengthForOkpCrv(this ILogger logger, CoseOkpEllipticCurve crv);
+
+    /// <summary>
+    ///     The 'x' public key of the key in OKP format for 'crv': {crv} must be exactly {expectedLength} bytes long, but is {xLength} bytes long
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="crv">The elliptic curve of the key in OKP format.</param>
+    /// <param name="expectedLength">The length in bytes that the public key must have for the elliptic curve <paramref name="crv" />.</param>
+    /// <param name="xLength">The actual length in bytes of the 'x' public key.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x' public key of the key in OKP format for 'crv': {crv} must be exactly {expectedLength} bytes long, but is {xLength} bytes long")]
+    public static partial void OkpPublicKeyLengthInvalid(this ILogger logger, CoseOkpEllipticCurve crv, int expectedLength, int xLength);
 }

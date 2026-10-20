@@ -53,6 +53,7 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
     /// <inheritdoc />
     public virtual Result<AttestationObject> Decode(byte[] attestationObject)
     {
+        ArgumentNullException.ThrowIfNull(attestationObject);
         var mapResult = TryRead(attestationObject);
         if (mapResult.HasError)
         {
@@ -90,6 +91,15 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
         if (attestationObjectCborDeserialize.HasError)
         {
             Logger.AttObjDecodeFailure();
+            return Result<CborMap>.Fail();
+        }
+
+        // https://fidoalliance.org/specs/fido-v2.3.1-wd-20260529/fido-client-to-authenticator-protocol-v2.3.1-wd-20260529.html#ctap2-canonical-cbor-encoding-form
+        // The attestation object is a single CBOR data item. Whatever follows it is neither part of the attestation object nor covered by the attestation signature,
+        // so it is rejected instead of being silently ignored (the same way as data remaining after 'authData' is rejected).
+        if (attestationObjectCborDeserialize.Ok.BytesConsumed != attestationObject.Length)
+        {
+            Logger.AttObjRemainingDataFailure();
             return Result<CborMap>.Fail();
         }
 
@@ -203,6 +213,15 @@ public static partial class DefaultAttestationObjectDecoderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "Failed to decode 'attestationObject' from CBOR")]
     public static partial void AttObjDecodeFailure(this ILogger logger);
+
+    /// <summary>
+    ///     After decoding 'attestationObject' in accordance with its structure, some data has been found to still remain within it
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "After decoding 'attestationObject' in accordance with its structure, some data has been found to still remain within it")]
+    public static partial void AttObjRemainingDataFailure(this ILogger logger);
 
     /// <summary>
     ///     The 'attestationObject' must be represented as a CBOR map

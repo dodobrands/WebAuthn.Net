@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -91,8 +93,32 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         var keysToDispose = new List<AsymmetricAlgorithm>();
         try
         {
-            var rawMetadata = await MetadataHttpClient.DownloadMetadataAsync(cancellationToken);
-            var jwt = new JsonWebToken(rawMetadata);
+            string rawMetadata;
+            try
+            {
+                rawMetadata = await MetadataHttpClient.DownloadMetadataAsync(cancellationToken);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TimeoutException or IOException)
+            {
+                // The request failed, the response has an unsuccessful status code or exceeds the limits of the client, or the connection was broken.
+                // A failed download must not propagate as an exception (it would break the start of the application or the background ingestion, which retries the download later),
+                // so it is reported and the blob is rejected.
+                Logger.WarnDownloadFailed(exception);
+                return Result<MetadataBLOBPayloadJSON>.Fail();
+            }
+
+            JsonWebToken jwt;
+            try
+            {
+                jwt = new(rawMetadata);
+            }
+            catch (ArgumentException exception)
+            {
+                // The downloaded data is not a JWS in the compact serialization (for example, an error page returned with a successful status code).
+                Logger.WarnJwtMalformed(exception);
+                return Result<MetadataBLOBPayloadJSON>.Fail();
+            }
+
             if (!TryGetRawCertificates(jwt, out var headerCertificates) || headerCertificates.Length == 0)
             {
                 Logger.WarnJwtHeaderCertificatesMissing();
@@ -408,6 +434,26 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
 /// </summary>
 public static partial class DefaultFidoMetadataProviderLoggingExtensions
 {
+    /// <summary>
+    ///     The FIDO Metadata Service blob can't be downloaded
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception describing why the download failed.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service blob can't be downloaded")]
+    public static partial void WarnDownloadFailed(this ILogger logger, Exception exception);
+
+    /// <summary>
+    ///     The downloaded FIDO Metadata Service blob is not a JWS (JWT) in the compact serialization
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception describing why the downloaded data can't be parsed as a JWS (JWT).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The downloaded FIDO Metadata Service blob is not a JWS (JWT) in the compact serialization")]
+    public static partial void WarnJwtMalformed(this ILogger logger, Exception exception);
+
     /// <summary>
     ///     The JWT header of the FIDO Metadata Service blob doesn't contain a valid 'x5c' member with the signing certificates
     /// </summary>

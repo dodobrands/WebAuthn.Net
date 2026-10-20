@@ -7,6 +7,7 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.Attestatio
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 
@@ -15,6 +16,14 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementatio
 /// </summary>
 public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDecoder
 {
+    // The syntax does not bound the certificate chain in 'x5c', but every element is later loaded as an X.509 certificate and handed to the chain builder, which is costly for attacker-controlled bytes
+    // (the X509Certificate2 constructor used on .NET 8 also recognizes PKCS#7 and PKCS#12 blobs, and decrypting a PKCS#12 blob involves a deliberately slow key derivation), so the length is bounded here.
+    // Real chains are short: Windows Hello sends the AIK certificate and one intermediate CA certificate.
+    private const int MaxX5CLength = 16;
+
+    // untrusted values are truncated to this length in log messages (see LogValue.Sanitize)
+    private const int MaxLoggedValueLength = 64;
+
     /// <summary>
     ///     Constructs <see cref="DefaultTpmAttestationStatementDecoder" />.
     /// </summary>
@@ -70,6 +79,8 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
             Logger.TpmDecodeFailureCertInfo();
             return Result<TpmAttestationStatement>.Fail();
         }
+
+        ReportMembersOutsideSyntax(attStmt);
 
         var result = new TpmAttestationStatement(
             ver,
@@ -168,9 +179,8 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         var ver = verCborTextString.RawValue;
         if (!string.Equals(ver, "2.0", StringComparison.Ordinal))
         {
-            // the value is untrusted input, so only its beginning is logged
-            const int maxLoggedLength = 64;
-            Logger.TpmVerValueUnsupported(ver.Length <= maxLoggedLength ? ver : ver[..maxLoggedLength] + "...");
+            // the value is untrusted input: only its beginning is logged, with control characters neutralized
+            Logger.TpmVerValueUnsupported(LogValue.Sanitize(ver, MaxLoggedValueLength));
             value = null;
             return false;
         }
@@ -199,6 +209,15 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         }
 
         var cborArrayItems = x5CborArray.RawValue;
+        // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
+        // x5c: [ aikCert: bytes, * (caCert: bytes) ] - aikCert followed by its certificate chain; the number of elements is bounded (see MaxX5CLength), only the count is logged.
+        if (cborArrayItems.Length > MaxX5CLength)
+        {
+            Logger.TpmX5CTooManyElements(cborArrayItems.Length, MaxX5CLength);
+            value = null;
+            return false;
+        }
+
         var result = new byte[cborArrayItems.Length][];
         for (var i = 0; i < cborArrayItems.Length; i++)
         {
@@ -252,6 +271,31 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
 
         value = byteStringCborValue.RawValue;
         return true;
+    }
+
+    /// <summary>
+    ///     Reports every member of 'attStmt' whose key is not one of the six defined by the tpmStmtFormat syntax with a Warning log entry; such members are ignored.
+    /// </summary>
+    /// <param name="attStmt">The CBOR map of the attestation statement.</param>
+    private void ReportMembersOutsideSyntax(CborMap attStmt)
+    {
+        // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
+        // tpmStmtFormat = { ver: "2.0", ( alg: COSEAlgorithmIdentifier, x5c: [ aikCert: bytes, * (caCert: bytes) ] ) sig: bytes, certInfo: bytes, pubArea: bytes }
+        // The map is closed: any other member (for example the ecdaaKeyId of WebAuthn Level 2, whose ECDAA attestation Level 3 removed) is not part of the syntax
+        // that the first step of the verification procedure requires. Nothing in the procedure uses such a member, so it is ignored - but reported, so that the deviation is visible.
+        foreach (var key in attStmt.RawValue.Keys)
+        {
+            if (key is CborTextString { RawValue: "ver" or "alg" or "x5c" or "sig" or "certInfo" or "pubArea" })
+            {
+                continue;
+            }
+
+            // the key is untrusted input: a text string is neutralized and truncated, a key of any other data type is described by its type only
+            var member = key is CborTextString textKey
+                ? "'" + LogValue.Sanitize(textKey.RawValue, MaxLoggedValueLength) + "'"
+                : "<" + key.Type + ">";
+            Logger.TpmMemberOutsideSyntaxIgnored(member);
+        }
     }
 }
 
@@ -391,7 +435,7 @@ public static partial class DefaultTpmAttestationStatementDecoderLoggingExtensio
     ///     The 'ver' value in the 'attStmt' map is not supported: {Ver}
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="ver">The 'ver' value that was received (only "2.0" is supported), truncated to 64 characters.</param>
+    /// <param name="ver">The 'ver' value that was received (only "2.0" is supported), truncated to 64 characters, with every control character replaced by '?'.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The 'ver' value in the 'attStmt' map is not supported: {Ver}")]
@@ -423,6 +467,27 @@ public static partial class DefaultTpmAttestationStatementDecoderLoggingExtensio
         Level = LogLevel.Warning,
         Message = "One of the 'x5c' array elements in the 'attStmt' contains a CBOR element with an invalid data type")]
     public static partial void TpmX5CValueInvalidElementDataType(this ILogger logger);
+
+    /// <summary>
+    ///     The 'x5c' array in the 'attStmt' map has {Count} elements, more than the {Max} that are accepted
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="count">The number of elements of the 'x5c' array.</param>
+    /// <param name="max">The maximum number of elements that are accepted.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' array in the 'attStmt' map has {Count} elements, more than the {Max} that are accepted")]
+    public static partial void TpmX5CTooManyElements(this ILogger logger, int count, int max);
+
+    /// <summary>
+    ///     The 'attStmt' map contains a member that is not defined by the tpmStmtFormat syntax: {Member}; ignored
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="member">The key of the member: a text string in quotes (truncated to 64 characters, with every control character replaced by '?'), or the CBOR data type of a key of any other type in angle brackets.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'attStmt' map contains a member that is not defined by the tpmStmtFormat syntax: {Member}; ignored")]
+    public static partial void TpmMemberOutsideSyntaxIgnored(this ILogger logger, string member);
 
     /// <summary>
     ///     Failed to find the key '{CborMapKey}' in 'attStmt'

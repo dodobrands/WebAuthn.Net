@@ -37,6 +37,10 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
             "webauthn.mds.decode.values.ignored",
             null,
             "The number of values of the FIDO Metadata Service blob entries that were ignored during decoding because they are invalid, but not essential for the entry");
+        BlobsRejectedCounter = Meter.CreateCounter<long>(
+            "webauthn.mds.ingest.blobs.rejected",
+            null,
+            "The number of FIDO Metadata Service blobs that were rejected during ingestion, for example, because they would roll back the metadata in use to an older blob");
     }
 
     /// <summary>
@@ -68,6 +72,11 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
     ///     Counter for the values of the FIDO Metadata Service blob entries that were ignored during decoding.
     /// </summary>
     protected Counter<long> ValuesIgnoredCounter { get; }
+
+    /// <summary>
+    ///     Counter for the FIDO Metadata Service blobs that were rejected during ingestion.
+    /// </summary>
+    protected Counter<long> BlobsRejectedCounter { get; }
 
     /// <inheritdoc />
     public void Dispose()
@@ -137,6 +146,17 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
             new TagList
             {
                 new(Tags.Member, member)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementBlobRejectedDueToRollback()
+    {
+        BlobsRejectedCounter.Add(
+            1L,
+            new TagList
+            {
+                new(Tags.Reason, TagValues.ReasonRollback)
             });
     }
 

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
@@ -21,19 +23,40 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     where TContext : class, IWebAuthnContext
 {
     /// <summary>
-    ///     Constructs <see cref="DefaultFidoMetadataSearchService{TContext}" />.
+    ///     Constructs <see cref="DefaultFidoMetadataSearchService{TContext}" /> that doesn't report the absence of the metadata to the log.
     /// </summary>
+    /// <remarks>
+    ///     Use <see cref="DefaultFidoMetadataSearchService{TContext}(IFidoMetadataSearchStorage{TContext}, ITimeProvider, ILogger{DefaultFidoMetadataSearchService{TContext}})" />
+    ///     to log the lookups performed while no blob of the FIDO Metadata Service is available.
+    /// </remarks>
     /// <param name="metadataSearchStorage">The storage intended for searching in metadata obtained from the FIDO Metadata Service.</param>
     /// <param name="timeProvider">Current time provider.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataSearchService(
         IFidoMetadataSearchStorage<TContext> metadataSearchStorage,
         ITimeProvider timeProvider)
+        : this(metadataSearchStorage, timeProvider, NullLogger<DefaultFidoMetadataSearchService<TContext>>.Instance)
+    {
+    }
+
+    /// <summary>
+    ///     Constructs <see cref="DefaultFidoMetadataSearchService{TContext}" />.
+    /// </summary>
+    /// <param name="metadataSearchStorage">The storage intended for searching in metadata obtained from the FIDO Metadata Service.</param>
+    /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
+    public DefaultFidoMetadataSearchService(
+        IFidoMetadataSearchStorage<TContext> metadataSearchStorage,
+        ITimeProvider timeProvider,
+        ILogger<DefaultFidoMetadataSearchService<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(metadataSearchStorage);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(logger);
         MetadataSearchStorage = metadataSearchStorage;
         TimeProvider = timeProvider;
+        Logger = logger;
     }
 
     /// <summary>
@@ -46,7 +69,16 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     /// </summary>
     protected ITimeProvider TimeProvider { get; }
 
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultFidoMetadataSearchService<TContext>> Logger { get; }
+
     /// <inheritdoc />
+    /// <remarks>
+    ///     If the entry is not found because no blob of the FIDO Metadata Service is available in the storage (for example, before the first successful ingestion),
+    ///     a <see cref="LogLevel.Warning" /> is logged, because such a lookup can't succeed for any authenticator until a blob is ingested.
+    /// </remarks>
     public virtual async Task<FidoMetadataResult?> FindMetadataByAaguidAsync(
         TContext context,
         Guid aaguid,
@@ -56,6 +88,11 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         var entry = await MetadataSearchStorage.FindByAaguidAsync(context, aaguid, cancellationToken);
         if (entry is null)
         {
+            if (!await MetadataSearchStorage.IsMetadataAvailableAsync(context, cancellationToken))
+            {
+                Logger.WarnMetadataNotAvailableForAaguid(aaguid);
+            }
+
             return null;
         }
 
@@ -78,15 +115,25 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     If the entry is not found because no blob of the FIDO Metadata Service is available in the storage (for example, before the first successful ingestion),
+    ///     a <see cref="LogLevel.Warning" /> is logged, because such a lookup can't succeed for any authenticator until a blob is ingested.
+    /// </remarks>
     public virtual async Task<FidoMetadataResult?> FindMetadataBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(subjectKeyIdentifier);
         cancellationToken.ThrowIfCancellationRequested();
         var entry = await MetadataSearchStorage.FindBySubjectKeyIdentifierAsync(context, subjectKeyIdentifier, cancellationToken);
         if (entry is null)
         {
+            if (!await MetadataSearchStorage.IsMetadataAvailableAsync(context, cancellationToken))
+            {
+                Logger.WarnMetadataNotAvailableForSubjectKeyIdentifier(Convert.ToHexString(subjectKeyIdentifier));
+            }
+
             return null;
         }
 
@@ -194,4 +241,30 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
         var result = new FidoMetadataResult(allowedRootCertificates.ToArray(), metadataStatement.AttestationTypes);
         return result;
     }
+}
+
+/// <summary>
+///     Extension methods for logging the search in the metadata obtained from the FIDO Metadata Service.
+/// </summary>
+public static partial class DefaultFidoMetadataSearchServiceLoggingExtensions
+{
+    /// <summary>
+    ///     The storage contains no FIDO Metadata Service blob (no blob has been ingested yet), so the metadata for the authenticator with AAGUID {Aaguid} can't be found
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The storage contains no FIDO Metadata Service blob (no blob has been ingested yet), so the metadata for the authenticator with AAGUID {Aaguid} can't be found")]
+    public static partial void WarnMetadataNotAvailableForAaguid(this ILogger logger, Guid aaguid);
+
+    /// <summary>
+    ///     The storage contains no FIDO Metadata Service blob (no blob has been ingested yet), so the metadata for the authenticator with the attestation certificate key identifier {SubjectKeyIdentifier} can't be found
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="subjectKeyIdentifier">The subject key identifier of the attestation certificate, in hexadecimal.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The storage contains no FIDO Metadata Service blob (no blob has been ingested yet), so the metadata for the authenticator with the attestation certificate key identifier {SubjectKeyIdentifier} can't be found")]
+    public static partial void WarnMetadataNotAvailableForSubjectKeyIdentifier(this ILogger logger, string subjectKeyIdentifier);
 }

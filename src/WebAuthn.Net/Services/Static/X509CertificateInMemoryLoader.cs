@@ -24,6 +24,15 @@ public static class X509CertificateInMemoryLoader
         try
         {
 #if NET8_0
+            // The X509Certificate2 constructor sniffs the content type and also accepts PKCS#12 (PFX) and PKCS#7 containers.
+            // Only a single X.509 certificate is acceptable here: a PKCS#12 container supplied by a client would make the constructor run its key-derivation function
+            // (with an attacker-chosen iteration count) before anything is verified. Newer targets use X509CertificateLoader.LoadCertificate, which only loads a single certificate.
+            if (X509Certificate2.GetCertContentType(bytes) != X509ContentType.Cert)
+            {
+                certificate = null;
+                return false;
+            }
+
             cert = new(bytes, (string?) null, X509KeyStorageFlags.EphemeralKeySet);
 #else
             cert = X509CertificateLoader.LoadCertificate(bytes);
@@ -34,7 +43,7 @@ public static class X509CertificateInMemoryLoader
             _ = cert.NotBefore;
             _ = cert.NotAfter;
             _ = cert.SubjectName.RawData;
-            _ = cert.Extensions;
+            DecodeTypedExtensions(cert);
             if (cert.GetRSAPublicKey() is { } rsaPublicKey)
             {
                 rsaPublicKey.Dispose();
@@ -58,6 +67,42 @@ public static class X509CertificateInMemoryLoader
             cert?.Dispose();
             certificate = null;
             return false;
+        }
+    }
+
+    /// <summary>
+    ///     Forces the decoding of the extensions that .NET materializes as typed <see cref="X509Extension" /> subclasses, so that a malformed extension value throws here (and is turned into a <see langword="false" /> result by the caller)
+    ///     and not when a property of the extension is read later by the code that uses the certificate.
+    /// </summary>
+    /// <param name="cert">The loaded certificate.</param>
+    /// <exception cref="System.Security.Cryptography.CryptographicException">The value of one of the typed extensions is malformed.</exception>
+    private static void DecodeTypedExtensions(X509Certificate2 cert)
+    {
+        // The platforms do not validate the extension values when loading a certificate (OpenSSL, for example, accepts any value), and the typed extensions created by X509Certificate2.Extensions
+        // decode their value on the first property access, throwing CryptographicException for a malformed value. The properties are read here, so that a certificate with a malformed
+        // Basic Constraints, Key Usage, Extended Key Usage, Subject Key Identifier or Authority Key Identifier extension is rejected by TryLoad.
+        // The Subject Alternative Name extension is deliberately not decoded here: the TPM attestation statement verifier parses it itself and tolerates the layout of the certificate example
+        // of the TCG EK Credential Profile (a bare RDNSequence instead of GeneralNames), which the .NET decoder rejects.
+        foreach (var extension in cert.Extensions)
+        {
+            switch (extension)
+            {
+                case X509BasicConstraintsExtension basicConstraints:
+                    _ = basicConstraints.CertificateAuthority;
+                    break;
+                case X509KeyUsageExtension keyUsage:
+                    _ = keyUsage.KeyUsages;
+                    break;
+                case X509EnhancedKeyUsageExtension enhancedKeyUsage:
+                    _ = enhancedKeyUsage.EnhancedKeyUsages;
+                    break;
+                case X509SubjectKeyIdentifierExtension subjectKeyIdentifier:
+                    _ = subjectKeyIdentifier.SubjectKeyIdentifierBytes;
+                    break;
+                case X509AuthorityKeyIdentifierExtension authorityKeyIdentifier:
+                    _ = authorityKeyIdentifier.KeyIdentifier;
+                    break;
+            }
         }
     }
 }

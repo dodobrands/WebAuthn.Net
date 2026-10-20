@@ -302,6 +302,16 @@ public class DefaultRegistrationCeremonyService<TContext>
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
 
+            // https://www.w3.org/TR/webauthn-3/#sctn-cryptographic-challenges
+            // The challenge is valid only for the lifetime of the ceremony.
+            // Otherwise a captured response could be replayed for as long as the ceremony data can be read.
+            if (IsCeremonyExpired(registrationCeremonyParameters))
+            {
+                Logger.RegistrationCeremonyExpired();
+                Counters.IncrementCompleteCeremonyEnd(false);
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
+
             // https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential
             // 1. Let 'options' be a new 'CredentialCreationOptions' structure configured to the Relying Party’s needs for the ceremony.
             // Let 'pkOptions' be 'options.publicKey'.
@@ -324,6 +334,16 @@ public class DefaultRegistrationCeremonyService<TContext>
             }
 
             var credential = credentialResult.Ok;
+
+            // https://www.w3.org/TR/webauthn-3/#dom-publickeycredential-rawid
+            // 'credential.id' is the base64url encoding of 'credential.rawId', both represent the same credential ID.
+            // The client controls both values, so they must be checked to agree before either of them is used.
+            if (!credential.Id.AsSpan().SequenceEqual(credential.RawId))
+            {
+                Logger.CredentialIdDoesNotMatchRawId();
+                Counters.IncrementCompleteCeremonyEnd(false);
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
 
             // 3. Let 'response' be 'credential.response'. If 'response' is not an instance of 'AuthenticatorAttestationResponse', abort the ceremony with a user-visible error.
             var response = credential.Response;
@@ -355,7 +375,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             // 7. Verify that the value of 'C.type' is "webauthn.create".
             if (C.Type is not "webauthn.create")
             {
-                Logger.IncorrectClientDataType(C.Type);
+                Logger.IncorrectClientDataType(LogValue.Sanitize(C.Type));
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
@@ -373,7 +393,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             var allowedOrigin = registrationCeremonyParameters.ExpectedRp.Origins.FirstOrDefault(x => string.Equals(x, C.Origin, StringComparison.Ordinal));
             if (allowedOrigin is null)
             {
-                Logger.InvalidOrigin(C.Origin);
+                Logger.InvalidOrigin(LogValue.Sanitize(C.Origin));
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
@@ -381,8 +401,16 @@ public class DefaultRegistrationCeremonyService<TContext>
             // 10. If C.crossOrigin is present and set to true,
             // verify that the Relying Party expects that this credential would have been created
             // within an iframe that is not same-origin with its ancestors.
+            // (C.topOrigin was added in Level 3, so a client may send crossOrigin without topOrigin.)
+            if (C.CrossOrigin is true && C.TopOrigin is null && !registrationCeremonyParameters.ExpectedRp.AllowIframe)
+            {
+                Logger.UnexpectedCrossOrigin();
+                Counters.IncrementCompleteCeremonyEnd(false);
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
+
             // 11. If C.topOrigin is present:
-            if (C.CrossOrigin is true or null && C.TopOrigin is not null)
+            if (C.TopOrigin is not null)
             {
                 // 11.1 Verify that the Relying Party expects
                 // that this credential would have been created within an iframe
@@ -394,16 +422,18 @@ public class DefaultRegistrationCeremonyService<TContext>
                 {
                     if (!registrationCeremonyParameters.ExpectedRp.TopOrigins.Any(x => string.Equals(x, C.TopOrigin, StringComparison.Ordinal)))
                     {
-                        Logger.InvalidTopOrigin(C.TopOrigin);
+                        Logger.InvalidTopOrigin(LogValue.Sanitize(C.TopOrigin));
                         Counters.IncrementCompleteCeremonyEnd(false);
                         return Result<CompleteRegistrationCeremonyResult>.Fail();
                     }
                 }
                 else
                 {
+                    // https://www.w3.org/TR/webauthn-3/#sctn-validating-origin
+                    // A web application that does not wish to be embedded in a cross-origin iframe might require topOrigin to exactly equal origin.
                     if (!string.Equals(allowedOrigin, C.TopOrigin, StringComparison.Ordinal))
                     {
-                        Logger.InvalidTopOrigin(C.TopOrigin);
+                        Logger.InvalidTopOrigin(LogValue.Sanitize(C.TopOrigin));
                         Counters.IncrementCompleteCeremonyEnd(false);
                         return Result<CompleteRegistrationCeremonyResult>.Fail();
                     }
@@ -451,6 +481,17 @@ public class DefaultRegistrationCeremonyService<TContext>
             if (authDataResult.Ok is not AttestedAuthenticatorData authData)
             {
                 Logger.AttestedCredentialDataIsNull();
+                Counters.IncrementCompleteCeremonyEnd(false);
+                return Result<CompleteRegistrationCeremonyResult>.Fail();
+            }
+
+            // https://www.w3.org/TR/webauthn-3/#dom-publickeycredential-identifier-slot
+            // The credential ID returned to the client is the credential ID from the attested credential data.
+            // Only the latter is covered by the attestation signature, so the client-supplied 'rawId' must match it,
+            // otherwise the credential record would be stored under an ID the authenticator never uses.
+            if (!credential.RawId.AsSpan().SequenceEqual(authData.AttestedCredentialData.CredentialId))
+            {
+                Logger.RawIdDoesNotMatchAttestedCredentialId();
                 Counters.IncrementCompleteCeremonyEnd(false);
                 return Result<CompleteRegistrationCeremonyResult>.Fail();
             }
@@ -686,6 +727,17 @@ public class DefaultRegistrationCeremonyService<TContext>
     }
 
     /// <summary>
+    ///     Checks whether the lifetime of the registration ceremony is over, so it can no longer be completed.
+    /// </summary>
+    /// <param name="registrationCeremonyParameters">Registration ceremony parameters.</param>
+    /// <returns><see langword="true" /> if the registration ceremony has expired, otherwise - <see langword="false" />.</returns>
+    protected virtual bool IsCeremonyExpired(RegistrationCeremonyParameters registrationCeremonyParameters)
+    {
+        ArgumentNullException.ThrowIfNull(registrationCeremonyParameters);
+        return TimeProvider.GetPreciseUtcDateTime() > registrationCeremonyParameters.ExpiresAt;
+    }
+
+    /// <summary>
     ///     Computes the registration ceremony timeout in milliseconds.
     /// </summary>
     /// <param name="request">Request containing parameters for generating the registration ceremony options.</param>
@@ -877,12 +929,14 @@ public class DefaultRegistrationCeremonyService<TContext>
         }
 
 
+        // id - the credential ID from the attested credential data (covered by the attestation signature), 'credential.rawId' was verified to be equal to it.
+        // transports - the value returned from response.getTransports().
         var credentialRecord = new CredentialRecord(
             credential.Type,
-            credential.RawId,
+            authData.AttestedCredentialData.CredentialId,
             publicKey,
             authData.SignCount,
-            Array.Empty<AuthenticatorTransport>(),
+            response.Transports ?? Array.Empty<AuthenticatorTransport>(),
             uvInitialized,
             backupEligible,
             backupState,
@@ -972,6 +1026,15 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
     public static partial void RegistrationCeremonyNotFound(this ILogger logger);
 
     /// <summary>
+    ///     The registration ceremony has expired and can no longer be completed
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The registration ceremony has expired and can no longer be completed")]
+    public static partial void RegistrationCeremonyExpired(this ILogger logger);
+
+    /// <summary>
     ///     Failed to decode RegistrationResponseJSON
     /// </summary>
     /// <param name="logger">Logger.</param>
@@ -979,6 +1042,33 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
         Level = LogLevel.Warning,
         Message = "Failed to decode RegistrationResponseJSON")]
     public static partial void FailedToDecodeRegistrationResponseJson(this ILogger logger);
+
+    /// <summary>
+    ///     The 'id' and 'rawId' of the credential don't represent the same credential ID
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'id' and 'rawId' of the credential don't represent the same credential ID")]
+    public static partial void CredentialIdDoesNotMatchRawId(this ILogger logger);
+
+    /// <summary>
+    ///     The 'rawId' of the credential doesn't match the 'credentialId' in 'authData.attestedCredentialData'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'rawId' of the credential doesn't match the 'credentialId' in 'authData.attestedCredentialData'")]
+    public static partial void RawIdDoesNotMatchAttestedCredentialId(this ILogger logger);
+
+    /// <summary>
+    ///     'clientData.crossOrigin' is true, but the Relying Party doesn't expect the credential to be created within a cross-origin iframe
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "'clientData.crossOrigin' is true, but the Relying Party doesn't expect the credential to be created within a cross-origin iframe")]
+    public static partial void UnexpectedCrossOrigin(this ILogger logger);
 
     /// <summary>
     ///     Failed to decode 'clientData'

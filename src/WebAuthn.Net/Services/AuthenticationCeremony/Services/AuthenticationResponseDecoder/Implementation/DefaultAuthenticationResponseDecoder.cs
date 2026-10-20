@@ -48,7 +48,20 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<AuthenticationResponse>.Fail();
         }
 
+        // https://www.w3.org/TR/webauthn-3/#dictdef-authenticationresponsejson
+        // 'id', 'rawId', 'response' and 'type' are required members. The JSON model does not enforce their presence,
+        // so a missing (null) or empty member is reported as a decoding failure here instead of being accepted or throwing.
+        if (string.IsNullOrEmpty(authenticationResponse.Id))
+        {
+            return Result<AuthenticationResponse>.Fail();
+        }
+
         if (!Base64Url.TryDecode(authenticationResponse.Id, out var id))
+        {
+            return Result<AuthenticationResponse>.Fail();
+        }
+
+        if (string.IsNullOrEmpty(authenticationResponse.RawId))
         {
             return Result<AuthenticationResponse>.Fail();
         }

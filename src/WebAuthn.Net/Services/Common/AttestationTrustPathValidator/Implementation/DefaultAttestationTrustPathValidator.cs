@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
@@ -118,19 +119,37 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
             }
 
             var subjectAndIssuerSame = certificate.SubjectName.RawData.AsSpan().SequenceEqual(certificate.IssuerName.RawData);
+            if (!subjectAndIssuerSame)
+            {
+                return false;
+            }
 
             var authorityKeyIdentifierExt = certificate.Extensions.FirstOrDefault(x => x.Oid?.Value == authorityKeyIdentifier);
             var subjectKeyIdentifierExt = certificate.Extensions.FirstOrDefault(x => x.Oid?.Value == subjectKeyIdentifier);
 
-            if (authorityKeyIdentifierExt is not null && subjectKeyIdentifierExt is not null)
+            if (authorityKeyIdentifierExt is X509AuthorityKeyIdentifierExtension typedAuthorityKeyIdentifier
+                && subjectKeyIdentifierExt is X509SubjectKeyIdentifierExtension typedSubjectKeyIdentifier)
             {
-                var idsAreSame = authorityKeyIdentifierExt.RawData.AsSpan().SequenceEqual(subjectKeyIdentifierExt.RawData.AsSpan());
-                return idsAreSame && subjectAndIssuerSame;
+                // RFC 5280 §4.2.1.1 / §4.2.1.2: in a self-signed certificate the keyIdentifier of the Authority Key Identifier is the Subject Key Identifier.
+                // The decoded values are compared (not the raw extension values: the AKI is SEQUENCE { [0] keyIdentifier, ... }, the SKI is an OCTET STRING, so their encodings never match).
+                try
+                {
+                    var authorityKeyId = typedAuthorityKeyIdentifier.KeyIdentifier;
+                    if (!authorityKeyId.HasValue)
+                    {
+                        return false;
+                    }
+
+                    return authorityKeyId.Value.Span.SequenceEqual(typedSubjectKeyIdentifier.SubjectKeyIdentifierBytes.Span);
+                }
+                catch (CryptographicException)
+                {
+                    // the typed extensions decode their value lazily and throw for a malformed value; the certificate comes from the client, so this is a failed check, not an exception
+                    return false;
+                }
             }
-            else
-            {
-                return subjectAndIssuerSame;
-            }
+
+            return true;
         }
         finally
         {

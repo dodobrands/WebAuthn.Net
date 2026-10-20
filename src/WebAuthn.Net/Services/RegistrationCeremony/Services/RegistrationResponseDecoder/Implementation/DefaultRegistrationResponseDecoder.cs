@@ -61,7 +61,20 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             return Result<RegistrationResponse>.Fail();
         }
 
+        // https://www.w3.org/TR/webauthn-3/#dictdef-registrationresponsejson
+        // 'id', 'rawId', 'response' and 'type' are required members. The JSON model does not enforce their presence,
+        // so a missing (null) or empty member is reported as a decoding failure here instead of throwing.
+        if (string.IsNullOrEmpty(registrationResponse.Id))
+        {
+            return Result<RegistrationResponse>.Fail();
+        }
+
         if (!Base64Url.TryDecode(registrationResponse.Id, out var id))
+        {
+            return Result<RegistrationResponse>.Fail();
+        }
+
+        if (string.IsNullOrEmpty(registrationResponse.RawId))
         {
             return Result<RegistrationResponse>.Fail();
         }
@@ -88,6 +101,11 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             authenticatorAttachment = attachment.Value;
         }
 
+        if (string.IsNullOrEmpty(registrationResponse.Type))
+        {
+            return Result<RegistrationResponse>.Fail();
+        }
+
         if (!PublicKeyCredentialTypeSerializer.TryDeserialize(registrationResponse.Type, out var type))
         {
             return Result<RegistrationResponse>.Fail();
@@ -105,7 +123,19 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
 
     private Result<AuthenticatorAttestationResponse> DecodeAttestationResponse(AuthenticatorAttestationResponseJSON attestationResponseJson)
     {
-        ArgumentNullException.ThrowIfNull(attestationResponseJson);
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (attestationResponseJson is null)
+        {
+            return Result<AuthenticatorAttestationResponse>.Fail();
+        }
+
+        // https://www.w3.org/TR/webauthn-3/#dictdef-authenticatorattestationresponsejson
+        // 'clientDataJSON' and 'attestationObject' are required members.
+        if (string.IsNullOrEmpty(attestationResponseJson.ClientDataJson))
+        {
+            return Result<AuthenticatorAttestationResponse>.Fail();
+        }
+
         if (!Base64Url.TryDecode(attestationResponseJson.ClientDataJson, out var clientDataJson))
         {
             return Result<AuthenticatorAttestationResponse>.Fail();
@@ -148,6 +178,11 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
             }
 
             publicKeyAlgorithm = castedAlgorithm;
+        }
+
+        if (string.IsNullOrEmpty(attestationResponseJson.AttestationObject))
+        {
+            return Result<AuthenticatorAttestationResponse>.Fail();
         }
 
         if (!Base64Url.TryDecode(attestationResponseJson.AttestationObject, out var attestationObject))

@@ -7,7 +7,7 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Abstractions;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor;
-using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
+using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cose;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
 
@@ -194,6 +194,15 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
             return Result<AttestedCredentialData>.Fail();
         }
 
+        // https://www.w3.org/TR/webauthn-3/#credential-id
+        // At least 16 bytes that include at least 100 bits of entropy
+        // The AttestedCredentialData constructor enforces the same lower bound by throwing, so a shorter value is rejected here first to keep the decoder exceptionless.
+        if (credentialIdLength.Value < 16)
+        {
+            Logger.AuthDataReadFailureAttestedCredentialDataCredentialIdLengthTooSmall(credentialIdLength.Value);
+            return Result<AttestedCredentialData>.Fail();
+        }
+
         if (!TryConsumeCredentialId(ref input, credentialIdLength.Value, out var credentialId))
         {
             Logger.AuthDataReadFailureAttestedCredentialDataCredentialId();
@@ -265,19 +274,27 @@ public class DefaultAuthenticatorDataDecoder : IAuthenticatorDataDecoder
         return Result<AbstractCoseKey>.Success(credentialPublicKey);
     }
 
-    private Result<AbstractCborObject> ConsumeExtensions(ref ReadOnlySpan<byte> input)
+    private Result<CborMap> ConsumeExtensions(ref ReadOnlySpan<byte> input)
     {
         var bufferToConsume = input.ToArray();
         var deserializeResult = CborDeserializer.Deserialize(bufferToConsume);
         if (deserializeResult.HasError)
         {
-            return Result<AbstractCborObject>.Fail();
+            return Result<CborMap>.Fail();
         }
 
-        var extensionsRoot = deserializeResult.Ok.Root;
+        // https://www.w3.org/TR/webauthn-3/#authdata-extensions
+        // Extension-defined authenticator data. This is a CBOR [RFC8949] map with extension identifiers as keys,
+        // and authenticator extension outputs as values.
+        if (deserializeResult.Ok.Root is not CborMap extensions)
+        {
+            Logger.AuthDataExtensionsMustBeCborMap();
+            return Result<CborMap>.Fail();
+        }
+
         var bytesConsumed = deserializeResult.Ok.BytesConsumed;
         input = input[bytesConsumed..];
-        return Result<AbstractCborObject>.Success(extensionsRoot);
+        return Result<CborMap>.Success(extensions);
     }
 
     private static bool TryRead(ref ReadOnlySpan<byte> input, int length, out ReadOnlySpan<byte> consumedBuffer)
@@ -364,6 +381,16 @@ public static partial class DefaultAuthenticatorDataDecoderLoggingExtensions
     public static partial void AuthDataReadFailureAttestedCredentialDataCredentialIdLengthTooBig(this ILogger logger, int credentialIdLength);
 
     /// <summary>
+    ///     'attestedCredentialData.credentialIdLength' is {CredentialIdLength}, which is less than the minimum limit of 16
+    /// </summary>
+    /// <param name="logger">Logger</param>
+    /// <param name="credentialIdLength">The <a href="https://www.w3.org/TR/webauthn-3/#authdata-attestedcredentialdata-credentialidlength">'attestedCredentialData.credentialIdLength'</a> value.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "'attestedCredentialData.credentialIdLength' is {CredentialIdLength}, which is less than the minimum limit of 16")]
+    public static partial void AuthDataReadFailureAttestedCredentialDataCredentialIdLengthTooSmall(this ILogger logger, int credentialIdLength);
+
+    /// <summary>
     ///     Failed to read 'attestedCredentialData.credentialIdLength'
     /// </summary>
     /// <param name="logger">Logger</param>
@@ -398,6 +425,15 @@ public static partial class DefaultAuthenticatorDataDecoderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "Failed to read 'extensions'")]
     public static partial void AuthDataReadFailureExtensions(this ILogger logger);
+
+    /// <summary>
+    ///     'extensions' must be represented as a CBOR map
+    /// </summary>
+    /// <param name="logger">Logger</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "'extensions' must be represented as a CBOR map")]
+    public static partial void AuthDataExtensionsMustBeCborMap(this ILogger logger);
 
     /// <summary>
     ///     After decoding 'authData' in accordance with its structure, some data has been found to still remain within it

@@ -21,6 +21,11 @@ public static class TagValues
     public const string ReasonException = "exception";
 
     /// <summary>
+    ///     A FIDO Metadata Service blob was rejected because it would roll back the metadata in use to an older blob.
+    /// </summary>
+    public const string ReasonRollback = "rollback";
+
+    /// <summary>
     ///     The anomaly was tolerated: the data was accepted despite it.
     /// </summary>
     public const string OutcomeTolerated = "tolerated";
