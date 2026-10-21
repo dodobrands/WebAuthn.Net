@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateOptions;
+using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
@@ -19,8 +20,15 @@ public class BeginRegistrationCeremonyRequest
     /// <summary>
     ///     Constructs <see cref="BeginRegistrationCeremonyRequest" />.
     /// </summary>
-    /// <param name="origins">Parameters defining acceptable origins for the registration ceremony.</param>
-    /// <param name="topOrigins">Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the registration ceremony.</param>
+    /// <param name="origins">
+    ///     Parameters defining acceptable origins for the registration ceremony. If <see langword="null" />, the only acceptable origin is the origin of the current request, computed by
+    ///     <see cref="IRelyingPartyOriginProvider" />.
+    /// </param>
+    /// <param name="topOrigins">
+    ///     Parameters defining acceptable topOrigins for the registration ceremony - the origins of the top-level pages within which the Relying Party expects the ceremony to run in an iframe that is not same-origin with its ancestors. If
+    ///     <see langword="null" />, the Relying Party doesn't expect to be embedded by other origins: client data with <c>topOrigin</c> is accepted only if <c>topOrigin</c> is equal to <c>origin</c>, and client data with <c>crossOrigin</c> set to
+    ///     <see langword="true" /> but without <c>topOrigin</c> is rejected. If specified, client data with <c>crossOrigin</c> set to <see langword="true" /> is accepted, and <c>topOrigin</c>, when present, must be one of these origins.
+    /// </param>
     /// <param name="rpDisplayName">A <a href="https://www.w3.org/TR/webauthn-3/#human-palatability">human-palatable</a> identifier for the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a>, intended only for display.</param>
     /// <param name="user">This member contains names and an identifier for the <a href="https://www.w3.org/TR/webauthn-3/#user-account">user account</a> performing the <a href="https://www.w3.org/TR/webauthn-3/#registration">registration</a>.</param>
     /// <param name="challengeSize">
@@ -175,12 +183,14 @@ public class BeginRegistrationCeremonyRequest
     }
 
     /// <summary>
-    ///     Parameters defining acceptable origins for the registration ceremony.
+    ///     Parameters defining acceptable origins for the registration ceremony. If <see langword="null" />, the only acceptable origin is the origin of the current request, computed by <see cref="IRelyingPartyOriginProvider" />.
     /// </summary>
     public RegistrationCeremonyOriginParameters? Origins { get; }
 
     /// <summary>
-    ///     Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the registration ceremony.
+    ///     Parameters defining acceptable topOrigins for the registration ceremony - the origins of the top-level pages within which the Relying Party expects the ceremony to run in an iframe that is not same-origin with its ancestors. If
+    ///     <see langword="null" />, the Relying Party doesn't expect to be embedded by other origins: client data with <c>topOrigin</c> is accepted only if <c>topOrigin</c> is equal to <c>origin</c>, and client data with <c>crossOrigin</c> set to
+    ///     <see langword="true" /> but without <c>topOrigin</c> is rejected. If specified, client data with <c>crossOrigin</c> set to <see langword="true" /> is accepted, and <c>topOrigin</c>, when present, must be one of these origins.
     /// </summary>
     public RegistrationCeremonyOriginParameters? TopOrigins { get; }
 

@@ -26,6 +26,7 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
 {
     private const string RpId = "vanbukin-pc.local";
     private const string Origin = "https://vanbukin-pc.local";
+    private const string PartnerOrigin = "https://partner.example";
     private static readonly byte[] UserHandle = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
     private static readonly string[] RegisteredTransports = { "internal", "hybrid" };
 
@@ -85,13 +86,77 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
     }
 
     [Test]
+    public async Task DefaultAuthenticationCeremonyService_CompletesCeremony_WhenCrossOriginWithoutTopOriginIsExpected()
+    {
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null, new(new[] { PartnerOrigin }));
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin, true), UserHandle));
+
+        Assert.That(result.HasError, Is.False);
+    }
+
+    // https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion (step 14)
+    [Test]
     public async Task DefaultAuthenticationCeremonyService_FailsCeremony_WhenUnexpectedTopOriginComesWithoutCrossOrigin()
     {
         var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
 
         var result = await CompleteCeremonyAsync(
             ceremonyId,
-            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin, null, "https://partner.example"), UserHandle));
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin, null, PartnerOrigin), UserHandle));
+
+        Assert.That(result.HasError, Is.True);
+    }
+
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_FailsCeremony_WhenTopOriginIsNotOneOfTheExpected()
+    {
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null, new(new[] { PartnerOrigin }));
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin, true, "https://evil.example"), UserHandle));
+
+        Assert.That(result.HasError, Is.True);
+    }
+
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_CompletesCeremony_WhenTopOriginIsExpected()
+    {
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null, new(new[] { PartnerOrigin }));
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin, true, PartnerOrigin), UserHandle));
+
+        Assert.That(result.HasError, Is.False);
+    }
+
+    // https://www.w3.org/TR/webauthn-3/#sctn-validating-origin
+    // A web application that does not wish to be embedded in a cross-origin iframe might require topOrigin to exactly equal origin.
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_CompletesCeremony_WhenTopOriginEqualsOrigin()
+    {
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin, true, Origin), UserHandle));
+
+        Assert.That(result.HasError, Is.False);
+    }
+
+    // The specified top origins replace the default rule, so the origin itself is no longer an acceptable top origin.
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_FailsCeremony_WhenTopOriginEqualsOriginButIsNotOneOfTheExpected()
+    {
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null, new(new[] { PartnerOrigin }));
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin, true, Origin), UserHandle));
 
         Assert.That(result.HasError, Is.True);
     }
@@ -201,7 +266,9 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
         Assert.That(completeResult.HasError, Is.False);
     }
 
-    private async Task<(string CeremonyId, string Challenge)> BeginCeremonyAsync(byte[]? allowedCredentialId)
+    private async Task<(string CeremonyId, string Challenge)> BeginCeremonyAsync(
+        byte[]? allowedCredentialId,
+        AuthenticationCeremonyOriginParameters? topOrigins = null)
     {
         var allowCredentials = allowedCredentialId is null
             ? null
@@ -211,16 +278,18 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
             });
         var beginResult = await AuthenticationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
-            CreateBeginRequest(allowCredentials),
+            CreateBeginRequest(allowCredentials, topOrigins),
             CancellationToken.None);
         return (beginResult.AuthenticationCeremonyId, beginResult.Options.Challenge);
     }
 
-    private static BeginAuthenticationCeremonyRequest CreateBeginRequest(AuthenticationCeremonyIncludeCredentials? allowCredentials)
+    private static BeginAuthenticationCeremonyRequest CreateBeginRequest(
+        AuthenticationCeremonyIncludeCredentials? allowCredentials,
+        AuthenticationCeremonyOriginParameters? topOrigins = null)
     {
         return new(
             null,
-            null,
+            topOrigins,
             allowCredentials is null ? null : UserHandle,
             32,
             60000,
