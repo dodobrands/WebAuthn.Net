@@ -37,6 +37,10 @@ public class X509ChainValidationOptions
     ///         The revocation of attestation certificates is not expressed through X.509 revocation lists in practice: the FIDO Metadata Service publishes the status of authenticator models, and the library refuses the metadata of
     ///         compromised or revoked models instead.
     ///     </para>
+    ///     <para>
+    ///         The default delegate doesn't ignore any chain validation error (<see cref="X509ChainPolicy.VerificationFlags" /> is <see cref="X509VerificationFlags.NoFlag" />).
+    ///         Relaxations that only a test environment needs (for example, the FIDO Conformance demo ignores an unknown revocation status) belong in the delegate configured for that environment.
+    ///     </para>
     /// </remarks>
     public Action<X509Chain> OnValidateAttestationTrustPathChain { get; set; } = chain =>
     {
@@ -50,9 +54,6 @@ public class X509ChainValidationOptions
         chain.ChainPolicy.DisableCertificateDownloads = true;
         chain.ChainPolicy.UrlRetrievalTimeout = TimeSpan.FromSeconds(10);
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-        // important for FIDO Conformance testing (relevant when a custom delegate re-enables revocation checking)
-        chain.ChainPolicy.VerificationFlags =
-            X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown
-            | X509VerificationFlags.IgnoreEndRevocationUnknown;
+        chain.ChainPolicy.VerificationFlags = X509VerificationFlags.NoFlag;
     };
 }
