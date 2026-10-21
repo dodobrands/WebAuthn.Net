@@ -7,7 +7,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.Attestatio
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
-using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 
@@ -20,6 +19,9 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
     ///     The maximum number of certificates accepted in 'x5c': a legitimate attestation trust path (attestnCert and its intermediate CA certificates) is far shorter, and every certificate is loaded and parsed by the verifier before any signature is verified.
     /// </summary>
     protected const int MaxX5CCertificates = 16;
+
+    // the members defined by packedStmtFormat
+    private static readonly string[] SyntaxMembers = { "alg", "sig", "x5c" };
 
     /// <summary>
     ///     Constructs <see cref="DefaultPackedAttestationStatementDecoder" />.
@@ -66,27 +68,22 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
     }
 
     /// <summary>
-    ///     Logs a Warning for every member of 'attStmt' that is not defined by the CDDL of the Packed attestation statement (alg, sig, x5c); such members are ignored (tolerated), not rejected.
+    ///     Reports the members of 'attStmt' that are not defined by the CDDL of the Packed attestation statement (alg, sig, x5c) with a single Warning log entry; such members are ignored (tolerated), not rejected.
     /// </summary>
+    /// <remarks>
+    ///     The members are chosen by the client and are reported before any signature is verified, so their number doesn't multiply the log entries:
+    ///     the entry contains their total number and the keys of at most <c>8</c> of them.
+    /// </remarks>
     /// <param name="attStmt">The 'attStmt' map.</param>
     protected virtual void ReportUnknownMembers(CborMap attStmt)
     {
         ArgumentNullException.ThrowIfNull(attStmt);
         // https://www.w3.org/TR/webauthn-3/#sctn-packed-attestation
         // packedStmtFormat = { alg: COSEAlgorithmIdentifier, sig: bytes, x5c: [ attestnCert: bytes, * (caCert: bytes) ] } // { alg: COSEAlgorithmIdentifier, sig: bytes }
-        // The map is closed, but unknown members (for example, the 'ecdaaKeyId' of WebAuthn Level 1/2) are tolerated for interoperability and only reported.
-        foreach (var key in attStmt.RawValue.Keys)
+        // The map is closed, but unknown members (for example, the 'ecdaaKeyId' of WebAuthn Level 1, whose ECDAA attestation was removed in Level 2) are tolerated for interoperability and only reported.
+        if (AttestationStatementMembersOutsideSyntax.TryDescribe(attStmt, SyntaxMembers, out var count, out var members))
         {
-            if (key is CborTextString { RawValue: "alg" or "sig" or "x5c" })
-            {
-                continue;
-            }
-
-            // the key is attacker-controlled: it is truncated and its control characters are replaced, so that it cannot forge log entries
-            var keyDescription = key is CborTextString textKey
-                ? LogValue.Sanitize(textKey.RawValue, 64)
-                : key.Type.ToString();
-            Logger.PackedUnknownMember(keyDescription);
+            Logger.PackedUnknownMembers(count, members);
         }
     }
 
@@ -341,12 +338,16 @@ public static partial class DefaultPackedAttestationStatementDecoderLoggingExten
     public static partial void PackedX5CTooManyElements(this ILogger logger, int count, int maxCount);
 
     /// <summary>
-    ///     The 'attStmt' of the Packed attestation statement contains a member that is not defined by its CDDL (alg, sig, x5c); the member is ignored: {Member}
+    ///     The 'attStmt' of the Packed attestation statement contains {Count} member(s) that are not defined by its CDDL (alg, sig, x5c); they are ignored: {Members}
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="member">The key of the unknown member (truncated), or the CBOR type of the key when it is not a text string.</param>
+    /// <param name="count">The number of the members that are not defined by the CDDL.</param>
+    /// <param name="members">
+    ///     The keys of the first (at most 8) such members, separated by commas: a text key in quotes (truncated to 64 characters, with every control character replaced by '?'),
+    ///     a key of any other data type as its CBOR data type in angle brackets. If there are more members, the list ends with ", ...".
+    /// </param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The 'attStmt' of the Packed attestation statement contains a member that is not defined by its CDDL (alg, sig, x5c); the member is ignored: {Member}")]
-    public static partial void PackedUnknownMember(this ILogger logger, string member);
+        Message = "The 'attStmt' of the Packed attestation statement contains {Count} member(s) that are not defined by its CDDL (alg, sig, x5c); they are ignored: {Members}")]
+    public static partial void PackedUnknownMembers(this ILogger logger, int count, string members);
 }
