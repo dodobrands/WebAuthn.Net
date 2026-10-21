@@ -133,7 +133,6 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
-            var securityKeys = new List<SecurityKey>();
             foreach (var certBytes in trustPath)
             {
                 if (!X509CertificateInMemoryLoader.TryLoad(certBytes, out var certificate))
@@ -149,19 +148,21 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                     Logger.AndroidSafetyNetX5CCertificateNotValidNow();
                     return Result<VerifiedAttestationStatement>.Fail();
                 }
+            }
 
-                // get signing keys
-                if (!TryGetSecurityKey(certificate, keysToDispose, out var securityKey))
-                {
-                    Logger.AndroidSafetyNetX5CCertificatePublicKeyNotSupported();
-                    return Result<VerifiedAttestationStatement>.Fail();
-                }
-
-                securityKeys.Add(securityKey);
+            // https://www.rfc-editor.org/rfc/rfc7515#section-4.1.6
+            // The certificate containing the public key corresponding to the key used to digitally sign the JWS MUST be the first certificate.
+            // Only the leaf certificate is checked to be issued to "attest.android.com" and only its chain is validated (the other certificates merely help to build it),
+            // so the JWS is validated with the key of the leaf certificate alone: accepting the key of any certificate from 'x5c' would let anyone who appends their own certificate to a genuine chain sign the JWS.
+            var attestationCert = certificatesToDispose[0];
+            if (!TryGetSecurityKey(attestationCert, keysToDispose, out var securityKey))
+            {
+                Logger.AndroidSafetyNetX5CCertificatePublicKeyNotSupported();
+                return Result<VerifiedAttestationStatement>.Fail();
             }
 
             // the JWS comes from the client, so it is validated with the default size limit of the token handler instead of a limit derived from its own length
-            var jwtValidationResult = await JwtValidator.ValidateAsync(jwtString, securityKeys, TokenValidationParameters.DefaultMaximumTokenSizeInBytes, cancellationToken);
+            var jwtValidationResult = await JwtValidator.ValidateAsync(jwtString, new[] { securityKey }, TokenValidationParameters.DefaultMaximumTokenSizeInBytes, cancellationToken);
             if (!jwtValidationResult.IsValid)
             {
                 Logger.AndroidSafetyNetJwsSignatureInvalid(jwtValidationResult.Exception);
@@ -202,7 +203,6 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
-            var attestationCert = certificatesToDispose.First();
             if (!IsIssuedToAttestAndroidCom(attestationCert))
             {
                 Logger.AndroidSafetyNetHostnameMismatch();
@@ -301,7 +301,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>
     /// <summary>
     ///     Returns the public key of the certificate as a <see cref="SecurityKey" /> for the validation of the JWS signature.
     /// </summary>
-    /// <param name="certificate">A certificate from the 'x5c' header of the JWS.</param>
+    /// <param name="certificate">The leaf certificate - the first certificate from the 'x5c' header of the JWS, whose key alone is used to validate the JWS signature.</param>
     /// <param name="keysToDispose">The collection to which the created <see cref="AsymmetricAlgorithm" /> is added, so that the caller can dispose it.</param>
     /// <param name="securityKey">Output parameter. If the method returns <see langword="true" /> - the public key of the certificate, otherwise - <see langword="null" />.</param>
     /// <returns><see langword="true" /> if the certificate contains an ECDSA or RSA public key that can be used for the validation of the JWS signature, otherwise - <see langword="false" />.</returns>
@@ -763,22 +763,22 @@ public static partial class DefaultAndroidSafetyNetAttestationStatementVerifierL
     public static partial void AndroidSafetyNetX5CCertificateNotValidNow(this ILogger logger);
 
     /// <summary>
-    ///     A certificate from the 'x5c' parameter in the header of the JWS of the Android SafetyNet attestation statement has neither an ECDSA nor an RSA public key usable for the signature validation
+    ///     The leaf certificate (the first certificate from the 'x5c' parameter in the header of the JWS of the Android SafetyNet attestation statement) has neither an ECDSA nor an RSA public key usable for the signature validation
     /// </summary>
     /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "A certificate from the 'x5c' parameter in the header of the JWS of the Android SafetyNet attestation statement has neither an ECDSA nor an RSA public key usable for the signature validation")]
+        Message = "The leaf certificate (the first certificate from the 'x5c' parameter in the header of the JWS of the Android SafetyNet attestation statement) has neither an ECDSA nor an RSA public key usable for the signature validation")]
     public static partial void AndroidSafetyNetX5CCertificatePublicKeyNotSupported(this ILogger logger);
 
     /// <summary>
-    ///     The JWS of the Android SafetyNet attestation statement failed validation: its signature is not valid for any of the 'x5c' certificates, or its algorithm is not acceptable
+    ///     The JWS of the Android SafetyNet attestation statement failed validation: its signature is not valid for the key of the leaf certificate (the first certificate from 'x5c'), or its algorithm is not acceptable
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="exception">The exception reported by the token handler, if any.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The JWS of the Android SafetyNet attestation statement failed validation: its signature is not valid for any of the 'x5c' certificates, or its algorithm is not acceptable")]
+        Message = "The JWS of the Android SafetyNet attestation statement failed validation: its signature is not valid for the key of the leaf certificate (the first certificate from 'x5c'), or its algorithm is not acceptable")]
     public static partial void AndroidSafetyNetJwsSignatureInvalid(this ILogger logger, Exception? exception);
 
     /// <summary>
