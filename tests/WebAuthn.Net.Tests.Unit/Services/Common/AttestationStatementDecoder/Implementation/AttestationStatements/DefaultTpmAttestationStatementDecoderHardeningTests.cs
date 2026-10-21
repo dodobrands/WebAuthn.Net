@@ -23,8 +23,12 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
 
     private static readonly string[] ExpectedMemberOutsideSyntaxWarnings =
     {
-        "The 'attStmt' map contains a member that is not defined by the tpmStmtFormat syntax: 'ecdaaKeyId'; ignored",
-        "The 'attStmt' map contains a member that is not defined by the tpmStmtFormat syntax: <UnsignedInteger>; ignored"
+        "The 'attStmt' map contains 2 member(s) that are not defined by the tpmStmtFormat syntax; they are ignored: 'ecdaaKeyId', <UnsignedInteger>"
+    };
+
+    private static readonly string[] ExpectedManyMembersOutsideSyntaxWarnings =
+    {
+        "The 'attStmt' map contains 10000 member(s) that are not defined by the tpmStmtFormat syntax; they are ignored: 'm0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', ..."
     };
 
     // ---------------------------------------------------------------------------------------------
@@ -75,9 +79,9 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
     // Members outside the tpmStmtFormat syntax are ignored, but reported
 
     [Test]
-    public void Decode_Succeeds_AndLogsWarning_ForEachMemberOutsideTheSyntax()
+    public void Decode_Succeeds_AndLogsOneWarning_ForMembersOutsideTheSyntax()
     {
-        // tpmStmtFormat is a closed map: e.g. the ecdaaKeyId of WebAuthn Level 2 (ECDAA attestation was removed in Level 3) is not part of it, nor is a key of another data type
+        // tpmStmtFormat is a closed map: e.g. the ecdaaKeyId of WebAuthn Level 1 (ECDAA attestation was removed in Level 2) is not part of it, nor is a key of another data type
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
         var decoder = new DefaultTpmAttestationStatementDecoder(logger);
         var attStmt = CreateAttStmt(extra: new (AbstractCborObject Key, AbstractCborObject Value)[]
@@ -98,7 +102,26 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
             Assert.That(result.Ok?.CertInfo, Is.EqualTo(CertInfo));
             Assert.That(result.Ok?.PubArea, Is.EqualTo(PubArea));
             Assert.That(logger.Entries.Select(static x => x.Level), Has.All.EqualTo(LogLevel.Warning));
-            Assert.That(logger.Entries.Select(static x => x.Message), Is.EquivalentTo(ExpectedMemberOutsideSyntaxWarnings));
+            Assert.That(logger.Entries.Select(static x => x.Message), Is.EqualTo(ExpectedMemberOutsideSyntaxWarnings));
+        });
+    }
+
+    [Test]
+    public void Decode_Succeeds_AndListsOnlyEightMembersInOneWarning_WhenThereAreManyMembersOutsideTheSyntax()
+    {
+        // the members are chosen by the client and reported before any signature is verified, so their number must not multiply the log entries
+        var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
+        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var extra = Enumerable.Range(0, 10_000)
+            .Select(static i => ((AbstractCborObject) new CborTextString("m" + i.ToString(CultureInfo.InvariantCulture)), (AbstractCborObject) new CborByteString(new byte[] { 0x00 })))
+            .ToArray();
+
+        var result = decoder.Decode(CreateAttStmt(extra: extra));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(logger.Entries.Select(static x => x.Message), Is.EqualTo(ExpectedManyMembersOutsideSyntaxWarnings));
         });
     }
 
@@ -132,7 +155,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
             Assert.That(result.HasError, Is.False);
             Assert.That(
                 logger.Entries.Select(static x => x.Message),
-                Has.Some.EqualTo($"The 'attStmt' map contains a member that is not defined by the tpmStmtFormat syntax: 'ecdaa??KeyId{new string('?', 52)}...'; ignored"));
+                Has.Some.EqualTo($"The 'attStmt' map contains 1 member(s) that are not defined by the tpmStmtFormat syntax; they are ignored: 'ecdaa??KeyId{new string('?', 52)}...'"));
         });
     }
 

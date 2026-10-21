@@ -24,6 +24,9 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
     // untrusted values are truncated to this length in log messages (see LogValue.Sanitize)
     private const int MaxLoggedValueLength = 64;
 
+    // the members defined by tpmStmtFormat
+    private static readonly string[] SyntaxMembers = { "ver", "alg", "x5c", "sig", "certInfo", "pubArea" };
+
     /// <summary>
     ///     Constructs <see cref="DefaultTpmAttestationStatementDecoder" />.
     /// </summary>
@@ -274,27 +277,20 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
     }
 
     /// <summary>
-    ///     Reports every member of 'attStmt' whose key is not one of the six defined by the tpmStmtFormat syntax with a Warning log entry; such members are ignored.
+    ///     Reports the members of 'attStmt' whose keys are not among the six defined by the tpmStmtFormat syntax with a single Warning log entry; such members are ignored.
     /// </summary>
     /// <param name="attStmt">The CBOR map of the attestation statement.</param>
     private void ReportMembersOutsideSyntax(CborMap attStmt)
     {
         // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
         // tpmStmtFormat = { ver: "2.0", ( alg: COSEAlgorithmIdentifier, x5c: [ aikCert: bytes, * (caCert: bytes) ] ) sig: bytes, certInfo: bytes, pubArea: bytes }
-        // The map is closed: any other member (for example the ecdaaKeyId of WebAuthn Level 2, whose ECDAA attestation Level 3 removed) is not part of the syntax
+        // The map is closed: any other member (for example the ecdaaKeyId of WebAuthn Level 1, whose ECDAA attestation was removed in Level 2) is not part of the syntax
         // that the first step of the verification procedure requires. Nothing in the procedure uses such a member, so it is ignored - but reported, so that the deviation is visible.
-        foreach (var key in attStmt.RawValue.Keys)
+        // The members are chosen by the client and are reported before any signature is verified, so their number doesn't multiply the log entries:
+        // one entry contains their total number and the keys of at most 8 of them.
+        if (AttestationStatementMembersOutsideSyntax.TryDescribe(attStmt, SyntaxMembers, out var count, out var members))
         {
-            if (key is CborTextString { RawValue: "ver" or "alg" or "x5c" or "sig" or "certInfo" or "pubArea" })
-            {
-                continue;
-            }
-
-            // the key is untrusted input: a text string is neutralized and truncated, a key of any other data type is described by its type only
-            var member = key is CborTextString textKey
-                ? "'" + LogValue.Sanitize(textKey.RawValue, MaxLoggedValueLength) + "'"
-                : "<" + key.Type + ">";
-            Logger.TpmMemberOutsideSyntaxIgnored(member);
+            Logger.TpmMembersOutsideSyntaxIgnored(count, members);
         }
     }
 }
@@ -480,14 +476,18 @@ public static partial class DefaultTpmAttestationStatementDecoderLoggingExtensio
     public static partial void TpmX5CTooManyElements(this ILogger logger, int count, int max);
 
     /// <summary>
-    ///     The 'attStmt' map contains a member that is not defined by the tpmStmtFormat syntax: {Member}; ignored
+    ///     The 'attStmt' map contains {Count} member(s) that are not defined by the tpmStmtFormat syntax; they are ignored: {Members}
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="member">The key of the member: a text string in quotes (truncated to 64 characters, with every control character replaced by '?'), or the CBOR data type of a key of any other type in angle brackets.</param>
+    /// <param name="count">The number of the members that are not defined by the syntax.</param>
+    /// <param name="members">
+    ///     The keys of the first (at most 8) such members, separated by commas: a text key in quotes (truncated to 64 characters, with every control character replaced by '?'),
+    ///     a key of any other data type as its CBOR data type in angle brackets. If there are more members, the list ends with ", ...".
+    /// </param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The 'attStmt' map contains a member that is not defined by the tpmStmtFormat syntax: {Member}; ignored")]
-    public static partial void TpmMemberOutsideSyntaxIgnored(this ILogger logger, string member);
+        Message = "The 'attStmt' map contains {Count} member(s) that are not defined by the tpmStmtFormat syntax; they are ignored: {Members}")]
+    public static partial void TpmMembersOutsideSyntaxIgnored(this ILogger logger, int count, string members);
 
     /// <summary>
     ///     Failed to find the key '{CborMapKey}' in 'attStmt'

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -48,7 +49,7 @@ public class DefaultPackedAttestationStatementDecoderTests
             Assert.That(result.HasError, Is.False);
             Assert.That(
                 logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
-                Has.Exactly(1).Contains("contains a member that is not defined by its CDDL (alg, sig, x5c); the member is ignored: ecdaaKeyId"));
+                Is.EqualTo(new[] { UnknownMembersWarning(1, "'ecdaaKeyId'") }));
         });
     }
 
@@ -66,7 +67,45 @@ public class DefaultPackedAttestationStatementDecoderTests
             Assert.That(result.HasError, Is.False);
             Assert.That(
                 logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
-                Has.Exactly(1).Contains("the member is ignored: UnsignedInteger"));
+                Is.EqualTo(new[] { UnknownMembersWarning(1, "<UnsignedInteger>") }));
+        });
+    }
+
+    // The unknown members are chosen by the client and reported before any signature is verified: however many there are,
+    // they are reported with a single Warning that contains their number and the keys of at most 8 of them
+
+    [Test]
+    public void Decode_Succeeds_AndListsEveryUnknownMemberInOneWarning_WhenAttStmtContainsEightUnknownMembers()
+    {
+        var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
+        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+
+        var result = decoder.Decode(CreateAttStmt(x5CCount: 1, UnknownMembers(8)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(
+                logger.Entries.Select(static x => x.Message),
+                Is.EqualTo(new[] { UnknownMembersWarning(8, "'m0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7'") }));
+        });
+    }
+
+    [TestCase(9)]
+    [TestCase(10_000)]
+    public void Decode_Succeeds_AndListsOnlyEightUnknownMembersInOneWarning_WhenAttStmtContainsMoreUnknownMembers(int count)
+    {
+        var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
+        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+
+        var result = decoder.Decode(CreateAttStmt(x5CCount: 1, UnknownMembers(count)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(
+                logger.Entries.Select(static x => x.Message),
+                Is.EqualTo(new[] { UnknownMembersWarning(count, "'m0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', ...") }));
         });
     }
 
@@ -101,6 +140,18 @@ public class DefaultPackedAttestationStatementDecoderTests
                 logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
                 Has.Some.Contains("'x5c' array in the 'attStmt' contains 17 elements, which exceeds the maximum of 16"));
         });
+    }
+
+    private static string UnknownMembersWarning(int count, string members)
+    {
+        return $"The 'attStmt' of the Packed attestation statement contains {count.ToString(CultureInfo.InvariantCulture)} member(s) that are not defined by its CDDL (alg, sig, x5c); they are ignored: {members}";
+    }
+
+    private static (AbstractCborObject Key, AbstractCborObject Value)[] UnknownMembers(int count)
+    {
+        return Enumerable.Range(0, count)
+            .Select(static i => ((AbstractCborObject) new CborTextString("m" + i.ToString(CultureInfo.InvariantCulture)), (AbstractCborObject) new CborUnsignedInteger((ulong) i)))
+            .ToArray();
     }
 
     private static CborMap CreateAttStmt(int x5CCount, params (AbstractCborObject Key, AbstractCborObject Value)[] extraMembers)
