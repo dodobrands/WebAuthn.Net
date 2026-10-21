@@ -35,4 +35,17 @@
     <EmbeddedResource Include="DSL/Fakes/FakeResources/**/*.*"/>
   </ItemGroup>
 
+  <!-- The fixtures and the test cases within them run in parallel. Each test case gets its own instance of the fixture,
+       so the services and fakes that [SetUp] puts into the fixture's properties are never shared with test cases running at the same time. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="NUnit.Framework.ParallelizableAttribute">
+      <_Parameter1>NUnit.Framework.ParallelScope.Children</_Parameter1>
+      <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="NUnit.Framework.FixtureLifeCycleAttribute">
+      <_Parameter1>NUnit.Framework.LifeCycle.InstancePerTestCase</_Parameter1>
+      <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>
