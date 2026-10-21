@@ -192,6 +192,24 @@ public class X509TrustChainValidatorTests
         });
     }
 
+    [Test]
+    public void DefaultChainPolicies_DoNotIgnoreAnyValidationErrors()
+    {
+        // the defaults are what an application gets out of the box: relaxations needed only by the tests or the FIDO Conformance demo are configured there, not here
+        using var attestationTrustPathChain = new X509Chain();
+        using var fidoMetadataBlobJwtChain = new X509Chain();
+        var options = new X509ChainValidationOptions();
+
+        options.OnValidateAttestationTrustPathChain(attestationTrustPathChain);
+        options.OnValidateFidoMetadataBlobJwtChain(fidoMetadataBlobJwtChain);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(attestationTrustPathChain.ChainPolicy.VerificationFlags, Is.EqualTo(X509VerificationFlags.NoFlag));
+            Assert.That(fidoMetadataBlobJwtChain.ChainPolicy.VerificationFlags, Is.EqualTo(X509VerificationFlags.NoFlag));
+        });
+    }
+
     private static void ConfigureChain(X509Chain chain)
     {
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;

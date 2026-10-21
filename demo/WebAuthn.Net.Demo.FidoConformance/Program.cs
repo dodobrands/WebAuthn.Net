@@ -49,6 +49,7 @@ public static class Program
             {
                 options.AttestationTypes.None.IsAcceptable = true;
                 options.AttestationTypes.Self.IsAcceptable = true;
+                options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
                 options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
             },
             static fidoHttp =>
@@ -74,6 +75,7 @@ public static class Program
         //     {
         //         options.AttestationTypes.None.IsAcceptable = true;
         //         options.AttestationTypes.Self.IsAcceptable = true;
+        //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //     },
         //     static fidoHttp =>
@@ -103,6 +105,7 @@ public static class Program
         //     {
         //         options.AttestationTypes.None.IsAcceptable = true;
         //         options.AttestationTypes.Self.IsAcceptable = true;
+        //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //     },
         //     static fidoHttp =>
@@ -132,6 +135,7 @@ public static class Program
         //     {
         //         options.AttestationTypes.None.IsAcceptable = true;
         //         options.AttestationTypes.Self.IsAcceptable = true;
+        //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //     },
         //     static fidoHttp =>
