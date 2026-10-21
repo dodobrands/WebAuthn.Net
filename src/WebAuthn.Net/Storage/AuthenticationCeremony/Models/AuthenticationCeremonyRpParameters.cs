@@ -12,8 +12,11 @@ public class AuthenticationCeremonyRpParameters
     /// </summary>
     /// <param name="rpId">Expected rpId when completing the authentication ceremony.</param>
     /// <param name="origins">Expected origins when completing the authentication ceremony.</param>
-    /// <param name="allowIframe">Flag determining whether iframe operation is allowed. If <see langword="true" />, then <see cref="TopOrigins" /> must be non-null.</param>
-    /// <param name="topOrigins">Expected allowed top origins - parent domains of iframes within which the authentication ceremony is performed. Only matters if <see cref="AllowIframe" /> is <see langword="true" />.</param>
+    /// <param name="allowIframe">
+    ///     Flag determining whether the Relying Party expects the authentication ceremony to run in an iframe that is not same-origin with its ancestors, within one of the <see cref="TopOrigins" />. If <see langword="true" />, then
+    ///     <see cref="TopOrigins" /> must be non-null. If <see langword="false" />, such an iframe is accepted only when the client reports a <c>topOrigin</c> that is equal to <c>origin</c>.
+    /// </param>
+    /// <param name="topOrigins">Expected top origins - the origins of the top-level pages within which the authentication ceremony is performed in an iframe. Only matters if <see cref="AllowIframe" /> is <see langword="true" />.</param>
     public AuthenticationCeremonyRpParameters(string rpId, string[] origins, bool allowIframe, string[]? topOrigins)
     {
         RpId = rpId;
@@ -33,13 +36,14 @@ public class AuthenticationCeremonyRpParameters
     public string[] Origins { get; }
 
     /// <summary>
-    ///     Flag determining whether iframe operation is allowed. If <see langword="true" />, then <see cref="TopOrigins" /> must be non-null.
+    ///     Flag determining whether the Relying Party expects the authentication ceremony to run in an iframe that is not same-origin with its ancestors, within one of the <see cref="TopOrigins" />. If <see langword="true" />, then
+    ///     <see cref="TopOrigins" /> must be non-null. If <see langword="false" />, such an iframe is accepted only when the client reports a <c>topOrigin</c> that is equal to <c>origin</c>.
     /// </summary>
     [MemberNotNullWhen(true, nameof(TopOrigins))]
     public bool AllowIframe { get; }
 
     /// <summary>
-    ///     Expected allowed top origins - parent domains of iframes within which the authentication ceremony is performed. Only matters if <see cref="AllowIframe" /> is <see langword="true" />.
+    ///     Expected top origins - the origins of the top-level pages within which the authentication ceremony is performed in an iframe. Only matters if <see cref="AllowIframe" /> is <see langword="true" />.
     /// </summary>
     public string[]? TopOrigins { get; }
 }

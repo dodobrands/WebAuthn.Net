@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text.Json;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.Providers;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 
@@ -17,8 +18,15 @@ public class BeginAuthenticationCeremonyRequest
     /// <summary>
     ///     Constructs <see cref="BeginAuthenticationCeremonyRequest" />.
     /// </summary>
-    /// <param name="origins">Parameters defining acceptable origins for the authentication ceremony.</param>
-    /// <param name="topOrigins">Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the authentication ceremony.</param>
+    /// <param name="origins">
+    ///     Parameters defining acceptable origins for the authentication ceremony. If <see langword="null" />, the only acceptable origin is the origin of the current request, computed by
+    ///     <see cref="IRelyingPartyOriginProvider" />.
+    /// </param>
+    /// <param name="topOrigins">
+    ///     Parameters defining acceptable topOrigins for the authentication ceremony - the origins of the top-level pages within which the Relying Party expects the ceremony to run in an iframe that is not same-origin with its ancestors. If
+    ///     <see langword="null" />, the Relying Party doesn't expect to be embedded by other origins: client data with <c>topOrigin</c> is accepted only if <c>topOrigin</c> is equal to <c>origin</c>, and client data with <c>crossOrigin</c> set to
+    ///     <see langword="true" /> but without <c>topOrigin</c> is rejected. If specified, client data with <c>crossOrigin</c> set to <see langword="true" /> is accepted, and <c>topOrigin</c>, when present, must be one of these origins.
+    /// </param>
     /// <param name="userHandle">
     ///     <para>
     ///         A user handle is an identifier for a <a href="https://www.w3.org/TR/webauthn-3/#user-account">user account</a>, specified by the <a href="https://www.w3.org/TR/webauthn-3/#relying-party">Relying Party</a> as
@@ -189,12 +197,14 @@ public class BeginAuthenticationCeremonyRequest
     }
 
     /// <summary>
-    ///     Parameters defining acceptable origins for the authentication ceremony.
+    ///     Parameters defining acceptable origins for the authentication ceremony. If <see langword="null" />, the only acceptable origin is the origin of the current request, computed by <see cref="IRelyingPartyOriginProvider" />.
     /// </summary>
     public AuthenticationCeremonyOriginParameters? Origins { get; }
 
     /// <summary>
-    ///     Parameters defining acceptable topOrigins (iframe that is not same-origin with its ancestors) for the authentication ceremony.
+    ///     Parameters defining acceptable topOrigins for the authentication ceremony - the origins of the top-level pages within which the Relying Party expects the ceremony to run in an iframe that is not same-origin with its ancestors. If
+    ///     <see langword="null" />, the Relying Party doesn't expect to be embedded by other origins: client data with <c>topOrigin</c> is accepted only if <c>topOrigin</c> is equal to <c>origin</c>, and client data with <c>crossOrigin</c> set to
+    ///     <see langword="true" /> but without <c>topOrigin</c> is rejected. If specified, client data with <c>crossOrigin</c> set to <see langword="true" /> is accepted, and <c>topOrigin</c>, when present, must be one of these origins.
     /// </summary>
     public AuthenticationCeremonyOriginParameters? TopOrigins { get; }
 

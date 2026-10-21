@@ -50,7 +50,7 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
         Assert.That(result.HasError, Is.False);
     }
 
-    // https://www.w3.org/TR/webauthn-3/#reg-ceremony-verify-cross-origin
+    // https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential (step 10)
     [Test]
     public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenCrossOriginWithoutTopOriginIsNotExpected()
     {
@@ -77,7 +77,7 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
         Assert.That(result.HasError, Is.False);
     }
 
-    // https://www.w3.org/TR/webauthn-3/#reg-ceremony-verify-top-origin
+    // https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential (step 11)
     [Test]
     public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenUnexpectedTopOriginComesWithoutCrossOrigin()
     {
@@ -132,6 +132,35 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
         Assert.That(result.HasError, Is.False);
     }
 
+    // The specified top origins replace the default rule, so the origin itself is no longer an acceptable top origin.
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenTopOriginEqualsOriginButIsNotOneOfTheExpected()
+    {
+        using var authenticator = new SoftwareAuthenticator();
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(new(new[] { PartnerOrigin }));
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            authenticator.CreateRegistrationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.create", challenge, Origin, true, Origin)));
+
+        Assert.That(result.HasError, Is.True);
+    }
+
+    // https://www.w3.org/TR/webauthn-3/#dom-collectedclientdata-origin
+    // The client reports an internationalized domain name in its Punycode form.
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_CompletesCeremony_WhenInternationalizedOriginIsSpecifiedAsUri()
+    {
+        using var authenticator = new SoftwareAuthenticator();
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null, new(new[] { new Uri("https://пример.рф", UriKind.Absolute) }));
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            authenticator.CreateRegistrationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.create", challenge, "https://xn--e1afmkfd.xn--p1ai")));
+
+        Assert.That(result.HasError, Is.False);
+    }
+
     [Test]
     public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenIdDoesNotMatchRawId()
     {
@@ -167,12 +196,14 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
         Assert.That(result.HasError, Is.True);
     }
 
-    private async Task<(string CeremonyId, string Challenge)> BeginCeremonyAsync(RegistrationCeremonyOriginParameters? topOrigins)
+    private async Task<(string CeremonyId, string Challenge)> BeginCeremonyAsync(
+        RegistrationCeremonyOriginParameters? topOrigins,
+        RegistrationCeremonyOriginParameters? origins = null)
     {
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
             new DefaultHttpContext(new FeatureCollection()),
             new(
-                null,
+                origins,
                 topOrigins,
                 "Test Host",
                 new("testuser", WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ"), "Test User"),
