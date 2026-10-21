@@ -35,7 +35,10 @@ public static class JwtValidator
     ///     Intended for tokens from trusted sources whose size is not bounded by this utility (for example, the FIDO Metadata Service blob); for tokens received from clients, use the overload with an explicit size limit.
     /// </summary>
     /// <param name="jwt">The JWT token that needs to be validated.</param>
-    /// <param name="securityKeys">The keys with which the content of the JWT token should be signed.</param>
+    /// <param name="securityKeys">
+    ///     The keys with which the content of the JWT token should be signed. The signature is accepted if it is valid for any of them, so for a token that carries its certificate chain in the 'x5c' header parameter,
+    ///     pass only the key of the first certificate (<a href="https://www.rfc-editor.org/rfc/rfc7515#section-4.1.6">RFC 7515, section 4.1.6</a>), never the keys of the whole chain.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>The result of the JWT token validation</returns>
     public static Task<TokenValidationResult> ValidateAsync(
@@ -57,7 +60,10 @@ public static class JwtValidator
     ///     Validates the JWT token, rejecting tokens larger than <paramref name="maximumTokenSizeInBytes" />.
     /// </summary>
     /// <param name="jwt">The JWT token that needs to be validated.</param>
-    /// <param name="securityKeys">The keys with which the content of the JWT token should be signed.</param>
+    /// <param name="securityKeys">
+    ///     The keys with which the content of the JWT token should be signed. The signature is accepted if it is valid for any of them, so for a token that carries its certificate chain in the 'x5c' header parameter,
+    ///     pass only the key of the first certificate (<a href="https://www.rfc-editor.org/rfc/rfc7515#section-4.1.6">RFC 7515, section 4.1.6</a>), never the keys of the whole chain.
+    /// </param>
     /// <param name="maximumTokenSizeInBytes">The maximum size of the token (in characters of the compact serialization) that will be validated; a larger token is reported as invalid.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>The result of the JWT token validation</returns>

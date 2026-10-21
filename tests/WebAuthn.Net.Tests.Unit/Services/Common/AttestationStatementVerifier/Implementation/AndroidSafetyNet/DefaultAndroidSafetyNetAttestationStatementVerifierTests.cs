@@ -253,6 +253,43 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
     }
 
     // ---------------------------------------------------------------------------------------------
+    // JWS signing key: only the leaf certificate (the first in 'x5c') is checked to be issued to "attest.android.com" and only its chain is validated,
+    // so the JWS must be signed with the key of the leaf certificate (RFC 7515 4.1.6), not with the key of a certificate that follows it
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenJwsIsSignedWithKeyOfCertificateThatFollowsLeafInX5C()
+    {
+        var verifier = new TestSafetyNetVerifier();
+        // the leaf issued to "attest.android.com" is followed by the attacker's own certificate, whose key signed the JWS
+        var attestation = SafetyNetAttestation.Create(signWithAppendedCertificate: true);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            AssertWarning(verifier, "JWS of the Android SafetyNet attestation statement failed validation");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Succeeds_WhenJwsIsSignedWithKeyOfLeafAndX5CContainsFurtherCertificates()
+    {
+        var verifier = new TestSafetyNetVerifier();
+        var attestation = SafetyNetAttestation.Create(appendCertificate: true);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok!.AttestationTrustPath, Has.Length.EqualTo(2));
+            Assert.That(result.Ok.AttestationTrustPath?[0], Is.EqualTo(attestation.Certificate.RawData));
+            Assert.That(verifier.FakeLogger.Entries, Is.Empty);
+        });
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Steps 3-4
 
     [Test]
@@ -359,6 +396,7 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
     private sealed record SafetyNetAttestation(AndroidSafetyNetAttestationStatement AttStmt, AttestedAuthenticatorData AuthenticatorData, byte[] ClientDataHash, X509Certificate2 Certificate)
     {
         // a SafetyNet-like JWS: header { alg: RS256, x5c: [leaf] }, payload { nonce, timestampMs, ctsProfileMatch, ... }, signed with the leaf's RSA key
+        // (appendCertificate adds a second certificate after the leaf, signWithAppendedCertificate also signs the JWS with its key instead of the leaf's)
         public static SafetyNetAttestation Create(
             string hostname = "attest.android.com",
             long? timestampMs = null,
@@ -368,7 +406,9 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
             int x5CRepetitions = 1,
             bool hmacInsteadOfRsa = false,
             bool corruptSignature = false,
-            int payloadPadding = 0)
+            int payloadPadding = 0,
+            bool appendCertificate = false,
+            bool signWithAppendedCertificate = false)
         {
             using var rsa = RSA.Create(2048);
             var request = new CertificateRequest($"CN={hostname}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -377,6 +417,10 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
             request.CertificateExtensions.Add(sanBuilder.Build());
             request.CertificateExtensions.Add(EndEntityBasicConstraints());
             var certificate = request.CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30));
+            using var appendedRsa = appendCertificate || signWithAppendedCertificate ? RSA.Create(2048) : null;
+            using var appendedCertificate = appendedRsa is not null
+                ? new CertificateRequest("CN=Appended Certificate", appendedRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1).CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30))
+                : null;
 
             using var credentialKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             var authenticatorData = CreateAuthenticatorData(Aaguid, ToCoseEc2Key(credentialKey));
@@ -390,7 +434,13 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
             var header = new Dictionary<string, object> { ["alg"] = hmacInsteadOfRsa ? "HS256" : "RS256" };
             if (x5CRepetitions > 0)
             {
-                header["x5c"] = Enumerable.Repeat(Convert.ToBase64String(certificate.RawData), x5CRepetitions).ToArray();
+                var x5C = Enumerable.Repeat(Convert.ToBase64String(certificate.RawData), x5CRepetitions);
+                if (appendedCertificate is not null)
+                {
+                    x5C = x5C.Append(Convert.ToBase64String(appendedCertificate.RawData));
+                }
+
+                header["x5c"] = x5C.ToArray();
             }
 
             var payload = new Dictionary<string, object>
@@ -412,9 +462,10 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
             }
 
             var signingInput = $"{WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(header))}.{WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(payload))}";
+            var signingKey = signWithAppendedCertificate && appendedRsa is not null ? appendedRsa : rsa;
             var signature = hmacInsteadOfRsa
                 ? HMACSHA256.HashData(certificate.PublicKey.EncodedKeyValue.RawData, Encoding.ASCII.GetBytes(signingInput))
-                : rsa.SignData(Encoding.ASCII.GetBytes(signingInput), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                : signingKey.SignData(Encoding.ASCII.GetBytes(signingInput), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             if (corruptSignature)
             {
                 signature[^1] ^= 0x01;

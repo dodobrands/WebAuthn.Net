@@ -184,25 +184,27 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
-            var securityKeys = new List<SecurityKey>();
-            foreach (var jwtCertificate in jwtCertificates)
+            // https://www.rfc-editor.org/rfc/rfc7515#section-4.1.6
+            // The certificate containing the public key corresponding to the key used to digitally sign the JWS MUST be the first certificate.
+            // Only the chain of the first certificate is validated (the other certificates merely help to build it), so the signature is validated with its key alone:
+            // accepting the key of any certificate from 'x5c' would let anyone who can serve a blob (a proxy, a mirror, a man in the middle) append their own certificate to the genuine chain and sign the blob.
+            var signingCertificate = jwtCertificates[0];
+            SecurityKey signingKey;
+            if (signingCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
             {
-                if (jwtCertificate.GetECDsaPublicKey() is { } ecdsaPublicKey)
-                {
-                    keysToDispose.Add(ecdsaPublicKey);
-                    securityKeys.Add(new ECDsaSecurityKey(ecdsaPublicKey));
-                }
-                else if (jwtCertificate.GetRSAPublicKey() is { } rsaPublicKey)
-                {
-                    keysToDispose.Add(rsaPublicKey);
-                    var parameters = rsaPublicKey.ExportParameters(false);
-                    securityKeys.Add(new RsaSecurityKey(parameters));
-                }
-                else
-                {
-                    Logger.WarnJwtHeaderCertificateUnsupportedPublicKey(jwtCertificate.Subject);
-                    return Result<MetadataBLOBPayloadJSON>.Fail();
-                }
+                keysToDispose.Add(ecdsaPublicKey);
+                signingKey = new ECDsaSecurityKey(ecdsaPublicKey);
+            }
+            else if (signingCertificate.GetRSAPublicKey() is { } rsaPublicKey)
+            {
+                keysToDispose.Add(rsaPublicKey);
+                var parameters = rsaPublicKey.ExportParameters(false);
+                signingKey = new RsaSecurityKey(parameters);
+            }
+            else
+            {
+                Logger.WarnJwtHeaderCertificateUnsupportedPublicKey(signingCertificate.Subject);
+                return Result<MetadataBLOBPayloadJSON>.Fail();
             }
 
             X509Chain? jwtCertificateChain = null;
@@ -230,7 +232,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 jwtCertificateChain?.Dispose();
             }
 
-            var jwtValidationResult = await JwtValidator.ValidateAsync(rawMetadata, securityKeys, cancellationToken);
+            var jwtValidationResult = await JwtValidator.ValidateAsync(rawMetadata, new[] { signingKey }, cancellationToken);
             if (!jwtValidationResult.IsValid)
             {
                 Logger.WarnJwtSignatureInvalid(jwtValidationResult.Exception);
@@ -518,13 +520,13 @@ public static partial class DefaultFidoMetadataProviderLoggingExtensions
     public static partial void WarnRootCertificatesNotValidNow(this ILogger logger, int total, DateTimeOffset now);
 
     /// <summary>
-    ///     The certificate '{Subject}' from the 'x5c' member of the FIDO Metadata Service blob JWT header contains neither an ECDSA nor an RSA public key
+    ///     The signing certificate '{Subject}' (the first certificate in the 'x5c' member of the FIDO Metadata Service blob JWT header) contains neither an ECDSA nor an RSA public key
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="subject">The subject of the certificate.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The certificate '{Subject}' from the 'x5c' member of the FIDO Metadata Service blob JWT header contains neither an ECDSA nor an RSA public key")]
+        Message = "The signing certificate '{Subject}' (the first certificate in the 'x5c' member of the FIDO Metadata Service blob JWT header) contains neither an ECDSA nor an RSA public key")]
     public static partial void WarnJwtHeaderCertificateUnsupportedPublicKey(this ILogger logger, string subject);
 
     /// <summary>
@@ -547,13 +549,13 @@ public static partial class DefaultFidoMetadataProviderLoggingExtensions
     public static partial void WarnJwtCertificateChainRejected(this ILogger logger);
 
     /// <summary>
-    ///     The signature of the FIDO Metadata Service blob JWT is invalid
+    ///     The signature of the FIDO Metadata Service blob JWT is not valid for the key of the signing certificate (the first certificate in the 'x5c' member of the JWT header)
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="exception">The exception describing why the signature validation failed, if any.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The signature of the FIDO Metadata Service blob JWT is invalid")]
+        Message = "The signature of the FIDO Metadata Service blob JWT is not valid for the key of the signing certificate (the first certificate in the 'x5c' member of the JWT header)")]
     public static partial void WarnJwtSignatureInvalid(this ILogger logger, Exception? exception);
 
     /// <summary>
