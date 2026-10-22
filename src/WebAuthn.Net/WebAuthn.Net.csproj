@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -13,7 +13,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Description>WebAuthn Level 3 Relying Party library for ASP.NET Core 6 and 8</Description>
+    <Description>WebAuthn Level 3 Relying Party library for ASP.NET Core 10</Description>
     <PackageTags>Passkey;Passkeys;WebAuthn;WebAuthn.Net;FIDO;FIDO2;Security</PackageTags>
   </PropertyGroup>
 
@@ -26,21 +26,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App"/>
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
+  <ItemGroup>
     <PackageReference Include="libsodium" Version="1.0.22"/>
-    <PackageReference Include="System.Formats.Cbor" Version="8.0.0"/>
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2"/>
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net9.0' ">
-    <PackageReference Include="libsodium" Version="1.0.22"/>
-    <PackageReference Include="System.Formats.Cbor" Version="9.0.21"/>
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1"/>
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net10.0' ">
-    <PackageReference Include="libsodium" Version="1.0.22"/>
-    <PackageReference Include="System.Formats.Cbor" Version="10.0.13"/>
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1"/>
   </ItemGroup>
 

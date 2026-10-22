@@ -14,20 +14,6 @@ jobs:
         steps:
             -   name: Checkout
                 uses: actions/checkout@v7
-            -   name: Setup .NET SDK 8.0
-                uses: actions/setup-dotnet@v6
-                with:
-                    dotnet-version: 8.0.426
-                    source-url: ${{ secrets.NUGET_SOURCE }}
-                env:
-                    NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-            -   name: Setup .NET SDK 9.0
-                uses: actions/setup-dotnet@v6
-                with:
-                    dotnet-version: 9.0.319
-                    source-url: ${{ secrets.NUGET_SOURCE }}
-                env:
-                    NUGET_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
             -   name: Setup .NET SDK 10.0
                 uses: actions/setup-dotnet@v6
                 with:

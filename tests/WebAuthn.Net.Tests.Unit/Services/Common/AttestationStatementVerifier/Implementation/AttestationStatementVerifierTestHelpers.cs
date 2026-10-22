@@ -86,16 +86,11 @@ internal static class AttestationStatementVerifierTestHelpers
     }
 
     // loads a certificate with the plain platform loader (bypassing X509CertificateInMemoryLoader and its extension checks), or returns null when the platform refuses the certificate
-    [SuppressMessage("Security", "CA5403:Do not hard-code certificate", Justification = "The certificate is built by the test that calls this helper")]
     public static X509Certificate2? LoadWithPlatformLoader(byte[] bytes)
     {
         try
         {
-#if NET8_0
-            return new X509Certificate2(bytes);
-#else
             return X509CertificateLoader.LoadCertificate(bytes);
-#endif
         }
         catch (CryptographicException)
         {

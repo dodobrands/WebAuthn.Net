@@ -66,8 +66,8 @@ public class X509CertificateInMemoryLoaderTests
         }
     }
 
-    // Only a single X.509 certificate is acceptable: on net8.0 the X509Certificate2 constructor would otherwise accept a PKCS#12 container
-    // and run its key-derivation function (with an attacker-chosen iteration count) before anything is verified
+    // Only a single X.509 certificate is acceptable: loading a PKCS#12 container would run its key-derivation function
+    // (with an attacker-chosen iteration count) before anything is verified
     [Test]
     public void TryLoad_ReturnsFalse_WithoutException_WhenBytesArePkcs12Container()
     {

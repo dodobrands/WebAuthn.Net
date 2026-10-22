@@ -4,17 +4,17 @@ using System.Security.Cryptography.X509Certificates;
 namespace WebAuthn.Net.Services.Static;
 
 /// <summary>
-///     A static utility for loading x509v3 certificates into an EphemeralKeySet.
+///     A static utility for loading x509v3 certificates in memory.
 /// </summary>
 public static class X509CertificateInMemoryLoader
 {
     /// <summary>
-    ///     If possible, loads an x509v3 certificate into an EphemeralKeySet.
+    ///     If possible, loads an x509v3 certificate in memory.
     /// </summary>
     /// <param name="bytes">x509v3 certificate in binary format (DER).</param>
     /// <param name="certificate">Output parameter. The x509v3 certificate, materialized into the built-in .NET type <see cref="X509Certificate2" /> if the method returns <see langword="true" />, otherwise - <see langword="null" />.</param>
     /// <returns>
-    ///     <see langword="true" /> if it was possible to load the x509v3 certificate into the EphemeralKeySet (materializing it into <see cref="X509Certificate2" />), its validity period, subject and extensions can be read,
+    ///     <see langword="true" /> if it was possible to load the x509v3 certificate (materializing it into <see cref="X509Certificate2" />), its validity period, subject and extensions can be read,
     ///     and the loaded certificate has a valid public key (ECDSA or RSA), otherwise - <see langword="false" />.
     /// </returns>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
@@ -23,20 +23,9 @@ public static class X509CertificateInMemoryLoader
         X509Certificate2? cert = null;
         try
         {
-#if NET8_0
-            // The X509Certificate2 constructor sniffs the content type and also accepts PKCS#12 (PFX) and PKCS#7 containers.
-            // Only a single X.509 certificate is acceptable here: a PKCS#12 container supplied by a client would make the constructor run its key-derivation function
-            // (with an attacker-chosen iteration count) before anything is verified. Newer targets use X509CertificateLoader.LoadCertificate, which only loads a single certificate.
-            if (X509Certificate2.GetCertContentType(bytes) != X509ContentType.Cert)
-            {
-                certificate = null;
-                return false;
-            }
-
-            cert = new(bytes, (string?) null, X509KeyStorageFlags.EphemeralKeySet);
-#else
+            // Only a single X.509 certificate is acceptable here: loading a PKCS#12 container supplied by a client would run its key-derivation function
+            // (with an attacker-chosen iteration count) before anything is verified. X509CertificateLoader.LoadCertificate rejects PKCS#12 (PFX) and PKCS#7 containers.
             cert = X509CertificateLoader.LoadCertificate(bytes);
-#endif
             // Some parts of the certificate are decoded lazily, and the platforms differ in what they validate when loading:
             // on Linux, for example, a certificate whose validity time does not follow RFC 5280 loads, but reading NotBefore / NotAfter throws CryptographicException.
             // They are read here, so that a malformed certificate is rejected by this method instead of throwing later in the code that uses it.

@@ -34,9 +34,9 @@ public class DefaultCborDeserializerNestingDepthTests
         });
     }
 
-    // Without the limit, the recursive descent overflows the stack for a few thousand levels on net8.0 (System.Formats.Cbor 8.0.0 has no depth check of its own),
-    // which terminates the process instead of failing. These depths are above the limit but far below the stack capacity,
-    // so the limit - and nothing else - is what stops the decoding here.
+    // Without the limit, the recursive descent overflows the stack for a few thousand levels, which terminates the process instead of failing
+    // (System.Formats.Cbor checks the depth itself only since ASP.NET Core 10.0.13, 64 levels by default). These depths are above the limit
+    // but below the default depth limit of System.Formats.Cbor, so the limit - and nothing else - is what stops the decoding here.
     [TestCase(33)]
     [TestCase(60)]
     public void Deserialize_Fails_WhenNestedArraysExceedLimit(int arrays)
@@ -79,8 +79,8 @@ public class DefaultCborDeserializerNestingDepthTests
         });
     }
 
-    // Regression test for the stack overflow itself. Before the limit was introduced this input terminated the net8.0 test host
-    // (System.Formats.Cbor 8.0.0 has no depth check of its own), so it can only be run against the fixed code.
+    // Regression test for the stack overflow itself. System.Formats.Cbor stops such input only since ASP.NET Core 10.0.13 and only as long as its depth limit
+    // is not raised for the whole process (the System.Formats.Cbor.CborReader.MaxDepth AppContext switch), so the limit has to stop it on its own.
     [TestCase(100_000)]
     public void Deserialize_Fails_WhenNestingIsVeryDeep(int levels)
     {

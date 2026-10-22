@@ -1,6 +1,6 @@
 # WebAuthn.Net
 
-A production-ready, easy-to-use, extensible implementation of the [WebAuthn Level 3 standard](https://www.w3.org/TR/webauthn-3), passing the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), for the server side of web applications on .NET 8, .NET 9 and .NET 10.
+A production-ready, easy-to-use, extensible implementation of the [WebAuthn Level 3 standard](https://www.w3.org/TR/webauthn-3), passing the [FIDO conformance test](https://fidoalliance.org/certification/functional-certification/conformance/), for the server side of web applications on .NET 10.
 
 <a href="https://webauthn.dodo.dev"><img src="https://img.shields.io/badge/Demo-blue"/></a>
 <a href="https://www.nuget.org/packages/WebAuthn.Net/"><img src="https://img.shields.io/badge/NuGet-blue"/></a>
@@ -61,8 +61,6 @@ The documentation for each project is described in its README.md file.
 
 ### Required dependencies
 
-- [.NET SDK 8.0.426+](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
-- [.NET SDK 9.0.319+](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
 - [.NET SDK 10.0.402+](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 ## Tips for Contribution

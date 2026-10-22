@@ -118,11 +118,7 @@ public static class CoseKeyTestMaterial
             Array.Empty<(string, bool, byte[])>());
         try
         {
-#if NET8_0
-            return new(bytes);
-#else
             return X509CertificateLoader.LoadCertificate(bytes);
-#endif
         }
         catch (CryptographicException exception)
         {
