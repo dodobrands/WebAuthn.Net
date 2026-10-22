@@ -12,7 +12,7 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationRespon
 public static class RegistrationResponseAnomalies
 {
     /// <summary>
-    ///     Rejected: 'response.transports' contains more than 99 values. A client reports each transport of the authenticator once, and fewer than ten transports are defined,
+    ///     Rejected: 'response.transports' contains more than 100 values. A client reports each transport of the authenticator once, and fewer than ten transports are defined,
     ///     so the response is rejected before any of the values is examined.
     /// </summary>
     public const string TransportsTooManyValues = "transports.too_many_values";

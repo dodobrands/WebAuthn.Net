@@ -236,7 +236,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
     ///     <list type="bullet">
     ///         <item>
     ///             <description>
-    ///                 more than 99 transports - before any of them is examined, because a client reports each transport of the authenticator once, and fewer than ten transports are defined;
+    ///                 more than 100 transports - before any of them is examined, because a client reports each transport of the authenticator once, and fewer than ten transports are defined;
     ///             </description>
     ///         </item>
     ///         <item>

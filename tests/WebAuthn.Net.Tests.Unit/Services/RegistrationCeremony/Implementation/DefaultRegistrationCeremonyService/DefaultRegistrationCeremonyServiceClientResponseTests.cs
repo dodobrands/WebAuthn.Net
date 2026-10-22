@@ -256,9 +256,9 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
         Assert.That(result.HasError, Is.True);
     }
 
-    // A client reports each transport of the authenticator once, so a response with more than 99 transports is rejected
+    // A client reports each transport of the authenticator once, so a response with more than 100 transports is rejected
     [Test]
-    public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenThereAreMoreThanNinetyNineTransports()
+    public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenThereAreMoreThanOneHundredTransports()
     {
         using var authenticator = new SoftwareAuthenticator();
         var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
@@ -268,7 +268,7 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
             authenticator.CreateRegistrationResponse(
                 RpId,
                 SoftwareAuthenticator.CreateClientDataJson("webauthn.create", challenge, Origin),
-                transports: Enumerable.Repeat("usb", 100).ToArray()));
+                transports: Enumerable.Repeat("usb", 101).ToArray()));
 
         Assert.That(result.HasError, Is.True);
     }

@@ -249,10 +249,10 @@ public class DefaultRegistrationResponseDecoderTests
         });
     }
 
-    // A client reports each transport of the authenticator once, so a response with more than 99 transports is rejected before any of them is examined
-    [TestCase(100)]
+    // A client reports each transport of the authenticator once, so a response with more than 100 transports is rejected before any of them is examined
+    [TestCase(101)]
     [TestCase(10_000)]
-    public void Decode_Fails_AndLogsWarning_WhenThereAreMoreThanNinetyNineTransports(int count)
+    public void Decode_Fails_AndLogsWarning_WhenThereAreMoreThanOneHundredTransports(int count)
     {
         var result = Decoder.Decode(CreateResponseWithTransports(Enumerable.Repeat("future-transport", count).ToArray()));
 
@@ -295,7 +295,7 @@ public class DefaultRegistrationResponseDecoderTests
     }
 
     [TestCase(9)]
-    [TestCase(99)]
+    [TestCase(100)]
     public void Decode_ListsEightUnknownTransportsInOneWarning_WhenThereAreMoreDistinctUnknownTransports(int count)
     {
         var transports = Enumerable.Range(0, count).Select(static x => "t" + x.ToString(CultureInfo.InvariantCulture)).ToArray();
@@ -332,7 +332,7 @@ public class DefaultRegistrationResponseDecoderTests
 
     private static string TooManyTransportsWarning(int count)
     {
-        return $"The 'transports' of the registration response contain {count.ToString(CultureInfo.InvariantCulture)} values, which exceeds the maximum of 99; the response is rejected";
+        return $"The 'transports' of the registration response contain {count.ToString(CultureInfo.InvariantCulture)} values, which exceeds the maximum of 100; the response is rejected";
     }
 
     private static string UnknownTransportsWarning(int count, string values)
