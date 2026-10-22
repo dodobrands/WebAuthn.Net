@@ -10,9 +10,11 @@ using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Configuration.Options.AttestationTypes;
 using WebAuthn.Net.DSL;
+using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
+using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Constants;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.VerifyAssertion;
@@ -216,7 +218,64 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
             ceremonyId,
             FirstAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin), UserHandle, signCount: 3));
 
-        Assert.That(result.HasError, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            // the signal of a possibly cloned authenticator stays visible in the metrics
+            Assert.That(AuthenticationCounters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true) }));
+        });
+    }
+
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_FailsCeremony_WhenSignCountDidNotIncreaseAndAbortIsEnabled()
+    {
+        // the default policy: the fixture disables it for the other tests
+        Options.CurrentValue.AuthenticationCeremony.AbortCeremonyWhenSignCountIsLessOrEqualStoredValue = true;
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            FirstAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin), UserHandle, signCount: 5));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(AuthenticationCounters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, false) }));
+        });
+    }
+
+    [TestCase(6u)]
+    [TestCase(uint.MaxValue)]
+    public async Task DefaultAuthenticationCeremonyService_CountsNoAnomaly_WhenSignCountIncreased(uint signCount)
+    {
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            FirstAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin), UserHandle, signCount: signCount));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(AuthenticationCounters.ResponseAnomalies, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_CountsNoAnomaly_WhenBothSignCountsAreZero()
+    {
+        // an authenticator that doesn't implement a signature counter (for example, a synced passkey) always reports zero
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin), UserHandle, signCount: 0));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(AuthenticationCounters.ResponseAnomalies, Is.Empty);
+        });
     }
 
     private async Task RegisterAsync(SoftwareAuthenticator authenticator, uint signCount)

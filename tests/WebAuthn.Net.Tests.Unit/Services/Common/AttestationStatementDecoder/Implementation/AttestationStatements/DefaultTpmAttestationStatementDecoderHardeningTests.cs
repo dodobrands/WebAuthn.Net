@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using WebAuthn.Net.DSL.Fakes;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Constants;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
@@ -40,7 +41,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
     public void Decode_Succeeds_WhenX5CHasAtMostSixteenElements(int count)
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(x5C: X5C(count)));
 
@@ -59,7 +60,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
         // every element of x5c is later loaded as a certificate and handed to the chain builder, which is costly for attacker-controlled bytes, so the length is bounded;
         // only the count is logged, never the content of the elements
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(x5C: X5C(count)));
 
@@ -83,7 +84,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
     {
         // tpmStmtFormat is a closed map: e.g. the ecdaaKeyId of WebAuthn Level 1 (ECDAA attestation was removed in Level 2) is not part of it, nor is a key of another data type
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var attStmt = CreateAttStmt(extra: new (AbstractCborObject Key, AbstractCborObject Value)[]
         {
             (new CborTextString("ecdaaKeyId"), new CborByteString(new byte[] { 0x00 })),
@@ -111,7 +112,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
     {
         // the members are chosen by the client and reported before any signature is verified, so their number must not multiply the log entries
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var extra = Enumerable.Range(0, 10_000)
             .Select(static i => ((AbstractCborObject) new CborTextString("m" + i.ToString(CultureInfo.InvariantCulture)), (AbstractCborObject) new CborByteString(new byte[] { 0x00 })))
             .ToArray();
@@ -125,11 +126,35 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
         });
     }
 
+    [TestCase(1)]
+    [TestCase(9)]
+    [TestCase(10_000)]
+    public void Decode_CountsOneToleratedAnomaly_ForMembersOutsideTheSyntax(int count)
+    {
+        // the members outside the syntax are a tolerated anomaly, counted once per attestation statement however many of them there are
+        var counters = new FakeRegistrationCeremonyCounters();
+        var decoder = new DefaultTpmAttestationStatementDecoder(counters, new FakeLogger<DefaultTpmAttestationStatementDecoder>());
+        var extra = Enumerable.Range(0, count)
+            .Select(static i => ((AbstractCborObject) new CborTextString("m" + i.ToString(CultureInfo.InvariantCulture)), (AbstractCborObject) new CborByteString(new byte[] { 0x00 })))
+            .ToArray();
+
+        var result = decoder.Decode(CreateAttStmt(extra: extra));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(
+                counters.AttestationStatementAnomalies,
+                Is.EqualTo(new[] { new FakeAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AttStmtMemberOutsideSyntax, true) }));
+        });
+    }
+
     [Test]
     public void Decode_Succeeds_WithoutWarning_WhenOnlyTheSixMembersOfTheSyntaxArePresent()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var counters = new FakeRegistrationCeremonyCounters();
+        var decoder = new DefaultTpmAttestationStatementDecoder(counters, logger);
 
         var result = decoder.Decode(CreateAttStmt());
 
@@ -137,6 +162,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
         {
             Assert.That(result.HasError, Is.False);
             Assert.That(logger.Entries, Is.Empty);
+            Assert.That(counters.AttestationStatementAnomalies, Is.Empty);
         });
     }
 
@@ -145,7 +171,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
     {
         // the key is untrusted input: control characters are replaced by '?' and only the first 64 characters are logged
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var key = "ecdaa\r\nKeyId" + new string('\u001b', 100);
 
         var result = decoder.Decode(CreateAttStmt(extra: new (AbstractCborObject Key, AbstractCborObject Value)[] { (new CborTextString(key), new CborByteString(new byte[] { 0x00 })) }));
@@ -167,7 +193,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
     {
         // CR LF would forge a log line and ESC start an escape sequence in a text sink, U+2028 (LINE SEPARATOR) is rendered as a line break by some sinks
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt("2.0\r\n2026-10-19 00:00:00 [INF] forged line \u001b[31m\u2028"));
 
@@ -184,7 +210,7 @@ public class DefaultTpmAttestationStatementDecoderHardeningTests
     public void Decode_TruncatesAndNeutralizesUnsupportedVer_InLogMessage()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(new string('\n', 200)));
 

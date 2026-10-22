@@ -16,6 +16,7 @@ using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.CreateOptions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
+using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Constants;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Models;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions.Enums;
@@ -63,7 +64,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     /// <param name="clientDataDecoder">Decoder for <a href="https://www.w3.org/TR/webauthn-3/#dictionary-client-data">clientData</a> from JSON into a typed representation.</param>
     /// <param name="authenticatorDataDecoder">Decoder for <a href="https://www.w3.org/TR/webauthn-3/#authenticator-data">authenticator data</a> from binary into a typed representation.</param>
     /// <param name="signatureVerifier">Digital signature verifier.</param>
-    /// <param name="counters">Counters for authentication ceremony metrics.</param>
+    /// <param name="counters">Counters for authentication ceremony metrics, also used to count the anomalies found while verifying the response.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAuthenticationCeremonyService(
@@ -186,7 +187,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
     protected ILogger<DefaultAuthenticationCeremonyService<TContext>> Logger { get; }
 
     /// <summary>
-    ///     Counters for authentication ceremony metrics.
+    ///     Counters for authentication ceremony metrics, also used to count the anomalies found while verifying the response (see <see cref="AuthenticationResponseAnomalies" />).
     /// </summary>
     protected IAuthenticationCeremonyCounters Counters { get; }
 
@@ -657,12 +658,14 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                     if (Options.CurrentValue.AuthenticationCeremony.AbortCeremonyWhenSignCountIsLessOrEqualStoredValue)
                     {
                         Logger.AbortBySignCount();
+                        Counters.IncrementResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, false);
                         Counters.IncrementCompleteCeremonyEnd(false);
                         return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
 
                     // The ceremony continues by Relying Party policy, but the signal of a possibly cloned authenticator must stay visible.
                     Logger.SignCountNotIncreased(authData.SignCount, credentialRecord.SignCount);
+                    Counters.IncrementResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true);
                 }
             }
 

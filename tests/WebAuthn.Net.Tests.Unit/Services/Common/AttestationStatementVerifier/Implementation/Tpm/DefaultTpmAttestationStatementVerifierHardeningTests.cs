@@ -315,7 +315,7 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
             new DefaultCoseKeyDeserializer(cborDeserializer, NullLogger<DefaultCoseKeyDeserializer>.Instance),
             cborDeserializer,
             NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
-        var attestationStatementDecoder = new DefaultTpmAttestationStatementDecoder(NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
+        var attestationStatementDecoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
 
         var attestationObject = attestationObjectDecoder.Decode(WebEncoders.Base64UrlDecode(attestationObjectBase64Url));
         Assert.That(attestationObject.HasError, Is.False, "the attestation object must decode");

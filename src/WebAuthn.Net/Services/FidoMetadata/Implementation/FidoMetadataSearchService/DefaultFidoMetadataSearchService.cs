@@ -9,6 +9,8 @@ using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
+using WebAuthn.Net.Services.Metrics;
+using WebAuthn.Net.Services.Metrics.Implementation;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Static;
 using WebAuthn.Net.Storage.FidoMetadata;
@@ -23,11 +25,11 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     where TContext : class, IWebAuthnContext
 {
     /// <summary>
-    ///     Constructs <see cref="DefaultFidoMetadataSearchService{TContext}" /> that doesn't report the absence of the metadata to the log.
+    ///     Constructs <see cref="DefaultFidoMetadataSearchService{TContext}" /> that doesn't report the absence of the metadata to the metrics and the log.
     /// </summary>
     /// <remarks>
-    ///     Use <see cref="DefaultFidoMetadataSearchService{TContext}(IFidoMetadataSearchStorage{TContext}, ITimeProvider, ILogger{DefaultFidoMetadataSearchService{TContext}})" />
-    ///     to log the lookups performed while no blob of the FIDO Metadata Service is available.
+    ///     Use <see cref="DefaultFidoMetadataSearchService{TContext}(IFidoMetadataSearchStorage{TContext}, ITimeProvider, IFidoMetadataCounters, ILogger{DefaultFidoMetadataSearchService{TContext}})" />
+    ///     to count and log the lookups performed while no blob of the FIDO Metadata Service is available.
     /// </remarks>
     /// <param name="metadataSearchStorage">The storage intended for searching in metadata obtained from the FIDO Metadata Service.</param>
     /// <param name="timeProvider">Current time provider.</param>
@@ -35,7 +37,7 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     public DefaultFidoMetadataSearchService(
         IFidoMetadataSearchStorage<TContext> metadataSearchStorage,
         ITimeProvider timeProvider)
-        : this(metadataSearchStorage, timeProvider, NullLogger<DefaultFidoMetadataSearchService<TContext>>.Instance)
+        : this(metadataSearchStorage, timeProvider, NullFidoMetadataCounters.Instance, NullLogger<DefaultFidoMetadataSearchService<TContext>>.Instance)
     {
     }
 
@@ -44,18 +46,22 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     /// </summary>
     /// <param name="metadataSearchStorage">The storage intended for searching in metadata obtained from the FIDO Metadata Service.</param>
     /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="counters">Counters for FIDO Metadata Service metrics, used to count the lookups performed while no blob of the FIDO Metadata Service is available.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataSearchService(
         IFidoMetadataSearchStorage<TContext> metadataSearchStorage,
         ITimeProvider timeProvider,
+        IFidoMetadataCounters counters,
         ILogger<DefaultFidoMetadataSearchService<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(metadataSearchStorage);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
         MetadataSearchStorage = metadataSearchStorage;
         TimeProvider = timeProvider;
+        Counters = counters;
         Logger = logger;
     }
 
@@ -70,6 +76,11 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     protected ITimeProvider TimeProvider { get; }
 
     /// <summary>
+    ///     Counters for FIDO Metadata Service metrics, used to count the lookups performed while no blob of the FIDO Metadata Service is available.
+    /// </summary>
+    protected IFidoMetadataCounters Counters { get; }
+
+    /// <summary>
     ///     Logger.
     /// </summary>
     protected ILogger<DefaultFidoMetadataSearchService<TContext>> Logger { get; }
@@ -77,7 +88,8 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     /// <inheritdoc />
     /// <remarks>
     ///     If the entry is not found because no blob of the FIDO Metadata Service is available in the storage (for example, before the first successful ingestion),
-    ///     a <see cref="LogLevel.Warning" /> is logged, because such a lookup can't succeed for any authenticator until a blob is ingested.
+    ///     a <see cref="LogLevel.Warning" /> is logged and the lookup is counted (<see cref="IFidoMetadataCounters.IncrementLookupWithoutMetadata" />),
+    ///     because such a lookup can't succeed for any authenticator until a blob is ingested.
     /// </remarks>
     public virtual async Task<FidoMetadataResult?> FindMetadataByAaguidAsync(
         TContext context,
@@ -91,6 +103,7 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
             if (!await MetadataSearchStorage.IsMetadataAvailableAsync(context, cancellationToken))
             {
                 Logger.WarnMetadataNotAvailableForAaguid(aaguid);
+                Counters.IncrementLookupWithoutMetadata();
             }
 
             return null;
@@ -117,7 +130,8 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
     /// <inheritdoc />
     /// <remarks>
     ///     If the entry is not found because no blob of the FIDO Metadata Service is available in the storage (for example, before the first successful ingestion),
-    ///     a <see cref="LogLevel.Warning" /> is logged, because such a lookup can't succeed for any authenticator until a blob is ingested.
+    ///     a <see cref="LogLevel.Warning" /> is logged and the lookup is counted (<see cref="IFidoMetadataCounters.IncrementLookupWithoutMetadata" />),
+    ///     because such a lookup can't succeed for any authenticator until a blob is ingested.
     /// </remarks>
     public virtual async Task<FidoMetadataResult?> FindMetadataBySubjectKeyIdentifierAsync(
         TContext context,
@@ -132,6 +146,7 @@ public class DefaultFidoMetadataSearchService<TContext> : IFidoMetadataSearchSer
             if (!await MetadataSearchStorage.IsMetadataAvailableAsync(context, cancellationToken))
             {
                 Logger.WarnMetadataNotAvailableForSubjectKeyIdentifier(Convert.ToHexString(subjectKeyIdentifier));
+                Counters.IncrementLookupWithoutMetadata();
             }
 
             return null;

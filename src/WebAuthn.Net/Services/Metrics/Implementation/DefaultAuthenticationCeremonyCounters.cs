@@ -34,6 +34,10 @@ public class DefaultAuthenticationCeremonyCounters : IAuthenticationCeremonyCoun
             "webauthn.authn.complete.end",
             null,
             "The number of completions of the method responsible for the completion of the authentication ceremony (IAuthenticationCeremonyService.CompleteCeremonyAsync))");
+        ResponseAnomaliesCounter = Meter.CreateCounter<long>(
+            "webauthn.authn.response.anomalies",
+            null,
+            "The number of anomalies found while verifying the responses of the authentication ceremony, either tolerated by the policy of the Relying Party or causing the response to be rejected");
     }
 
     /// <summary>
@@ -60,6 +64,11 @@ public class DefaultAuthenticationCeremonyCounters : IAuthenticationCeremonyCoun
     ///     The completion counter of the method responsible for the completion of the authentication ceremony <see cref="IAuthenticationCeremonyService" />.<see cref="IAuthenticationCeremonyService.CompleteCeremonyAsync" />.
     /// </summary>
     protected Counter<long> CompleteCeremonyEndCounter { get; }
+
+    /// <summary>
+    ///     Counter for the anomalies found while verifying the responses of the authentication ceremony.
+    /// </summary>
+    protected Counter<long> ResponseAnomaliesCounter { get; }
 
     /// <inheritdoc />
     public virtual void IncrementBeginCeremonyStart()
@@ -98,6 +107,21 @@ public class DefaultAuthenticationCeremonyCounters : IAuthenticationCeremonyCoun
             new TagList
             {
                 new(Tags.Status, status)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementResponseAnomaly(string anomaly, bool tolerated)
+    {
+        var outcome = tolerated
+            ? TagValues.OutcomeTolerated
+            : TagValues.OutcomeRejected;
+        ResponseAnomaliesCounter.Add(
+            1L,
+            new TagList
+            {
+                new(Tags.Anomaly, anomaly),
+                new(Tags.Outcome, outcome)
             });
     }
 

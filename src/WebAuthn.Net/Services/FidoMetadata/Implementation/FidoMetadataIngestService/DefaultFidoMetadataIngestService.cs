@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.Metrics;
+using WebAuthn.Net.Services.Metrics.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestService;
@@ -152,42 +153,6 @@ public class DefaultFidoMetadataIngestService : IFidoMetadataIngestService
     {
         ArgumentNullException.ThrowIfNull(metadataBlob);
         return metadataBlob.No >= currentNo;
-    }
-
-    /// <summary>
-    ///     <see cref="IFidoMetadataCounters" /> that counts nothing, for the instances constructed without metrics.
-    /// </summary>
-    private sealed class NullFidoMetadataCounters : IFidoMetadataCounters
-    {
-        public static NullFidoMetadataCounters Instance { get; } = new();
-
-        public void IncrementDecodeStart()
-        {
-        }
-
-        public void IncrementDecodeEnd(bool successful)
-        {
-        }
-
-        public void IncrementEntrySkipped(string member)
-        {
-        }
-
-        public void IncrementEntrySkippedDueToException()
-        {
-        }
-
-        public void IncrementStatusReportIgnored(string status)
-        {
-        }
-
-        public void IncrementValueIgnored(string member)
-        {
-        }
-
-        public void IncrementBlobRejectedDueToRollback()
-        {
-        }
     }
 }
 

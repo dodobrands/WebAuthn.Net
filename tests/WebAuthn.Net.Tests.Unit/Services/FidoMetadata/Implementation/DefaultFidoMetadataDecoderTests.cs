@@ -51,6 +51,7 @@ public class DefaultFidoMetadataDecoderTests
             safeJsonDeserializer,
             FakeFidoHttpClientProvider.Client,
             new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)),
+            new FakeFidoMetadataCounters(),
             NullLogger<DefaultFidoMetadataProvider>.Instance);
         Decoder = new(
             new DefaultEnumMemberAttributeSerializer<UserVerificationMethod>(),

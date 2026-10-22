@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Packed.Constants;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
@@ -26,13 +28,24 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
     /// <summary>
     ///     Constructs <see cref="DefaultPackedAttestationStatementDecoder" />.
     /// </summary>
+    /// <param name="counters">Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation statement.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
-    public DefaultPackedAttestationStatementDecoder(ILogger<DefaultPackedAttestationStatementDecoder> logger)
+    public DefaultPackedAttestationStatementDecoder(
+        IRegistrationCeremonyCounters counters,
+        ILogger<DefaultPackedAttestationStatementDecoder> logger)
     {
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
+        Counters = counters;
         Logger = logger;
     }
+
+    /// <summary>
+    ///     Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation statement
+    ///     (see <see cref="PackedAttestationStatementAnomalies" />).
+    /// </summary>
+    protected IRegistrationCeremonyCounters Counters { get; }
 
     /// <summary>
     ///     Logger.
@@ -68,11 +81,12 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
     }
 
     /// <summary>
-    ///     Reports the members of 'attStmt' that are not defined by the CDDL of the Packed attestation statement (alg, sig, x5c) with a single Warning log entry; such members are ignored (tolerated), not rejected.
+    ///     Reports the members of 'attStmt' that are not defined by the CDDL of the Packed attestation statement (alg, sig, x5c) with a single Warning log entry
+    ///     and the <see cref="PackedAttestationStatementAnomalies.AttStmtMemberOutsideSyntax" /> anomaly; such members are ignored (tolerated), not rejected.
     /// </summary>
     /// <remarks>
-    ///     The members are chosen by the client and are reported before any signature is verified, so their number doesn't multiply the log entries:
-    ///     the entry contains their total number and the keys of at most <c>8</c> of them.
+    ///     The members are chosen by the client and are reported before any signature is verified, so their number doesn't multiply the log entries or the anomalies:
+    ///     the log entry contains their total number and the keys of at most <c>8</c> of them, and the anomaly is counted once.
     /// </remarks>
     /// <param name="attStmt">The 'attStmt' map.</param>
     protected virtual void ReportUnknownMembers(CborMap attStmt)
@@ -84,6 +98,7 @@ public class DefaultPackedAttestationStatementDecoder : IPackedAttestationStatem
         if (AttestationStatementMembersOutsideSyntax.TryDescribe(attStmt, SyntaxMembers, out var count, out var members))
         {
             Logger.PackedUnknownMembers(count, members);
+            Counters.IncrementAttestationStatementAnomaly(PackedAttestationStatementAnomalies.Format, PackedAttestationStatementAnomalies.AttStmtMemberOutsideSyntax, true);
         }
     }
 

@@ -21,7 +21,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Succeeds_WhenVerIsTwoPointZero()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var attStmt = CreateAttStmt(new CborTextString("2.0"));
 
         var result = decoder.Decode(attStmt);
@@ -50,7 +50,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenVerIsNotTwoPointZero(string ver)
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var attStmt = CreateAttStmt(new CborTextString(ver));
 
         var result = decoder.Decode(attStmt);
@@ -68,7 +68,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenVerIsNotTextString()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var attStmt = CreateAttStmt(new CborUnsignedInteger(2));
 
         var result = decoder.Decode(attStmt);
@@ -84,7 +84,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenVerIsMissing()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var attStmt = CreateAttStmt(null);
 
         var result = decoder.Decode(attStmt);
@@ -101,7 +101,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     {
         // 'ver' is untrusted input: only its first 64 characters are logged
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var ver = new string('9', 200);
 
         var result = decoder.Decode(CreateAttStmt(new CborTextString(ver)));
@@ -121,7 +121,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenMemberIsMissing(string key, string expectedMessage)
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(new CborTextString("2.0"), key));
 
@@ -140,7 +140,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenMemberHasInvalidDataType(string key, string expectedMessage)
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(new CborTextString("2.0"), replace: (key, new CborTextString("invalid"))));
 
@@ -155,7 +155,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenX5CElementIsNotByteString()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var x5C = new CborArray(new AbstractCborObject[] { new CborByteString(AikCertificate), new CborTextString("certificate") });
 
         var result = decoder.Decode(CreateAttStmt(new CborTextString("2.0"), replace: ("x5c", x5C)));
@@ -171,7 +171,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenAlgIsUnknown()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(new CborTextString("2.0"), replace: ("alg", new CborNegativeInteger(-9999))));
 
@@ -186,7 +186,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     public void Decode_Fails_WhenAlgIsOutOfInt32Range()
     {
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(new CborTextString("2.0"), replace: ("alg", new CborUnsignedInteger(ulong.MaxValue))));
 
@@ -202,7 +202,7 @@ public class DefaultTpmAttestationStatementDecoderTests
     {
         // the decoder only checks the data types; the verifier rejects an empty x5c ("Verify that x5c is present")
         var logger = new FakeLogger<DefaultTpmAttestationStatementDecoder>();
-        var decoder = new DefaultTpmAttestationStatementDecoder(logger);
+        var decoder = new DefaultTpmAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(new CborTextString("2.0"), replace: ("x5c", new CborArray(System.Array.Empty<AbstractCborObject>()))));
 

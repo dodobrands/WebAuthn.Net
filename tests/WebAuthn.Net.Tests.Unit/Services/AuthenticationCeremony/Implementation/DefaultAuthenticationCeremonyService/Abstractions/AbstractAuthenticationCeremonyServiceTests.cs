@@ -119,6 +119,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
                 safeJsonDeserializer,
                 fakeFidoHttpClientProvider.Client,
                 new FakeTimeProvider(DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture)),
+                new FakeFidoMetadataCounters(),
                 NullLogger<DefaultFidoMetadataProvider>.Instance);
             var downloadMetadataResult = await metadataProvider.DownloadMetadataAsync(CancellationToken.None);
             if (downloadMetadataResult.HasError)
@@ -201,8 +202,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             NullLogger<DefaultAttestationStatementVerifier<FakeWebAuthnContext>>.Instance
         );
         var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(coseDecoder, cborDeserializer, NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
-        var packedDecoder = new DefaultPackedAttestationStatementDecoder(NullLogger<DefaultPackedAttestationStatementDecoder>.Instance);
-        var tpmDecoder = new DefaultTpmAttestationStatementDecoder(NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
+        var packedDecoder = new DefaultPackedAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultPackedAttestationStatementDecoder>.Instance);
+        var tpmDecoder = new DefaultTpmAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
         var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);
         var androidSafetyNetDecoder = new DefaultAndroidSafetyNetAttestationStatementDecoder(NullLogger<DefaultAndroidSafetyNetAttestationStatementDecoder>.Instance);
         var fidoU2FDecoder = new DefaultFidoU2FAttestationStatementDecoder(NullLogger<DefaultFidoU2FAttestationStatementDecoder>.Instance);
@@ -300,5 +301,5 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
     protected FakeCredentialStorage CredentialStorage { get; set; } = null!;
     protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
     protected DefaultRegistrationCeremonyCounters RegistrationCounters { get; set; } = null!;
-    protected DefaultAuthenticationCeremonyCounters AuthenticationCounters { get; set; } = null!;
+    protected FakeAuthenticationCeremonyCounters AuthenticationCounters { get; set; } = null!;
 }

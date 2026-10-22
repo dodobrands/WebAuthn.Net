@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using WebAuthn.Net.DSL.Fakes;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Packed.Constants;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
@@ -20,7 +21,7 @@ public class DefaultPackedAttestationStatementDecoderTests
     public void Decode_Succeeds_WithoutWarnings_ForWellFormedAttStmt()
     {
         var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
-        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+        var decoder = new DefaultPackedAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(x5CCount: 2));
 
@@ -39,7 +40,7 @@ public class DefaultPackedAttestationStatementDecoderTests
     public void Decode_Succeeds_AndLogsWarning_WhenAttStmtContainsUnknownMember()
     {
         var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
-        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+        var decoder = new DefaultPackedAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var attStmt = CreateAttStmt(x5CCount: 1, (new CborTextString("ecdaaKeyId"), new CborByteString(new byte[] { 0x01 })));
 
         var result = decoder.Decode(attStmt);
@@ -57,7 +58,7 @@ public class DefaultPackedAttestationStatementDecoderTests
     public void Decode_Succeeds_AndLogsWarning_WhenAttStmtContainsUnknownNonTextKey()
     {
         var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
-        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+        var decoder = new DefaultPackedAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
         var attStmt = CreateAttStmt(x5CCount: 1, (new CborUnsignedInteger(1), new CborByteString(new byte[] { 0x01 })));
 
         var result = decoder.Decode(attStmt);
@@ -78,7 +79,7 @@ public class DefaultPackedAttestationStatementDecoderTests
     public void Decode_Succeeds_AndListsEveryUnknownMemberInOneWarning_WhenAttStmtContainsEightUnknownMembers()
     {
         var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
-        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+        var decoder = new DefaultPackedAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(x5CCount: 1, UnknownMembers(8)));
 
@@ -96,7 +97,7 @@ public class DefaultPackedAttestationStatementDecoderTests
     public void Decode_Succeeds_AndListsOnlyEightUnknownMembersInOneWarning_WhenAttStmtContainsMoreUnknownMembers(int count)
     {
         var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
-        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+        var decoder = new DefaultPackedAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(x5CCount: 1, UnknownMembers(count)));
 
@@ -109,11 +110,47 @@ public class DefaultPackedAttestationStatementDecoderTests
         });
     }
 
+    // the members outside the syntax are a tolerated anomaly, counted once per attestation statement however many of them there are
+
+    [TestCase(1)]
+    [TestCase(9)]
+    [TestCase(10_000)]
+    public void Decode_CountsOneToleratedAnomaly_WhenAttStmtContainsUnknownMembers(int count)
+    {
+        var counters = new FakeRegistrationCeremonyCounters();
+        var decoder = new DefaultPackedAttestationStatementDecoder(counters, new FakeLogger<DefaultPackedAttestationStatementDecoder>());
+
+        var result = decoder.Decode(CreateAttStmt(x5CCount: 1, UnknownMembers(count)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(
+                counters.AttestationStatementAnomalies,
+                Is.EqualTo(new[] { new FakeAttestationStatementAnomaly(PackedAttestationStatementAnomalies.Format, PackedAttestationStatementAnomalies.AttStmtMemberOutsideSyntax, true) }));
+        });
+    }
+
+    [Test]
+    public void Decode_CountsNoAnomaly_ForWellFormedAttStmt()
+    {
+        var counters = new FakeRegistrationCeremonyCounters();
+        var decoder = new DefaultPackedAttestationStatementDecoder(counters, new FakeLogger<DefaultPackedAttestationStatementDecoder>());
+
+        var result = decoder.Decode(CreateAttStmt(x5CCount: 2));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(counters.AttestationStatementAnomalies, Is.Empty);
+        });
+    }
+
     [Test]
     public void Decode_Succeeds_WhenX5CHasSixteenElements()
     {
         var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
-        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+        var decoder = new DefaultPackedAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(x5CCount: 16));
 
@@ -129,7 +166,7 @@ public class DefaultPackedAttestationStatementDecoderTests
     public void Decode_Fails_WhenX5CHasMoreThanSixteenElements()
     {
         var logger = new FakeLogger<DefaultPackedAttestationStatementDecoder>();
-        var decoder = new DefaultPackedAttestationStatementDecoder(logger);
+        var decoder = new DefaultPackedAttestationStatementDecoder(new FakeRegistrationCeremonyCounters(), logger);
 
         var result = decoder.Decode(CreateAttStmt(x5CCount: 17));
 

@@ -192,6 +192,7 @@ public class DefaultFidoMetadataDecoder : IFidoMetadataDecoder
         if (json.NextUpdate is not null && !TryDecodeIso8601Date(json.NextUpdate, out nextUpdate))
         {
             Logger.WarnNextUpdateIgnored(json.No, json.NextUpdate);
+            Counters.IncrementValueIgnored("nextUpdate");
             nextUpdate = null;
         }
 

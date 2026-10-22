@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Constants;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
@@ -30,13 +32,24 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
     /// <summary>
     ///     Constructs <see cref="DefaultTpmAttestationStatementDecoder" />.
     /// </summary>
+    /// <param name="counters">Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation statement.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
-    public DefaultTpmAttestationStatementDecoder(ILogger<DefaultTpmAttestationStatementDecoder> logger)
+    public DefaultTpmAttestationStatementDecoder(
+        IRegistrationCeremonyCounters counters,
+        ILogger<DefaultTpmAttestationStatementDecoder> logger)
     {
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
+        Counters = counters;
         Logger = logger;
     }
+
+    /// <summary>
+    ///     Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation statement
+    ///     (see <see cref="TpmAttestationStatementAnomalies" />).
+    /// </summary>
+    protected IRegistrationCeremonyCounters Counters { get; }
 
     /// <summary>
     ///     Logger.
@@ -277,7 +290,8 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
     }
 
     /// <summary>
-    ///     Reports the members of 'attStmt' whose keys are not among the six defined by the tpmStmtFormat syntax with a single Warning log entry; such members are ignored.
+    ///     Reports the members of 'attStmt' whose keys are not among the six defined by the tpmStmtFormat syntax with a single Warning log entry
+    ///     and the <see cref="TpmAttestationStatementAnomalies.AttStmtMemberOutsideSyntax" /> anomaly; such members are ignored.
     /// </summary>
     /// <param name="attStmt">The CBOR map of the attestation statement.</param>
     private void ReportMembersOutsideSyntax(CborMap attStmt)
@@ -286,11 +300,12 @@ public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDec
         // tpmStmtFormat = { ver: "2.0", ( alg: COSEAlgorithmIdentifier, x5c: [ aikCert: bytes, * (caCert: bytes) ] ) sig: bytes, certInfo: bytes, pubArea: bytes }
         // The map is closed: any other member (for example the ecdaaKeyId of WebAuthn Level 1, whose ECDAA attestation was removed in Level 2) is not part of the syntax
         // that the first step of the verification procedure requires. Nothing in the procedure uses such a member, so it is ignored - but reported, so that the deviation is visible.
-        // The members are chosen by the client and are reported before any signature is verified, so their number doesn't multiply the log entries:
-        // one entry contains their total number and the keys of at most 8 of them.
+        // The members are chosen by the client and are reported before any signature is verified, so their number doesn't multiply the log entries or the anomalies:
+        // one entry contains their total number and the keys of at most 8 of them, and the anomaly is counted once.
         if (AttestationStatementMembersOutsideSyntax.TryDescribe(attStmt, SyntaxMembers, out var count, out var members))
         {
             Logger.TpmMembersOutsideSyntaxIgnored(count, members);
+            Counters.IncrementAttestationStatementAnomaly(TpmAttestationStatementAnomalies.Format, TpmAttestationStatementAnomalies.AttStmtMemberOutsideSyntax, true);
         }
     }
 }
