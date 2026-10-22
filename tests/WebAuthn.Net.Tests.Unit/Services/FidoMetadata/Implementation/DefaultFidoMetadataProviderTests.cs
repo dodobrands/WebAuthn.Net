@@ -13,6 +13,8 @@ using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
@@ -24,6 +26,7 @@ public class DefaultFidoMetadataProviderTests
     private OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
     private ConfigurationManager ConfigurationManager { get; set; } = null!;
     private FakeFidoMetadataHttpClientProvider FakeFidoHttpClientProvider { get; set; } = null!;
+    private FakeFidoMetadataCounters Counters { get; set; } = null!;
     private DefaultFidoMetadataProvider MetadataProvider { get; set; } = null!;
 
     [SetUp]
@@ -44,11 +47,13 @@ public class DefaultFidoMetadataProviderTests
             optionsCache);
         FakeFidoHttpClientProvider = new();
         var safeJsonDeserializer = new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance);
+        Counters = new();
         MetadataProvider = new(
             Options,
             safeJsonDeserializer,
             FakeFidoHttpClientProvider.Client,
             CreateTimeProvider(),
+            Counters,
             NullLogger<DefaultFidoMetadataProvider>.Instance);
     }
 
@@ -69,6 +74,13 @@ public class DefaultFidoMetadataProviderTests
         var result = await MetadataProvider.DownloadMetadataAsync(CancellationToken.None);
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Counters.DownloadStarts, Is.EqualTo(1));
+            Assert.That(Counters.SuccessfulDownloadEnds, Is.EqualTo(1));
+            Assert.That(Counters.FailedDownloadEnds, Is.Zero);
+            Assert.That(Counters.DownloadFailures, Is.Empty);
+        });
     }
 
     [Test]
@@ -98,6 +110,8 @@ public class DefaultFidoMetadataProviderTests
         var warnings = logger.Entries.Where(static x => x.Level >= LogLevel.Warning).ToArray();
         Assert.That(warnings, Has.Length.EqualTo(1));
         Assert.That(warnings[0].Message, Does.Contain("rejected by the additional validation"));
+        Assert.That(Counters.FailedDownloadEnds, Is.EqualTo(1));
+        Assert.That(Counters.DownloadFailures, Is.EqualTo(new[] { FidoMetadataDownloadFailures.ChainRejected }));
     }
 
     private ChainValidatingFidoMetadataProvider CreateChainValidatingProvider(FakeLogger<DefaultFidoMetadataProvider> logger, bool acceptChain)
@@ -107,6 +121,7 @@ public class DefaultFidoMetadataProviderTests
             new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance),
             FakeFidoHttpClientProvider.Client,
             CreateTimeProvider(),
+            Counters,
             logger,
             acceptChain);
     }
@@ -120,9 +135,10 @@ public class DefaultFidoMetadataProviderTests
             ISafeJsonSerializer safeJsonSerializer,
             IFidoMetadataHttpClient metadataHttpClient,
             ITimeProvider timeProvider,
+            IFidoMetadataCounters counters,
             ILogger<DefaultFidoMetadataProvider> logger,
             bool acceptChain)
-            : base(options, safeJsonSerializer, metadataHttpClient, timeProvider, logger)
+            : base(options, safeJsonSerializer, metadataHttpClient, timeProvider, counters, logger)
         {
             _acceptChain = acceptChain;
         }

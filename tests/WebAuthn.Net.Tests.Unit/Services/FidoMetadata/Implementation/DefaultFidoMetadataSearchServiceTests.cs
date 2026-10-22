@@ -16,6 +16,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata;
@@ -117,10 +118,11 @@ public class DefaultFidoMetadataSearchServiceTests
     public async Task DefaultFidoMetadataSearchService_FindMetadataByAaguidAsync_BeforeFirstIngest_ReturnsNullAndWarns()
     {
         // Before the first successful ingestion the storage is empty: the lookup must fail cleanly (no exception),
-        // and the absence of the metadata must be visible in the log, because no lookup can succeed until a blob is ingested.
+        // and the absence of the metadata must be visible in the log and the metrics, because no lookup can succeed until a blob is ingested.
         var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
+        var counters = new FakeFidoMetadataCounters();
         var logger = new FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>>();
-        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage, new FakeTimeProvider(CurrentDate), logger);
+        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage, new FakeTimeProvider(CurrentDate), counters, logger);
         await using var context = new FakeWebAuthnContext(null, new());
 
         var result = await searchService.FindMetadataByAaguidAsync(context, Guid.Parse(FakeMetadataBlobPayloadJsonFactory.Aaguid), CancellationToken.None);
@@ -129,14 +131,16 @@ public class DefaultFidoMetadataSearchServiceTests
         var warnings = logger.Entries.Where(static x => x.Level == LogLevel.Warning).ToArray();
         Assert.That(warnings, Has.Length.EqualTo(1));
         Assert.That(warnings[0].Message, Does.Contain("no blob has been ingested yet").And.Contain(FakeMetadataBlobPayloadJsonFactory.Aaguid));
+        Assert.That(counters.LookupsWithoutMetadata, Is.EqualTo(1));
     }
 
     [Test]
     public async Task DefaultFidoMetadataSearchService_FindMetadataBySubjectKeyIdentifierAsync_BeforeFirstIngest_ReturnsNullAndWarns()
     {
         var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
+        var counters = new FakeFidoMetadataCounters();
         var logger = new FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>>();
-        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage, new FakeTimeProvider(CurrentDate), logger);
+        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage, new FakeTimeProvider(CurrentDate), counters, logger);
         await using var context = new FakeWebAuthnContext(null, new());
 
         var result = await searchService.FindMetadataBySubjectKeyIdentifierAsync(context, new byte[] { 0x01, 0x02, 0xAB, 0xCD }, CancellationToken.None);
@@ -145,6 +149,7 @@ public class DefaultFidoMetadataSearchServiceTests
         var warnings = logger.Entries.Where(static x => x.Level == LogLevel.Warning).ToArray();
         Assert.That(warnings, Has.Length.EqualTo(1));
         Assert.That(warnings[0].Message, Does.Contain("no blob has been ingested yet").And.Contain("0102ABCD"));
+        Assert.That(counters.LookupsWithoutMetadata, Is.EqualTo(1));
     }
 
     [Test]
@@ -160,39 +165,45 @@ public class DefaultFidoMetadataSearchServiceTests
 
         var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
         await storage.UpsertAsync(decodeResult.Ok, CancellationToken.None);
+        var counters = new FakeFidoMetadataCounters();
         var logger = new FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>>();
-        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage, new FakeTimeProvider(CurrentDate), logger);
+        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(storage, new FakeTimeProvider(CurrentDate), counters, logger);
         await using var context = new FakeWebAuthnContext(null, new());
 
         var result = await searchService.FindMetadataByAaguidAsync(context, Guid.Parse(FakeMetadataBlobPayloadJsonFactory.SecondAaguid), CancellationToken.None);
 
         Assert.That(result, Is.Null);
         Assert.That(logger.Entries.Where(static x => x.Level >= LogLevel.Warning), Is.Empty);
+        Assert.That(counters.LookupsWithoutMetadata, Is.Zero);
     }
 
     [Test]
     public async Task DefaultFidoMetadataSearchService_FindMetadataByAaguidAsync_WhenStorageDoesNotTrackMetadataAvailability_ReturnsNullWithoutWarning()
     {
         // A storage that doesn't override IFidoMetadataSearchStorage.IsMetadataAvailableAsync can't distinguish "not found" from "no metadata", so nothing is reported.
+        var counters = new FakeFidoMetadataCounters();
         var logger = new FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>>();
-        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(new EmptySearchStorage(), new FakeTimeProvider(CurrentDate), logger);
+        var searchService = new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(new EmptySearchStorage(), new FakeTimeProvider(CurrentDate), counters, logger);
         await using var context = new FakeWebAuthnContext(null, new());
 
         var result = await searchService.FindMetadataByAaguidAsync(context, Guid.Parse(FakeMetadataBlobPayloadJsonFactory.Aaguid), CancellationToken.None);
 
         Assert.That(result, Is.Null);
         Assert.That(logger.Entries.Where(static x => x.Level >= LogLevel.Warning), Is.Empty);
+        Assert.That(counters.LookupsWithoutMetadata, Is.Zero);
     }
 
     [Test]
     public async Task DefaultFidoMetadataSearchService_FindMetadataByAaguidAsync_WhenResolvedFromDependencyInjection_ReportsAbsentMetadata()
     {
-        // The container must pick the constructor with the logger (there are two constructors), otherwise the absence of the metadata would be reported nowhere.
+        // The container must pick the constructor with the counters and the logger (there are two constructors), otherwise the absence of the metadata would be reported nowhere.
+        var counters = new FakeFidoMetadataCounters();
         var logger = new FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>>();
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IFidoMetadataSearchStorage<FakeWebAuthnContext>>(new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>());
         services.AddSingleton<ITimeProvider>(new FakeTimeProvider(CurrentDate));
+        services.AddSingleton<IFidoMetadataCounters>(counters);
         services.AddSingleton<ILogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>>>(logger);
         services.TryAddSingleton<IFidoMetadataSearchService<FakeWebAuthnContext>, DefaultFidoMetadataSearchService<FakeWebAuthnContext>>();
         await using var serviceProvider = services.BuildServiceProvider();
@@ -204,6 +215,7 @@ public class DefaultFidoMetadataSearchServiceTests
         Assert.That(searchService, Is.InstanceOf<DefaultFidoMetadataSearchService<FakeWebAuthnContext>>());
         Assert.That(result, Is.Null);
         Assert.That(logger.Entries.Where(static x => x.Level == LogLevel.Warning), Has.Exactly(1).Items);
+        Assert.That(counters.LookupsWithoutMetadata, Is.EqualTo(1));
     }
 
     private sealed class EmptySearchStorage : IFidoMetadataSearchStorage<FakeWebAuthnContext>

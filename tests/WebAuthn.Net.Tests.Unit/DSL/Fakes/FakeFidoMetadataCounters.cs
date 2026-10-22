@@ -5,9 +5,18 @@ namespace WebAuthn.Net.DSL.Fakes;
 
 public class FakeFidoMetadataCounters : IFidoMetadataCounters
 {
+    private readonly List<string> _downloadFailures = new();
     private readonly List<string> _ignoredStatusReports = new();
     private readonly List<string> _ignoredValues = new();
     private readonly List<string> _skippedEntries = new();
+
+    public int DownloadStarts { get; private set; }
+
+    public int SuccessfulDownloadEnds { get; private set; }
+
+    public int FailedDownloadEnds { get; private set; }
+
+    public IReadOnlyList<string> DownloadFailures => _downloadFailures;
 
     public int DecodeStarts { get; private set; }
 
@@ -22,6 +31,30 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
     public IReadOnlyList<string> IgnoredValues => _ignoredValues;
 
     public int BlobsRejectedDueToRollback { get; private set; }
+
+    public int LookupsWithoutMetadata { get; private set; }
+
+    public void IncrementDownloadStart()
+    {
+        DownloadStarts++;
+    }
+
+    public void IncrementDownloadEnd(bool successful)
+    {
+        if (successful)
+        {
+            SuccessfulDownloadEnds++;
+        }
+        else
+        {
+            FailedDownloadEnds++;
+        }
+    }
+
+    public void IncrementDownloadFailure(string reason)
+    {
+        _downloadFailures.Add(reason);
+    }
 
     public void IncrementDecodeStart()
     {
@@ -63,5 +96,10 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
     public void IncrementBlobRejectedDueToRollback()
     {
         BlobsRejectedDueToRollback++;
+    }
+
+    public void IncrementLookupWithoutMetadata()
+    {
+        LookupsWithoutMetadata++;
     }
 }

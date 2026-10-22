@@ -20,6 +20,7 @@ public class DefaultFidoMetadataDecoderPayloadTests
     private static readonly string[] ExpectedTransportsForReset = ["usb", "nfc"];
     private static readonly string[] ExpectedIgnoredStatusReports = [UnknownStatus];
     private static readonly ulong[] ExpectedValidVendorPrototypeConfigCommands = [1, ulong.MaxValue];
+    private static readonly string[] ExpectedIgnoredNextUpdate = ["nextUpdate"];
 
     private DefaultFidoMetadataDecoder Decoder { get; set; } = null!;
     private FakeLogger<DefaultFidoMetadataDecoder> Logger { get; set; } = null!;
@@ -139,6 +140,8 @@ public class DefaultFidoMetadataDecoderPayloadTests
         Assert.That(decoded.NextUpdate, Is.Null);
         Assert.That(decoded.Entries, Has.Length.EqualTo(1));
         Assert.That(Logger.Entries.Any(static x => x.Level == LogLevel.Warning && x.Message.Contains("nextUpdate", StringComparison.Ordinal)), Is.True);
+        // the ignored value is not only logged, but also counted
+        Assert.That(Counters.IgnoredValues, Is.EqualTo(ExpectedIgnoredNextUpdate));
     }
 
     [Test]

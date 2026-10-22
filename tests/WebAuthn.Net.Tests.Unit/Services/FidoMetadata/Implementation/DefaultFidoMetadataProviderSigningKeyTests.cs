@@ -18,6 +18,7 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
@@ -30,6 +31,7 @@ public class DefaultFidoMetadataProviderSigningKeyTests
 
     private OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
     private ConfigurationManager ConfigurationManager { get; set; } = null!;
+    private FakeFidoMetadataCounters Counters { get; set; } = null!;
     private FakeLogger<DefaultFidoMetadataProvider> Logger { get; set; } = null!;
 
     [SetUp]
@@ -48,6 +50,7 @@ public class DefaultFidoMetadataProviderSigningKeyTests
                 new ConfigurationChangeTokenSource<WebAuthnOptions>(ConfigurationManager)
             },
             optionsCache);
+        Counters = new();
         Logger = new();
     }
 
@@ -83,6 +86,7 @@ public class DefaultFidoMetadataProviderSigningKeyTests
         var warnings = Logger.Entries.Where(static x => x.Level == LogLevel.Warning).ToArray();
         Assert.That(warnings, Has.Length.EqualTo(1));
         Assert.That(warnings[0].Message, Does.Contain("signature of the FIDO Metadata Service blob JWT"));
+        Assert.That(Counters.DownloadFailures, Is.EqualTo(new[] { FidoMetadataDownloadFailures.SignatureInvalid }));
     }
 
     private static string GetGenuineBlob()
@@ -111,6 +115,7 @@ public class DefaultFidoMetadataProviderSigningKeyTests
             new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance),
             metadataHttpClient,
             new FakeTimeProvider(CurrentDate),
+            Counters,
             Logger);
     }
 

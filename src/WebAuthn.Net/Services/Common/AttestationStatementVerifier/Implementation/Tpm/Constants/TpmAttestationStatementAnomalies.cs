@@ -1,7 +1,7 @@
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm.Constants;
 
 /// <summary>
-///     The anomalies that <see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> reports with a Warning log entry and the
+///     The anomalies that <see cref="AttestationStatementDecoder.Implementation.AttestationStatements.DefaultTpmAttestationStatementDecoder" /> and <see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> report with a Warning log entry and the
 ///     <c>webauthn.reg.attestation.anomalies</c> counter (<see cref="Metrics.IRegistrationCeremonyCounters.IncrementAttestationStatementAnomaly" />, tag <c>fmt</c> = <see cref="Format" />).
 /// </summary>
 /// <remarks>
@@ -16,6 +16,12 @@ public static class TpmAttestationStatementAnomalies
     ///     The attestation statement format identifier of the TPM attestation statement format.
     /// </summary>
     public const string Format = "tpm";
+
+    /// <summary>
+    ///     Tolerated: the 'attStmt' map contains members that are not defined by the tpmStmtFormat syntax (for example, the 'ecdaaKeyId' of WebAuthn Level 1). Nothing in the verification procedure
+    ///     uses such a member, so it is ignored. Counted once per attestation statement, however many such members it contains.
+    /// </summary>
+    public const string AttStmtMemberOutsideSyntax = "attstmt.member_outside_syntax";
 
     /// <summary>
     ///     Tolerated: bit 3 of the objectAttributes (TPMA_OBJECT) of the pubArea is SET. Every published revision of TPM 2.0 Library Part 2 reserves it ("shall be zero"),

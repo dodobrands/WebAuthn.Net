@@ -271,6 +271,8 @@ Until the metadata is available:
 - `tpm`, `android-key` and `android-safetynet` attestation statements are verified against the root certificates built into WebAuthn.Net, without the authenticator statuses from the metadata;
 - `none`, `apple` and `packed` self attestation don't depend on the metadata.
 
+Both situations are counted in the `WebAuthn.Net.FidoMetadata` meter, so you can alert on them: a blob that can't be downloaded or verified increments `webauthn.mds.download.failures` (the `reason` tag tells why, for example `request_failed` or `chain_invalid`), and every lookup performed without metadata increments `webauthn.mds.search.no_metadata`.
+
 If the application shouldn't start without metadata, set `ThrowExceptionOnFailure` to `true` in `FidoMetadataBackgroundIngestHostedServiceOptions` (the `configureBackgroundIngest` parameter of the `AddWebAuthn*` extension methods).
 
 You can also implement your own storage and update of metadata based on a persistent storage, so that the application doesn't depend on the availability of the FIDO Metadata Service at start-up.

@@ -8,6 +8,23 @@ namespace WebAuthn.Net.Services.Metrics;
 public interface IFidoMetadataCounters
 {
     /// <summary>
+    ///     Increments the counter of <see cref="IFidoMetadataProvider" />.<see cref="IFidoMetadataProvider.DownloadMetadataAsync" /> calls.
+    /// </summary>
+    void IncrementDownloadStart();
+
+    /// <summary>
+    ///     Increments the counter of <see cref="IFidoMetadataProvider" />.<see cref="IFidoMetadataProvider.DownloadMetadataAsync" /> completions.
+    /// </summary>
+    /// <param name="successful">Flag indicating whether the completion was successful: the blob was downloaded and its signature was verified.</param>
+    void IncrementDownloadEnd(bool successful);
+
+    /// <summary>
+    ///     Increments the counter of the FIDO Metadata Service blobs that could not be downloaded, or were rejected after the download because they are malformed or their signature could not be verified.
+    /// </summary>
+    /// <param name="reason">The reason, one of a bounded set of values defined by the provider of the metadata (for example, <c>chain_invalid</c>).</param>
+    void IncrementDownloadFailure(string reason);
+
+    /// <summary>
     ///     Increments the counter of <see cref="IFidoMetadataDecoder" />.<see cref="IFidoMetadataDecoder.Decode" /> calls.
     /// </summary>
     void IncrementDecodeStart();
@@ -36,13 +53,23 @@ public interface IFidoMetadataCounters
     void IncrementStatusReportIgnored(string status);
 
     /// <summary>
-    ///     Increments the counter of the values of the FIDO Metadata Service blob entries that were ignored during decoding because they are invalid, but not essential for the entry (for example, a vendorCommandId outside the uint64 range).
+    ///     Increments the counter of the values of the FIDO Metadata Service blob that were ignored during decoding because they are invalid, but not essential
+    ///     (for example, a <c>nextUpdate</c> that is not an ISO-8601 date, or a vendorCommandId of an entry outside the uint64 range).
     /// </summary>
-    /// <param name="member">The path of the member of the entry whose value was ignored, without array indices (for example, <c>metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands[]</c>).</param>
+    /// <param name="member">
+    ///     The path of the member whose value was ignored, without array indices: the name of a member of the blob payload (<c>nextUpdate</c>),
+    ///     or the path of a member of an entry relative to the entry (for example, <c>metadataStatement.authenticatorGetInfo.vendorPrototypeConfigCommands[]</c>).
+    /// </param>
     void IncrementValueIgnored(string member);
 
     /// <summary>
     ///     Increments the counter of the FIDO Metadata Service blobs that were rejected during ingestion because they would roll back the metadata in use to a blob with a lower serial number (the <c>no</c> member).
     /// </summary>
     void IncrementBlobRejectedDueToRollback();
+
+    /// <summary>
+    ///     Increments the counter of the metadata lookups (<see cref="IFidoMetadataSearchService{TContext}" />) that can't succeed because no FIDO Metadata Service blob is available in the storage
+    ///     (for example, before the first successful ingestion).
+    /// </summary>
+    void IncrementLookupWithoutMetadata();
 }

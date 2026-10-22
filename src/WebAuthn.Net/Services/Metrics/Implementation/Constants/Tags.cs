@@ -11,7 +11,7 @@ public static class Tags
     public const string Status = "status";
 
     /// <summary>
-    ///     The reason why an element was skipped.
+    ///     The reason why an element was skipped or rejected, or why an operation failed.
     /// </summary>
     public const string Reason = "reason";
 
@@ -21,7 +21,7 @@ public static class Tags
     public const string AuthenticatorStatus = "authenticator_status";
 
     /// <summary>
-    ///     The path of a member of an entry of the FIDO Metadata Service blob.
+    ///     The path of a member of the FIDO Metadata Service blob: of its payload or of an entry.
     /// </summary>
     public const string Member = "member";
 
@@ -31,7 +31,7 @@ public static class Tags
     public const string AttestationStatementFormat = "fmt";
 
     /// <summary>
-    ///     An anomaly found while verifying an attestation statement.
+    ///     An anomaly found while decoding or verifying an attestation statement or a response of a ceremony.
     /// </summary>
     public const string Anomaly = "anomaly";
 

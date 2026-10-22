@@ -17,6 +17,7 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
@@ -36,6 +37,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     /// <param name="safeJsonSerializer">Safe (exceptionless) JSON serializer.</param>
     /// <param name="metadataHttpClient">An HTTP client for retrieving blob with metadata from the FIDO Metadata Service.</param>
     /// <param name="timeProvider">Current time provider.</param>
+    /// <param name="counters">Counters for FIDO Metadata Service metrics, used to count the downloads and the reasons why a blob is not provided.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoMetadataProvider(
@@ -43,17 +45,20 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         ISafeJsonSerializer safeJsonSerializer,
         IFidoMetadataHttpClient metadataHttpClient,
         ITimeProvider timeProvider,
+        IFidoMetadataCounters counters,
         ILogger<DefaultFidoMetadataProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(safeJsonSerializer);
         ArgumentNullException.ThrowIfNull(metadataHttpClient);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         SafeJsonSerializer = safeJsonSerializer;
         MetadataHttpClient = metadataHttpClient;
         TimeProvider = timeProvider;
+        Counters = counters;
         Logger = logger;
     }
 
@@ -78,17 +83,24 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     protected ITimeProvider TimeProvider { get; }
 
     /// <summary>
+    ///     Counters for FIDO Metadata Service metrics, used to count the downloads and the reasons why a blob is not provided (see <see cref="FidoMetadataDownloadFailures" />).
+    /// </summary>
+    protected IFidoMetadataCounters Counters { get; }
+
+    /// <summary>
     ///     Logger.
     /// </summary>
     protected ILogger<DefaultFidoMetadataProvider> Logger { get; }
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Every reason for which the blob is rejected is logged at the <see cref="LogLevel.Warning" /> level, because a silently rejected blob would leave the FIDO metadata stale without any visible cause.
+    ///     Every reason for which the blob is rejected is logged at the <see cref="LogLevel.Warning" /> level and counted (see <see cref="FidoMetadataDownloadFailures" />),
+    ///     because a silently rejected blob would leave the FIDO metadata stale without any visible cause.
     /// </remarks>
     public virtual async Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        Counters.IncrementDownloadStart();
         var certificatesToDispose = new List<X509Certificate2>();
         var keysToDispose = new List<AsymmetricAlgorithm>();
         try
@@ -104,7 +116,9 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 // A failed download must not propagate as an exception (it would break the start of the application or the background ingestion, which retries the download later),
                 // so it is reported and the blob is rejected.
                 Logger.WarnDownloadFailed(exception);
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(exception is TimeoutException
+                    ? FidoMetadataDownloadFailures.Timeout
+                    : FidoMetadataDownloadFailures.RequestFailed);
             }
 
             JsonWebToken jwt;
@@ -116,13 +130,13 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             {
                 // The downloaded data is not a JWS in the compact serialization (for example, an error page returned with a successful status code).
                 Logger.WarnJwtMalformed(exception);
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.JwtMalformed);
             }
 
             if (!TryGetRawCertificates(jwt, out var headerCertificates) || headerCertificates.Length == 0)
             {
                 Logger.WarnJwtHeaderCertificatesMissing();
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
@@ -133,7 +147,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 {
                     jwtCertificate?.Dispose();
                     Logger.WarnJwtHeaderCertificateInvalid(i);
-                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                    return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
                 }
 
                 certificatesToDispose.Add(jwtCertificate);
@@ -146,7 +160,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                         jwtCertificate.NotBefore.ToUniversalTime(),
                         jwtCertificate.NotAfter.ToUniversalTime(),
                         currentDate);
-                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                    return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
                 }
             }
 
@@ -155,7 +169,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             if (fidoRootCertificates.Count == 0)
             {
                 Logger.WarnRootCertificatesMissing();
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.RootCertificatesInvalid);
             }
 
             var rootCertificates = new List<X509Certificate2>();
@@ -166,7 +180,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 {
                     fidoRootCertificate?.Dispose();
                     Logger.WarnRootCertificateInvalid(rootCertificateIndex);
-                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                    return FailDownload(FidoMetadataDownloadFailures.RootCertificatesInvalid);
                 }
 
                 certificatesToDispose.Add(fidoRootCertificate);
@@ -181,7 +195,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             if (rootCertificates.Count == 0)
             {
                 Logger.WarnRootCertificatesNotValidNow(fidoRootCertificates.Count, currentDate);
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.RootCertificatesInvalid);
             }
 
             // https://www.rfc-editor.org/rfc/rfc7515#section-4.1.6
@@ -204,7 +218,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             else
             {
                 Logger.WarnJwtHeaderCertificateUnsupportedPublicKey(signingCertificate.Subject);
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
             }
 
             X509Chain? jwtCertificateChain = null;
@@ -218,13 +232,13 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                         out var chainStatus))
                 {
                     Logger.WarnJwtCertificateChainInvalid(FormatChainStatus(chainStatus));
-                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                    return FailDownload(FidoMetadataDownloadFailures.ChainInvalid);
                 }
 
                 if (!await ValidateJwtCertificateChainAsync(jwtCertificateChain, cancellationToken))
                 {
                     Logger.WarnJwtCertificateChainRejected();
-                    return Result<MetadataBLOBPayloadJSON>.Fail();
+                    return FailDownload(FidoMetadataDownloadFailures.ChainRejected);
                 }
             }
             finally
@@ -236,13 +250,13 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             if (!jwtValidationResult.IsValid)
             {
                 Logger.WarnJwtSignatureInvalid(jwtValidationResult.Exception);
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.SignatureInvalid);
             }
 
             if (!Base64Url.TryDecode(jwt.EncodedPayload, out var jwtPayloadBytes))
             {
                 Logger.WarnJwtPayloadNotBase64Url();
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.PayloadInvalid);
             }
 
             var payload = Encoding.UTF8.GetString(jwtPayloadBytes);
@@ -250,10 +264,11 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             if (blobPayloadResult.HasError)
             {
                 Logger.WarnJwtPayloadDeserializationFailed();
-                return Result<MetadataBLOBPayloadJSON>.Fail();
+                return FailDownload(FidoMetadataDownloadFailures.PayloadInvalid);
             }
 
             Logger.DebugMetadataDownloaded(blobPayloadResult.Ok.No, blobPayloadResult.Ok.Entries?.Length ?? 0);
+            Counters.IncrementDownloadEnd(true);
             return Result<MetadataBLOBPayloadJSON>.Success(blobPayloadResult.Ok);
         }
         finally
@@ -268,6 +283,14 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 certificateToDispose.Dispose();
             }
         }
+    }
+
+    // the blob is not provided: the reason (one of FidoMetadataDownloadFailures) and the unsuccessful completion are counted
+    private Result<MetadataBLOBPayloadJSON> FailDownload(string reason)
+    {
+        Counters.IncrementDownloadFailure(reason);
+        Counters.IncrementDownloadEnd(false);
+        return Result<MetadataBLOBPayloadJSON>.Fail();
     }
 
     /// <summary>
