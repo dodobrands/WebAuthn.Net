@@ -38,6 +38,10 @@ public class DefaultRegistrationCeremonyCounters : IRegistrationCeremonyCounters
             "webauthn.reg.attestation.anomalies",
             null,
             "The number of anomalies found while verifying attestation statements: deviations from the specifications that were tolerated, and values unknown to the library that caused the attestation statement to be rejected");
+        ResponseAnomaliesCounter = Meter.CreateCounter<long>(
+            "webauthn.reg.response.anomalies",
+            null,
+            "The number of anomalies found while decoding the responses of the registration ceremony: deviations from the specifications and values unknown to the library, either tolerated or causing the response to be rejected");
     }
 
     /// <summary>
@@ -69,6 +73,11 @@ public class DefaultRegistrationCeremonyCounters : IRegistrationCeremonyCounters
     ///     Counter for the anomalies found while verifying attestation statements during the registration ceremony.
     /// </summary>
     protected Counter<long> AttestationStatementAnomaliesCounter { get; }
+
+    /// <summary>
+    ///     Counter for the anomalies found while decoding the responses of the registration ceremony.
+    /// </summary>
+    protected Counter<long> ResponseAnomaliesCounter { get; }
 
     /// <inheritdoc />
     public void Dispose()
@@ -128,6 +137,21 @@ public class DefaultRegistrationCeremonyCounters : IRegistrationCeremonyCounters
             new TagList
             {
                 new(Tags.AttestationStatementFormat, fmt),
+                new(Tags.Anomaly, anomaly),
+                new(Tags.Outcome, outcome)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementResponseAnomaly(string anomaly, bool tolerated)
+    {
+        var outcome = tolerated
+            ? TagValues.OutcomeTolerated
+            : TagValues.OutcomeRejected;
+        ResponseAnomaliesCounter.Add(
+            1L,
+            new TagList
+            {
                 new(Tags.Anomaly, anomaly),
                 new(Tags.Outcome, outcome)
             });

@@ -96,10 +96,13 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         RegistrationCeremonyStorage = new();
         AuthenticationCeremonyStorage = new();
 
+        RegistrationCounters = new();
         var registrationResponseDecoder = new DefaultRegistrationResponseDecoder(
             new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
+            RegistrationCounters,
+            NullLogger<DefaultRegistrationResponseDecoder>.Instance);
         var clientDataDecoder = new DefaultClientDataDecoder(
             safeJsonDeserializer,
             new DefaultEnumMemberAttributeSerializer<TokenBindingStatus>(),
@@ -156,7 +159,6 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             asn1Deserializer,
             metadataSearchService,
             NullLogger<DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
-        RegistrationCounters = new();
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             new DefaultTpmPubAreaDecoder(),

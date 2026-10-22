@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Configuration.Options.AttestationTypes;
 using WebAuthn.Net.DSL;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Models.Protocol;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
@@ -26,6 +28,10 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
     private const string RpId = "vanbukin-pc.local";
     private const string Origin = "https://vanbukin-pc.local";
     private const string PartnerOrigin = "https://partner.example";
+    private static readonly byte[] UserHandle = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
+    private static readonly string[] KnownTransports = { "internal", "hybrid" };
+    private static readonly string[] TransportsWithUnknownValue = { "future-transport", "hybrid", "internal" };
+    private static readonly string[] RepeatedTransports = { "usb", "nfc", "usb" };
 
     protected override IEnumerable<KeyValuePair<string, string?>>? GetConfiguration()
     {
@@ -196,6 +202,84 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
         Assert.That(result.HasError, Is.True);
     }
 
+    // https://www.w3.org/TR/webauthn-3/#reg-ceremony-create-credential-record
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_StoresAttestedCredentialIdAndTransports()
+    {
+        using var authenticator = new SoftwareAuthenticator();
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            authenticator.CreateRegistrationResponse(
+                RpId,
+                SoftwareAuthenticator.CreateClientDataJson("webauthn.create", challenge, Origin),
+                transports: KnownTransports));
+
+        Assert.That(result.HasError, Is.False);
+        var descriptor = await FindStoredDescriptorAsync(authenticator.CredentialId);
+        Assert.That(descriptor.Transports, Is.EqualTo(new[] { AuthenticatorTransport.Internal, AuthenticatorTransport.Hybrid }));
+    }
+
+    // https://www.w3.org/TR/webauthn-3/#dom-authenticatorattestationresponse-transports-slot - the library can store only the transports it knows,
+    // and it doesn't modify the transports reported by the client (https://www.w3.org/TR/webauthn-3/#abstract-opdef-credential-record-transports)
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenTransportIsUnknown()
+    {
+        using var authenticator = new SoftwareAuthenticator();
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            authenticator.CreateRegistrationResponse(
+                RpId,
+                SoftwareAuthenticator.CreateClientDataJson("webauthn.create", challenge, Origin),
+                transports: TransportsWithUnknownValue));
+
+        Assert.That(result.HasError, Is.True);
+    }
+
+    // https://www.w3.org/TR/webauthn-3/#dom-authenticatorattestationresponse-transports-slot - the values are unique
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenTransportsRepeat()
+    {
+        using var authenticator = new SoftwareAuthenticator();
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            authenticator.CreateRegistrationResponse(
+                RpId,
+                SoftwareAuthenticator.CreateClientDataJson("webauthn.create", challenge, Origin),
+                transports: RepeatedTransports));
+
+        Assert.That(result.HasError, Is.True);
+    }
+
+    // A client reports each transport of the authenticator once, so a response with more than 99 transports is rejected
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremony_WhenThereAreMoreThanNinetyNineTransports()
+    {
+        using var authenticator = new SoftwareAuthenticator();
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+
+        var result = await CompleteCeremonyAsync(
+            ceremonyId,
+            authenticator.CreateRegistrationResponse(
+                RpId,
+                SoftwareAuthenticator.CreateClientDataJson("webauthn.create", challenge, Origin),
+                transports: Enumerable.Repeat("usb", 100).ToArray()));
+
+        Assert.That(result.HasError, Is.True);
+    }
+
+    private async Task<PublicKeyCredentialDescriptor> FindStoredDescriptorAsync(byte[] credentialId)
+    {
+        await using var context = await ContextFactory.CreateAsync(new DefaultHttpContext(new FeatureCollection()), CancellationToken.None);
+        var descriptors = await CredentialStorage.FindDescriptorsAsync(context, RpId, UserHandle, CancellationToken.None);
+        return descriptors.Single(x => x.Id.AsSpan().SequenceEqual(credentialId));
+    }
+
     private async Task<(string CeremonyId, string Challenge)> BeginCeremonyAsync(
         RegistrationCeremonyOriginParameters? topOrigins,
         RegistrationCeremonyOriginParameters? origins = null)
@@ -206,7 +290,7 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
                 origins,
                 topOrigins,
                 "Test Host",
-                new("testuser", WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ"), "Test User"),
+                new("testuser", UserHandle, "Test User"),
                 32,
                 new[]
                 {

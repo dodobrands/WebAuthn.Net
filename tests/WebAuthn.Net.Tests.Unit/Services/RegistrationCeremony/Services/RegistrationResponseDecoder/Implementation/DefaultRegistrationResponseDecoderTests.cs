@@ -1,10 +1,15 @@
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation.Constants;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
@@ -22,15 +27,26 @@ public class DefaultRegistrationResponseDecoderTests
 
     private const string PublicKeyType = "public-key";
 
+    private static readonly string[] EveryKnownTransport = { "hybrid", "internal", "usb", "nfc", "ble", "smart-card" };
+    private static readonly string[] RepeatedTransports = { "usb", "nfc", "usb", "usb", "nfc" };
+    private static readonly string[] RepeatedAndUnknownTransports = { "usb", "usb", "future-transport" };
+    private static readonly string[] RepeatedUnknownTransport = { "future-transport", "future-transport", "future-transport" };
+
     private DefaultRegistrationResponseDecoder Decoder { get; set; } = null!;
+    private FakeRegistrationCeremonyCounters Counters { get; set; } = null!;
+    private FakeLogger<DefaultRegistrationResponseDecoder> Logger { get; set; } = null!;
 
     [SetUp]
     public void SetupServices()
     {
+        Counters = new();
+        Logger = new();
         Decoder = new(
             new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
+            Counters,
+            Logger);
     }
 
     [Test]
@@ -133,6 +149,209 @@ public class DefaultRegistrationResponseDecoderTests
         var result = Decoder.Decode(response);
 
         Assert.That(result.HasError, Is.True);
+    }
+
+    [Test]
+    public void Decode_ReturnsNoTransports_WithoutWarnings_WhenResponseHasNoTransports()
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(null));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.Response.Transports, Is.Null);
+            Assert.That(Logger.Entries, Is.Empty);
+            Assert.That(Counters.ResponseAnomalies, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void Decode_ReturnsTransportsInTheirOrder_WithoutWarnings_WhenEveryTransportIsKnown()
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(EveryKnownTransport));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(
+                result.Ok?.Response.Transports,
+                Is.EqualTo(new[]
+                {
+                    AuthenticatorTransport.Hybrid,
+                    AuthenticatorTransport.Internal,
+                    AuthenticatorTransport.Usb,
+                    AuthenticatorTransport.Nfc,
+                    AuthenticatorTransport.Ble,
+                    AuthenticatorTransport.SmartCard
+                }));
+            Assert.That(Logger.Entries, Is.Empty);
+            Assert.That(Counters.ResponseAnomalies, Is.Empty);
+        });
+    }
+
+    // https://www.w3.org/TR/webauthn-3/#dom-authenticatorattestationresponse-transports-slot - "The values SHOULD be members of AuthenticatorTransport but Relying Parties SHOULD accept and store unknown values".
+    // The library can store only the members of AuthenticatorTransport and doesn't modify the transports reported by the client
+    // (https://www.w3.org/TR/webauthn-3/#abstract-opdef-credential-record-transports), so a response with an unknown value is rejected.
+    [TestCase("future-transport")]
+    [TestCase("cable")]
+    [TestCase("USB")]
+    [TestCase("smart card")]
+    [TestCase("")]
+    public void Decode_Fails_AndLogsWarning_WhenTransportIsUnknown(string unknownTransport)
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(new[] { "hybrid", unknownTransport, "internal" }));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { UnknownTransportsWarning(1, $"'{unknownTransport}'") }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.TransportsUnknownValue, false) }));
+        });
+    }
+
+    [Test]
+    public void Decode_Fails_AndDescribesNullElementAsNull_WhenTransportsContainNull()
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(new[] { "usb", null }));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { UnknownTransportsWarning(1, "null") }));
+        });
+    }
+
+    // https://www.w3.org/TR/webauthn-3/#dom-authenticatorattestationresponse-transports-slot - the values are unique
+    [Test]
+    public void Decode_Fails_AndLogsWarning_WhenTransportsRepeat()
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(RepeatedTransports));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { DuplicateTransportsWarning(3) }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.TransportsDuplicateValue, false) }));
+        });
+    }
+
+    // The unknown values are checked before the duplicates, and the response is rejected by the first check that fails
+    [Test]
+    public void Decode_Fails_AndReportsOnlyUnknownTransports_WhenTransportsAlsoRepeat()
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(RepeatedAndUnknownTransports));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { UnknownTransportsWarning(1, "'future-transport'") }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.TransportsUnknownValue, false) }));
+        });
+    }
+
+    // A client reports each transport of the authenticator once, so a response with more than 99 transports is rejected before any of them is examined
+    [TestCase(100)]
+    [TestCase(10_000)]
+    public void Decode_Fails_AndLogsWarning_WhenThereAreMoreThanNinetyNineTransports(int count)
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(Enumerable.Repeat("future-transport", count).ToArray()));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { TooManyTransportsWarning(count) }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.TransportsTooManyValues, false) }));
+        });
+    }
+
+    // The transports are chosen by the client: however many unknown values there are, they are reported with a single Warning that contains their number
+    // and lists at most 8 distinct values, and the anomaly is counted once per response
+
+    [Test]
+    public void Decode_ListsRepeatedUnknownTransportOnce()
+    {
+        var result = Decoder.Decode(CreateResponseWithTransports(RepeatedUnknownTransport));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { UnknownTransportsWarning(3, "'future-transport'") }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.TransportsUnknownValue, false) }));
+        });
+    }
+
+    [Test]
+    public void Decode_ListsEveryUnknownTransportInOneWarning_WhenThereAreEightDistinctUnknownTransports()
+    {
+        var transports = Enumerable.Range(0, 8).Select(static x => "t" + x.ToString(CultureInfo.InvariantCulture)).ToArray();
+
+        var result = Decoder.Decode(CreateResponseWithTransports(transports));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { UnknownTransportsWarning(8, "'t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7'") }));
+        });
+    }
+
+    [TestCase(9)]
+    [TestCase(99)]
+    public void Decode_ListsEightUnknownTransportsInOneWarning_WhenThereAreMoreDistinctUnknownTransports(int count)
+    {
+        var transports = Enumerable.Range(0, count).Select(static x => "t" + x.ToString(CultureInfo.InvariantCulture)).ToArray();
+
+        var result = Decoder.Decode(CreateResponseWithTransports(transports));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { UnknownTransportsWarning(count, "'t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', ...") }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.TransportsUnknownValue, false) }));
+        });
+    }
+
+    // An unknown value is untrusted input: its control characters are replaced and it is truncated to 64 characters, so that it can neither forge log entries nor flood the log
+    [Test]
+    public void Decode_NeutralizesAndTruncatesUnknownTransport_InWarning()
+    {
+        var transport = "ble\r\n" + new string('\u001b', 100);
+
+        var result = Decoder.Decode(CreateResponseWithTransports(new[] { transport }));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { UnknownTransportsWarning(1, $"'ble{new string('?', 61)}...'") }));
+        });
+    }
+
+    private IEnumerable<string> Warnings()
+    {
+        return Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message);
+    }
+
+    private static string TooManyTransportsWarning(int count)
+    {
+        return $"The 'transports' of the registration response contain {count.ToString(CultureInfo.InvariantCulture)} values, which exceeds the maximum of 99; the response is rejected";
+    }
+
+    private static string UnknownTransportsWarning(int count, string values)
+    {
+        return $"The 'transports' of the registration response contain {count.ToString(CultureInfo.InvariantCulture)} value(s) unknown to the library: {values}; the response is rejected";
+    }
+
+    private static string DuplicateTransportsWarning(int count)
+    {
+        return $"The 'transports' of the registration response contain {count.ToString(CultureInfo.InvariantCulture)} duplicate value(s); the response is rejected";
+    }
+
+    private static RegistrationResponseJSON CreateResponseWithTransports(string?[]? transports)
+    {
+        return CreateResponse(
+            CredentialId,
+            CredentialId,
+            new(ClientDataJson, null, transports!, null, null, AttestationObject),
+            PublicKeyType);
     }
 
     private static RegistrationResponseJSON CreateResponse(
