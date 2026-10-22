@@ -275,7 +275,9 @@ Both situations are counted in the `WebAuthn.Net.FidoMetadata` meter, so you can
 
 If the application shouldn't start without metadata, set `ThrowExceptionOnFailure` to `true` in `FidoMetadataBackgroundIngestHostedServiceOptions` (the `configureBackgroundIngest` parameter of the `AddWebAuthn*` extension methods).
 
-You can also implement your own storage and update of metadata based on a persistent storage, so that the application doesn't depend on the availability of the FIDO Metadata Service at start-up.
+An authenticator that has no entry in the metadata is handled the same way as when no metadata is available. When the metadata has an entry for the authenticator, its status reports are checked first. If they don't allow to trust the authenticator (`REVOKED`, `ATTESTATION_KEY_COMPROMISE`, `USER_KEY_REMOTE_COMPROMISE`, `USER_KEY_PHYSICAL_COMPROMISE`, `USER_VERIFICATION_BYPASS`, `UPDATE_AVAILABLE`, `RETIRED`, or no status known to WebAuthn.Net), the registration is rejected for every attestation statement format that uses the metadata: `packed` with a certificate chain, `fido-u2f`, `tpm`, `android-key` and `android-safetynet`. This holds even if the attestation chains up to a root certificate built into WebAuthn.Net: the revocation of attestation certificates isn't checked through X.509 revocation lists, so the statuses in the metadata are how revoked authenticator models are recognized. Every such lookup logs a warning and increments `webauthn.mds.search.untrusted`. To change which statuses are trusted, override `CanTrustMetadata` in a class derived from `DefaultFidoMetadataSearchService<TContext>`.
+
+You can also implement your own storage and update of metadata based on a persistent storage, so that the application doesn't depend on the availability of the FIDO Metadata Service at start-up. The search methods of `IFidoMetadataSearchStorage<TContext>` report why nothing was found: `NotFound` if the storage has metadata but no entry for the authenticator, or `MetadataNotAvailable` if it has no metadata at all, so that the latter is logged and counted.
 
 ## Dependency Injection
 

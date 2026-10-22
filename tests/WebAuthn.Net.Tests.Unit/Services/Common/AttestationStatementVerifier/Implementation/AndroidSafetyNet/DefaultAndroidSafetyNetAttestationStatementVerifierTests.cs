@@ -23,6 +23,8 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.A
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using static WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AttestationStatementVerifierTestHelpers;
 
@@ -50,6 +52,57 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
             Assert.That(result.Ok.AttestationType, Is.EqualTo(AttestationType.Basic));
             Assert.That(result.Ok.AttestationTrustPath, Is.EqualTo(new[] { attestation.Certificate.RawData }));
             Assert.That(result.Ok.AttestationRootCertificates, Is.EquivalentTo(AndroidSafetyNetRoots.Certificates));
+            Assert.That(verifier.FakeLogger.Entries, Is.Empty);
+        });
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Trust anchors: the embedded roots and the roots of the FIDO Metadata Service entry; an entry that doesn't allow to trust the authenticator rejects the attestation statement
+
+    [Test]
+    public async Task VerifyAsync_AddsRootCertificatesOfMetadataEntry_WhenEntryListsBasicFull()
+    {
+        using var metadataRoot = CreateSelfSigned("CN=WebAuthn.Net Test SafetyNet Metadata Root", true);
+        var metadata = new RecordingFidoMetadataSearchService().WithAaguid(Aaguid, RecordingFidoMetadataSearchService.Metadata(metadataRoot, AuthenticatorAttestationType.ATTESTATION_BASIC_FULL));
+        var verifier = new TestSafetyNetVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(SafetyNetAttestation.Create());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok!.AttestationRootCertificates, Is.EquivalentTo(AndroidSafetyNetRoots.Certificates.Append(metadataRoot.RawData)));
+            Assert.That(metadata.AaguidLookups, Is.EqualTo(new[] { Aaguid }));
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenMetadataEntryIsUntrusted_DespiteEmbeddedRoots()
+    {
+        var metadata = new RecordingFidoMetadataSearchService().WithAaguid(Aaguid, FidoMetadataSearchError.Untrusted);
+        var verifier = new TestSafetyNetVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(SafetyNetAttestation.Create());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the aaguid {Aaguid} of the Android SafetyNet attestation statement doesn't allow to trust the authenticator");
+        });
+    }
+
+    [TestCase(FidoMetadataSearchError.NotFound)]
+    [TestCase(FidoMetadataSearchError.MetadataNotAvailable)]
+    public async Task VerifyAsync_Succeeds_WithEmbeddedRoots_WhenMetadataHasNoUsableEntry(FidoMetadataSearchError error)
+    {
+        var verifier = new TestSafetyNetVerifier(new RecordingFidoMetadataSearchService().WithAaguid(Aaguid, error));
+
+        var result = await verifier.VerifyAsync(SafetyNetAttestation.Create());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok!.AttestationRootCertificates, Is.EquivalentTo(AndroidSafetyNetRoots.Certificates));
             Assert.That(verifier.FakeLogger.Entries, Is.Empty);
         });
     }
@@ -478,15 +531,19 @@ public class DefaultAndroidSafetyNetAttestationStatementVerifierTests
 
     private sealed class TestSafetyNetVerifier : DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>
     {
-        public TestSafetyNetVerifier() : this(new FakeLogger<DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>>())
+        public TestSafetyNetVerifier() : this(new RecordingFidoMetadataSearchService())
         {
         }
 
-        private TestSafetyNetVerifier(FakeLogger<DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>> logger)
+        public TestSafetyNetVerifier(RecordingFidoMetadataSearchService metadata) : this(metadata, new FakeLogger<DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>>())
+        {
+        }
+
+        private TestSafetyNetVerifier(RecordingFidoMetadataSearchService metadata, FakeLogger<DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>> logger)
             : base(
                 new FakeTimeProvider(Now),
                 new DefaultSafeJsonSerializer(NullLogger<DefaultSafeJsonSerializer>.Instance),
-                new RecordingFidoMetadataSearchService(),
+                metadata,
                 logger)
         {
             FakeLogger = logger;

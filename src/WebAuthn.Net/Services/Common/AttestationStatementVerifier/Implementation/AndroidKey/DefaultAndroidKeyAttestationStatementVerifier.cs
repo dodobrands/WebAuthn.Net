@@ -21,6 +21,7 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -172,6 +173,9 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
 
             // 6) If successful, return implementation-specific values
             // representing attestation type Basic and attestation trust path 'x5c'.
+            // The acceptable trust anchors are the embedded root certificates (see AndroidKeyRoots) and, when the FIDO Metadata Service entry for the aaguid
+            // lists the "basic_full" attestation type, the root certificates of that entry. If the entry doesn't allow to trust the authenticator (for example, it is REVOKED),
+            // no trust anchor is acceptable and the attestation statement is rejected.
             var acceptableTrustAnchorsResult = await GetAcceptableTrustAnchorsAsync(
                 context,
                 credCert,
@@ -205,7 +209,10 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     /// <param name="credCert">X509v3 certificate containing extension data of the Android Key attestation statement</param>
     /// <param name="authenticatorData"><a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/webauthn-3/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns>If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process.</returns>
+    /// <returns>
+    ///     If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process,
+    ///     or that no trust anchor is acceptable because the FIDO Metadata Service doesn't allow to trust the authenticator.
+    /// </returns>
     protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
         X509Certificate2 credCert,
@@ -218,51 +225,62 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         var rootCertificates = new UniqueByteArraysCollection();
         var embeddedCertificates = GetEmbeddedRootCertificates();
         rootCertificates.AddRange(embeddedCertificates);
-        var metadataRoots = await GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+        // The FIDO Metadata Service is consulted even though the embedded root certificates are available:
+        // an entry that doesn't allow to trust the authenticator rejects the attestation statement whatever root certificates it chains up to.
+        var metadataRootsResult = await GetAcceptableTrustAnchorsFromFidoMetadataAsync(
             context,
             authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
-
-        if (metadataRoots is not null)
+        if (metadataRootsResult.HasError)
         {
-            rootCertificates.AddRange(metadataRoots);
+            return Result<UniqueByteArraysCollection>.Fail();
         }
 
+        rootCertificates.AddRange(metadataRootsResult.Ok);
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
     /// <summary>
-    ///     Returns a collection of valid root certificates from the Fido Metadata Service.
+    ///     Returns a collection of valid root certificates from the FIDO Metadata Service.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="aaguid">The AAGUID of the authenticator.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns>If the Fido Metadata Service contains root certificates for the specified <paramref name="aaguid" /> - then <see cref="UniqueByteArraysCollection" />, otherwise - <see langword="null" />.</returns>
-    protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+    /// <returns>
+    ///     If the FIDO Metadata Service doesn't say that the authenticator can't be trusted, the result contains the root certificates of its entry for the specified <paramref name="aaguid" />
+    ///     when the entry lists the "basic_full" attestation type (an empty collection when it doesn't, when there is no usable entry for the <paramref name="aaguid" />, or when no metadata is available).
+    ///     If the entry doesn't allow to trust the authenticator (<see cref="FidoMetadataSearchError.Untrusted" />), the result indicates that the attestation statement must be rejected.
+    /// </returns>
+    protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
-        if (metadata is null)
+        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
+        if (metadataResult.HasError)
         {
-            return null;
-        }
-
-        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL))
-        {
-            var result = new UniqueByteArraysCollection();
-            // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
-            if (metadata.RootCertificates?.Length > 0)
+            // Without a usable entry (or without any metadata) the FIDO Metadata Service doesn't say anything against the authenticator,
+            // so the attestation statement is verified against the embedded root certificates only.
+            if (metadataResult.Error is FidoMetadataSearchError.NotFound or FidoMetadataSearchError.MetadataNotAvailable)
             {
-                result.AddRange(metadata.RootCertificates);
+                return Result<UniqueByteArraysCollection>.Success(new());
             }
 
-            return result;
+            // The entry doesn't allow to trust the authenticator (for example, it is REVOKED): the embedded root certificates aren't acceptable either.
+            // The search service has already logged and counted it.
+            return Result<UniqueByteArraysCollection>.Fail();
         }
 
-        return null;
+        var metadata = metadataResult.Ok;
+        var result = new UniqueByteArraysCollection();
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_FULL) && metadata.RootCertificates?.Length > 0)
+        {
+            result.AddRange(metadata.RootCertificates);
+        }
+
+        return Result<UniqueByteArraysCollection>.Success(result);
     }
 
     /// <summary>

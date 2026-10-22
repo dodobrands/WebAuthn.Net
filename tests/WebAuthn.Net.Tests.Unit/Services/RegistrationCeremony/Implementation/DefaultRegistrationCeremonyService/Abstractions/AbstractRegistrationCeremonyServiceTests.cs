@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +34,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestService;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Metrics.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.PublicKeyCredentialCreationOptionsEncoder.Implementation;
@@ -141,11 +143,14 @@ public abstract class AbstractRegistrationCeremonyServiceTests
                 throw new InvalidOperationException("Can't decode metadata");
             }
 
-            var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
-            metadataSearchService = new(storage, TimeProvider);
-            var metadataIngestService = new DefaultFidoMetadataIngestService(storage);
+            MetadataBlob = decodeMetadataResult.Ok;
+            MetadataStorage = new();
+            FidoMetadataCounters = new();
+            FidoMetadataSearchLogger = new();
+            metadataSearchService = new(MetadataStorage, TimeProvider, FidoMetadataCounters, FidoMetadataSearchLogger);
+            var metadataIngestService = new DefaultFidoMetadataIngestService(MetadataStorage);
             await metadataIngestService.UpsertAsync(
-                decodeMetadataResult.Ok,
+                MetadataBlob,
                 CancellationToken.None);
         }
 
@@ -257,6 +262,37 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         return DateTimeOffset.UtcNow;
     }
 
+    // Replaces the metadata in use with a copy of the downloaded blob in which the entry for the aaguid has one more status report with the status,
+    // as if the FIDO Metadata Service had published it (if the blob has no entry for the aaguid, an entry with only this status report is added).
+    protected async Task UpsertMetadataWithStatusReportAsync(Guid aaguid, AuthenticatorStatus status)
+    {
+        var statusReport = new StatusReport(status, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        var entries = MetadataBlob.Entries.ToList();
+        var index = entries.FindIndex(x => x.Aaguid == aaguid);
+        if (index >= 0)
+        {
+            var entry = entries[index];
+            entries[index] = new(
+                entry.Aaid,
+                entry.Aaguid,
+                entry.AttestationCertificateKeyIdentifiers,
+                entry.MetadataStatement,
+                entry.BiometricStatusReports,
+                entry.StatusReports.Append(statusReport).ToArray(),
+                entry.TimeOfLastStatusChange,
+                entry.RogueListUrl,
+                entry.RogueListHash);
+        }
+        else
+        {
+            entries.Add(new(null, aaguid, null, null, null, new[] { statusReport }, DateTimeOffset.UnixEpoch, null, null));
+        }
+
+        await MetadataStorage.UpsertAsync(
+            new(MetadataBlob.LegalHeader, MetadataBlob.No, MetadataBlob.NextUpdate, entries.ToArray()),
+            CancellationToken.None);
+    }
+
     protected abstract Uri GetRelyingPartyAddress();
     protected DefaultRegistrationCeremonyService<FakeWebAuthnContext> RegistrationCeremonyService { get; set; } = null!;
     protected OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
@@ -266,4 +302,8 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
     protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
     protected DefaultRegistrationCeremonyCounters RegistrationCounters { get; set; } = null!;
+    protected MetadataBlobPayload MetadataBlob { get; set; } = null!;
+    protected DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext> MetadataStorage { get; set; } = null!;
+    protected FakeFidoMetadataCounters FidoMetadataCounters { get; set; } = null!;
+    protected FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>> FidoMetadataSearchLogger { get; set; } = null!;
 }

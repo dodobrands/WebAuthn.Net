@@ -50,4 +50,8 @@ internal sealed class NullFidoMetadataCounters : IFidoMetadataCounters
     public void IncrementLookupWithoutMetadata()
     {
     }
+
+    public void IncrementLookupWithUntrustedEntry()
+    {
+    }
 }

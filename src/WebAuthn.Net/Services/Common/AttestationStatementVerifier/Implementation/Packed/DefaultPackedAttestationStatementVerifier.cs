@@ -20,6 +20,7 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -271,16 +272,27 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
     {
         ArgumentNullException.ThrowIfNull(authenticatorData);
         cancellationToken.ThrowIfCancellationRequested();
-        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
+        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
             context,
             authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
-        if (metadata is null)
+        if (metadataResult.HasError)
         {
-            Logger.PackedMetadataNotFound(authenticatorData.AttestedCredentialData.Aaguid);
+            // The trust anchors of a Packed attestation statement with 'x5c' come only from the FIDO Metadata Service, so the attestation statement is rejected
+            // both when there is no usable entry for the aaguid and when the entry doesn't allow to trust the authenticator.
+            if (metadataResult.Error is FidoMetadataSearchError.Untrusted)
+            {
+                Logger.PackedMetadataUntrusted(authenticatorData.AttestedCredentialData.Aaguid);
+            }
+            else
+            {
+                Logger.PackedMetadataNotFound(authenticatorData.AttestedCredentialData.Aaguid);
+            }
+
             return Result<FidoPackedAttestationTypeResult>.Fail();
         }
 
+        var metadata = metadataResult.Ok;
         if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
         {
             var rootCertificates = new UniqueByteArraysCollection();
@@ -705,14 +717,24 @@ public static partial class DefaultPackedAttestationStatementVerifierLoggingExte
     public static partial void PackedAttestnCertAaguidMismatch(this ILogger logger);
 
     /// <summary>
-    ///     The FIDO Metadata Service has no trusted metadata for the aaguid {Aaguid} of the Packed attestation statement
+    ///     The FIDO Metadata Service has no usable metadata for the aaguid {Aaguid} of the Packed attestation statement
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="aaguid">The AAGUID of the authenticator.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The FIDO Metadata Service has no trusted metadata for the aaguid {Aaguid} of the Packed attestation statement")]
+        Message = "The FIDO Metadata Service has no usable metadata for the aaguid {Aaguid} of the Packed attestation statement")]
     public static partial void PackedMetadataNotFound(this ILogger logger, Guid aaguid);
+
+    /// <summary>
+    ///     The FIDO Metadata Service entry for the aaguid {Aaguid} of the Packed attestation statement doesn't allow to trust the authenticator
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service entry for the aaguid {Aaguid} of the Packed attestation statement doesn't allow to trust the authenticator")]
+    public static partial void PackedMetadataUntrusted(this ILogger logger, Guid aaguid);
 
     /// <summary>
     ///     The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca, basic_full or basic_surrogate)

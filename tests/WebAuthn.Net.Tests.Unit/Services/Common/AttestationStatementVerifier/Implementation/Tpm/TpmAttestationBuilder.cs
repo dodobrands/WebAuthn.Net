@@ -18,13 +18,11 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Attestati
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cose.Models;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.EC2;
-using WebAuthn.Net.Storage.FidoMetadata.Implementation;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
@@ -602,29 +600,35 @@ internal sealed record TpmAttestation(TpmAttestationStatement AttStmt, AttestedA
 
 /// <summary>
 ///     <see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> with the default decoders, a fixed clock, recording counters and logger,
-///     the default manufacturer verifier unless another one is given, and a FIDO Metadata Service that supplies <see cref="FidoMetadataRoots" /> (by default nothing,
-///     so the acceptable trust anchors are the embedded manufacturer roots only).
+///     the default manufacturer verifier unless another one is given, and a FIDO Metadata Service stand-in that answers only what it is given
+///     (by default it finds nothing, so the acceptable trust anchors are the embedded manufacturer roots only).
 /// </summary>
 internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>
 {
     public TestTpmAttestationStatementVerifier()
-        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), new DefaultTpmManufacturerVerifier(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), new DefaultTpmManufacturerVerifier(), new RecordingFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
     {
     }
 
     public TestTpmAttestationStatementVerifier(DateTimeOffset now)
-        : this(new FakeTimeProvider(now), new DefaultTpmManufacturerVerifier(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+        : this(new FakeTimeProvider(now), new DefaultTpmManufacturerVerifier(), new RecordingFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
     {
     }
 
     public TestTpmAttestationStatementVerifier(ITpmManufacturerVerifier tpmManufacturerVerifier)
-        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), tpmManufacturerVerifier, new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), tpmManufacturerVerifier, new RecordingFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+    {
+    }
+
+    public TestTpmAttestationStatementVerifier(ITpmManufacturerVerifier tpmManufacturerVerifier, RecordingFidoMetadataSearchService fidoMetadataSearchService)
+        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), tpmManufacturerVerifier, fidoMetadataSearchService, new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
     {
     }
 
     private TestTpmAttestationStatementVerifier(
         FakeTimeProvider timeProvider,
         ITpmManufacturerVerifier tpmManufacturerVerifier,
+        RecordingFidoMetadataSearchService fidoMetadataSearchService,
         FakeRegistrationCeremonyCounters counters,
         FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>> logger)
         : base(
@@ -634,13 +638,16 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
             new DefaultDigitalSignatureVerifier(),
             tpmManufacturerVerifier,
             new DefaultAsn1Deserializer(NullLogger<DefaultAsn1Deserializer>.Instance),
-            new DefaultFidoMetadataSearchService<FakeWebAuthnContext>(new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>(), timeProvider),
+            fidoMetadataSearchService,
             counters,
             logger)
     {
+        FakeFidoMetadataSearchService = fidoMetadataSearchService;
         FakeCounters = counters;
         FakeLogger = logger;
     }
+
+    public RecordingFidoMetadataSearchService FakeFidoMetadataSearchService { get; }
 
     public FakeRegistrationCeremonyCounters FakeCounters { get; }
 
@@ -648,9 +655,6 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
 
     // the policy of IsTpmBoundCredentialKeyRequired: reject a credential key that is not bound to the TPM (the default of the verifier is to tolerate it)
     public bool RequireTpmBoundCredentialKey { get; init; }
-
-    // the root certificates that the FIDO Metadata Service supplies for the aaguid (null: no metadata)
-    public UniqueByteArraysCollection? FidoMetadataRoots { get; init; }
 
     public async Task<Result<VerifiedAttestationStatement>> VerifyAsync(TpmAttestation attestation)
     {
@@ -667,10 +671,5 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
     protected override bool IsTpmBoundCredentialKeyRequired(PubArea pubArea, AttestedAuthenticatorData authenticatorData)
     {
         return RequireTpmBoundCredentialKey;
-    }
-
-    protected override Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(FakeWebAuthnContext context, Guid aaguid, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(FidoMetadataRoots);
     }
 }

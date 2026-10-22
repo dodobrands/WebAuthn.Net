@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
+using WebAuthn.Net.Storage.FidoMetadata.Models.Enums;
 
 namespace WebAuthn.Net.Storage.FidoMetadata;
 
@@ -19,8 +21,11 @@ public interface IFidoMetadataSearchStorage<TContext>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="aaguid">The AAGUID of the authenticator.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns>An instance of <see cref="MetadataBlobPayloadEntry" /> if the entry is found, otherwise - <see langword="null" />.</returns>
-    Task<MetadataBlobPayloadEntry?> FindByAaguidAsync(
+    /// <returns>
+    ///     If the entry is found, the result contains <see cref="MetadataBlobPayloadEntry" />. Otherwise, the result contains the reason: <see cref="FidoMetadataSearchStorageError.NotFound" /> if the storage contains metadata,
+    ///     but there is no entry for the <paramref name="aaguid" /> in it, or <see cref="FidoMetadataSearchStorageError.MetadataNotAvailable" /> if the storage contains no metadata at all (no blob has been ingested yet).
+    /// </returns>
+    Task<Result<MetadataBlobPayloadEntry, FidoMetadataSearchStorageError>> FindByAaguidAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken);
@@ -31,27 +36,12 @@ public interface IFidoMetadataSearchStorage<TContext>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="subjectKeyIdentifier">Subject key identifier.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns>An instance of <see cref="MetadataBlobPayloadEntry" /> if the entry is found, otherwise - <see langword="null" />.</returns>
-    Task<MetadataBlobPayloadEntry?> FindBySubjectKeyIdentifierAsync(
+    /// <returns>
+    ///     If the entry is found, the result contains <see cref="MetadataBlobPayloadEntry" />. Otherwise, the result contains the reason: <see cref="FidoMetadataSearchStorageError.NotFound" /> if the storage contains metadata,
+    ///     but there is no entry for the <paramref name="subjectKeyIdentifier" /> in it, or <see cref="FidoMetadataSearchStorageError.MetadataNotAvailable" /> if the storage contains no metadata at all (no blob has been ingested yet).
+    /// </returns>
+    Task<Result<MetadataBlobPayloadEntry, FidoMetadataSearchStorageError>> FindBySubjectKeyIdentifierAsync(
         TContext context,
         byte[] subjectKeyIdentifier,
         CancellationToken cancellationToken);
-
-    /// <summary>
-    ///     Reports whether the storage contains metadata to search in, that is, whether a blob obtained from the FIDO Metadata Service has been ingested.
-    /// </summary>
-    /// <remarks>
-    ///     The search service calls this method when an entry is not found, to distinguish an authenticator that is absent from the metadata from the absence of the metadata itself
-    ///     (for example, before the first successful ingestion), and reports the latter. The default implementation returns <see langword="true" />,
-    ///     because a storage that doesn't track the ingestion can't tell these cases apart.
-    /// </remarks>
-    /// <param name="context">The context in which the WebAuthn operation is performed.</param>
-    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns><see langword="true" /> if the storage contains metadata (or doesn't track its presence), otherwise - <see langword="false" />.</returns>
-    Task<bool> IsMetadataAvailableAsync(
-        TContext context,
-        CancellationToken cancellationToken)
-    {
-        return Task.FromResult(true);
-    }
 }

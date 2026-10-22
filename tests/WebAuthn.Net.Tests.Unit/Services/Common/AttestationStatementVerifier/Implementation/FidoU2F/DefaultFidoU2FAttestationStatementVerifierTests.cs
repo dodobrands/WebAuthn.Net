@@ -15,6 +15,7 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Attestati
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cose.Models;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
@@ -108,7 +109,81 @@ public class DefaultFidoU2FAttestationStatementVerifierTests
         Assert.Multiple(() =>
         {
             Assert.That(result.HasError, Is.True);
-            AssertWarning(verifier, $"no trusted metadata for the attestation certificate key identifier {Convert.ToHexString(attestation.Method1KeyIdentifier)}");
+            AssertWarning(verifier, $"no usable metadata for the attestation certificate key identifier {Convert.ToHexString(attestation.Method1KeyIdentifier)}");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenMetadataEntryFoundByComputedKeyIdentifierIsUntrusted_WithoutTryingSkiExtensionValue()
+    {
+        // an entry that doesn't allow to trust the authenticator is decisive: another entry found by the SKI extension value must not override it
+        var vendorIdentifier = Enumerable.Range(0, 20).Select(static x => (byte) (0xA0 + x)).ToArray();
+        var attestation = FidoU2FAttestation.Create(subjectKeyIdentifier: vendorIdentifier);
+        var metadata = new RecordingFidoMetadataSearchService()
+            .WithKeyIdentifier(attestation.Method1KeyIdentifier, FidoMetadataSearchError.Untrusted)
+            .WithKeyIdentifier(vendorIdentifier, RecordingFidoMetadataSearchService.Metadata(attestation.Root, AuthenticatorAttestationType.ATTESTATION_BASIC_FULL));
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.KeyIdentifierLookups, Is.EqualTo(new[] { Convert.ToHexString(attestation.Method1KeyIdentifier) }));
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the attestation certificate key identifier {Convert.ToHexString(attestation.Method1KeyIdentifier)} of the FIDO U2F attestation statement doesn't allow to trust the authenticator");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenMetadataEntryFoundBySkiExtensionValueIsUntrusted()
+    {
+        var vendorIdentifier = Enumerable.Range(0, 20).Select(static x => (byte) (0xA0 + x)).ToArray();
+        var attestation = FidoU2FAttestation.Create(subjectKeyIdentifier: vendorIdentifier);
+        var metadata = new RecordingFidoMetadataSearchService().WithKeyIdentifier(vendorIdentifier, FidoMetadataSearchError.Untrusted);
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.KeyIdentifierLookups, Is.EqualTo(new[] { Convert.ToHexString(attestation.Method1KeyIdentifier), Convert.ToHexString(vendorIdentifier) }));
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the attestation certificate key identifier {Convert.ToHexString(vendorIdentifier)} of the FIDO U2F attestation statement doesn't allow to trust the authenticator");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenMetadataEntryFoundByAaguidExtensionIsUntrusted()
+    {
+        var attestation = FidoU2FAttestation.Create(aaguidExtension: Aaguid);
+        var metadata = new RecordingFidoMetadataSearchService().WithAaguid(Aaguid, FidoMetadataSearchError.Untrusted);
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.KeyIdentifierLookups, Is.Empty);
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the aaguid {Aaguid} of the FIDO U2F attestation statement doesn't allow to trust the authenticator");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenMetadataEntryForAuthenticatorDataAaguidIsUntrusted()
+    {
+        var attestation = FidoU2FAttestation.Create(authenticatorDataAaguid: Aaguid);
+        var metadata = new RecordingFidoMetadataSearchService().WithAaguid(Aaguid, FidoMetadataSearchError.Untrusted);
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.AaguidLookups, Is.EqualTo(new[] { Aaguid }));
+            Assert.That(metadata.KeyIdentifierLookups, Is.Empty);
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the aaguid {Aaguid} of the FIDO U2F attestation statement doesn't allow to trust the authenticator");
         });
     }
 
@@ -311,7 +386,8 @@ public class DefaultFidoU2FAttestationStatementVerifierTests
             Guid? aaguidExtension = null,
             ECCurve? curve = null,
             AbstractCoseKey? credentialPublicKey = null,
-            bool corruptSignature = false)
+            bool corruptSignature = false,
+            Guid authenticatorDataAaguid = default)
         {
             using var attestationKey = ECDsa.Create(curve ?? ECCurve.NamedCurves.nistP256);
             var extensions = new System.Collections.Generic.List<X509Extension> { EndEntityBasicConstraints() };
@@ -334,7 +410,8 @@ public class DefaultFidoU2FAttestationStatementVerifierTests
             using var attCert = CreateSelfSigned("C=SE, O=WebAuthn.Net, OU=Authenticator Attestation, CN=WebAuthn.Net Test U2F Attestation", attestationKey, false, extensions.ToArray());
             using var credentialKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             var coseKey = credentialPublicKey ?? ToCoseEc2Key(credentialKey);
-            var authenticatorData = CreateAuthenticatorData(Guid.Empty, coseKey);
+            // the aaguid is not part of verificationData, so a U2F authenticator emulated by a CTAP2 authenticator may report one without breaking the signature
+            var authenticatorData = CreateAuthenticatorData(authenticatorDataAaguid, coseKey);
             var clientDataHash = CreateClientDataHash();
             var credentialParameters = credentialKey.ExportParameters(false);
             // verificationData = 0x00 || rpIdHash || clientDataHash || credentialId || 0x04 || x || y

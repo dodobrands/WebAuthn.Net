@@ -16,6 +16,7 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 using WebAuthn.Net.Services.Static;
@@ -186,7 +187,22 @@ public class DefaultPackedAttestationStatementVerifierTests
         Assert.Multiple(() =>
         {
             Assert.That(result.HasError, Is.True);
-            AssertWarning(verifier, $"no trusted metadata for the aaguid {Aaguid}");
+            AssertWarning(verifier, $"no usable metadata for the aaguid {Aaguid}");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenMetadataEntryIsUntrusted()
+    {
+        var attestation = PackedAttestation.Create();
+        var verifier = new TestPackedVerifier(new RecordingFidoMetadataSearchService().WithAaguid(Aaguid, FidoMetadataSearchError.Untrusted));
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the aaguid {Aaguid} of the Packed attestation statement doesn't allow to trust the authenticator");
         });
     }
 

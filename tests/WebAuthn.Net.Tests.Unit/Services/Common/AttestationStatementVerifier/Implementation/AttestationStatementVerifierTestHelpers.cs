@@ -9,11 +9,13 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.DSL.Fakes;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Serialization.Cose.Models;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
@@ -22,7 +24,7 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.EC2;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation;
 
 /// <summary>
-///     Certificates, authenticator data and FIDO Metadata Service stand-ins shared by the tests of the Packed, FIDO U2F, Apple Anonymous and Android SafetyNet attestation statement verifiers.
+///     Certificates, authenticator data and FIDO Metadata Service stand-ins shared by the tests of the Packed, FIDO U2F, Apple Anonymous, Android SafetyNet and TPM attestation statement verifiers.
 /// </summary>
 internal static class AttestationStatementVerifierTestHelpers
 {
@@ -273,12 +275,12 @@ internal static class AttestationStatementVerifierTestHelpers
 }
 
 /// <summary>
-///     A FIDO Metadata Service stand-in that answers from fixed entries and records every lookup.
+///     A FIDO Metadata Service stand-in that answers from fixed entries (or fixed errors) and records every lookup; any other lookup finds nothing (<see cref="FidoMetadataSearchError.NotFound" />).
 /// </summary>
 internal sealed class RecordingFidoMetadataSearchService : IFidoMetadataSearchService<FakeWebAuthnContext>
 {
-    private readonly Dictionary<Guid, FidoMetadataResult> _byAaguid = new();
-    private readonly Dictionary<string, FidoMetadataResult> _byKeyIdentifier = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<Guid, Result<FidoMetadataResult, FidoMetadataSearchError>> _byAaguid = new();
+    private readonly Dictionary<string, Result<FidoMetadataResult, FidoMetadataSearchError>> _byKeyIdentifier = new(StringComparer.OrdinalIgnoreCase);
 
     public List<Guid> AaguidLookups { get; } = new();
 
@@ -286,27 +288,39 @@ internal sealed class RecordingFidoMetadataSearchService : IFidoMetadataSearchSe
 
     public RecordingFidoMetadataSearchService WithAaguid(Guid aaguid, FidoMetadataResult result)
     {
-        _byAaguid[aaguid] = result;
+        _byAaguid[aaguid] = Result<FidoMetadataResult, FidoMetadataSearchError>.Success(result);
+        return this;
+    }
+
+    public RecordingFidoMetadataSearchService WithAaguid(Guid aaguid, FidoMetadataSearchError error)
+    {
+        _byAaguid[aaguid] = Result<FidoMetadataResult, FidoMetadataSearchError>.Fail(error);
         return this;
     }
 
     public RecordingFidoMetadataSearchService WithKeyIdentifier(byte[] keyIdentifier, FidoMetadataResult result)
     {
-        _byKeyIdentifier[Convert.ToHexString(keyIdentifier)] = result;
+        _byKeyIdentifier[Convert.ToHexString(keyIdentifier)] = Result<FidoMetadataResult, FidoMetadataSearchError>.Success(result);
         return this;
     }
 
-    public Task<FidoMetadataResult?> FindMetadataByAaguidAsync(FakeWebAuthnContext context, Guid aaguid, CancellationToken cancellationToken)
+    public RecordingFidoMetadataSearchService WithKeyIdentifier(byte[] keyIdentifier, FidoMetadataSearchError error)
     {
-        AaguidLookups.Add(aaguid);
-        return Task.FromResult(_byAaguid.GetValueOrDefault(aaguid));
+        _byKeyIdentifier[Convert.ToHexString(keyIdentifier)] = Result<FidoMetadataResult, FidoMetadataSearchError>.Fail(error);
+        return this;
     }
 
-    public Task<FidoMetadataResult?> FindMetadataBySubjectKeyIdentifierAsync(FakeWebAuthnContext context, byte[] subjectKeyIdentifier, CancellationToken cancellationToken)
+    public Task<Result<FidoMetadataResult, FidoMetadataSearchError>> FindMetadataByAaguidAsync(FakeWebAuthnContext context, Guid aaguid, CancellationToken cancellationToken)
+    {
+        AaguidLookups.Add(aaguid);
+        return Task.FromResult(_byAaguid.GetValueOrDefault(aaguid) ?? Result<FidoMetadataResult, FidoMetadataSearchError>.Fail(FidoMetadataSearchError.NotFound));
+    }
+
+    public Task<Result<FidoMetadataResult, FidoMetadataSearchError>> FindMetadataBySubjectKeyIdentifierAsync(FakeWebAuthnContext context, byte[] subjectKeyIdentifier, CancellationToken cancellationToken)
     {
         var hex = Convert.ToHexString(subjectKeyIdentifier);
         KeyIdentifierLookups.Add(hex);
-        return Task.FromResult(_byKeyIdentifier.GetValueOrDefault(hex));
+        return Task.FromResult(_byKeyIdentifier.GetValueOrDefault(hex) ?? Result<FidoMetadataResult, FidoMetadataSearchError>.Fail(FidoMetadataSearchError.NotFound));
     }
 
     public static FidoMetadataResult Metadata(X509Certificate2 root, params AuthenticatorAttestationType[] attestationTypes)
