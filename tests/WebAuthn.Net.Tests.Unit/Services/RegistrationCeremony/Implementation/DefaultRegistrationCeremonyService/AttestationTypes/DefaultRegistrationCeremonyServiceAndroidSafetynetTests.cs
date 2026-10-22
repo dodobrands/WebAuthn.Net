@@ -1,15 +1,20 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
@@ -17,6 +22,9 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegis
 
 public class DefaultRegistrationCeremonyServiceAndroidSafetynetTests : AbstractRegistrationCeremonyServiceTests
 {
+    // the aaguid in the authenticatorData of the test vector ("Android Authenticator")
+    private static readonly Guid AndroidAuthenticatorAaguid = Guid.Parse("b93fd961-f2e6-462f-b122-82002247de78");
+
     protected override Uri GetRelyingPartyAddress()
     {
         return new("https://goose-wondrous-overly.ngrok-free.app", UriKind.Absolute);
@@ -38,6 +46,32 @@ public class DefaultRegistrationCeremonyServiceAndroidSafetynetTests : AbstractR
 
     [Test]
     public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForAndroidSafetynet_WhenAllAlgorithms()
+    {
+        var completeResult = await CompleteCeremonyAsync();
+        Assert.That(completeResult.HasError, Is.False);
+    }
+
+    [TestCase(AuthenticatorStatus.REVOKED)]
+    [TestCase(AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE)]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidSafetynet_WhenMetadataStatusIsUntrusted(AuthenticatorStatus status)
+    {
+        // The certificate chain of the JWS goes up to an embedded root of the Android SafetyNet attestation, so the attestation doesn't need the root certificates of the FIDO Metadata Service.
+        // But the entry of the FIDO Metadata Service for the authenticator ("Android Authenticator") has a status that doesn't allow to trust it, so the registration must be rejected despite the embedded root.
+        await UpsertMetadataWithStatusReportAsync(AndroidAuthenticatorAaguid, status);
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(FidoMetadataCounters.LookupsWithUntrustedEntry, Is.EqualTo(1));
+            Assert.That(
+                FidoMetadataSearchLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The status reports of the FIDO Metadata Service entry for the authenticator with AAGUID {AndroidAuthenticatorAaguid} don't allow to trust the authenticator: FIDO_CERTIFIED_L1, FIDO_CERTIFIED, {status}"));
+        });
+    }
+
+    private async Task<Result<CompleteRegistrationCeremonyResult>> CompleteCeremonyAsync()
     {
         TimeProvider.Change(DateTimeOffset.Parse("2023-10-17T15:01:40Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
@@ -94,6 +128,6 @@ public class DefaultRegistrationCeremonyServiceAndroidSafetynetTests : AbstractR
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.HasError, Is.False);
+        return completeResult;
     }
 }

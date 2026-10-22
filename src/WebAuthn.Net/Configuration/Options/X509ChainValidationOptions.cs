@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Security.Cryptography.X509Certificates;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 
 namespace WebAuthn.Net.Configuration.Options;
 
@@ -34,8 +35,8 @@ public class X509ChainValidationOptions
     ///     </para>
     ///     <para>
     ///         Re-enabling the downloads or the revocation checking in a custom delegate lets a client make the server issue HTTP requests to arbitrary URLs and block for <see cref="X509ChainPolicy.UrlRetrievalTimeout" /> per request.
-    ///         The revocation of attestation certificates is not expressed through X.509 revocation lists in practice: the FIDO Metadata Service publishes the status of authenticator models, and the library refuses the metadata of
-    ///         compromised or revoked models instead.
+    ///         The revocation of attestation certificates is not expressed through X.509 revocation lists in practice: the FIDO Metadata Service publishes the status of authenticator models, and the library rejects the attestation of
+    ///         compromised or revoked models instead, even if it chains up to a root certificate embedded in the library (see <see cref="FidoMetadataSearchError.Untrusted" />).
     ///     </para>
     ///     <para>
     ///         The default delegate doesn't ignore any chain validation error (<see cref="X509ChainPolicy.VerificationFlags" /> is <see cref="X509VerificationFlags.NoFlag" />).

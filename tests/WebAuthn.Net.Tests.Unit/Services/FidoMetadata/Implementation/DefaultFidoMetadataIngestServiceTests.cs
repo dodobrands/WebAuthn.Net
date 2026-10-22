@@ -12,6 +12,7 @@ using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Storage.FidoMetadata;
 using WebAuthn.Net.Storage.FidoMetadata.Implementation;
+using WebAuthn.Net.Storage.FidoMetadata.Models.Enums;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
 
@@ -44,7 +45,7 @@ public class DefaultFidoMetadataIngestServiceTests
         await ingestService.UpsertAsync(CreateBlob(1, FirstAaguid), CancellationToken.None);
 
         Assert.That(await storage.GetCurrentBlobNoAsync(CancellationToken.None), Is.EqualTo(2));
-        Assert.That(await storage.FindByAaguidAsync(context, SecondAaguid, CancellationToken.None), Is.Not.Null);
+        Assert.That((await storage.FindByAaguidAsync(context, SecondAaguid, CancellationToken.None)).HasError, Is.False);
         Assert.That(Counters.BlobsRejectedDueToRollback, Is.EqualTo(1));
         var warnings = Logger.Entries.Where(static x => x.Level == LogLevel.Warning).ToArray();
         Assert.That(warnings, Has.Length.EqualTo(1));
@@ -63,7 +64,7 @@ public class DefaultFidoMetadataIngestServiceTests
         await ingestService.UpsertAsync(CreateBlob(2, FirstAaguid, SecondAaguid), CancellationToken.None);
 
         Assert.That(await storage.GetCurrentBlobNoAsync(CancellationToken.None), Is.EqualTo(2));
-        Assert.That(await storage.FindByAaguidAsync(context, SecondAaguid, CancellationToken.None), Is.Not.Null);
+        Assert.That((await storage.FindByAaguidAsync(context, SecondAaguid, CancellationToken.None)).HasError, Is.False);
         Assert.That(Counters.BlobsRejectedDueToRollback, Is.EqualTo(0));
         Assert.That(Logger.Entries.Where(static x => x.Level >= LogLevel.Warning), Is.Empty);
     }
@@ -79,8 +80,8 @@ public class DefaultFidoMetadataIngestServiceTests
         await ingestService.UpsertAsync(CreateBlob(2, SecondAaguid), CancellationToken.None);
 
         Assert.That(await storage.GetCurrentBlobNoAsync(CancellationToken.None), Is.EqualTo(2));
-        Assert.That(await storage.FindByAaguidAsync(context, FirstAaguid, CancellationToken.None), Is.Null);
-        Assert.That(await storage.FindByAaguidAsync(context, SecondAaguid, CancellationToken.None), Is.Not.Null);
+        Assert.That((await storage.FindByAaguidAsync(context, FirstAaguid, CancellationToken.None)).Error, Is.EqualTo(FidoMetadataSearchStorageError.NotFound));
+        Assert.That((await storage.FindByAaguidAsync(context, SecondAaguid, CancellationToken.None)).HasError, Is.False);
         Assert.That(Counters.BlobsRejectedDueToRollback, Is.EqualTo(0));
         Assert.That(Logger.Entries.Where(static x => x.Level >= LogLevel.Warning), Is.Empty);
         Assert.That(Logger.Entries.Where(static x => x.Level == LogLevel.Information).Select(static x => x.Message), Has.Some.Contains("(no: 2)"));

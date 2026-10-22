@@ -18,6 +18,9 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Attestati
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 using WebAuthn.Net.Services.Serialization.Cose.Implementation;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
@@ -25,7 +28,8 @@ using WebAuthn.Net.Services.Serialization.Json.Implementation;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
 // Regression tests for the hardening of DefaultTpmAttestationStatementVerifier.VerifyAsync beyond the steps of WebAuthn L3 §8.3:
-// the key-protection attributes of the credential key, the SHA-1 nameAlg report, the empty-trust-anchor configuration and the sanitization of untrusted strings in log messages.
+// the key-protection attributes of the credential key, the SHA-1 nameAlg report, the empty-trust-anchor configuration, the status of the authenticator in the FIDO Metadata Service
+// and the sanitization of untrusted strings in log messages.
 public class DefaultTpmAttestationStatementVerifierHardeningTests
 {
     // TPM 2.0 Library Part 2 v185, 8.3 TPMA_OBJECT (Table 37)
@@ -237,7 +241,9 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
     public async Task VerifyAsync_Succeeds_WhenOnlyFidoMetadataSuppliesTrustAnchors()
     {
         var metadataRoots = new UniqueByteArraysCollection(TpmRoots.Microsoft);
-        var verifier = new TestTpmAttestationStatementVerifier(new NoRootsTpmManufacturerVerifier()) { FidoMetadataRoots = metadataRoots };
+        var metadataSearchService = new RecordingFidoMetadataSearchService()
+            .WithAaguid(TpmAttestationBuilder.Aaguid, new FidoMetadataResult(metadataRoots.ToArray(), new[] { AuthenticatorAttestationType.ATTESTATION_ATTCA }));
+        var verifier = new TestTpmAttestationStatementVerifier(new NoRootsTpmManufacturerVerifier(), metadataSearchService);
 
         var result = await verifier.VerifyAsync(new TpmAttestationBuilder().Build());
 
@@ -245,6 +251,43 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
         {
             Assert.That(result.HasError, Is.False);
             Assert.That(result.Ok!.AttestationRootCertificates, Is.EquivalentTo(metadataRoots));
+            Assert.That(verifier.FakeLogger.Entries, Is.Empty);
+        });
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // The status of the authenticator in the FIDO Metadata Service: an entry that doesn't allow to trust the authenticator rejects the attestation statement
+    // even though the AIK certificate chains up to the embedded roots of the manufacturer; without a usable entry or without metadata only the embedded roots are used
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenFidoMetadataEntryIsUntrusted_DespiteEmbeddedManufacturerRoots()
+    {
+        var metadataSearchService = new RecordingFidoMetadataSearchService().WithAaguid(TpmAttestationBuilder.Aaguid, FidoMetadataSearchError.Untrusted);
+        var verifier = new TestTpmAttestationStatementVerifier(new DefaultTpmManufacturerVerifier(), metadataSearchService);
+
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder().Build());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadataSearchService.AaguidLookups, Is.EqualTo(new[] { TpmAttestationBuilder.Aaguid }));
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the aaguid {TpmAttestationBuilder.Aaguid} of the TPM attestation statement doesn't allow to trust the authenticator");
+        });
+    }
+
+    [TestCase(FidoMetadataSearchError.NotFound)]
+    [TestCase(FidoMetadataSearchError.MetadataNotAvailable)]
+    public async Task VerifyAsync_Succeeds_WithEmbeddedManufacturerRoots_WhenFidoMetadataHasNoUsableEntry(FidoMetadataSearchError error)
+    {
+        var metadataSearchService = new RecordingFidoMetadataSearchService().WithAaguid(TpmAttestationBuilder.Aaguid, error);
+        var verifier = new TestTpmAttestationStatementVerifier(new DefaultTpmManufacturerVerifier(), metadataSearchService);
+
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder().Build());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok!.AttestationRootCertificates, Is.EquivalentTo(TpmRoots.AMD));
             Assert.That(verifier.FakeLogger.Entries, Is.Empty);
         });
     }

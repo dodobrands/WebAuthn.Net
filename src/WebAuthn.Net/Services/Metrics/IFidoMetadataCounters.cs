@@ -72,4 +72,10 @@ public interface IFidoMetadataCounters
     ///     (for example, before the first successful ingestion).
     /// </summary>
     void IncrementLookupWithoutMetadata();
+
+    /// <summary>
+    ///     Increments the counter of the metadata lookups (<see cref="IFidoMetadataSearchService{TContext}" />) that have found an entry whose status reports don't allow to trust the authenticator
+    ///     (for example, the status of the authenticator is REVOKED), so that the attestation of the authenticator is rejected.
+    /// </summary>
+    void IncrementLookupWithUntrustedEntry();
 }

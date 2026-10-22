@@ -23,6 +23,7 @@ using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
@@ -485,7 +486,8 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
 
             // 5.5 If successful, return implementation-specific values representing attestation type AttCA and attestation trust path x5c.
             // The acceptable trust anchors are the embedded root certificates of the TPM manufacturer (see TpmRoots) and, when the FIDO Metadata Service
-            // entry for the aaguid lists the "attca" attestation type, the root certificates of that entry.
+            // entry for the aaguid lists the "attca" attestation type, the root certificates of that entry. If the entry doesn't allow to trust the authenticator
+            // (for example, it is REVOKED), no trust anchor is acceptable and the attestation statement is rejected (GetAcceptableTrustAnchorsFromFidoMetadataAsync logs it).
             var acceptableTrustAnchorsResult = await GetAcceptableTrustAnchorsAsync(
                 context,
                 aikCert,
@@ -530,7 +532,10 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
     /// <param name="manufacturerRootCertificates">Root CA x509v3 certificates of the specific TPM module manufacturer. May be null.</param>
     /// <param name="authenticatorData"><a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/webauthn-3/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns>If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process.</returns>
+    /// <returns>
+    ///     If the collection of root certificates was successfully formed, the result contains <see cref="UniqueByteArraysCollection" />, otherwise the result indicates that there was an error during the collection formation process,
+    ///     or that no trust anchor is acceptable because the FIDO Metadata Service doesn't allow to trust the authenticator.
+    /// </returns>
     protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsAsync(
         TContext context,
         X509Certificate2 aikCert,
@@ -547,51 +552,62 @@ public class DefaultTpmAttestationStatementVerifier<TContext> : ITpmAttestationS
             rootCertificates.AddRange(manufacturerRootCertificates);
         }
 
-        var metadataRoots = await GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+        // The FIDO Metadata Service is consulted even when the root certificates of the TPM manufacturer are available:
+        // an entry that doesn't allow to trust the authenticator rejects the attestation statement whatever root certificates it chains up to.
+        var metadataRootsResult = await GetAcceptableTrustAnchorsFromFidoMetadataAsync(
             context,
             authenticatorData.AttestedCredentialData.Aaguid,
             cancellationToken);
-
-        if (metadataRoots is not null)
+        if (metadataRootsResult.HasError)
         {
-            rootCertificates.AddRange(metadataRoots);
+            return Result<UniqueByteArraysCollection>.Fail();
         }
 
+        rootCertificates.AddRange(metadataRootsResult.Ok);
         return Result<UniqueByteArraysCollection>.Success(new(rootCertificates));
     }
 
     /// <summary>
-    ///     Returns a collection of valid root certificates from the Fido Metadata Service.
+    ///     Returns a collection of valid root certificates from the FIDO Metadata Service.
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="aaguid">The AAGUID of the authenticator.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns>If the Fido Metadata Service contains root certificates for the specified <paramref name="aaguid" /> - then <see cref="UniqueByteArraysCollection" />, otherwise - <see langword="null" />.</returns>
-    protected virtual async Task<UniqueByteArraysCollection?> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
+    /// <returns>
+    ///     If the FIDO Metadata Service doesn't say that the authenticator can't be trusted, the result contains the root certificates of its entry for the specified <paramref name="aaguid" />
+    ///     when the entry lists the "attca" attestation type (an empty collection when it doesn't, when there is no usable entry for the <paramref name="aaguid" />, or when no metadata is available).
+    ///     If the entry doesn't allow to trust the authenticator (<see cref="FidoMetadataSearchError.Untrusted" />), the result indicates that the attestation statement must be rejected.
+    /// </returns>
+    protected virtual async Task<Result<UniqueByteArraysCollection>> GetAcceptableTrustAnchorsFromFidoMetadataAsync(
         TContext context,
         Guid aaguid,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var metadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
-        if (metadata is null)
+        var metadataResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(context, aaguid, cancellationToken);
+        if (metadataResult.HasError)
         {
-            return null;
-        }
-
-        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA))
-        {
-            var result = new UniqueByteArraysCollection();
-            // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
-            if (metadata.RootCertificates?.Length > 0)
+            // Without a usable entry (or without any metadata) the FIDO Metadata Service doesn't say anything against the authenticator,
+            // so the attestation statement is verified against the root certificates of the TPM manufacturer only.
+            if (metadataResult.Error is FidoMetadataSearchError.NotFound or FidoMetadataSearchError.MetadataNotAvailable)
             {
-                result.AddRange(metadata.RootCertificates);
+                return Result<UniqueByteArraysCollection>.Success(new());
             }
 
-            return result;
+            // The entry doesn't allow to trust the authenticator (for example, it is REVOKED): the root certificates of the TPM manufacturer aren't acceptable either.
+            Logger.TpmMetadataUntrusted(aaguid);
+            return Result<UniqueByteArraysCollection>.Fail();
         }
 
-        return null;
+        var metadata = metadataResult.Ok;
+        var result = new UniqueByteArraysCollection();
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
+        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_ATTCA) && metadata.RootCertificates?.Length > 0)
+        {
+            result.AddRange(metadata.RootCertificates);
+        }
+
+        return Result<UniqueByteArraysCollection>.Success(result);
     }
 
     /// <summary>
@@ -1779,4 +1795,14 @@ public static partial class DefaultTpmAttestationStatementVerifierLoggingExtensi
         Level = LogLevel.Warning,
         Message = "There are no acceptable trust anchors for the TPM attestation statement: neither the TPM manufacturer verifier nor the FIDO Metadata Service supplied a root certificate")]
     public static partial void TpmNoAcceptableTrustAnchors(this ILogger logger);
+
+    /// <summary>
+    ///     The FIDO Metadata Service entry for the aaguid {Aaguid} of the TPM attestation statement doesn't allow to trust the authenticator, so no trust anchor is acceptable
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="aaguid">The AAGUID of the authenticator.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service entry for the aaguid {Aaguid} of the TPM attestation statement doesn't allow to trust the authenticator, so no trust anchor is acceptable")]
+    public static partial void TpmMetadataUntrusted(this ILogger logger, Guid aaguid);
 }

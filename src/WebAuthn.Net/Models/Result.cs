@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace WebAuthn.Net.Models;
 
@@ -49,5 +50,66 @@ public class Result<TOk>
     public static Result<TOk> Fail()
     {
         return new();
+    }
+}
+
+/// <summary>
+///     Generic result of executing any operation, which reports the reason of an unsuccessful execution.
+/// </summary>
+/// <typeparam name="TOk">The data type returned in case of a successful operation execution.</typeparam>
+/// <typeparam name="TError">The enumeration of the reasons of an unsuccessful operation execution.</typeparam>
+[SuppressMessage("Design", "CA1000:Do not declare static members on generic types")]
+public class Result<TOk, TError>
+    where TError : struct, Enum
+{
+    private Result(TError error)
+    {
+        Error = error;
+        HasError = true;
+    }
+
+    private Result(TOk ok)
+    {
+        Ok = ok;
+        HasError = false;
+    }
+
+    /// <summary>
+    ///     Flag indicating the presence of an error.
+    ///     If it returns <see langword="false" />, then the <see cref="Ok" /> property contains the result of a successful operation,
+    ///     otherwise the <see cref="Error" /> property contains the reason of the error.
+    /// </summary>
+    [MemberNotNullWhen(false, nameof(Ok))]
+    [MemberNotNullWhen(true, nameof(Error))]
+    public bool HasError { get; }
+
+    /// <summary>
+    ///     Result of a successful operation execution.
+    /// </summary>
+    public TOk? Ok { get; }
+
+    /// <summary>
+    ///     The reason of an unsuccessful operation execution.
+    /// </summary>
+    public TError? Error { get; }
+
+    /// <summary>
+    ///     Returns a result indicating the successful completion of the operation.
+    /// </summary>
+    /// <param name="result">The result of a successful operation completion.</param>
+    /// <returns>The <see cref="Result{TOk,TError}" /> corresponding to the successful execution of the operation.</returns>
+    public static Result<TOk, TError> Success(TOk result)
+    {
+        return new(result);
+    }
+
+    /// <summary>
+    ///     Returns a result indicating the unsuccessful execution of the operation.
+    /// </summary>
+    /// <param name="error">The reason of the unsuccessful execution of the operation.</param>
+    /// <returns>The <see cref="Result{TOk,TError}" /> corresponding to the unsuccessful execution of the operation.</returns>
+    public static Result<TOk, TError> Fail(TError error)
+    {
+        return new(error);
     }
 }

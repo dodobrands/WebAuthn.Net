@@ -34,6 +34,8 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
 
     public int LookupsWithoutMetadata { get; private set; }
 
+    public int LookupsWithUntrustedEntry { get; private set; }
+
     public void IncrementDownloadStart()
     {
         DownloadStarts++;
@@ -101,5 +103,10 @@ public class FakeFidoMetadataCounters : IFidoMetadataCounters
     public void IncrementLookupWithoutMetadata()
     {
         LookupsWithoutMetadata++;
+    }
+
+    public void IncrementLookupWithUntrustedEntry()
+    {
+        LookupsWithUntrustedEntry++;
     }
 }

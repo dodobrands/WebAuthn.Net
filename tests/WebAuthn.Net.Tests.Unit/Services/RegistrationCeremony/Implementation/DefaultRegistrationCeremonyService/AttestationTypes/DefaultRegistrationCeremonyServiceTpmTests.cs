@@ -1,14 +1,19 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
@@ -19,6 +24,9 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
     // The certificates of the test vectors (the Windows Hello AIK and its EUS-AMD-KEYID intermediate CA) expire on 2028-04-14:
     // the ceremonies run at a fixed time within their validity, and the attestation trust path is validated at that time as well.
     private static readonly DateTimeOffset CurrentTime = DateTimeOffset.Parse("2026-10-17T17:20:02.0000000+00:00", CultureInfo.InvariantCulture);
+
+    // the aaguid in the authenticatorData of the test vectors (Windows Hello)
+    private static readonly Guid WindowsHelloAaguid = Guid.Parse("08987058-cadc-4b81-b6e1-30de50dcbe96");
 
     protected override DateTimeOffset GetCurrentTime()
     {
@@ -43,6 +51,32 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
 
     [Test]
     public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForTpm_WhenEcdsa()
+    {
+        var completeResult = await CompleteCeremonyWithEcdsaAsync();
+        Assert.That(completeResult.HasError, Is.False);
+    }
+
+    [TestCase(AuthenticatorStatus.REVOKED)]
+    [TestCase(AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE)]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForTpm_WhenMetadataStatusIsUntrusted(AuthenticatorStatus status)
+    {
+        // The AIK certificate chains up to the embedded "Microsoft TPM Root Certificate Authority 2014", so the attestation doesn't need the root certificates of the FIDO Metadata Service.
+        // But the entry of the FIDO Metadata Service for the authenticator (Windows Hello) has a status that doesn't allow to trust it, so the registration must be rejected despite the embedded root.
+        await UpsertMetadataWithStatusReportAsync(WindowsHelloAaguid, status);
+
+        var completeResult = await CompleteCeremonyWithEcdsaAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(FidoMetadataCounters.LookupsWithUntrustedEntry, Is.EqualTo(1));
+            Assert.That(
+                FidoMetadataSearchLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The status reports of the FIDO Metadata Service entry for the authenticator with AAGUID {WindowsHelloAaguid} don't allow to trust the authenticator: FIDO_CERTIFIED_L1, FIDO_CERTIFIED, {status}"));
+        });
+    }
+
+    private async Task<Result<CompleteRegistrationCeremonyResult>> CompleteCeremonyWithEcdsaAsync()
     {
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(
@@ -92,7 +126,7 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.HasError, Is.False);
+        return completeResult;
     }
 
     [Test]

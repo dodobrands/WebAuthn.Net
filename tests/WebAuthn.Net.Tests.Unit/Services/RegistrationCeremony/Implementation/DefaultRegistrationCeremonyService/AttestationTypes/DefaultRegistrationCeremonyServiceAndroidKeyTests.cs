@@ -1,13 +1,18 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
@@ -22,6 +27,33 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
 
     [Test]
     public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForAndroidKey_WhenAllAlgorithms()
+    {
+        var completeResult = await CompleteCeremonyAsync();
+        Assert.That(completeResult.HasError, Is.False);
+    }
+
+    [TestCase(AuthenticatorStatus.REVOKED)]
+    [TestCase(AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE)]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenMetadataStatusIsUntrusted(AuthenticatorStatus status)
+    {
+        // The attestation certificate chains up to an embedded root of the Android Key Attestation, so the attestation doesn't need the root certificates of the FIDO Metadata Service.
+        // But the entry of the FIDO Metadata Service for the aaguid of the authenticator has a status that doesn't allow to trust it, so the registration must be rejected despite the embedded root.
+        // The test vector has the zero aaguid, for which the downloaded blob has no entry, so an entry with only this status report is added.
+        await UpsertMetadataWithStatusReportAsync(Guid.Empty, status);
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(FidoMetadataCounters.LookupsWithUntrustedEntry, Is.EqualTo(1));
+            Assert.That(
+                FidoMetadataSearchLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The status reports of the FIDO Metadata Service entry for the authenticator with AAGUID {Guid.Empty} don't allow to trust the authenticator: {status}"));
+        });
+    }
+
+    private async Task<Result<CompleteRegistrationCeremonyResult>> CompleteCeremonyAsync()
     {
         TimeProvider.Change(DateTimeOffset.Parse("2023-11-02T13:29:06Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
@@ -67,6 +99,6 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.HasError, Is.False);
+        return completeResult;
     }
 }

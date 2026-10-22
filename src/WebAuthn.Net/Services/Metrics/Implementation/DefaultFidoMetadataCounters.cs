@@ -57,6 +57,10 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
             "webauthn.mds.search.no_metadata",
             null,
             "The number of metadata lookups that can't succeed because no FIDO Metadata Service blob is available in the storage (for example, before the first successful ingestion)");
+        LookupsWithUntrustedEntryCounter = Meter.CreateCounter<long>(
+            "webauthn.mds.search.untrusted",
+            null,
+            "The number of metadata lookups that have found an entry whose status reports don't allow to trust the authenticator (for example, REVOKED), so that the attestation of the authenticator is rejected");
     }
 
     /// <summary>
@@ -113,6 +117,11 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
     ///     Counter for the metadata lookups that can't succeed because no FIDO Metadata Service blob is available in the storage.
     /// </summary>
     protected Counter<long> LookupsWithoutMetadataCounter { get; }
+
+    /// <summary>
+    ///     Counter for the metadata lookups that have found an entry whose status reports don't allow to trust the authenticator.
+    /// </summary>
+    protected Counter<long> LookupsWithUntrustedEntryCounter { get; }
 
     /// <inheritdoc />
     public void Dispose()
@@ -231,6 +240,12 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
     public virtual void IncrementLookupWithoutMetadata()
     {
         LookupsWithoutMetadataCounter.Add(1);
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementLookupWithUntrustedEntry()
+    {
+        LookupsWithUntrustedEntryCounter.Add(1);
     }
 
     /// <summary>
