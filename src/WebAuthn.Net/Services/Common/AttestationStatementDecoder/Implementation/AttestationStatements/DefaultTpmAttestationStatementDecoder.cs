@@ -18,9 +18,8 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementatio
 /// </summary>
 public class DefaultTpmAttestationStatementDecoder : ITpmAttestationStatementDecoder
 {
-    // The syntax does not bound the certificate chain in 'x5c', but every element is later loaded as an X.509 certificate and handed to the chain builder, which is costly for attacker-controlled bytes
-    // (the X509Certificate2 constructor used on .NET 8 also recognizes PKCS#7 and PKCS#12 blobs, and decrypting a PKCS#12 blob involves a deliberately slow key derivation), so the length is bounded here.
-    // Real chains are short: Windows Hello sends the AIK certificate and one intermediate CA certificate.
+    // The syntax does not bound the certificate chain in 'x5c', but every element is later loaded as an X.509 certificate and handed to the chain builder, which is costly for attacker-controlled bytes,
+    // so the length is bounded here. Real chains are short: Windows Hello sends the AIK certificate and one intermediate CA certificate.
     private const int MaxX5CLength = 16;
 
     // untrusted values are truncated to this length in log messages (see LogValue.Sanitize)
