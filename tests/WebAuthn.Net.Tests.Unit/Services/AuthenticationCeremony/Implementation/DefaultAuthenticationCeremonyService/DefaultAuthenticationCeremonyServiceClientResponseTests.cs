@@ -206,17 +206,6 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
         Assert.That(result.HasError, Is.True);
     }
 
-    // https://www.w3.org/TR/webauthn-3/#reg-ceremony-create-credential-record
-    [Test]
-    public async Task DefaultRegistrationCeremonyService_StoresAttestedCredentialIdAndTransports()
-    {
-        await using var context = await ContextFactory.CreateAsync(new DefaultHttpContext(new FeatureCollection()), CancellationToken.None);
-        var descriptors = await CredentialStorage.FindDescriptorsAsync(context, RpId, UserHandle, CancellationToken.None);
-        var descriptor = descriptors.Single(x => x.Id.AsSpan().SequenceEqual(FirstAuthenticator.CredentialId));
-
-        Assert.That(descriptor.Transports, Is.EqualTo(new[] { AuthenticatorTransport.Internal, AuthenticatorTransport.Hybrid }));
-    }
-
     // https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion (step 22): the Relying Party may decide to continue.
     [Test]
     public async Task DefaultAuthenticationCeremonyService_CompletesCeremony_WhenSignCountDidNotIncreaseAndAbortIsDisabled()

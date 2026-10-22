@@ -89,12 +89,15 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>(),
             new DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>(),
             new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>());
-        FakeCredentialStorage credentialStorage = new();
+        CredentialStorage = new();
         RegistrationCeremonyStorage = new();
+        RegistrationCounters = new();
         var registrationResponseDecoder = new DefaultRegistrationResponseDecoder(
             new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
+            RegistrationCounters,
+            NullLogger<DefaultRegistrationResponseDecoder>.Instance);
         var clientDataDecoder = new DefaultClientDataDecoder(
             safeJsonDeserializer,
             new DefaultEnumMemberAttributeSerializer<TokenBindingStatus>(),
@@ -151,7 +154,6 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             asn1Deserializer,
             metadataSearchService,
             NullLogger<DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
-        RegistrationCounters = new();
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             new DefaultTpmPubAreaDecoder(),
@@ -218,7 +220,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             challengeGenerator,
             TimeProvider,
             publicKeyCredentialCreationOptionsEncoder,
-            credentialStorage,
+            CredentialStorage,
             RegistrationCeremonyStorage,
             registrationResponseDecoder,
             clientDataDecoder,
@@ -258,6 +260,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected DefaultRegistrationCeremonyService<FakeWebAuthnContext> RegistrationCeremonyService { get; set; } = null!;
     protected OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
     protected ConfigurationManager ConfigurationManager { get; set; } = null!;
+    protected FakeCredentialStorage CredentialStorage { get; set; } = null!;
     protected FakeRegistrationCeremonyStorage RegistrationCeremonyStorage { get; set; } = null!;
     protected FakeTimeProvider TimeProvider { get; set; } = null!;
     protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
