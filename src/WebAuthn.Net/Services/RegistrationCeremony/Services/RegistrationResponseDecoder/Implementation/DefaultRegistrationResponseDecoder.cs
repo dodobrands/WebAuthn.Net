@@ -25,7 +25,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
 {
     // the transports are chosen by the client: a response with more of them is rejected before any of them is examined
     // (a client reports each transport of the authenticator once, and fewer than ten transports are defined)
-    private const int MaxTransports = 99;
+    private const int MaxTransports = 100;
 
     // a Warning lists at most this many of the unknown transports, each of them truncated to this length (see LogValue.Sanitize)
     private const int MaxListedTransports = 8;
