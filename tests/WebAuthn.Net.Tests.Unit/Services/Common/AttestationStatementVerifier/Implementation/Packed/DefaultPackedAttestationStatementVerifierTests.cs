@@ -206,6 +206,23 @@ public class DefaultPackedAttestationStatementVerifierTests
         });
     }
 
+    [Test]
+    public async Task VerifyAsync_Fails_ForX5CAttestation_WhenMetadataListsOnlySurrogateAttestation()
+    {
+        // §8.2: with 'x5c' the attestation is Basic or AttCA; self attestation ("basic_surrogate") is the one without 'x5c', so it is not returned for an attestation statement with 'x5c'
+        var attestation = PackedAttestation.Create();
+        var metadata = new RecordingFidoMetadataSearchService().WithAaguid(Aaguid, RecordingFidoMetadataSearchService.Metadata(attestation.Root, AuthenticatorAttestationType.ATTESTATION_BASIC_SURROGATE));
+        var verifier = new TestPackedVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            AssertWarning(verifier, $"The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca or basic_full)");
+        });
+    }
+
     // ---------------------------------------------------------------------------------------------
     // x5c
 

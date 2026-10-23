@@ -185,6 +185,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             TimeProvider,
             asn1Deserializer,
             metadataSearchService,
+            RegistrationCounters,
             NullLogger<DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var noneVerifier = new DefaultNoneAttestationStatementVerifier<FakeWebAuthnContext>();
         var appleAnonymousVerifier = new DefaultAppleAnonymousAttestationStatementVerifier<FakeWebAuthnContext>(
