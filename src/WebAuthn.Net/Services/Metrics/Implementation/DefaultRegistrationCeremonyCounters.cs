@@ -37,7 +37,7 @@ public class DefaultRegistrationCeremonyCounters : IRegistrationCeremonyCounters
         AttestationStatementAnomaliesCounter = Meter.CreateCounter<long>(
             "webauthn.reg.attestation.anomalies",
             null,
-            "The number of anomalies found while verifying attestation statements: deviations from the specifications that were tolerated, and values unknown to the library that caused the attestation statement to be rejected");
+            "The number of anomalies found while verifying attestation statements: deviations from the specifications that were tolerated, and values unknown to the library or inconsistent with the attestation that caused the attestation statement to be rejected");
         ResponseAnomaliesCounter = Meter.CreateCounter<long>(
             "webauthn.reg.response.anomalies",
             null,
