@@ -268,6 +268,17 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     /// <summary>
     ///     Searches for data in the FIDO Metadata Service.
     /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         If the <paramref name="authenticatorData" /> contains an aaguid, the metadata is looked up only by it. Otherwise, the metadata is looked up by the aaguid from the id-fido-gen-ce-aaguid extension of the <paramref name="attCert" /> (if it has one),
+    ///         then by the key identifier of the <paramref name="attCert" /> (<a href="https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.2">RFC 5280 §4.2.1.2</a> method (1)), and then by the value of its Subject Key Identifier extension
+    ///         (if it has one that differs from the key identifier).
+    ///     </para>
+    ///     <para>
+    ///         The next lookup is performed only if there is no usable entry for the previous one (<see cref="FidoMetadataSearchError.NotFound" />). An entry that doesn't allow to trust the authenticator
+    ///         (<see cref="FidoMetadataSearchError.Untrusted" />) rejects the attestation statement, and so does the absence of any metadata (<see cref="FidoMetadataSearchError.MetadataNotAvailable" />), with which no other lookup can succeed.
+    ///     </para>
+    /// </remarks>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
     /// <param name="authenticatorData"><a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/webauthn-3/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
@@ -329,16 +340,20 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                     return Result<FidoMetadataResult>.Success(embeddedAaguidMetadata.Ok);
                 }
 
+                // an entry that doesn't allow to trust the authenticator is decisive: the attestation statement is rejected without looking for another entry
                 if (embeddedAaguidMetadata.Error is FidoMetadataSearchError.Untrusted)
                 {
                     Logger.FidoU2FMetadataUntrustedByAaguid(embeddedAaguid.Value);
-                }
-                else
-                {
-                    Logger.FidoU2FMetadataNotFoundByAaguid(embeddedAaguid.Value);
+                    return Result<FidoMetadataResult>.Fail();
                 }
 
-                return Result<FidoMetadataResult>.Fail();
+                // without any metadata the lookups by the key identifier can't succeed either; only when there is no usable entry for the aaguid,
+                // the attestation certificate is looked up by its key identifier, because the metadata may list it in 'attestationCertificateKeyIdentifiers'
+                if (embeddedAaguidMetadata.Error is not FidoMetadataSearchError.NotFound)
+                {
+                    Logger.FidoU2FMetadataNotFoundByAaguid(embeddedAaguid.Value);
+                    return Result<FidoMetadataResult>.Fail();
+                }
             }
 
             // FIDO Metadata Statement §3.1: 'attestationCertificateKeyIdentifiers' - "A list of the attestation certificate public key identifiers encoded as hex string.
@@ -367,32 +382,43 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                 return Result<FidoMetadataResult>.Fail();
             }
 
-            var embeddedSkiResult = GetSubjectKeyIdentifierIfExists(attCert);
-            if (embeddedSkiResult.HasError)
+            // without any metadata the lookup by the value of the Subject Key Identifier extension can't succeed either
+            if (computedKeyIdentifierMetadata.Error is FidoMetadataSearchError.NotFound)
             {
-                return Result<FidoMetadataResult>.Fail();
-            }
-
-            var embeddedSki = embeddedSkiResult.Ok;
-            if (embeddedSki is not null && !embeddedSki.AsSpan().SequenceEqual(computedKeyIdentifier))
-            {
-                var embeddedSkiMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
-                    context,
-                    embeddedSki,
-                    cancellationToken);
-                if (!embeddedSkiMetadata.HasError)
+                var embeddedSkiResult = GetSubjectKeyIdentifierIfExists(attCert);
+                if (embeddedSkiResult.HasError)
                 {
-                    return Result<FidoMetadataResult>.Success(embeddedSkiMetadata.Ok);
-                }
-
-                if (embeddedSkiMetadata.Error is FidoMetadataSearchError.Untrusted)
-                {
-                    Logger.FidoU2FMetadataUntrustedByKeyIdentifier(Convert.ToHexString(embeddedSki));
                     return Result<FidoMetadataResult>.Fail();
                 }
+
+                var embeddedSki = embeddedSkiResult.Ok;
+                if (embeddedSki is not null && !embeddedSki.AsSpan().SequenceEqual(computedKeyIdentifier))
+                {
+                    var embeddedSkiMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
+                        context,
+                        embeddedSki,
+                        cancellationToken);
+                    if (!embeddedSkiMetadata.HasError)
+                    {
+                        return Result<FidoMetadataResult>.Success(embeddedSkiMetadata.Ok);
+                    }
+
+                    if (embeddedSkiMetadata.Error is FidoMetadataSearchError.Untrusted)
+                    {
+                        Logger.FidoU2FMetadataUntrustedByKeyIdentifier(Convert.ToHexString(embeddedSki));
+                        return Result<FidoMetadataResult>.Fail();
+                    }
+                }
             }
 
-            Logger.FidoU2FMetadataNotFoundByKeyIdentifier(Convert.ToHexString(computedKeyIdentifier));
+            if (embeddedAaguid.HasValue)
+            {
+                Logger.FidoU2FMetadataNotFoundByAaguidAndKeyIdentifier(embeddedAaguid.Value, Convert.ToHexString(computedKeyIdentifier));
+            }
+            else
+            {
+                Logger.FidoU2FMetadataNotFoundByKeyIdentifier(Convert.ToHexString(computedKeyIdentifier));
+            }
         }
 
         return Result<FidoMetadataResult>.Fail();
@@ -770,6 +796,17 @@ public static partial class DefaultFidoU2FAttestationStatementVerifierLoggingExt
         Level = LogLevel.Warning,
         Message = "The FIDO Metadata Service has no usable metadata for the attestation certificate key identifier {KeyIdentifier} of the FIDO U2F attestation statement")]
     public static partial void FidoU2FMetadataNotFoundByKeyIdentifier(this ILogger logger, string keyIdentifier);
+
+    /// <summary>
+    ///     The FIDO Metadata Service has no usable metadata for the aaguid {Aaguid} from the id-fido-gen-ce-aaguid extension of the attCert, nor for the attestation certificate key identifier {KeyIdentifier} of the FIDO U2F attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="aaguid">The AAGUID from the id-fido-gen-ce-aaguid extension of the attCert.</param>
+    /// <param name="keyIdentifier">The RFC 5280 §4.2.1.2 method (1) key identifier of the attCert, as a hex string.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service has no usable metadata for the aaguid {Aaguid} from the id-fido-gen-ce-aaguid extension of the attCert, nor for the attestation certificate key identifier {KeyIdentifier} of the FIDO U2F attestation statement")]
+    public static partial void FidoU2FMetadataNotFoundByAaguidAndKeyIdentifier(this ILogger logger, Guid aaguid, string keyIdentifier);
 
     /// <summary>
     ///     The FIDO Metadata Service entry for the attestation certificate key identifier {KeyIdentifier} of the FIDO U2F attestation statement doesn't allow to trust the authenticator

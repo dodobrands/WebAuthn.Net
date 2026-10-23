@@ -1,13 +1,19 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegistrationCeremonyService.Abstractions;
+using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Models.CreateOptions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
 
@@ -15,6 +21,12 @@ namespace WebAuthn.Net.Services.RegistrationCeremony.Implementation.DefaultRegis
 
 public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrationCeremonyServiceTests
 {
+    // The attestation certificate of the test vector ("Yubico U2F EE Serial 413943488") carries the id-fido-gen-ce-aaguid extension with the aaguid of the fido2 entry for "YubiKey 5 Series",
+    // and the u2f entry for "YubiKey 5 Series" lists its key identifier (RFC 5280 §4.2.1.2 method (1)) in 'attestationCertificateKeyIdentifiers'; the committed blob.jwt has both entries.
+    private static readonly Guid YubiKey5SeriesAaguid = Guid.Parse("cb69481e-8ff7-4039-93ec-0a2729a154a8");
+
+    private static readonly byte[] AttestationCertificateKeyIdentifier = Convert.FromHexString("bdeb7f015a66e4c8448b414ffd41ca669bba6b4a");
+
     protected override Uri GetRelyingPartyAddress()
     {
         return new("https://vanbukin-pc.local", UriKind.Absolute);
@@ -22,6 +34,73 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
 
     [Test]
     public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForFidoU2F_WhenES256()
+    {
+        var completeResult = await CompleteCeremonyAsync();
+        Assert.That(completeResult.HasError, Is.False);
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_PerformsCeremonyForFidoU2F_WhenMetadataListsAttestationCertificateOnlyByKeyIdentifier()
+    {
+        // there is no entry for the aaguid from the extension of the attestation certificate, so the root certificates come from the u2f entry found by the key identifier of the certificate
+        await UpsertMetadataWithoutYubiKey5SeriesAaguidEntryAsync(null);
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.That(completeResult.HasError, Is.False);
+    }
+
+    [TestCase(AuthenticatorStatus.REVOKED)]
+    [TestCase(AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE)]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForFidoU2F_WhenEntryFoundByKeyIdentifierIsUntrusted(AuthenticatorStatus status)
+    {
+        await UpsertMetadataWithoutYubiKey5SeriesAaguidEntryAsync(status);
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(FidoMetadataCounters.LookupsWithUntrustedEntry, Is.EqualTo(1));
+            Assert.That(
+                FidoMetadataSearchLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The status reports of the FIDO Metadata Service entry for the authenticator with the attestation certificate key identifier {Convert.ToHexString(AttestationCertificateKeyIdentifier)} don't allow to trust the authenticator: FIDO_CERTIFIED_L1, FIDO_CERTIFIED, {status}"));
+        });
+    }
+
+    // Replaces the metadata in use with a copy of the downloaded blob without the fido2 entry for "YubiKey 5 Series",
+    // in which the u2f entry that lists the key identifier of the attestation certificate has one more status report with the status (if it is specified).
+    private async Task UpsertMetadataWithoutYubiKey5SeriesAaguidEntryAsync(AuthenticatorStatus? status)
+    {
+        var entries = MetadataBlob.Entries
+            .Where(static x => x.Aaguid != YubiKey5SeriesAaguid)
+            .Select(x =>
+            {
+                if (!status.HasValue || x.AttestationCertificateKeyIdentifiers?.Any(static y => y.AsSpan().SequenceEqual(AttestationCertificateKeyIdentifier)) != true)
+                {
+                    return x;
+                }
+
+                var statusReport = new StatusReport(status.Value, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                return new MetadataBlobPayloadEntry(
+                    x.Aaid,
+                    x.Aaguid,
+                    x.AttestationCertificateKeyIdentifiers,
+                    x.MetadataStatement,
+                    x.BiometricStatusReports,
+                    x.StatusReports.Append(statusReport).ToArray(),
+                    x.TimeOfLastStatusChange,
+                    x.RogueListUrl,
+                    x.RogueListHash);
+            })
+            .ToArray();
+        Assert.That(entries, Has.Length.EqualTo(MetadataBlob.Entries.Length - 1), "the blob must have the fido2 entry for \"YubiKey 5 Series\"");
+        await MetadataStorage.UpsertAsync(
+            new(MetadataBlob.LegalHeader, MetadataBlob.No, MetadataBlob.NextUpdate, entries),
+            CancellationToken.None);
+    }
+
+    private async Task<Result<CompleteRegistrationCeremonyResult>> CompleteCeremonyAsync()
     {
         TimeProvider.Change(DateTimeOffset.Parse("2023-10-17T15:01:40Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
@@ -67,6 +146,6 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
                     new(),
                     "public-key")),
             CancellationToken.None);
-        Assert.That(completeResult.HasError, Is.False);
+        return completeResult;
     }
 }

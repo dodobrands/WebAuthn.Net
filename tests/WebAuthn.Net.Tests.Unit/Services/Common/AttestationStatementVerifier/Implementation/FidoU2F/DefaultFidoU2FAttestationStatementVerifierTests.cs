@@ -205,6 +205,133 @@ public class DefaultFidoU2FAttestationStatementVerifierTests
     }
 
     // ---------------------------------------------------------------------------------------------
+    // The aaguid extension of attCert without a usable entry: the metadata may still list the attestation certificate by its key identifier
+    // (the committed blob.jwt has two entries for "YubiKey 5 Series": a fido2 one for the aaguid and a u2f one that lists the key identifier of the FIDO U2F test vector certificate)
+
+    [Test]
+    public async Task VerifyAsync_Succeeds_WhenMetadataIsFoundByComputedKeyIdentifier_AfterAaguidExtensionIsNotFound()
+    {
+        var attestation = FidoU2FAttestation.Create(aaguidExtension: Aaguid);
+        var metadata = new RecordingFidoMetadataSearchService().WithKeyIdentifier(attestation.Method1KeyIdentifier, RecordingFidoMetadataSearchService.Metadata(attestation.Root, AuthenticatorAttestationType.ATTESTATION_BASIC_FULL));
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok!.AttestationType, Is.EqualTo(AttestationType.Basic));
+            Assert.That(result.Ok.AttestationRootCertificates, Is.EquivalentTo(new[] { attestation.Root }));
+            Assert.That(metadata.AaguidLookups, Is.EqualTo(new[] { Aaguid }));
+            Assert.That(metadata.KeyIdentifierLookups, Is.EqualTo(new[] { Convert.ToHexString(attestation.Method1KeyIdentifier) }));
+            Assert.That(verifier.FakeLogger.Entries, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Succeeds_WhenMetadataIsFoundBySkiExtensionValue_AfterAaguidExtensionAndComputedKeyIdentifierAreNotFound()
+    {
+        var vendorIdentifier = Enumerable.Range(0, 20).Select(static x => (byte) (0xA0 + x)).ToArray();
+        var attestation = FidoU2FAttestation.Create(aaguidExtension: Aaguid, subjectKeyIdentifier: vendorIdentifier);
+        var metadata = new RecordingFidoMetadataSearchService().WithKeyIdentifier(vendorIdentifier, RecordingFidoMetadataSearchService.Metadata(attestation.Root, AuthenticatorAttestationType.ATTESTATION_ATTCA));
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok!.AttestationType, Is.EqualTo(AttestationType.AttCa));
+            Assert.That(metadata.AaguidLookups, Is.EqualTo(new[] { Aaguid }));
+            Assert.That(metadata.KeyIdentifierLookups, Is.EqualTo(new[] { Convert.ToHexString(attestation.Method1KeyIdentifier), Convert.ToHexString(vendorIdentifier) }));
+            Assert.That(verifier.FakeLogger.Entries, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WithSingleWarning_WhenMetadataIsNotFoundByAaguidExtensionNorByKeyIdentifier()
+    {
+        var attestation = FidoU2FAttestation.Create(aaguidExtension: Aaguid);
+        var metadata = new RecordingFidoMetadataSearchService();
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.AaguidLookups, Is.EqualTo(new[] { Aaguid }));
+            Assert.That(metadata.KeyIdentifierLookups, Is.EqualTo(new[] { Convert.ToHexString(attestation.Method1KeyIdentifier) }));
+            Assert.That(
+                verifier.FakeLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Is.EqualTo(new[]
+                {
+                    $"The FIDO Metadata Service has no usable metadata for the aaguid {Aaguid} from the id-fido-gen-ce-aaguid extension of the attCert, nor for the attestation certificate key identifier {Convert.ToHexString(attestation.Method1KeyIdentifier)} of the FIDO U2F attestation statement"
+                }));
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenMetadataEntryFoundByComputedKeyIdentifierIsUntrusted_AfterAaguidExtensionIsNotFound()
+    {
+        var attestation = FidoU2FAttestation.Create(aaguidExtension: Aaguid);
+        var metadata = new RecordingFidoMetadataSearchService().WithKeyIdentifier(attestation.Method1KeyIdentifier, FidoMetadataSearchError.Untrusted);
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.AaguidLookups, Is.EqualTo(new[] { Aaguid }));
+            Assert.That(metadata.KeyIdentifierLookups, Is.EqualTo(new[] { Convert.ToHexString(attestation.Method1KeyIdentifier) }));
+            AssertWarning(verifier, $"The FIDO Metadata Service entry for the attestation certificate key identifier {Convert.ToHexString(attestation.Method1KeyIdentifier)} of the FIDO U2F attestation statement doesn't allow to trust the authenticator");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WithoutLookupByKeyIdentifier_WhenNoMetadataIsAvailableForAaguidExtension()
+    {
+        // without any metadata no lookup can succeed: the entry for the key identifier is here only to show that it is not looked up
+        var attestation = FidoU2FAttestation.Create(aaguidExtension: Aaguid);
+        var metadata = new RecordingFidoMetadataSearchService()
+            .WithAaguid(Aaguid, FidoMetadataSearchError.MetadataNotAvailable)
+            .WithKeyIdentifier(attestation.Method1KeyIdentifier, RecordingFidoMetadataSearchService.Metadata(attestation.Root, AuthenticatorAttestationType.ATTESTATION_BASIC_FULL));
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.AaguidLookups, Is.EqualTo(new[] { Aaguid }));
+            Assert.That(metadata.KeyIdentifierLookups, Is.Empty);
+            AssertWarning(verifier, $"The FIDO Metadata Service has no usable metadata for the aaguid {Aaguid} of the FIDO U2F attestation statement");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WithoutLookupBySkiExtensionValue_WhenNoMetadataIsAvailableForComputedKeyIdentifier()
+    {
+        // without any metadata no lookup can succeed: the entry for the SKI extension value is here only to show that it is not looked up
+        var vendorIdentifier = Enumerable.Range(0, 20).Select(static x => (byte) (0xA0 + x)).ToArray();
+        var attestation = FidoU2FAttestation.Create(subjectKeyIdentifier: vendorIdentifier);
+        var metadata = new RecordingFidoMetadataSearchService()
+            .WithKeyIdentifier(attestation.Method1KeyIdentifier, FidoMetadataSearchError.MetadataNotAvailable)
+            .WithKeyIdentifier(vendorIdentifier, RecordingFidoMetadataSearchService.Metadata(attestation.Root, AuthenticatorAttestationType.ATTESTATION_BASIC_FULL));
+        var verifier = new TestFidoU2FVerifier(metadata);
+
+        var result = await verifier.VerifyAsync(attestation);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(metadata.KeyIdentifierLookups, Is.EqualTo(new[] { Convert.ToHexString(attestation.Method1KeyIdentifier) }));
+            AssertWarning(verifier, $"no usable metadata for the attestation certificate key identifier {Convert.ToHexString(attestation.Method1KeyIdentifier)}");
+        });
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // The typed Subject Key Identifier extension is decoded lazily and is client-supplied, so a malformed value must fail, not throw
 
     [Test]
