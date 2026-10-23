@@ -12,6 +12,7 @@ using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.FidoU2F;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F.Constants;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
@@ -20,6 +21,7 @@ using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
@@ -41,21 +43,25 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     /// <param name="timeProvider">Current time provider.</param>
     /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
     /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <param name="counters">Counters for registration ceremony metrics, used to count the anomalies found while verifying the attestation statement.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultFidoU2FAttestationStatementVerifier(
         ITimeProvider timeProvider,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService,
+        IRegistrationCeremonyCounters counters,
         ILogger<DefaultFidoU2FAttestationStatementVerifier<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
         TimeProvider = timeProvider;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
+        Counters = counters;
         Logger = logger;
     }
 
@@ -73,6 +79,12 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     ///     A service for searching in the data provided by the FIDO Metadata Service.
     /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
+
+    /// <summary>
+    ///     Counters for registration ceremony metrics, used to count the anomalies found while verifying the attestation statement
+    ///     (see <see cref="FidoU2FAttestationStatementAnomalies" />).
+    /// </summary>
+    protected IRegistrationCeremonyCounters Counters { get; }
 
     /// <summary>
     ///     Logger.
@@ -160,12 +172,32 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
+            // The 'aaguid' of 'authenticatorData' is not part of 'verificationData', so the attestation signature doesn't cover it: unlike in the other attestation statement formats,
+            // it is not attested here, and the authenticator model is identified by 'attCert' only (step 7). The only attested aaguid is the one of the id-fido-gen-ce-aaguid extension of 'attCert'.
+            // Like the 'packed' (§8.2) and 'tpm' (§8.3) verification procedures, and as §13.3.1 intends ("so that it can be verified against the authenticator data"),
+            // a non-zero 'aaguid' in 'authenticatorData' that differs from the extension rejects the attestation statement. A zero 'aaguid' is what a client reports for a CTAP1/U2F authenticator.
+            var aaguidExtensionResult = GetAaguidIfExists(attCert);
+            if (aaguidExtensionResult.HasError)
+            {
+                Logger.FidoU2FAttCertAaguidExtensionInvalid();
+                return Result<VerifiedAttestationStatement>.Fail();
+            }
+
+            var aaguidExtension = aaguidExtensionResult.Ok;
+            var authenticatorDataAaguid = authenticatorData.AttestedCredentialData.Aaguid;
+            if (aaguidExtension.HasValue && authenticatorDataAaguid != Guid.Empty && authenticatorDataAaguid != aaguidExtension.Value)
+            {
+                Logger.FidoU2FAuthenticatorDataAaguidMismatch(authenticatorDataAaguid, aaguidExtension.Value);
+                Counters.IncrementAttestationStatementAnomaly(FidoU2FAttestationStatementAnomalies.Format, FidoU2FAttestationStatementAnomalies.AuthenticatorDataAaguidMismatch, false);
+                return Result<VerifiedAttestationStatement>.Fail();
+            }
+
             // 7) Optionally, inspect 'x5c' and consult externally provided knowledge to determine whether 'attStmt' conveys a Basic or AttCA attestation.
             // (GetAttestationTypeAsync logs why the attestation type could not be determined)
             var attestationTypeResult = await GetAttestationTypeAsync(
                 context,
                 attCert,
-                authenticatorData,
+                aaguidExtension,
                 cancellationToken);
             if (attestationTypeResult.HasError)
             {
@@ -226,7 +258,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     /// </summary>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
-    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/webauthn-3/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="aaguidExtension">The aaguid from the id-fido-gen-ce-aaguid extension of the <paramref name="attCert" />, or <see langword="null" /> if it has no such extension.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>
     ///     If the <a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-types">attestation type</a> was successfully determined and a list of Root CA certificates was obtained, the result contains a <see cref="FidoU2FAttestationTypeResult" />. Otherwise, the
@@ -235,12 +267,11 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     protected virtual async Task<Result<FidoU2FAttestationTypeResult>> GetAttestationTypeAsync(
         TContext context,
         X509Certificate2 attCert,
-        AttestedAuthenticatorData authenticatorData,
+        Guid? aaguidExtension,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(authenticatorData);
         cancellationToken.ThrowIfCancellationRequested();
-        var metadataResult = await FindFidoMetadataAsync(context, attCert, authenticatorData, cancellationToken);
+        var metadataResult = await FindFidoMetadataAsync(context, attCert, aaguidExtension, cancellationToken);
         if (metadataResult.HasError)
         {
             return Result<FidoU2FAttestationTypeResult>.Fail();
@@ -270,9 +301,10 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         If the <paramref name="authenticatorData" /> contains an aaguid, the metadata is looked up only by it. Otherwise, the metadata is looked up by the aaguid from the id-fido-gen-ce-aaguid extension of the <paramref name="attCert" /> (if it has one),
-    ///         then by the key identifier of the <paramref name="attCert" /> (<a href="https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.2">RFC 5280 §4.2.1.2</a> method (1)), and then by the value of its Subject Key Identifier extension
-    ///         (if it has one that differs from the key identifier).
+    ///         WebAuthn L3 §8.6 step 7 determines the attestation type by inspecting 'x5c' and consulting externally provided knowledge, so the authenticator model is identified by the <paramref name="attCert" /> only:
+    ///         the metadata is looked up by the <paramref name="aaguidExtension" /> (if the <paramref name="attCert" /> has one), then by the key identifier of the <paramref name="attCert" />
+    ///         (<a href="https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.2">RFC 5280 §4.2.1.2</a> method (1)), and then by the value of its Subject Key Identifier extension (if it has one that differs from the key identifier).
+    ///         The aaguid of the authenticator data is never used: the FIDO U2F attestation signature doesn't cover it, so any client could report the aaguid of another authenticator model.
     ///     </para>
     ///     <para>
     ///         The next lookup is performed only if there is no usable entry for the previous one (<see cref="FidoMetadataSearchError.NotFound" />). An entry that doesn't allow to trust the authenticator
@@ -281,7 +313,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     /// </remarks>
     /// <param name="context">The context in which the WebAuthn operation is performed.</param>
     /// <param name="attCert">Attestation certificate in the x509v3 format.</param>
-    /// <param name="authenticatorData"><a href="https://www.w3.org/TR/webauthn-3/#sctn-authenticator-data">Authenticator data</a> that has <a href="https://www.w3.org/TR/webauthn-3/#authdata-attestedcredentialdata">attestedCredentialData</a>.</param>
+    /// <param name="aaguidExtension">The aaguid from the id-fido-gen-ce-aaguid extension of the <paramref name="attCert" />, or <see langword="null" /> if it has no such extension.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>
     ///     If data was found, the result contains a <see cref="FidoMetadataResult" />. Otherwise, the result indicates that the data was not found, that the FIDO Metadata Service doesn't allow to trust the authenticator,
@@ -290,135 +322,104 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
     protected virtual async Task<Result<FidoMetadataResult>> FindFidoMetadataAsync(
         TContext context,
         X509Certificate2 attCert,
-        AttestedAuthenticatorData authenticatorData,
+        Guid? aaguidExtension,
         CancellationToken cancellationToken)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (authenticatorData is null)
+        if (attCert is null)
         {
             return Result<FidoMetadataResult>.Fail();
         }
 
-        if (authenticatorData.AttestedCredentialData.Aaguid != Guid.Empty)
+        if (aaguidExtension.HasValue)
         {
-            var aaguidResult = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
+            var aaguidExtensionMetadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
                 context,
-                authenticatorData.AttestedCredentialData.Aaguid,
+                aaguidExtension.Value,
                 cancellationToken);
-            if (!aaguidResult.HasError)
+            if (!aaguidExtensionMetadata.HasError)
             {
-                return Result<FidoMetadataResult>.Success(aaguidResult.Ok);
-            }
-
-            if (aaguidResult.Error is FidoMetadataSearchError.Untrusted)
-            {
-                Logger.FidoU2FMetadataUntrustedByAaguid(authenticatorData.AttestedCredentialData.Aaguid);
-            }
-            else
-            {
-                Logger.FidoU2FMetadataNotFoundByAaguid(authenticatorData.AttestedCredentialData.Aaguid);
-            }
-        }
-        else
-        {
-            var embeddedAaguidResult = GetAaguidIfExists(attCert);
-            if (embeddedAaguidResult.HasError)
-            {
-                Logger.FidoU2FAttCertAaguidExtensionInvalid();
-                return Result<FidoMetadataResult>.Fail();
-            }
-
-            var embeddedAaguid = embeddedAaguidResult.Ok;
-            if (embeddedAaguid.HasValue)
-            {
-                var embeddedAaguidMetadata = await FidoMetadataSearchService.FindMetadataByAaguidAsync(
-                    context,
-                    embeddedAaguid.Value,
-                    cancellationToken);
-                if (!embeddedAaguidMetadata.HasError)
-                {
-                    return Result<FidoMetadataResult>.Success(embeddedAaguidMetadata.Ok);
-                }
-
-                // an entry that doesn't allow to trust the authenticator is decisive: the attestation statement is rejected without looking for another entry
-                if (embeddedAaguidMetadata.Error is FidoMetadataSearchError.Untrusted)
-                {
-                    Logger.FidoU2FMetadataUntrustedByAaguid(embeddedAaguid.Value);
-                    return Result<FidoMetadataResult>.Fail();
-                }
-
-                // without any metadata the lookups by the key identifier can't succeed either; only when there is no usable entry for the aaguid,
-                // the attestation certificate is looked up by its key identifier, because the metadata may list it in 'attestationCertificateKeyIdentifiers'
-                if (embeddedAaguidMetadata.Error is not FidoMetadataSearchError.NotFound)
-                {
-                    Logger.FidoU2FMetadataNotFoundByAaguid(embeddedAaguid.Value);
-                    return Result<FidoMetadataResult>.Fail();
-                }
-            }
-
-            // FIDO Metadata Statement §3.1: 'attestationCertificateKeyIdentifiers' - "A list of the attestation certificate public key identifiers encoded as hex string.
-            // This value MUST be calculated according to method 1 for computing the keyIdentifier as defined in [RFC5280] section 4.2.1.2."
-            // The identifier is a hash of the public key, so it is computed from the certificate itself (the attestation certificates of U2F authenticators usually carry no Subject Key Identifier extension);
-            // the value of a Subject Key Identifier extension, if there is one, is tried as a fallback (it is normally the same hash, but a vendor may have used another method).
-            if (!TryComputeAttestationCertificateKeyIdentifier(attCert, out var computedKeyIdentifier))
-            {
-                Logger.FidoU2FAttCertKeyIdentifierNotComputable();
-                return Result<FidoMetadataResult>.Fail();
-            }
-
-            var computedKeyIdentifierMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
-                context,
-                computedKeyIdentifier,
-                cancellationToken);
-            if (!computedKeyIdentifierMetadata.HasError)
-            {
-                return Result<FidoMetadataResult>.Success(computedKeyIdentifierMetadata.Ok);
+                return Result<FidoMetadataResult>.Success(aaguidExtensionMetadata.Ok);
             }
 
             // an entry that doesn't allow to trust the authenticator is decisive: the attestation statement is rejected without looking for another entry
-            if (computedKeyIdentifierMetadata.Error is FidoMetadataSearchError.Untrusted)
+            if (aaguidExtensionMetadata.Error is FidoMetadataSearchError.Untrusted)
             {
-                Logger.FidoU2FMetadataUntrustedByKeyIdentifier(Convert.ToHexString(computedKeyIdentifier));
+                Logger.FidoU2FMetadataUntrustedByAaguid(aaguidExtension.Value);
                 return Result<FidoMetadataResult>.Fail();
             }
 
-            // without any metadata the lookup by the value of the Subject Key Identifier extension can't succeed either
-            if (computedKeyIdentifierMetadata.Error is FidoMetadataSearchError.NotFound)
+            // without any metadata the lookups by the key identifier can't succeed either; only when there is no usable entry for the aaguid,
+            // the attestation certificate is looked up by its key identifier, because the metadata may list it in 'attestationCertificateKeyIdentifiers'
+            if (aaguidExtensionMetadata.Error is not FidoMetadataSearchError.NotFound)
             {
-                var embeddedSkiResult = GetSubjectKeyIdentifierIfExists(attCert);
-                if (embeddedSkiResult.HasError)
+                Logger.FidoU2FMetadataNotFoundByAaguid(aaguidExtension.Value);
+                return Result<FidoMetadataResult>.Fail();
+            }
+        }
+
+        // FIDO Metadata Statement §3.1: 'attestationCertificateKeyIdentifiers' - "A list of the attestation certificate public key identifiers encoded as hex string.
+        // This value MUST be calculated according to method 1 for computing the keyIdentifier as defined in [RFC5280] section 4.2.1.2."
+        // The identifier is a hash of the public key, so it is computed from the certificate itself (the attestation certificates of U2F authenticators usually carry no Subject Key Identifier extension);
+        // the value of a Subject Key Identifier extension, if there is one, is tried as a fallback (it is normally the same hash, but a vendor may have used another method).
+        if (!TryComputeAttestationCertificateKeyIdentifier(attCert, out var computedKeyIdentifier))
+        {
+            Logger.FidoU2FAttCertKeyIdentifierNotComputable();
+            return Result<FidoMetadataResult>.Fail();
+        }
+
+        var computedKeyIdentifierMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
+            context,
+            computedKeyIdentifier,
+            cancellationToken);
+        if (!computedKeyIdentifierMetadata.HasError)
+        {
+            return Result<FidoMetadataResult>.Success(computedKeyIdentifierMetadata.Ok);
+        }
+
+        // an entry that doesn't allow to trust the authenticator is decisive: the attestation statement is rejected without looking for another entry
+        if (computedKeyIdentifierMetadata.Error is FidoMetadataSearchError.Untrusted)
+        {
+            Logger.FidoU2FMetadataUntrustedByKeyIdentifier(Convert.ToHexString(computedKeyIdentifier));
+            return Result<FidoMetadataResult>.Fail();
+        }
+
+        // without any metadata the lookup by the value of the Subject Key Identifier extension can't succeed either
+        if (computedKeyIdentifierMetadata.Error is FidoMetadataSearchError.NotFound)
+        {
+            var embeddedSkiResult = GetSubjectKeyIdentifierIfExists(attCert);
+            if (embeddedSkiResult.HasError)
+            {
+                return Result<FidoMetadataResult>.Fail();
+            }
+
+            var embeddedSki = embeddedSkiResult.Ok;
+            if (embeddedSki is not null && !embeddedSki.AsSpan().SequenceEqual(computedKeyIdentifier))
+            {
+                var embeddedSkiMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
+                    context,
+                    embeddedSki,
+                    cancellationToken);
+                if (!embeddedSkiMetadata.HasError)
                 {
+                    return Result<FidoMetadataResult>.Success(embeddedSkiMetadata.Ok);
+                }
+
+                if (embeddedSkiMetadata.Error is FidoMetadataSearchError.Untrusted)
+                {
+                    Logger.FidoU2FMetadataUntrustedByKeyIdentifier(Convert.ToHexString(embeddedSki));
                     return Result<FidoMetadataResult>.Fail();
                 }
-
-                var embeddedSki = embeddedSkiResult.Ok;
-                if (embeddedSki is not null && !embeddedSki.AsSpan().SequenceEqual(computedKeyIdentifier))
-                {
-                    var embeddedSkiMetadata = await FidoMetadataSearchService.FindMetadataBySubjectKeyIdentifierAsync(
-                        context,
-                        embeddedSki,
-                        cancellationToken);
-                    if (!embeddedSkiMetadata.HasError)
-                    {
-                        return Result<FidoMetadataResult>.Success(embeddedSkiMetadata.Ok);
-                    }
-
-                    if (embeddedSkiMetadata.Error is FidoMetadataSearchError.Untrusted)
-                    {
-                        Logger.FidoU2FMetadataUntrustedByKeyIdentifier(Convert.ToHexString(embeddedSki));
-                        return Result<FidoMetadataResult>.Fail();
-                    }
-                }
             }
+        }
 
-            if (embeddedAaguid.HasValue)
-            {
-                Logger.FidoU2FMetadataNotFoundByAaguidAndKeyIdentifier(embeddedAaguid.Value, Convert.ToHexString(computedKeyIdentifier));
-            }
-            else
-            {
-                Logger.FidoU2FMetadataNotFoundByKeyIdentifier(Convert.ToHexString(computedKeyIdentifier));
-            }
+        if (aaguidExtension.HasValue)
+        {
+            Logger.FidoU2FMetadataNotFoundByAaguidAndKeyIdentifier(aaguidExtension.Value, Convert.ToHexString(computedKeyIdentifier));
+        }
+        else
+        {
+            Logger.FidoU2FMetadataNotFoundByKeyIdentifier(Convert.ToHexString(computedKeyIdentifier));
         }
 
         return Result<FidoMetadataResult>.Fail();
@@ -758,6 +759,17 @@ public static partial class DefaultFidoU2FAttestationStatementVerifierLoggingExt
         Level = LogLevel.Warning,
         Message = "The FIDO Metadata Service entry for the aaguid {Aaguid} of the FIDO U2F attestation statement doesn't allow to trust the authenticator")]
     public static partial void FidoU2FMetadataUntrustedByAaguid(this ILogger logger, Guid aaguid);
+
+    /// <summary>
+    ///     The aaguid {AuthenticatorDataAaguid} of the authenticator data differs from the aaguid {AaguidExtension} of the id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="authenticatorDataAaguid">The aaguid of the authenticator data, which the FIDO U2F attestation signature doesn't cover.</param>
+    /// <param name="aaguidExtension">The aaguid of the id-fido-gen-ce-aaguid extension of the attCert.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The aaguid {AuthenticatorDataAaguid} of the authenticator data differs from the aaguid {AaguidExtension} of the id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement")]
+    public static partial void FidoU2FAuthenticatorDataAaguidMismatch(this ILogger logger, Guid authenticatorDataAaguid, Guid aaguidExtension);
 
     /// <summary>
     ///     The id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement is invalid
