@@ -307,13 +307,8 @@ public class DefaultPackedAttestationStatementVerifier<TContext> :
             return Result<FidoPackedAttestationTypeResult>.Success(new(AttestationType.Basic, rootCertificates));
         }
 
-        if (metadata.AttestationTypes.Contains(AuthenticatorAttestationType.ATTESTATION_BASIC_SURROGATE))
-        {
-            var rootCertificates = new UniqueByteArraysCollection();
-            rootCertificates.AddRange(metadata.RootCertificates);
-            return Result<FidoPackedAttestationTypeResult>.Success(new(AttestationType.Self, rootCertificates));
-        }
-
+        // §8.2: a Packed attestation statement with 'x5c' conveys a Basic or AttCA attestation; self attestation ("basic_surrogate" in the metadata) is the one without 'x5c',
+        // so an authenticator whose metadata lists no other type can't produce a valid Packed attestation statement with 'x5c'
         Logger.PackedMetadataAttestationTypesNotSupported(authenticatorData.AttestedCredentialData.Aaguid);
         return Result<FidoPackedAttestationTypeResult>.Fail();
     }
@@ -737,13 +732,13 @@ public static partial class DefaultPackedAttestationStatementVerifierLoggingExte
     public static partial void PackedMetadataUntrusted(this ILogger logger, Guid aaguid);
 
     /// <summary>
-    ///     The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca, basic_full or basic_surrogate)
+    ///     The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca or basic_full)
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="aaguid">The AAGUID of the authenticator.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca, basic_full or basic_surrogate)")]
+        Message = "The metadata of the aaguid {Aaguid} lists no attestation type that a Packed attestation statement with 'x5c' can convey (attca or basic_full)")]
     public static partial void PackedMetadataAttestationTypesNotSupported(this ILogger logger, Guid aaguid);
 
     /// <summary>

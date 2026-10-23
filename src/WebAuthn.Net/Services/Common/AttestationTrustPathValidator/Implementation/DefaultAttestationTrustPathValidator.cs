@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
@@ -33,6 +31,16 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     <para>
+    ///         The <a href="https://www.w3.org/TR/webauthn-3/#attestation-trust-path">attestation trust path</a> of <a href="https://www.w3.org/TR/webauthn-3/#self-attestation">self attestation</a> and of
+    ///         <a href="https://www.w3.org/TR/webauthn-3/#none">no attestation</a> is empty, and step 24 of <a href="https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential">§7.1</a> assesses them
+    ///         by the policy of the Relying Party only, so a result of these types is valid only if it has no trust path.
+    ///     </para>
+    ///     <para>
+    ///         For the other attestation types, the trust path must chain up to one of the root certificates of the result, or its single certificate must be the single root certificate.
+    ///     </para>
+    /// </remarks>
     public virtual bool IsValid(VerifiedAttestationStatement verificationResult)
     {
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -43,33 +51,13 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
 
         switch (verificationResult.AttestationType)
         {
+            case AttestationType.None:
             case AttestationType.Self:
                 {
-                    if (verificationResult.AttestationTrustPath is null)
-                    {
-                        return true;
-                    }
-
-                    if (verificationResult.AttestationRootCertificates is null)
-                    {
-                        if (verificationResult.AttestationTrustPath.Length != 1)
-                        {
-                            return false;
-                        }
-
-                        var certificateBytes = verificationResult.AttestationTrustPath.Single();
-                        return IsSelfSigned(certificateBytes);
-                    }
-
-                    if (verificationResult.AttestationRootCertificates.Count == 1
-                        && verificationResult.AttestationTrustPath.Length == 1)
-                    {
-                        var rootCertificate = verificationResult.AttestationRootCertificates.Single();
-                        var trustPath = verificationResult.AttestationTrustPath.Single();
-                        return rootCertificate.AsSpan().SequenceEqual(trustPath.AsSpan());
-                    }
-
-                    return false;
+                    // §6.5.2: "This attestation trust path is either empty (in case of self attestation), or a set of X.509 certificates";
+                    // the verification procedures of the packed self attestation (§8.2) and of the none attestation statement format (§8.7) return an empty trust path.
+                    // There is nothing to chain up to a root certificate, so a result of these types that has a trust path contradicts the specification and is rejected.
+                    return verificationResult.AttestationTrustPath is null;
                 }
             case AttestationType.Basic:
             case AttestationType.AttCa:
@@ -90,70 +78,10 @@ public class DefaultAttestationTrustPathValidator : IAttestationTrustPathValidat
                         verificationResult.AttestationTrustPath,
                         verificationResult.AttestationRootCertificates.ToArray());
                 }
-            case AttestationType.None:
-                {
-                    return true;
-                }
             default:
                 {
                     return false;
                 }
-        }
-    }
-
-    /// <summary>
-    ///     Verifies that the certificate is self-signed.
-    /// </summary>
-    /// <param name="certificateBytes">x509v3 certificate.</param>
-    /// <returns><see langword="true" /> if the certificate is self-signed, otherwise - <see langword="false" />.</returns>
-    protected virtual bool IsSelfSigned(byte[] certificateBytes)
-    {
-        const string authorityKeyIdentifier = "2.5.29.35";
-        const string subjectKeyIdentifier = "2.5.29.14";
-        X509Certificate2? certificate = null;
-        try
-        {
-            if (!X509CertificateInMemoryLoader.TryLoad(certificateBytes, out certificate))
-            {
-                return false;
-            }
-
-            var subjectAndIssuerSame = certificate.SubjectName.RawData.AsSpan().SequenceEqual(certificate.IssuerName.RawData);
-            if (!subjectAndIssuerSame)
-            {
-                return false;
-            }
-
-            var authorityKeyIdentifierExt = certificate.Extensions.FirstOrDefault(x => x.Oid?.Value == authorityKeyIdentifier);
-            var subjectKeyIdentifierExt = certificate.Extensions.FirstOrDefault(x => x.Oid?.Value == subjectKeyIdentifier);
-
-            if (authorityKeyIdentifierExt is X509AuthorityKeyIdentifierExtension typedAuthorityKeyIdentifier
-                && subjectKeyIdentifierExt is X509SubjectKeyIdentifierExtension typedSubjectKeyIdentifier)
-            {
-                // RFC 5280 §4.2.1.1 / §4.2.1.2: in a self-signed certificate the keyIdentifier of the Authority Key Identifier is the Subject Key Identifier.
-                // The decoded values are compared (not the raw extension values: the AKI is SEQUENCE { [0] keyIdentifier, ... }, the SKI is an OCTET STRING, so their encodings never match).
-                try
-                {
-                    var authorityKeyId = typedAuthorityKeyIdentifier.KeyIdentifier;
-                    if (!authorityKeyId.HasValue)
-                    {
-                        return false;
-                    }
-
-                    return authorityKeyId.Value.Span.SequenceEqual(typedSubjectKeyIdentifier.SubjectKeyIdentifierBytes.Span);
-                }
-                catch (CryptographicException)
-                {
-                    // the typed extensions decode their value lazily and throw for a malformed value; the certificate comes from the client, so this is a failed check, not an exception
-                    return false;
-                }
-            }
-
-            return true;
-        }
-        finally
-        {
-            certificate?.Dispose();
         }
     }
 

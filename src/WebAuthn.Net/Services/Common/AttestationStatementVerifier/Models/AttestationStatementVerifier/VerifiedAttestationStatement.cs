@@ -18,7 +18,7 @@ public class VerifiedAttestationStatement
     ///     <a href="https://www.w3.org/TR/webauthn-3/#attestation-statement-format-identifier">Attestation statement format identifier</a>.
     /// </param>
     /// <param name="attestationType"><a href="https://www.w3.org/TR/webauthn-3/#sctn-attestation-types">Attestation type</a>, inferred during the verification process of the attestation statement.</param>
-    /// <param name="attestationTrustPath">The attestation trust path - a chain of X509v3 certificates, each serialized to a byte array. Can be <see langword="null" />. If not <see langword="null" />, it's guaranteed to contain one element or more.</param>
+    /// <param name="attestationTrustPath">The attestation trust path - a chain of X509v3 certificates, each serialized to a byte array. Can be <see langword="null" />. If not <see langword="null" />, it's guaranteed to contain one element or more. It is empty (<see langword="null" />) for <see cref="AttestationType.Self" /> and <see cref="AttestationType.None" /> (<a href="https://www.w3.org/TR/webauthn-3/#attestation-trust-path">§6.5.2</a>): <see cref="AttestationTrustPathValidator.IAttestationTrustPathValidator" /> rejects a result of these types that has a trust path.</param>
     /// <param name="attestationRootCertificates">Root CA X509v3 certificates for validating the chain specified in the attestation trust path. Contains either <see langword="null" /> or a collection with at least one element.</param>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="fmt" /> contains a value that is not defined in <see cref="AttestationStatementFormat" /></exception>
     /// <exception cref="InvalidEnumArgumentException"><paramref name="attestationType" /> contains a value that is not defined in <see cref="AttestationType" /></exception>
@@ -75,6 +75,7 @@ public class VerifiedAttestationStatement
 
     /// <summary>
     ///     The attestation trust path - a chain of X509v3 certificates, each serialized to a byte array. Can be <see langword="null" />. If not <see langword="null" />, it's guaranteed to contain one element or more.
+    ///     It is empty (<see langword="null" />) for <see cref="AttestationType.Self" /> and <see cref="AttestationType.None" /> (<a href="https://www.w3.org/TR/webauthn-3/#attestation-trust-path">§6.5.2</a>).
     /// </summary>
     public byte[][]? AttestationTrustPath { get; }
 

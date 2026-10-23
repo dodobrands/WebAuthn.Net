@@ -4,110 +4,95 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
+using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Enums;
 
 namespace WebAuthn.Net.Services.Common.AttestationTrustPathValidator.Implementation;
 
 public class DefaultAttestationTrustPathValidatorTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
 
-    // RFC 5280 §4.2.1.1: in a self-signed certificate the keyIdentifier of the Authority Key Identifier equals the Subject Key Identifier -
-    // the decoded identifiers must be compared, not the raw extension values (SEQUENCE { [0] keyIdentifier } vs OCTET STRING), which never match
-    [Test]
-    public void IsSelfSigned_ReturnsTrue_ForSelfSignedCertificateWithMatchingAuthorityAndSubjectKeyIdentifiers()
+    // ---------------------------------------------------------------------------------------------
+    // WebAuthn L3 §6.5.2: the attestation trust path "is either empty (in case of self attestation), or a set of X.509 certificates";
+    // the packed self attestation (§8.2) and the none attestation statement format (§8.7) return an empty trust path, and §7.1 step 24 assesses them by the policy of the Relying Party only
+
+    [TestCase(AttestationStatementFormat.Packed, AttestationType.Self)]
+    [TestCase(AttestationStatementFormat.None, AttestationType.None)]
+    public void IsValid_ReturnsTrue_ForSelfAndNoAttestationWithoutTrustPath(AttestationStatementFormat fmt, AttestationType attestationType)
     {
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var request = new CertificateRequest("CN=WebAuthn.Net Self-Signed", key, HashAlgorithmName.SHA256);
-        var subjectKeyIdentifier = new X509SubjectKeyIdentifierExtension(request.PublicKey, false);
-        request.CertificateExtensions.Add(subjectKeyIdentifier);
-        request.CertificateExtensions.Add(X509AuthorityKeyIdentifierExtension.CreateFromSubjectKeyIdentifier(subjectKeyIdentifier));
-        using var certificate = request.CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30));
-        var validator = new TestTrustPathValidator();
+        var validator = new DefaultAttestationTrustPathValidator(new OptionsMonitorStub());
 
-        Assert.That(validator.IsSelfSignedCertificate(certificate.RawData), Is.True);
-    }
-
-    [Test]
-    public void IsSelfSigned_ReturnsTrue_ForSelfSignedCertificateWithoutKeyIdentifiers()
-    {
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var request = new CertificateRequest("CN=WebAuthn.Net Self-Signed", key, HashAlgorithmName.SHA256);
-        using var certificate = request.CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30));
-        var validator = new TestTrustPathValidator();
-
-        Assert.That(validator.IsSelfSignedCertificate(certificate.RawData), Is.True);
-    }
-
-    [Test]
-    public void IsSelfSigned_ReturnsFalse_WhenAuthorityKeyIdentifierNamesAnotherKey()
-    {
-        // subject == issuer, but the Authority Key Identifier points to another key
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        using var otherKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var request = new CertificateRequest("CN=WebAuthn.Net Self-Signed", key, HashAlgorithmName.SHA256);
-        request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
-        var otherRequest = new CertificateRequest("CN=Other", otherKey, HashAlgorithmName.SHA256);
-        request.CertificateExtensions.Add(X509AuthorityKeyIdentifierExtension.CreateFromSubjectKeyIdentifier(new X509SubjectKeyIdentifierExtension(otherRequest.PublicKey, false)));
-        using var certificate = request.CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30));
-        var validator = new TestTrustPathValidator();
-
-        Assert.That(validator.IsSelfSignedCertificate(certificate.RawData), Is.False);
-    }
-
-    [Test]
-    public void IsSelfSigned_ReturnsFalse_ForCertificateIssuedByAnotherCertificate()
-    {
-        using var issuerKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var issuerRequest = new CertificateRequest("CN=WebAuthn.Net Issuer", issuerKey, HashAlgorithmName.SHA256);
-        issuerRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
-        using var issuer = issuerRequest.CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30));
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var request = new CertificateRequest("CN=WebAuthn.Net Leaf", key, HashAlgorithmName.SHA256);
-        using var certificate = request.Create(issuer, Now.AddDays(-1), Now.AddDays(30), new byte[] { 1, 2, 3, 4 });
-        var validator = new TestTrustPathValidator();
-
-        Assert.That(validator.IsSelfSignedCertificate(certificate.RawData), Is.False);
-    }
-
-    [Test]
-    public void IsSelfSigned_ReturnsFalse_WithoutException_WhenCertificateCannotBeLoaded()
-    {
-        var validator = new TestTrustPathValidator();
-        var isSelfSigned = true;
-
-        Assert.DoesNotThrow(() => isSelfSigned = validator.IsSelfSignedCertificate(new byte[] { 0x30, 0x03, 0x02, 0x01, 0x01 }));
-
-        Assert.That(isSelfSigned, Is.False);
-    }
-
-    [Test]
-    public void IsValid_ReturnsTrue_ForSelfAttestation_WhenTrustPathIsSingleSelfSignedCertificateAndThereAreNoRoots()
-    {
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var request = new CertificateRequest("C=SE, O=WebAuthn.Net, OU=Authenticator Attestation, CN=WebAuthn.Net Self-Signed Attestation", key, HashAlgorithmName.SHA256);
-        var subjectKeyIdentifier = new X509SubjectKeyIdentifierExtension(request.PublicKey, false);
-        request.CertificateExtensions.Add(subjectKeyIdentifier);
-        request.CertificateExtensions.Add(X509AuthorityKeyIdentifierExtension.CreateFromSubjectKeyIdentifier(subjectKeyIdentifier));
-        using var certificate = request.CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30));
-        var validator = new TestTrustPathValidator();
-
-        var isValid = validator.IsValid(new(AttestationStatementFormat.Packed, AttestationType.Self, new[] { certificate.RawData }, null));
+        var isValid = validator.IsValid(new(fmt, attestationType, null, null));
 
         Assert.That(isValid, Is.True);
     }
 
-    private sealed class TestTrustPathValidator : DefaultAttestationTrustPathValidator
+    [TestCase(AttestationStatementFormat.Packed, AttestationType.Self)]
+    [TestCase(AttestationStatementFormat.None, AttestationType.None)]
+    public void IsValid_ReturnsFalse_ForSelfAndNoAttestationWithSelfSignedCertificateAsTrustPath(AttestationStatementFormat fmt, AttestationType attestationType)
     {
-        public TestTrustPathValidator() : base(new OptionsMonitorStub())
+        // a self-signed certificate made the self attestation valid before: it is not a trust path that the specification defines for these attestation types
+        using var certificate = CreateSelfSigned("CN=WebAuthn.Net Self-Signed", false);
+        var validator = new DefaultAttestationTrustPathValidator(new OptionsMonitorStub());
+
+        var isValid = validator.IsValid(new(fmt, attestationType, new[] { certificate.RawData }, null));
+
+        Assert.That(isValid, Is.False);
+    }
+
+    [TestCase(AttestationStatementFormat.Packed, AttestationType.Self)]
+    [TestCase(AttestationStatementFormat.None, AttestationType.None)]
+    public void IsValid_ReturnsFalse_ForSelfAndNoAttestationWhoseTrustPathIsTheirRootCertificate(AttestationStatementFormat fmt, AttestationType attestationType)
+    {
+        // the self attestation whose single certificate was its single root certificate (as the packed verifier returned for the "basic_surrogate" metadata) was valid before
+        using var certificate = CreateSelfSigned("CN=WebAuthn.Net Self-Signed", false);
+        var validator = new DefaultAttestationTrustPathValidator(new OptionsMonitorStub());
+
+        var isValid = validator.IsValid(new(fmt, attestationType, new[] { certificate.RawData }, new UniqueByteArraysCollection(new[] { certificate.RawData })));
+
+        Assert.That(isValid, Is.False);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // The other attestation types: the trust path must chain up to an acceptable root certificate (§7.1 step 24)
+
+    [Test]
+    public void IsValid_ReturnsTrue_ForBasicAttestation_WhenTrustPathChainsUpToRootCertificate()
+    {
+        using var root = CreateSelfSigned("CN=WebAuthn.Net Root", true);
+        using var leafKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var leaf = new CertificateRequest("CN=WebAuthn.Net Attestation", leafKey, HashAlgorithmName.SHA256).Create(root, Now.AddDays(-1), Now.AddDays(30), new byte[] { 1, 2, 3, 4 });
+        var validator = new DefaultAttestationTrustPathValidator(new OptionsMonitorStub());
+
+        var isValid = validator.IsValid(new(AttestationStatementFormat.Packed, AttestationType.Basic, new[] { leaf.RawData }, new UniqueByteArraysCollection(new[] { root.RawData })));
+
+        Assert.That(isValid, Is.True);
+    }
+
+    [Test]
+    public void IsValid_ReturnsFalse_ForBasicAttestationWithoutTrustPath()
+    {
+        using var root = CreateSelfSigned("CN=WebAuthn.Net Root", true);
+        var validator = new DefaultAttestationTrustPathValidator(new OptionsMonitorStub());
+
+        var isValid = validator.IsValid(new(AttestationStatementFormat.Packed, AttestationType.Basic, null, new UniqueByteArraysCollection(new[] { root.RawData })));
+
+        Assert.That(isValid, Is.False);
+    }
+
+    private static X509Certificate2 CreateSelfSigned(string subject, bool isCa)
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var request = new CertificateRequest(subject, key, HashAlgorithmName.SHA256);
+        if (isCa)
         {
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
         }
 
-        public bool IsSelfSignedCertificate(byte[] certificate)
-        {
-            return IsSelfSigned(certificate);
-        }
+        return request.CreateSelfSigned(Now.AddDays(-1), Now.AddDays(30));
     }
 
     private sealed class OptionsMonitorStub : IOptionsMonitor<WebAuthnOptions>
