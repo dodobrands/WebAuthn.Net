@@ -95,7 +95,7 @@ public static class WebAuthnBuilderExtensions
     ///     An optional delegate for configuring the HttpClient that will be used to access the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>. Here you can add retries using
     ///     <a href="https://github.com/App-vNext/Polly">Polly</a>, set timeouts, add your own DelegatingHandlers, or otherwise customize the behavior of HttpClient.
     /// </param>
-    /// <param name="configureBackgroundIngest">An optional delegate for configuring the behavior of background data ingest from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.</param>
+    /// <param name="configureBackgroundIngest">An optional delegate for configuring the loading of metadata from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a> (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions" />): the blob embedded in the application that is loaded at start-up, the intervals of the refreshes and of the retries after a failure, and whether the application fails to start without metadata.</param>
     /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
     /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddCoreServices<TContext>(
@@ -273,7 +273,7 @@ public static class WebAuthnBuilderExtensions
     ///     Adds a set of services to DI responsible for background data ingest from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.
     /// </summary>
     /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
-    /// <param name="configure">An optional delegate for configuring the behavior of background data ingest from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.</param>
+    /// <param name="configure">An optional delegate for configuring the loading of metadata from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a> (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions" />): the blob embedded in the application that is loaded at start-up, the intervals of the refreshes and of the retries after a failure, and whether the application fails to start without metadata.</param>
     /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
     /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddFidoMetadataBackgroundIngest<TContext>(

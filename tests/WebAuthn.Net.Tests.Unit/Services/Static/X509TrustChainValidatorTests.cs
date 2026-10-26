@@ -49,6 +49,53 @@ public class X509TrustChainValidatorTests
     }
 
     [Test]
+    public void IsFidoMetadataBlobJwtChainValid_WithCustomDelegateThatDoesNotSetTrustMode_UsesProvidedRootsAsTrustAnchors()
+    {
+        // CustomRootTrust is applied before the delegate: in System mode a non-empty CustomTrustStore is not allowed by X509Chain,
+        // so a delegate that doesn't mention the trust mode used to throw an exception out of the provider instead of rejecting the blob.
+        using var root = CreateRoot("CN=WebAuthn.Net Test Metadata Root");
+        using var leaf = CreateLeaf(root);
+
+        var valid = false;
+        Assert.DoesNotThrow(() => valid = X509TrustChainValidator.IsFidoMetadataBlobJwtChainValid(
+            new[] { root },
+            new[] { leaf },
+            static chain =>
+            {
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                chain.ChainPolicy.VerificationTime = Now.UtcDateTime;
+            }));
+
+        Assert.That(valid, Is.True);
+    }
+
+    [Test]
+    public void IsFidoMetadataBlobJwtChainValid_WithDefaultEmbeddedBlobPolicy_AcceptsChainOutsideItsValidityPeriod()
+    {
+        // The blob embedded in the application is validated regardless of the validity period of its certificates (they are short-lived),
+        // but the chain still has to end in one of the provided roots.
+        using var root = CreateRoot("CN=WebAuthn.Net Test Metadata Root");
+        using var leaf = CreateLeaf(root);
+        using var otherRoot = CreateRoot("CN=WebAuthn.Net Other Root");
+        var afterExpiration = Now.AddYears(5).UtcDateTime;
+
+        void ConfigureEmbeddedBlobChain(X509Chain chain)
+        {
+            new X509ChainValidationOptions().OnValidateEmbeddedFidoMetadataBlobJwtChain(chain);
+            chain.ChainPolicy.VerificationTime = afterExpiration;
+        }
+
+        var valid = X509TrustChainValidator.IsFidoMetadataBlobJwtChainValid(new[] { root }, new[] { leaf }, ConfigureEmbeddedBlobChain);
+        var validWithOtherRoot = X509TrustChainValidator.IsFidoMetadataBlobJwtChainValid(new[] { otherRoot }, new[] { leaf }, ConfigureEmbeddedBlobChain);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(valid, Is.True);
+            Assert.That(validWithOtherRoot, Is.False);
+        });
+    }
+
+    [Test]
     public void IsFidoMetadataBlobJwtChainValid_ReturnsFalse_WhenThereAreNoRoots()
     {
         using var root = CreateRoot("CN=WebAuthn.Net Test Metadata Root");
@@ -189,6 +236,24 @@ public class X509TrustChainValidatorTests
             Assert.That(chain.ChainPolicy.RevocationMode, Is.EqualTo(X509RevocationMode.Online));
             Assert.That(chain.ChainPolicy.DisableCertificateDownloads, Is.False);
             Assert.That(chain.ChainPolicy.TrustMode, Is.EqualTo(X509ChainTrustMode.CustomRootTrust));
+        });
+    }
+
+    [Test]
+    public void DefaultEmbeddedFidoMetadataBlobJwtChainPolicy_DoesNotUseNetwork_AndIgnoresOnlyValidityPeriod()
+    {
+        // The blob embedded in the application has to work without the network and long after its short-lived signing certificate has expired,
+        // so its chain is validated without the revocation check, and the validity period is the only validation error that is ignored.
+        using var chain = new X509Chain();
+
+        new X509ChainValidationOptions().OnValidateEmbeddedFidoMetadataBlobJwtChain(chain);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(chain.ChainPolicy.RevocationMode, Is.EqualTo(X509RevocationMode.NoCheck));
+            Assert.That(chain.ChainPolicy.DisableCertificateDownloads, Is.True);
+            Assert.That(chain.ChainPolicy.TrustMode, Is.EqualTo(X509ChainTrustMode.CustomRootTrust));
+            Assert.That(chain.ChainPolicy.VerificationFlags, Is.EqualTo(X509VerificationFlags.IgnoreNotTimeValid));
         });
     }
 

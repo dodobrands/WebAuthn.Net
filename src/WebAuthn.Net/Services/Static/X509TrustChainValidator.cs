@@ -58,6 +58,10 @@ public static class X509TrustChainValidator
     ///     Builds and validates the certificate chain of the JWS (JWT) token of a blob obtained from the FIDO Metadata Service and returns the built chain,
     ///     so that the caller can perform additional validation of its elements (for example, a custom revocation check).
     /// </summary>
+    /// <remarks>
+    ///     Before <paramref name="configureChain" /> is called, the chain policy is set to <see cref="X509ChainTrustMode.CustomRootTrust" />, so that only <paramref name="rootCertificates" /> are trust anchors
+    ///     even if the delegate doesn't set the trust mode itself (<see cref="X509Chain" /> doesn't allow the custom root certificates in the default trust mode).
+    /// </remarks>
     /// <param name="rootCertificates">Root CA certificates.</param>
     /// <param name="trustPath">Certificates from the JWS (JWT) token header in the order they appear in the header (the first certificate is the one that signed the token).</param>
     /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
@@ -97,6 +101,9 @@ public static class X509TrustChainValidator
         var builtChain = new X509Chain();
         try
         {
+            // The trust anchors are only the provided root certificates, also for a custom delegate that doesn't set the trust mode
+            // (in the default trust mode X509Chain rejects the custom root certificates with an exception).
+            builtChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
             if (configureChain is not null)
             {
                 configureChain(builtChain);
