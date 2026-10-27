@@ -303,7 +303,7 @@ So that the application starts with metadata and works even if the FIDO Metadata
     services.AddWebAuthnSqlServer(
         configureBackgroundIngest: ingest =>
         {
-            ingest.EmbeddedBlob = new FidoMetadataEmbeddedBlob(typeof(Program).Assembly, "FidoMetadata.blob.jwt");
+            ingest.EmbeddedBlob = new FidoMetadataEmbeddedBlobOptions(typeof(Program).Assembly, "FidoMetadata.blob.jwt");
         },
         configureSqlServer: sqlServer =>
         {
@@ -311,7 +311,7 @@ So that the application starts with metadata and works even if the FIDO Metadata
         });
     ```
 
-    `FidoMetadataEmbeddedBlob` (in the `WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider` namespace) requires both the assembly and the name of the resource and throws an exception if either of them is missing, so the embedded blob is either specified completely or not specified at all (`EmbeddedBlob` is `null` by default).
+    `FidoMetadataEmbeddedBlobOptions` (in the same namespace as `FidoMetadataBackgroundIngestHostedServiceOptions`) requires both the assembly and the name of the resource and throws an exception if either of them is missing, so the embedded blob is either specified completely or not specified at all (`EmbeddedBlob` is `null` by default).
 
 The embedded blob has to be the blob exactly as the FIDO Metadata Service serves it (a JWS). It is verified like a downloaded blob: its signature and its certificate chain up to the root certificates of the FIDO Metadata Service built into WebAuthn.Net. The only difference is that the validity period and the revocation status of the signing certificates are not checked, so that the embedded blob works regardless of the time and without the network: the blobs are signed with short-lived certificates (the certificate of the blob published in October 2026 is valid for about 200 days), so an embedded blob would otherwise stop working within months, and the revocation status can't be checked without the network. This is set by `OnValidateEmbeddedFidoMetadataBlobJwtChain` in `X509ChainValidationOptions` and doesn't affect the blobs downloaded from the FIDO Metadata Service.
 

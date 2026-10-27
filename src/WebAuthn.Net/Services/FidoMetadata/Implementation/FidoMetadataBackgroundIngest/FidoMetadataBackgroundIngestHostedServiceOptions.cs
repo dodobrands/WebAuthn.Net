@@ -1,6 +1,5 @@
 ﻿using System;
 using WebAuthn.Net.Configuration.Options;
-using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
 
@@ -62,5 +61,5 @@ public class FidoMetadataBackgroundIngestHostedServiceOptions
     ///         An embedded blob that is not newer than the metadata in use (for example, a persistent storage keeps a blob downloaded before the restart of the application) is not ingested.
     ///     </para>
     /// </remarks>
-    public FidoMetadataEmbeddedBlob? EmbeddedBlob { get; set; }
+    public FidoMetadataEmbeddedBlobOptions? EmbeddedBlob { get; set; }
 }

@@ -26,7 +26,6 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestServic
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
-using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata;
@@ -688,7 +687,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
                 : Task.FromResult(Result<MetadataBLOBPayloadJSON>.Fail());
         }
 
-        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlob embeddedBlob, CancellationToken cancellationToken)
+        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken)
         {
             _embeddedRequests.Enqueue(embeddedBlob.ResourceName);
             if (EmbeddedException is not null)

@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 
 namespace WebAuthn.Net.Services.FidoMetadata;
@@ -30,7 +30,7 @@ public interface IFidoMetadataProvider
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>If the loading and validation were successful - the result contains <see cref="MetadataBLOBPayloadJSON" />, otherwise the result indicates that an error occurred during the loading or validation.</returns>
     /// <exception cref="NotSupportedException">The provider doesn't support the blob embedded in the application.</exception>
-    Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlob embeddedBlob, CancellationToken cancellationToken)
+    Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken)
     {
         throw new NotSupportedException($"{GetType().FullName} doesn't support loading the FIDO Metadata Service blob embedded in the application");
     }

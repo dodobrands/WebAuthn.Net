@@ -1,11 +1,10 @@
 using System;
 using System.Reflection;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
 
-namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider;
+namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
 
 /// <summary>
-///     The FIDO Metadata Service blob embedded in the application: the assembly and the name of its manifest resource that contains the blob.
+///     Options that define the FIDO Metadata Service blob embedded in the application: the assembly and the name of its manifest resource that contains the blob.
 /// </summary>
 /// <remarks>
 ///     <para>
@@ -17,10 +16,10 @@ namespace WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider;
 ///         a blob that can't be loaded is logged and counted, and the metadata is then loaded from the FIDO Metadata Service only.
 ///     </para>
 /// </remarks>
-public class FidoMetadataEmbeddedBlob
+public class FidoMetadataEmbeddedBlobOptions
 {
     /// <summary>
-    ///     Constructs <see cref="FidoMetadataEmbeddedBlob" />.
+    ///     Constructs <see cref="FidoMetadataEmbeddedBlobOptions" />.
     /// </summary>
     /// <param name="assembly">The assembly that contains the blob as a manifest resource.</param>
     /// <param name="resourceName">
@@ -29,7 +28,7 @@ public class FidoMetadataEmbeddedBlob
     /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="assembly" /> or <paramref name="resourceName" /> is <see langword="null" /></exception>
     /// <exception cref="ArgumentException"><paramref name="resourceName" /> is empty or consists only of white-space characters</exception>
-    public FidoMetadataEmbeddedBlob(Assembly assembly, string resourceName)
+    public FidoMetadataEmbeddedBlobOptions(Assembly assembly, string resourceName)
     {
         ArgumentNullException.ThrowIfNull(assembly);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceName);

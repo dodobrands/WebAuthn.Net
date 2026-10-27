@@ -17,8 +17,8 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
-using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
@@ -144,7 +144,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     ///     </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="embeddedBlob" /> is <see langword="null" /></exception>
-    public virtual async Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlob embeddedBlob, CancellationToken cancellationToken)
+    public virtual async Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(embeddedBlob);
         cancellationToken.ThrowIfCancellationRequested();
