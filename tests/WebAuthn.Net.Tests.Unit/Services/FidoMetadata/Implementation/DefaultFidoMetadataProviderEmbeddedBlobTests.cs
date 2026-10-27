@@ -407,6 +407,11 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         {
             return Task.FromResult(Result<MetadataBLOBPayloadJSON>.Fail());
         }
+
+        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException($"{GetType().FullName} doesn't support loading the FIDO Metadata Service blob embedded in the application");
+        }
     }
 
     // An assembly whose manifest resources are defined by the test.
