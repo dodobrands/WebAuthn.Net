@@ -256,10 +256,69 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
 
         await Service.StopAsync(CancellationToken.None);
 
-        Assert.That(Service.BackgroundTask!.IsCompleted, Is.True);
+        Assert.That(Service.ExecuteTask!.IsCanceled, Is.True, "a cancelled ExecuteTask is what the host expects from a stopped background service");
         Assert.That(Provider.DownloadCalls, Is.EqualTo(1));
         Assert.That(Logger.Entries.Where(static x => x.Level >= LogLevel.Warning), Is.Empty);
         Assert.That(Counters.IngestExceptions, Is.Empty);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WhenOverriddenAttemptThrows_LogsAndCountsIt_InsteadOfFailingTheHost()
+    {
+        // Every attempt handles its own failures, but an overridden one could throw. A faulted ExecuteTask would make the host stop the whole application
+        // (BackgroundServiceExceptionBehavior.StopHost by default), so the stopped background ingestion is logged and counted, and ExecuteAsync completes.
+        ConfigureEmbeddedBlob();
+        Provider.EmbeddedPayload = CreatePayload(291);
+        var exception = new InvalidOperationException("A bug in a derived class");
+        var service = new ThrowingAttemptHostedService(
+            new FakeOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions>(IngestOptions),
+            new DefaultFidoMetadataIngestService(Storage, Counters, IngestLogger),
+            Provider,
+            CreateDecoder(),
+            Counters,
+            Logger,
+            exception);
+
+        await service.StartAsync(CancellationToken.None).WaitAsync(TestTimeout);
+        await service.ExecuteTask!.WaitAsync(TestTimeout);
+
+        Assert.That(service.ExecuteTask.IsCompletedSuccessfully, Is.True);
+        var error = Logger.Entries.Single(static x => x.Level == LogLevel.Error);
+        Assert.That(error.Message, Does.Contain("has stopped because of an exception"));
+        Assert.That(error.Exception, Is.SameAs(exception));
+        Assert.That(Counters.IngestExceptions, Is.EqualTo(new[] { FidoMetadataBlobSources.FidoMetadataService }));
+        Assert.That(Storage.CurrentNo, Is.EqualTo(291), "the metadata loaded at start-up stays in use");
+        await service.StopAsync(CancellationToken.None);
+        service.Dispose();
+    }
+
+    [Test]
+    public async Task Host_StartsAndStopsTheServiceRegisteredByAddWebAuthnCore()
+    {
+        // The service runs in a real host: the start waits for the first download (no blob is embedded), the background ingestion keeps running,
+        // and the stop of the host cancels it without errors.
+        var builder = Host.CreateEmptyApplicationBuilder(new());
+        using var hostLogs = new FakeLoggerProvider();
+        builder.Logging.AddProvider(hostLogs);
+        // registered before AddWebAuthnCore, so its TryAddSingleton keeps this provider
+        builder.Services.AddSingleton<IFidoMetadataProvider>(Provider);
+        builder.Services.AddWebAuthnCore<FakeWebAuthnContext>().AddDefaultFidoMetadataStorage();
+        Provider.EnqueueSuccess(291);
+        using var host = builder.Build();
+        var hostedService = host.Services.GetServices<IHostedService>().OfType<FidoMetadataBackgroundIngestHostedService>().Single();
+        var storage = host.Services.GetRequiredService<IFidoMetadataIngestStorage>();
+
+        await host.StartAsync().WaitAsync(TestTimeout);
+
+        Assert.That(await storage.GetCurrentBlobNoAsync(CancellationToken.None), Is.EqualTo(291));
+        Assert.That(Provider.DownloadCalls, Is.EqualTo(1));
+        Assert.That(hostedService.ExecuteTask, Is.Not.Null);
+        Assert.That(hostedService.ExecuteTask!.IsCompleted, Is.False, "the background ingestion runs until the host stops");
+
+        await host.StopAsync().WaitAsync(TestTimeout);
+
+        Assert.That(hostedService.ExecuteTask.IsCanceled, Is.True);
+        Assert.That(hostLogs.Entries.Where(static x => x.Level >= LogLevel.Warning).Select(static x => x.Message), Is.Empty);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -309,7 +368,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await StartServiceAsync());
 
-        Assert.That(Service.BackgroundTask, Is.Null, "the background ingestion doesn't start when the start of the application fails");
+        Assert.That(Service.ExecuteTask, Is.Null, "the background ingestion doesn't start when the start of the application fails");
     }
 
     [Test]
@@ -532,6 +591,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         var options = serviceProvider.GetRequiredService<IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions>>().CurrentValue;
 
         Assert.That(hostedServices, Has.Length.EqualTo(1));
+        Assert.That(hostedServices[0], Is.InstanceOf<BackgroundService>());
         Assert.Multiple(() =>
         {
             Assert.That(options.RetryInterval, Is.EqualTo(TimeSpan.FromSeconds(30)));
@@ -607,7 +667,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
     private sealed class GatedHostedService : FidoMetadataBackgroundIngestHostedService
     {
         private readonly Channel<TimeSpan> _delays = Channel.CreateUnbounded<TimeSpan>();
-        private readonly SemaphoreSlim _releases = new(0);
+        private readonly Channel<bool> _releases = Channel.CreateUnbounded<bool>();
 
         public GatedHostedService(
             IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> options,
@@ -622,8 +682,6 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
 
         public int FailedAttempts => ConsecutiveFailedAttempts;
 
-        public Task? BackgroundTask => PeriodicBackgroundUpdateTask;
-
         public async Task<TimeSpan> WaitForDelayAsync()
         {
             using var timeout = new CancellationTokenSource(TestTimeout);
@@ -632,7 +690,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
 
         public void ReleaseDelay()
         {
-            _releases.Release();
+            _releases.Writer.TryWrite(true);
         }
 
         public Task InvokeDelayAsync(TimeSpan delay, CancellationToken cancellationToken)
@@ -645,20 +703,11 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
             _delays.Writer.TryWrite(delay);
             if (delay > TimeSpan.Zero)
             {
-                await _releases.WaitAsync(cancellationToken);
+                await _releases.Reader.ReadAsync(cancellationToken);
                 return;
             }
 
             await base.DelayAsync(delay, cancellationToken);
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-            if (disposing)
-            {
-                _releases.Dispose();
-            }
         }
     }
 
@@ -777,6 +826,86 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         public Task<string> DownloadMetadataAsync(CancellationToken cancellationToken)
         {
             throw new HttpRequestException("Response status code does not indicate success: 503 (Service Unavailable).");
+        }
+    }
+
+    // A derived class whose attempt throws instead of returning a failed result.
+    private sealed class ThrowingAttemptHostedService : FidoMetadataBackgroundIngestHostedService
+    {
+        private readonly Exception _exception;
+
+        public ThrowingAttemptHostedService(
+            IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> options,
+            IFidoMetadataIngestService metadataIngestService,
+            IFidoMetadataProvider provider,
+            IFidoMetadataDecoder decoder,
+            FakeFidoMetadataCounters counters,
+            ILogger<FidoMetadataBackgroundIngestHostedService> logger,
+            Exception exception)
+            : base(options, metadataIngestService, provider, decoder, counters, logger)
+        {
+            _exception = exception;
+        }
+
+        protected override Task<bool> DownloadAndUpsertMetadataAsync(CancellationToken stoppingToken)
+        {
+            return Task.FromException<bool>(_exception);
+        }
+    }
+
+    // Collects the log entries of all categories, including those of the host itself.
+    private sealed class FakeLoggerProvider : ILoggerProvider
+    {
+        private readonly List<FakeLogEntry> _entries = new();
+
+        public IReadOnlyList<FakeLogEntry> Entries
+        {
+            get
+            {
+                lock (_entries)
+                {
+                    return _entries.ToArray();
+                }
+            }
+        }
+
+        public ILogger CreateLogger(string categoryName)
+        {
+            return new CollectingLogger(this);
+        }
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class CollectingLogger : ILogger
+        {
+            private readonly FakeLoggerProvider _provider;
+
+            public CollectingLogger(FakeLoggerProvider provider)
+            {
+                _provider = provider;
+            }
+
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return null;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                ArgumentNullException.ThrowIfNull(formatter);
+                lock (_provider._entries)
+                {
+                    _provider._entries.Add(new(logLevel, formatter(state, exception), exception));
+                }
+            }
         }
     }
 

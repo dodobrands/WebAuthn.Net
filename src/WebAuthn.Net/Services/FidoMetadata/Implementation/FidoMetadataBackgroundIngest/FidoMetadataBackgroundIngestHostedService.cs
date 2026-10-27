@@ -15,17 +15,21 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgrou
 /// </summary>
 /// <remarks>
 ///     <para>
-///         At start-up, the service loads the blob embedded in the application, if it is configured (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />),
+///         The metadata is loaded at start-up, in <see cref="StartAsync" />: first the blob embedded in the application, if it is configured (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />),
 ///         and then the blob from the FIDO Metadata Service. If the embedded blob is loaded, the start of the application doesn't wait for the FIDO Metadata Service: the blob is downloaded in the background right away.
 ///         Otherwise, the start of the application waits for the first attempt to load the blob from the FIDO Metadata Service.
 ///     </para>
 ///     <para>
-///         After a successful attempt, the next refresh takes place after <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.IngestInterval" />, and after an unsuccessful one
-///         (the blob can't be downloaded, verified or decoded, or an exception occurred) the next attempt takes place after <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.RetryInterval" />.
-///         A failure never stops the background ingestion: it is logged and counted, and the attempts are repeated until the blob is loaded.
+///         Then the metadata is updated in the background, in <see cref="ExecuteAsync" />, until the application stops. After a successful attempt, the next refresh takes place after
+///         <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.IngestInterval" />, and after an unsuccessful one (the blob can't be downloaded, verified or decoded, or an exception occurred)
+///         the next attempt takes place after <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.RetryInterval" />.
+///     </para>
+///     <para>
+///         A failure never stops the background ingestion: it is logged and counted, and the attempts are repeated until the blob is loaded. <see cref="ExecuteAsync" /> ends only when the application stops,
+///         so the host never treats the service as failed (which, by default, would stop the application, see <see cref="HostOptions.BackgroundServiceExceptionBehavior" />).
 ///     </para>
 /// </remarks>
-public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDisposable
+public class FidoMetadataBackgroundIngestHostedService : BackgroundService
 {
     // Task.Delay doesn't support delays longer than about 49.7 days, so a longer interval is waited in parts.
     private static readonly TimeSpan MaxDelayPart = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
@@ -65,16 +69,6 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     }
 
     /// <summary>
-    ///     A background task that performs periodic updating of FIDO metadata.
-    /// </summary>
-    protected Task? PeriodicBackgroundUpdateTask { get; set; }
-
-    /// <summary>
-    ///     Cancellation token for the execution of a background task.
-    /// </summary>
-    protected CancellationTokenSource? StoppingCts { get; set; }
-
-    /// <summary>
     ///     An accessor for obtaining the current value of options that set the parameters for the background ingest.
     /// </summary>
     protected IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> Options { get; }
@@ -109,19 +103,22 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     /// </summary>
     protected int ConsecutiveFailedAttempts { get; set; }
 
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
+    /// <summary>
+    ///     The delay before the first attempt of the background ingestion (<see cref="ExecuteAsync" />) to load the blob from the FIDO Metadata Service, set by <see cref="StartAsync" />:
+    ///     zero if the blob embedded in the application has been loaded (the blob is downloaded right away), otherwise the delay after the attempt made at start-up.
+    /// </summary>
+    protected TimeSpan FirstBackgroundAttemptDelay { get; set; }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     Loads the metadata before the background ingestion (<see cref="ExecuteAsync" />) is started: the blob embedded in the application, and, if it isn't loaded, the blob from the FIDO Metadata Service.
+    ///     The start of the application waits for this method, so the metadata is available as soon as the application starts, unless neither blob could be loaded.
+    /// </remarks>
     /// <exception cref="InvalidOperationException">
     ///     No metadata could be loaded at start-up: neither the blob embedded in the application nor the blob from the FIDO Metadata Service.
     ///     Only thrown if <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.ThrowExceptionOnFailure" /> is set.
     /// </exception>
-    public virtual async Task StartAsync(CancellationToken cancellationToken)
+    public override async Task StartAsync(CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
@@ -131,84 +128,49 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
         // The blob embedded in the application (if any) is loaded first: it makes the metadata available right away, regardless of the availability of the FIDO Metadata Service.
         if (await IngestEmbeddedMetadataAsync(cancellationToken))
         {
-            // The metadata is available, so the start doesn't wait for the FIDO Metadata Service: the blob is downloaded in the background right away.
-            await StartBackgroundIngestAsync(TimeSpan.Zero, cancellationToken);
-            return;
+            // The metadata is available, so the start doesn't wait for the FIDO Metadata Service: the background ingestion downloads the blob right away.
+            FirstBackgroundAttemptDelay = TimeSpan.Zero;
         }
-
-        // Without the embedded metadata, the start waits for the first attempt to load the blob from the FIDO Metadata Service.
-        var loaded = await DownloadAndUpsertMetadataAsync(cancellationToken);
-        if (!loaded && Options.CurrentValue.ThrowExceptionOnFailure)
+        else
         {
-            throw new InvalidOperationException("Failed to load metadata at start-up: neither the blob embedded in the application nor the blob from the FIDO Metadata Service could be loaded");
-        }
-
-        await StartBackgroundIngestAsync(ScheduleNextAttempt(loaded), cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public virtual async Task StopAsync(CancellationToken cancellationToken)
-    {
-        // Stop called without a start
-        if (PeriodicBackgroundUpdateTask == null)
-        {
-            return;
-        }
-
-        try
-        {
-            // Signal cancellation to the executing method
-            var stoppingCts = StoppingCts;
-            if (stoppingCts is not null)
+            // Without the embedded metadata, the start waits for the first attempt to load the blob from the FIDO Metadata Service.
+            var loaded = await DownloadAndUpsertMetadataAsync(cancellationToken);
+            if (!loaded && Options.CurrentValue.ThrowExceptionOnFailure)
             {
-                await stoppingCts.CancelAsync();
+                throw new InvalidOperationException("Failed to load metadata at start-up: neither the blob embedded in the application nor the blob from the FIDO Metadata Service could be loaded");
             }
-        }
-        finally
-        {
-            // Wait until the task completes or the stop token triggers
-            await Task.WhenAny(PeriodicBackgroundUpdateTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
-        }
-    }
 
-    /// <summary>
-    ///     Starts an asynchronous task that performs metadata update in the background.
-    /// </summary>
-    /// <param name="delay">The delay before the first attempt to load the blob from the FIDO Metadata Service.</param>
-    /// <param name="cancellationToken">Indicates that the start process has been aborted.</param>
-    /// <returns>An asynchronous task that performs metadata update in the background.</returns>
-    protected virtual Task StartBackgroundIngestAsync(TimeSpan delay, CancellationToken cancellationToken)
-    {
-        // Create a linked token to allow cancelling an executing task from the provided token
-        StoppingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        // Store the task we're executing
-        PeriodicBackgroundUpdateTask = RunBackgroundIngestAsync(delay, StoppingCts.Token);
-
-        // If the task is completed, then return it. This will bubble cancellation and failure to the caller
-        if (PeriodicBackgroundUpdateTask.IsCompleted)
-        {
-            return PeriodicBackgroundUpdateTask;
+            FirstBackgroundAttemptDelay = ScheduleNextAttempt(loaded);
         }
 
-        // Otherwise it's running
-        return Task.CompletedTask;
+        // Starts ExecuteAsync in the background.
+        await base.StartAsync(cancellationToken);
     }
 
     /// <summary>
     ///     Asynchronously downloads and ingests metadata in an infinite loop, until the <paramref name="stoppingToken" /> triggers.
-    ///     The delay before each next attempt depends on the result of the previous one (see <see cref="ScheduleNextAttempt" />).
+    ///     The first attempt takes place after <see cref="FirstBackgroundAttemptDelay" />, and the delay before each next attempt depends on the result of the previous one (see <see cref="ScheduleNextAttempt" />).
     /// </summary>
-    /// <param name="delay">The delay before the first attempt.</param>
-    /// <param name="stoppingToken">Cancellation token for an asynchronous operation.</param>
-    protected virtual async Task BackgroundIngestAsync(TimeSpan delay, CancellationToken stoppingToken)
+    /// <param name="stoppingToken">Triggered when the application stops.</param>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var nextDelay = delay;
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            await DelayAsync(nextDelay, stoppingToken);
-            var loaded = await DownloadAndUpsertMetadataAsync(stoppingToken);
-            nextDelay = ScheduleNextAttempt(loaded);
+            var delay = FirstBackgroundAttemptDelay;
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await DelayAsync(delay, stoppingToken);
+                var loaded = await DownloadAndUpsertMetadataAsync(stoppingToken);
+                delay = ScheduleNextAttempt(loaded);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
+        {
+            // Every attempt handles its own failures, but an overridden method could still throw. A stopped background ingestion means that the metadata is not updated anymore,
+            // so the exception is logged and counted here rather than passed to the host, which by default would stop the whole application.
+            Logger.ErrorBackgroundIngestStopped(exception);
+            Counters.IncrementIngestException(FidoMetadataBlobSources.FidoMetadataService);
         }
     }
 
@@ -338,69 +300,18 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     ///     Asynchronously waits before the next attempt to load the blob from the FIDO Metadata Service.
     /// </summary>
     /// <remarks>
-    ///     The default implementation always completes asynchronously, even for a zero delay, so that the attempt that follows never runs synchronously within the start of the application.
     ///     A delay longer than <see cref="Task.Delay(TimeSpan, CancellationToken)" /> supports (about 49.7 days) is waited in parts.
     /// </remarks>
     /// <param name="delay">The delay.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     protected virtual async Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
     {
-        if (delay <= TimeSpan.Zero)
-        {
-            await Task.Yield();
-            cancellationToken.ThrowIfCancellationRequested();
-            return;
-        }
-
         var remaining = delay;
         while (remaining > TimeSpan.Zero)
         {
             var part = remaining < MaxDelayPart ? remaining : MaxDelayPart;
             await Task.Delay(part, cancellationToken);
             remaining -= part;
-        }
-    }
-
-    /// <summary>
-    ///     Releases all resources currently used by this <see cref="FidoMetadataBackgroundIngestHostedService" /> instance.
-    /// </summary>
-    /// <param name="disposing"><see langword="true" /> if this method is being invoked by the <see cref="Dispose()" /> method, otherwise <see langword="false" />.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            // The host disposes the hosted services without stopping them when it fails to start (for example, when the port is already in use).
-            // In this case the periodic background task is still running, and a Task can be disposed only when it is completed,
-            // so the task is cancelled first and disposed only if it has already completed.
-            var stoppingCts = StoppingCts;
-            if (stoppingCts is not null && !stoppingCts.IsCancellationRequested)
-            {
-                stoppingCts.Cancel();
-            }
-
-            var periodicBackgroundUpdateTask = PeriodicBackgroundUpdateTask;
-            if (periodicBackgroundUpdateTask is { IsCompleted: true })
-            {
-                periodicBackgroundUpdateTask.Dispose();
-            }
-
-            stoppingCts?.Dispose();
-        }
-    }
-
-    // The background ingestion itself never ends with an exception other than the cancellation, but an overridden one could:
-    // a stopped background ingestion means that the metadata is not updated anymore, so it must not stop silently.
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    private async Task RunBackgroundIngestAsync(TimeSpan delay, CancellationToken stoppingToken)
-    {
-        try
-        {
-            await BackgroundIngestAsync(delay, stoppingToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
-        {
-            Logger.ErrorBackgroundIngestStopped(exception);
-            Counters.IncrementIngestException(FidoMetadataBlobSources.FidoMetadataService);
         }
     }
 

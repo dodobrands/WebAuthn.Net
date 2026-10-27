@@ -255,7 +255,7 @@ The context is created by calling the `IWebAuthnContextFactory.CreateAsync` meth
 
 To ensure trustworthiness, the service refers to the metadata in the [FIDO Metadata Service](https://fidoalliance.org/metadata) and uses its data in the process of validating requests.
 
-WebAuthn.Net includes a background service (`FidoMetadataBackgroundIngestHostedService`, which implements the `IHostedService` and `IDisposable` interfaces) that loads, verifies, and periodically updates these metadata in the background. By default, WebAuthn.Net keeps them in an in-memory storage.
+WebAuthn.Net includes a background service (`FidoMetadataBackgroundIngestHostedService`, derived from [`BackgroundService`](https://learn.microsoft.com/dotnet/core/extensions/workers)) that loads, verifies, and periodically updates these metadata. It loads them at start-up, in `StartAsync`, and then updates them in the background, in `ExecuteAsync`, until the application stops. By default, WebAuthn.Net keeps them in an in-memory storage.
 
 ### Loading and updates
 
@@ -266,7 +266,7 @@ WebAuthn.Net includes a background service (`FidoMetadataBackgroundIngestHostedS
 3. If an attempt fails (the blob can't be downloaded, verified or decoded, or an exception occurs), the next attempt is made after `RetryInterval` (1 minute by default), and so on until the blob is loaded. The metadata in use, if any, is kept meanwhile.
 4. Once the blob is loaded, the metadata is refreshed every `IngestInterval` (1 day by default, as the FIDO Metadata Service [recommends](https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-considerations) for typical applications). If a refresh fails, the attempts are made every `RetryInterval` again until the blob is loaded.
 
-A failure never stops the background updates: it is logged and counted (see [Monitoring](#monitoring)), and the attempts go on.
+A failure never stops the background updates: it is logged and counted (see [Monitoring](#monitoring)), and the attempts go on. `ExecuteAsync` ends only when the application stops, so the host never treats the service as failed, which by default (`BackgroundServiceExceptionBehavior.StopHost`) would stop the whole application.
 
 The intervals are set in `FidoMetadataBackgroundIngestHostedServiceOptions`, which are configured by the `configureBackgroundIngest` parameter of the `AddWebAuthn*` extension methods:
 
