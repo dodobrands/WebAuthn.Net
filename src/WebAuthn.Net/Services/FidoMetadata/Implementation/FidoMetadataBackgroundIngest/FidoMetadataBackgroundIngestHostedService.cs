@@ -15,7 +15,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgrou
 /// </summary>
 /// <remarks>
 ///     <para>
-///         At start-up, the service loads the blob embedded in the application, if it is configured (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlobAssembly" />),
+///         At start-up, the service loads the blob embedded in the application, if it is configured (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />),
 ///         and then the blob from the FIDO Metadata Service. If the embedded blob is loaded, the start of the application doesn't wait for the FIDO Metadata Service: the blob is downloaded in the background right away.
 ///         Otherwise, the start of the application waits for the first attempt to load the blob from the FIDO Metadata Service.
 ///     </para>
@@ -213,8 +213,7 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     }
 
     /// <summary>
-    ///     Asynchronously loads the blob embedded in the application (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlobAssembly" />
-    ///     and <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlobResourceName" />), decodes and ingests it.
+    ///     Asynchronously loads the blob embedded in the application (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />), decodes and ingests it.
     /// </summary>
     /// <remarks>
     ///     A failure doesn't throw an exception (only the cancellation does): the reason is logged and counted, and the metadata is loaded from the FIDO Metadata Service only.
@@ -228,23 +227,15 @@ public class FidoMetadataBackgroundIngestHostedService : IHostedService, IDispos
     protected virtual async Task<bool> IngestEmbeddedMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var options = Options.CurrentValue;
-        var assembly = options.EmbeddedBlobAssembly;
-        var resourceName = options.EmbeddedBlobResourceName;
-        if (assembly is null && string.IsNullOrEmpty(resourceName))
+        var embeddedBlob = Options.CurrentValue.EmbeddedBlob;
+        if (embeddedBlob is null)
         {
-            return false;
-        }
-
-        if (assembly is null || string.IsNullOrEmpty(resourceName))
-        {
-            Logger.WarnEmbeddedBlobNotConfiguredCompletely();
             return false;
         }
 
         try
         {
-            var metadataResult = await Provider.LoadEmbeddedMetadataAsync(assembly, resourceName, cancellationToken);
+            var metadataResult = await Provider.LoadEmbeddedMetadataAsync(embeddedBlob, cancellationToken);
             if (metadataResult.HasError)
             {
                 // The reason is logged and counted by the provider.
@@ -457,15 +448,6 @@ public static partial class FidoMetadataBackgroundIngestHostedServiceLoggingExte
         Level = LogLevel.Error,
         Message = "Failed to load metadata from the FIDO Metadata Service because of an exception")]
     public static partial void ErrorDownloadAndUpsertFailed(this ILogger logger, Exception exception);
-
-    /// <summary>
-    ///     The FIDO Metadata Service blob embedded in the application is not loaded: both EmbeddedBlobAssembly and EmbeddedBlobResourceName have to be set
-    /// </summary>
-    /// <param name="logger">Logger.</param>
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "The FIDO Metadata Service blob embedded in the application is not loaded: both EmbeddedBlobAssembly and EmbeddedBlobResourceName have to be set")]
-    public static partial void WarnEmbeddedBlobNotConfiguredCompletely(this ILogger logger);
 
     /// <summary>
     ///     Failed to decode the FIDO Metadata Service blob embedded in the application

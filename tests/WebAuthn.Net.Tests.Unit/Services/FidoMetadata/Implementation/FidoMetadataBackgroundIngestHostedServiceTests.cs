@@ -26,6 +26,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestServic
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata;
@@ -328,7 +329,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
     public async Task StartAsync_WithEmbeddedBlob_IngestsItFirst_AndDoesNotWaitForFidoMetadataService()
     {
         ConfigureEmbeddedBlob();
-        Provider.EmbeddedBlob = CreatePayload(291);
+        Provider.EmbeddedPayload = CreatePayload(291);
         var download = new TaskCompletionSource<Result<MetadataBLOBPayloadJSON>>(TaskCreationOptions.RunContinuationsAsynchronously);
         Provider.EnqueueDownload(cancellationToken => download.Task.WaitAsync(cancellationToken));
 
@@ -354,7 +355,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         // The embedded metadata is available, so the start doesn't fail even if the application shouldn't start without metadata.
         IngestOptions.ThrowExceptionOnFailure = true;
         ConfigureEmbeddedBlob();
-        Provider.EmbeddedBlob = CreatePayload(291);
+        Provider.EmbeddedPayload = CreatePayload(291);
         Provider.EnqueueFailure();
         Provider.EnqueueFailure();
 
@@ -379,27 +380,12 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         Assert.That(Logger.Entries.Where(static x => x.Level >= LogLevel.Warning), Is.Empty);
     }
 
-    [TestCase(true, false)]
-    [TestCase(false, true)]
-    public async Task StartAsync_WhenEmbeddedBlobIsConfiguredPartially_Warns_AndWaitsForFidoMetadataService(bool setAssembly, bool setResourceName)
-    {
-        IngestOptions.EmbeddedBlobAssembly = setAssembly ? EmbeddedBlobAssembly : null;
-        IngestOptions.EmbeddedBlobResourceName = setResourceName ? EmbeddedBlobResourceName : null;
-        Provider.EnqueueSuccess(1);
-
-        await StartServiceAsync();
-
-        Assert.That(Provider.EmbeddedRequests, Is.Empty);
-        Assert.That(Provider.DownloadCalls, Is.EqualTo(1), "the start has waited for the download");
-        Assert.That(Logger.Entries.Single(static x => x.Level == LogLevel.Warning).Message, Does.Contain("both EmbeddedBlobAssembly and EmbeddedBlobResourceName have to be set"));
-    }
-
     [Test]
     public async Task StartAsync_WhenEmbeddedBlobIsRejected_WaitsForFidoMetadataService()
     {
         // The provider has logged and counted the reason; the start waits for the FIDO Metadata Service as if there were no embedded blob.
         ConfigureEmbeddedBlob();
-        Provider.EmbeddedBlob = null;
+        Provider.EmbeddedPayload = null;
         Provider.EnqueueSuccess(292);
 
         await StartServiceAsync();
@@ -414,7 +400,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
     public async Task StartAsync_WhenEmbeddedBlobCannotBeDecoded_Warns_AndWaitsForFidoMetadataService()
     {
         ConfigureEmbeddedBlob();
-        Provider.EmbeddedBlob = CreateUndecodablePayload();
+        Provider.EmbeddedPayload = CreateUndecodablePayload();
         Provider.EnqueueSuccess(292);
 
         await StartServiceAsync();
@@ -449,7 +435,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         // A persistent storage keeps the blob downloaded before the restart of the application: the older embedded blob is expected, it is not a rollback.
         Storage.CurrentNo = 300;
         ConfigureEmbeddedBlob();
-        Provider.EmbeddedBlob = CreatePayload(291);
+        Provider.EmbeddedPayload = CreatePayload(291);
         var download = new TaskCompletionSource<Result<MetadataBLOBPayloadJSON>>(TaskCreationOptions.RunContinuationsAsynchronously);
         Provider.EnqueueDownload(cancellationToken => download.Task.WaitAsync(cancellationToken));
 
@@ -534,8 +520,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
                 configureBackgroundIngest: ingest =>
                 {
                     ingest.RetryInterval = TimeSpan.FromSeconds(30);
-                    ingest.EmbeddedBlobAssembly = EmbeddedBlobAssembly;
-                    ingest.EmbeddedBlobResourceName = EmbeddedBlobResourceName;
+                    ingest.EmbeddedBlob = new(EmbeddedBlobAssembly, EmbeddedBlobResourceName);
                 })
             .AddDefaultFidoMetadataStorage();
         await using var serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
@@ -552,8 +537,8 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         {
             Assert.That(options.RetryInterval, Is.EqualTo(TimeSpan.FromSeconds(30)));
             Assert.That(options.IngestInterval, Is.EqualTo(DefaultIngestInterval));
-            Assert.That(options.EmbeddedBlobAssembly, Is.SameAs(EmbeddedBlobAssembly));
-            Assert.That(options.EmbeddedBlobResourceName, Is.EqualTo(EmbeddedBlobResourceName));
+            Assert.That(options.EmbeddedBlob?.Assembly, Is.SameAs(EmbeddedBlobAssembly));
+            Assert.That(options.EmbeddedBlob?.ResourceName, Is.EqualTo(EmbeddedBlobResourceName));
         });
     }
 
@@ -567,8 +552,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
             Assert.That(options.RetryInterval, Is.EqualTo(TimeSpan.FromMinutes(1)));
             Assert.That(options.IngestInterval, Is.EqualTo(TimeSpan.FromDays(1)));
             Assert.That(options.ThrowExceptionOnFailure, Is.False);
-            Assert.That(options.EmbeddedBlobAssembly, Is.Null);
-            Assert.That(options.EmbeddedBlobResourceName, Is.Null);
+            Assert.That(options.EmbeddedBlob, Is.Null);
         });
     }
 
@@ -579,8 +563,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
 
     private void ConfigureEmbeddedBlob()
     {
-        IngestOptions.EmbeddedBlobAssembly = EmbeddedBlobAssembly;
-        IngestOptions.EmbeddedBlobResourceName = EmbeddedBlobResourceName;
+        IngestOptions.EmbeddedBlob = new(EmbeddedBlobAssembly, EmbeddedBlobResourceName);
     }
 
     private GatedHostedService CreateService(IFidoMetadataProvider provider)
@@ -687,7 +670,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         private readonly Channel<int> _downloadCalls = Channel.CreateUnbounded<int>();
         private int _downloadCallsCount;
 
-        public MetadataBLOBPayloadJSON? EmbeddedBlob { get; set; }
+        public MetadataBLOBPayloadJSON? EmbeddedPayload { get; set; }
 
         public Exception? EmbeddedException { get; set; }
 
@@ -705,16 +688,16 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
                 : Task.FromResult(Result<MetadataBLOBPayloadJSON>.Fail());
         }
 
-        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(Assembly assembly, string resourceName, CancellationToken cancellationToken)
+        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlob embeddedBlob, CancellationToken cancellationToken)
         {
-            _embeddedRequests.Enqueue(resourceName);
+            _embeddedRequests.Enqueue(embeddedBlob.ResourceName);
             if (EmbeddedException is not null)
             {
                 throw EmbeddedException;
             }
 
-            return Task.FromResult(EmbeddedBlob is not null
-                ? Result<MetadataBLOBPayloadJSON>.Success(EmbeddedBlob)
+            return Task.FromResult(EmbeddedPayload is not null
+                ? Result<MetadataBLOBPayloadJSON>.Success(EmbeddedPayload)
                 : Result<MetadataBLOBPayloadJSON>.Fail());
         }
 
@@ -748,9 +731,12 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         public async Task WaitForDownloadAsync(int call)
         {
             using var timeout = new CancellationTokenSource(TestTimeout);
-            while (await _downloadCalls.Reader.ReadAsync(timeout.Token) < call)
+            int lastCall;
+            do
             {
+                lastCall = await _downloadCalls.Reader.ReadAsync(timeout.Token);
             }
+            while (lastCall < call);
         }
     }
 

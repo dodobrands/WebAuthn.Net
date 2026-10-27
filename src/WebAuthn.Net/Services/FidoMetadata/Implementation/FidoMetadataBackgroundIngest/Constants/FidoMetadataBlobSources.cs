@@ -7,7 +7,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgrou
 public static class FidoMetadataBlobSources
 {
     /// <summary>
-    ///     The blob embedded in the application (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlobAssembly" />), loaded at start-up.
+    ///     The blob embedded in the application (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />), loaded at start-up.
     /// </summary>
     public const string Embedded = "embedded";
 

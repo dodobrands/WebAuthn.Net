@@ -27,7 +27,7 @@ public class X509ChainValidationOptions
 
     /// <summary>
     ///     A delegate that is called during the validation of the X509v3 certificate chain of the metadata blob embedded in the application
-    ///     (see <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlobAssembly" />).
+    ///     (see <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />).
     /// </summary>
     /// <remarks>
     ///     <para>
