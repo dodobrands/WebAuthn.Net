@@ -5,39 +5,39 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest.Constants;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest.Constants;
 using WebAuthn.Net.Services.Metrics;
 
-namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 
 /// <summary>
 ///     A service for background ingestion of metadata from the FIDO Metadata Service and their periodic update.
 /// </summary>
 /// <remarks>
 ///     <para>
-///         The metadata is loaded at start-up, in <see cref="StartAsync" />: first the blob embedded in the application, if it is configured (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />),
+///         The metadata is loaded at start-up, in <see cref="StartAsync" />: first the blob embedded in the application, if it is configured (<see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" />),
 ///         and then the blob from the FIDO Metadata Service. If the embedded blob is loaded, the start of the application doesn't wait for the FIDO Metadata Service: the blob is downloaded in the background right away.
 ///         Otherwise, the start of the application waits for the first attempt to load the blob from the FIDO Metadata Service.
 ///     </para>
 ///     <para>
 ///         Then the metadata is updated in the background, in <see cref="ExecuteAsync" />, until the application stops. After a successful attempt, the next refresh takes place after
-///         <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.IngestInterval" />, and after an unsuccessful one (the blob can't be downloaded, verified or decoded, or an exception occurred)
-///         the next attempt takes place after <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.RetryInterval" />.
+///         <see cref="FidoMetadataIngestBackgroundServiceOptions.IngestInterval" />, and after an unsuccessful one (the blob can't be downloaded, verified or decoded, or an exception occurred)
+///         the next attempt takes place after <see cref="FidoMetadataIngestBackgroundServiceOptions.RetryInterval" />.
 ///     </para>
 ///     <para>
 ///         A failure never stops the background ingestion: it is logged and counted, and the attempts are repeated until the blob is loaded. <see cref="ExecuteAsync" /> ends only when the application stops,
 ///         so the host never treats the service as failed (which, by default, would stop the application, see <see cref="HostOptions.BackgroundServiceExceptionBehavior" />).
 ///     </para>
 /// </remarks>
-public class FidoMetadataBackgroundIngestHostedService : BackgroundService
+public class FidoMetadataIngestBackgroundService : BackgroundService
 {
     // Task.Delay doesn't support delays longer than about 49.7 days, so a longer interval is waited in parts.
     private static readonly TimeSpan MaxDelayPart = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
 
-    private static readonly FidoMetadataBackgroundIngestHostedServiceOptions DefaultOptions = new();
+    private static readonly FidoMetadataIngestBackgroundServiceOptions DefaultOptions = new();
 
     /// <summary>
-    ///     Constructs <see cref="FidoMetadataBackgroundIngestHostedService" />.
+    ///     Constructs <see cref="FidoMetadataIngestBackgroundService" />.
     /// </summary>
     /// <param name="options">An accessor for obtaining the current value of options that set the parameters for the background ingest.</param>
     /// <param name="metadataIngestService">The ingestion service for metadata obtained from the FIDO Metadata Service, designed to store data from the retrieved blob.</param>
@@ -46,13 +46,13 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
     /// <param name="counters">Counters for FIDO Metadata Service metrics, used to count the attempts to load the blob that ended with an exception.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
-    public FidoMetadataBackgroundIngestHostedService(
-        IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> options,
+    public FidoMetadataIngestBackgroundService(
+        IOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions> options,
         IFidoMetadataIngestService metadataIngestService,
         IFidoMetadataProvider provider,
         IFidoMetadataDecoder decoder,
         IFidoMetadataCounters counters,
-        ILogger<FidoMetadataBackgroundIngestHostedService> logger)
+        ILogger<FidoMetadataIngestBackgroundService> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(metadataIngestService);
@@ -71,7 +71,7 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
     /// <summary>
     ///     An accessor for obtaining the current value of options that set the parameters for the background ingest.
     /// </summary>
-    protected IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> Options { get; }
+    protected IOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions> Options { get; }
 
     /// <summary>
     ///     The ingestion service for metadata obtained from the FIDO Metadata Service, designed to store data from the retrieved blob.
@@ -96,7 +96,7 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
     /// <summary>
     ///     Logger.
     /// </summary>
-    protected ILogger<FidoMetadataBackgroundIngestHostedService> Logger { get; }
+    protected ILogger<FidoMetadataIngestBackgroundService> Logger { get; }
 
     /// <summary>
     ///     The number of consecutive unsuccessful attempts to load the blob from the FIDO Metadata Service. A successful attempt resets it to zero.
@@ -116,7 +116,7 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
     /// </remarks>
     /// <exception cref="InvalidOperationException">
     ///     No metadata could be loaded at start-up: neither the blob embedded in the application nor the blob from the FIDO Metadata Service.
-    ///     Only thrown if <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.ThrowExceptionOnFailure" /> is set.
+    ///     Only thrown if <see cref="FidoMetadataIngestBackgroundServiceOptions.ThrowExceptionOnFailure" /> is set.
     /// </exception>
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -169,13 +169,13 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
         {
             // Every attempt handles its own failures, but an overridden method could still throw. A stopped background ingestion means that the metadata is not updated anymore,
             // so the exception is logged and counted here rather than passed to the host, which by default would stop the whole application.
-            Logger.ErrorBackgroundIngestStopped(exception);
+            Logger.ErrorIngestBackgroundServiceStopped(exception);
             Counters.IncrementIngestException(FidoMetadataBlobSources.FidoMetadataService);
         }
     }
 
     /// <summary>
-    ///     Asynchronously loads the blob embedded in the application (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />), decodes and ingests it.
+    ///     Asynchronously loads the blob embedded in the application (<see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" />), decodes and ingests it.
     /// </summary>
     /// <remarks>
     ///     A failure doesn't throw an exception (only the cancellation does): the reason is logged and counted, and the metadata is loaded from the FIDO Metadata Service only.
@@ -271,7 +271,7 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
     /// </summary>
     /// <param name="lastAttemptSucceeded">Flag indicating whether the last attempt to load the blob from the FIDO Metadata Service was successful.</param>
     /// <returns>
-    ///     <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.IngestInterval" /> after a successful attempt, otherwise <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.RetryInterval" />.
+    ///     <see cref="FidoMetadataIngestBackgroundServiceOptions.IngestInterval" /> after a successful attempt, otherwise <see cref="FidoMetadataIngestBackgroundServiceOptions.RetryInterval" />.
     ///     An interval that is not positive is replaced by its default value.
     /// </returns>
     protected virtual TimeSpan ScheduleNextAttempt(bool lastAttemptSucceeded)
@@ -285,13 +285,13 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
                 ConsecutiveFailedAttempts = 0;
             }
 
-            var ingestInterval = GetPositiveInterval(options.IngestInterval, DefaultOptions.IngestInterval, nameof(FidoMetadataBackgroundIngestHostedServiceOptions.IngestInterval));
+            var ingestInterval = GetPositiveInterval(options.IngestInterval, DefaultOptions.IngestInterval, nameof(FidoMetadataIngestBackgroundServiceOptions.IngestInterval));
             Logger.DebugNextRefreshScheduled(ingestInterval);
             return ingestInterval;
         }
 
         ConsecutiveFailedAttempts++;
-        var retryInterval = GetPositiveInterval(options.RetryInterval, DefaultOptions.RetryInterval, nameof(FidoMetadataBackgroundIngestHostedServiceOptions.RetryInterval));
+        var retryInterval = GetPositiveInterval(options.RetryInterval, DefaultOptions.RetryInterval, nameof(FidoMetadataIngestBackgroundServiceOptions.RetryInterval));
         Logger.InfoNextAttemptScheduled(retryInterval, ConsecutiveFailedAttempts);
         return retryInterval;
     }
@@ -330,7 +330,7 @@ public class FidoMetadataBackgroundIngestHostedService : BackgroundService
 /// <summary>
 ///     Extension method for logging the background ingestion.
 /// </summary>
-public static partial class FidoMetadataBackgroundIngestHostedServiceLoggingExtensions
+public static partial class FidoMetadataIngestBackgroundServiceLoggingExtensions
 {
     /// <summary>
     ///     Failed to download metadata from the FIDO Metadata Service.
@@ -430,5 +430,5 @@ public static partial class FidoMetadataBackgroundIngestHostedServiceLoggingExte
     [LoggerMessage(
         Level = LogLevel.Error,
         Message = "The background ingestion of metadata from the FIDO Metadata Service has stopped because of an exception, so the metadata won't be updated until the application restarts")]
-    public static partial void ErrorBackgroundIngestStopped(this ILogger logger, Exception exception);
+    public static partial void ErrorIngestBackgroundServiceStopped(this ILogger logger, Exception exception);
 }

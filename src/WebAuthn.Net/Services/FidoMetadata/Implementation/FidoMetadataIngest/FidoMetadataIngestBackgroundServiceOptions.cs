@@ -1,7 +1,7 @@
 ﻿using System;
 using WebAuthn.Net.Configuration.Options;
 
-namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 
 /// <summary>
 ///     Options for background ingestion of metadata from the FIDO Metadata Service.
@@ -17,7 +17,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgrou
 ///         Otherwise, the start of the application waits for the first attempt to load the blob from the FIDO Metadata Service.
 ///     </para>
 /// </remarks>
-public class FidoMetadataBackgroundIngestHostedServiceOptions
+public class FidoMetadataIngestBackgroundServiceOptions
 {
     /// <summary>
     ///     The interval between the refreshes of the metadata after the blob has been loaded from the FIDO Metadata Service. Default is 1 day (24 hours),
@@ -38,7 +38,7 @@ public class FidoMetadataBackgroundIngestHostedServiceOptions
     public TimeSpan RetryInterval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
-    ///     Flag responsible for whether the start of the application fails (an <see cref="InvalidOperationException" /> is thrown from <see cref="FidoMetadataBackgroundIngestHostedService.StartAsync" />)
+    ///     Flag responsible for whether the start of the application fails (an <see cref="InvalidOperationException" /> is thrown from <see cref="FidoMetadataIngestBackgroundService.StartAsync" />)
     ///     when no metadata could be loaded at start-up: neither the blob embedded in the application nor the blob from the FIDO Metadata Service. Defaults to <see langword="false" />.
     /// </summary>
     /// <remarks>

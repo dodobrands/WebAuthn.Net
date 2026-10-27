@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
 

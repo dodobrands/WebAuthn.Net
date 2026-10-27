@@ -21,7 +21,7 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;

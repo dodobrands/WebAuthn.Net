@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using NUnit.Framework;
 using WebAuthn.Net.DSL;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest.Constants;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 
 namespace WebAuthn.Net.Services.Metrics.Implementation;

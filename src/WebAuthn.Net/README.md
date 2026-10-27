@@ -255,7 +255,7 @@ The context is created by calling the `IWebAuthnContextFactory.CreateAsync` meth
 
 To ensure trustworthiness, the service refers to the metadata in the [FIDO Metadata Service](https://fidoalliance.org/metadata) and uses its data in the process of validating requests.
 
-WebAuthn.Net includes a background service (`FidoMetadataBackgroundIngestHostedService`, derived from [`BackgroundService`](https://learn.microsoft.com/dotnet/core/extensions/workers)) that loads, verifies, and periodically updates these metadata. It loads them at start-up, in `StartAsync`, and then updates them in the background, in `ExecuteAsync`, until the application stops. By default, WebAuthn.Net keeps them in an in-memory storage.
+WebAuthn.Net includes a background service (`FidoMetadataIngestBackgroundService`, derived from [`BackgroundService`](https://learn.microsoft.com/dotnet/core/extensions/workers)) that loads, verifies, and periodically updates these metadata. It loads them at start-up, in `StartAsync`, and then updates them in the background, in `ExecuteAsync`, until the application stops. By default, WebAuthn.Net keeps them in an in-memory storage.
 
 ### Loading and updates
 
@@ -268,11 +268,11 @@ WebAuthn.Net includes a background service (`FidoMetadataBackgroundIngestHostedS
 
 A failure never stops the background updates: it is logged and counted (see [Monitoring](#monitoring)), and the attempts go on. `ExecuteAsync` ends only when the application stops, so the host never treats the service as failed, which by default (`BackgroundServiceExceptionBehavior.StopHost`) would stop the whole application.
 
-The intervals are set in `FidoMetadataBackgroundIngestHostedServiceOptions`, which are configured by the `configureBackgroundIngest` parameter of the `AddWebAuthn*` extension methods:
+The intervals are set in `FidoMetadataIngestBackgroundServiceOptions`, which are configured by the `configureIngestBackgroundService` parameter of the `AddWebAuthn*` extension methods:
 
 ```csharp
 services.AddWebAuthnSqlServer(
-    configureBackgroundIngest: ingest =>
+    configureIngestBackgroundService: ingest =>
     {
         ingest.RetryInterval = TimeSpan.FromMinutes(1);
         ingest.IngestInterval = TimeSpan.FromDays(1);
@@ -297,11 +297,11 @@ So that the application starts with metadata and works even if the FIDO Metadata
     ```
 
     Without `LogicalName`, the name of the resource is the root namespace of the project followed by the path of the file, with dots instead of the directory separators (for example, `MyApp.FidoMetadata.blob.jwt`).
-3. Set `EmbeddedBlob` in `FidoMetadataBackgroundIngestHostedServiceOptions` to the assembly and the name of the resource:
+3. Set `EmbeddedBlob` in `FidoMetadataIngestBackgroundServiceOptions` to the assembly and the name of the resource:
 
     ```csharp
     services.AddWebAuthnSqlServer(
-        configureBackgroundIngest: ingest =>
+        configureIngestBackgroundService: ingest =>
         {
             ingest.EmbeddedBlob = new FidoMetadataEmbeddedBlobOptions(typeof(Program).Assembly, "FidoMetadata.blob.jwt");
         },
@@ -311,7 +311,7 @@ So that the application starts with metadata and works even if the FIDO Metadata
         });
     ```
 
-    `FidoMetadataEmbeddedBlobOptions` (in the same namespace as `FidoMetadataBackgroundIngestHostedServiceOptions`) requires both the assembly and the name of the resource and throws an exception if either of them is missing, so the embedded blob is either specified completely or not specified at all (`EmbeddedBlob` is `null` by default).
+    `FidoMetadataEmbeddedBlobOptions` (in the `WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest` namespace, like `FidoMetadataIngestBackgroundServiceOptions`) requires both the assembly and the name of the resource and throws an exception if either of them is missing, so the embedded blob is either specified completely or not specified at all (`EmbeddedBlob` is `null` by default).
 
 The embedded blob has to be the blob exactly as the FIDO Metadata Service serves it (a JWS). It is verified like a downloaded blob: its signature and its certificate chain up to the root certificates of the FIDO Metadata Service built into WebAuthn.Net. The only difference is that the validity period and the revocation status of the signing certificates are not checked, so that the embedded blob works regardless of the time and without the network: the blobs are signed with short-lived certificates (the certificate of the blob published in October 2026 is valid for about 200 days), so an embedded blob would otherwise stop working within months, and the revocation status can't be checked without the network. This is set by `OnValidateEmbeddedFidoMetadataBlobJwtChain` in `X509ChainValidationOptions` and doesn't affect the blobs downloaded from the FIDO Metadata Service.
 
@@ -332,7 +332,7 @@ Until the metadata is available:
 - `tpm`, `android-key` and `android-safetynet` attestation statements are verified against the root certificates built into WebAuthn.Net, without the authenticator statuses from the metadata;
 - `none`, `apple` and `packed` self attestation don't depend on the metadata.
 
-If the application shouldn't start without metadata, set `ThrowExceptionOnFailure` to `true` in `FidoMetadataBackgroundIngestHostedServiceOptions`. Then the start of the application fails with an exception if no metadata could be loaded at start-up: neither the embedded blob nor the blob from the FIDO Metadata Service. The flag applies only to the start-up: the failures of the background updates never throw.
+If the application shouldn't start without metadata, set `ThrowExceptionOnFailure` to `true` in `FidoMetadataIngestBackgroundServiceOptions`. Then the start of the application fails with an exception if no metadata could be loaded at start-up: neither the embedded blob nor the blob from the FIDO Metadata Service. The flag applies only to the start-up: the failures of the background updates never throw.
 
 ### Monitoring
 

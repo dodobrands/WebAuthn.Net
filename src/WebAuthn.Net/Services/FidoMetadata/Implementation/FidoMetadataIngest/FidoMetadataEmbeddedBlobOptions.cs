@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 
 /// <summary>
 ///     Options that define the FIDO Metadata Service blob embedded in the application: the assembly and the name of its manifest resource that contains the blob.
@@ -9,7 +9,7 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgrou
 /// <remarks>
 ///     <para>
 ///         Both values are required, so the blob embedded in the application is either specified completely or not specified at all
-///         (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" /> is <see langword="null" />).
+///         (<see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" /> is <see langword="null" />).
 ///     </para>
 ///     <para>
 ///         The constructor checks only the values themselves. Whether the assembly contains the resource and whether the resource contains a valid blob is checked when the blob is loaded:

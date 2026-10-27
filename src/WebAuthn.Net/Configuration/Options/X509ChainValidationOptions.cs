@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Security.Cryptography.X509Certificates;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 
 namespace WebAuthn.Net.Configuration.Options;
@@ -27,7 +27,7 @@ public class X509ChainValidationOptions
 
     /// <summary>
     ///     A delegate that is called during the validation of the X509v3 certificate chain of the metadata blob embedded in the application
-    ///     (see <see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />).
+    ///     (see <see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" />).
     /// </summary>
     /// <remarks>
     ///     <para>

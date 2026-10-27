@@ -1,13 +1,13 @@
-namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest.Constants;
+namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest.Constants;
 
 /// <summary>
-///     The sources from which <see cref="FidoMetadataBackgroundIngestHostedService" /> loads the FIDO Metadata Service blob. They are the values of the <c>source</c> tag of the
+///     The sources from which <see cref="FidoMetadataIngestBackgroundService" /> loads the FIDO Metadata Service blob. They are the values of the <c>source</c> tag of the
 ///     <c>webauthn.mds.ingest.exceptions</c> counter (<see cref="Metrics.IFidoMetadataCounters.IncrementIngestException" />).
 /// </summary>
 public static class FidoMetadataBlobSources
 {
     /// <summary>
-    ///     The blob embedded in the application (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions.EmbeddedBlob" />), loaded at start-up.
+    ///     The blob embedded in the application (<see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" />), loaded at start-up.
     /// </summary>
     public const string Embedded = "embedded";
 

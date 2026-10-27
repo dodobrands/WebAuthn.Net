@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WebAuthn.Net.Configuration.Builder;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models.Abstractions;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 
 namespace WebAuthn.Net.Configuration.DependencyInjection;
 
@@ -21,18 +21,18 @@ public static class ServiceCollectionExtensions
     ///     An optional delegate for configuring the HttpClient that will be used to access the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>. Here you can add retries using
     ///     <a href="https://github.com/App-vNext/Polly">Polly</a>, set timeouts, add your own DelegatingHandlers, or otherwise customize the behavior of HttpClient.
     /// </param>
-    /// <param name="configureBackgroundIngest">An optional delegate for configuring the loading of metadata from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a> (<see cref="FidoMetadataBackgroundIngestHostedServiceOptions" />): the blob embedded in the application that is loaded at start-up, the intervals of the refreshes and of the retries after a failure, and whether the application fails to start without metadata.</param>
+    /// <param name="configureIngestBackgroundService">An optional delegate for configuring the loading of metadata from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a> (<see cref="FidoMetadataIngestBackgroundServiceOptions" />): the blob embedded in the application that is loaded at start-up, the intervals of the refreshes and of the retries after a failure, and whether the application fails to start without metadata.</param>
     /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
     /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
     public static IWebAuthnBuilder<TContext> AddWebAuthnCore<TContext>(
         this IServiceCollection services,
         Action<WebAuthnOptions>? configure = null,
         Action<IHttpClientBuilder>? configureFidoHttpClientBuilder = null,
-        Action<FidoMetadataBackgroundIngestHostedServiceOptions>? configureBackgroundIngest = null)
+        Action<FidoMetadataIngestBackgroundServiceOptions>? configureIngestBackgroundService = null)
         where TContext : class, IWebAuthnContext
     {
         ArgumentNullException.ThrowIfNull(services);
         return new WebAuthnBuilder<TContext>(services)
-            .AddCoreServices(configure, configureFidoHttpClientBuilder, configureBackgroundIngest);
+            .AddCoreServices(configure, configureFidoHttpClientBuilder, configureIngestBackgroundService);
     }
 }

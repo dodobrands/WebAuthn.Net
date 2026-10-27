@@ -19,9 +19,9 @@ using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestService;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
@@ -35,23 +35,23 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
 
 // The delays between the attempts are controlled by the test: every delay is reported, and a positive one lasts until the test releases it,
 // so the schedule (RetryInterval after a failure, IngestInterval after a success) is verified without waiting.
-public class FidoMetadataBackgroundIngestHostedServiceTests
+public class FidoMetadataIngestBackgroundServiceTests
 {
     private static readonly TimeSpan DefaultRetryInterval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan DefaultIngestInterval = TimeSpan.FromDays(1);
 
     // A regression must fail a test rather than hang the test run: everything the tests wait for is limited in time.
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
-    private static readonly Assembly EmbeddedBlobAssembly = typeof(FidoMetadataBackgroundIngestHostedServiceTests).Assembly;
+    private static readonly Assembly EmbeddedBlobAssembly = typeof(FidoMetadataIngestBackgroundServiceTests).Assembly;
     private const string EmbeddedBlobResourceName = "WebAuthn.Net.DSL.Fakes.FakeResources.blob.jwt";
 
-    private FidoMetadataBackgroundIngestHostedServiceOptions IngestOptions { get; set; } = null!;
+    private FidoMetadataIngestBackgroundServiceOptions IngestOptions { get; set; } = null!;
     private ScriptedFidoMetadataProvider Provider { get; set; } = null!;
     private ObservableIngestStorage Storage { get; set; } = null!;
     private FakeFidoMetadataCounters Counters { get; set; } = null!;
-    private FakeLogger<FidoMetadataBackgroundIngestHostedService> Logger { get; set; } = null!;
+    private FakeLogger<FidoMetadataIngestBackgroundService> Logger { get; set; } = null!;
     private FakeLogger<DefaultFidoMetadataIngestService> IngestLogger { get; set; } = null!;
-    private GatedHostedService Service { get; set; } = null!;
+    private GatedBackgroundService Service { get; set; } = null!;
 
     [SetUp]
     public void SetupServices()
@@ -160,8 +160,8 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
 
         var errors = Logger.Entries.Where(static x => x.Level == LogLevel.Error).Select(static x => x.Message).ToArray();
         Assert.That(errors, Has.Length.EqualTo(2));
-        Assert.That(errors[0], Does.Contain(nameof(FidoMetadataBackgroundIngestHostedServiceOptions.RetryInterval)));
-        Assert.That(errors[1], Does.Contain(nameof(FidoMetadataBackgroundIngestHostedServiceOptions.IngestInterval)));
+        Assert.That(errors[0], Does.Contain(nameof(FidoMetadataIngestBackgroundServiceOptions.RetryInterval)));
+        Assert.That(errors[1], Does.Contain(nameof(FidoMetadataIngestBackgroundServiceOptions.IngestInterval)));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -270,8 +270,8 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         ConfigureEmbeddedBlob();
         Provider.EmbeddedPayload = CreatePayload(291);
         var exception = new InvalidOperationException("A bug in a derived class");
-        var service = new ThrowingAttemptHostedService(
-            new FakeOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions>(IngestOptions),
+        var service = new ThrowingAttemptBackgroundService(
+            new FakeOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions>(IngestOptions),
             new DefaultFidoMetadataIngestService(Storage, Counters, IngestLogger),
             Provider,
             CreateDecoder(),
@@ -305,19 +305,19 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         builder.Services.AddWebAuthnCore<FakeWebAuthnContext>().AddDefaultFidoMetadataStorage();
         Provider.EnqueueSuccess(291);
         using var host = builder.Build();
-        var hostedService = host.Services.GetServices<IHostedService>().OfType<FidoMetadataBackgroundIngestHostedService>().Single();
+        var backgroundService = host.Services.GetServices<IHostedService>().OfType<FidoMetadataIngestBackgroundService>().Single();
         var storage = host.Services.GetRequiredService<IFidoMetadataIngestStorage>();
 
         await host.StartAsync().WaitAsync(TestTimeout);
 
         Assert.That(await storage.GetCurrentBlobNoAsync(CancellationToken.None), Is.EqualTo(291));
         Assert.That(Provider.DownloadCalls, Is.EqualTo(1));
-        Assert.That(hostedService.ExecuteTask, Is.Not.Null);
-        Assert.That(hostedService.ExecuteTask!.IsCompleted, Is.False, "the background ingestion runs until the host stops");
+        Assert.That(backgroundService.ExecuteTask, Is.Not.Null);
+        Assert.That(backgroundService.ExecuteTask!.IsCompleted, Is.False, "the background ingestion runs until the host stops");
 
         await host.StopAsync().WaitAsync(TestTimeout);
 
-        Assert.That(hostedService.ExecuteTask.IsCanceled, Is.True);
+        Assert.That(backgroundService.ExecuteTask.IsCanceled, Is.True);
         Assert.That(hostLogs.Entries.Where(static x => x.Level >= LogLevel.Warning).Select(static x => x.Message), Is.Empty);
     }
 
@@ -532,7 +532,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         await Service.StopAsync(CancellationToken.None);
         Service.Dispose();
         Service = new(
-            new FakeOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions>(IngestOptions),
+            new FakeOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions>(IngestOptions),
             new DefaultFidoMetadataIngestService(storage, Counters, IngestLogger),
             provider,
             CreateDecoder(),
@@ -569,13 +569,13 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
     }
 
     [Test]
-    public async Task AddWebAuthnCore_RegistersHostedService_ThatContainerCanConstruct_WithConfiguredOptions()
+    public async Task AddWebAuthnCore_RegistersBackgroundService_ThatContainerCanConstruct_WithConfiguredOptions()
     {
-        // The hosted service is constructed by the container when the host starts, so a dependency that is not registered would break the start of the application.
+        // The background service is constructed by the container when the host starts, so a dependency that is not registered would break the start of the application.
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddWebAuthnCore<FakeWebAuthnContext>(
-                configureBackgroundIngest: ingest =>
+                configureIngestBackgroundService: ingest =>
                 {
                     ingest.RetryInterval = TimeSpan.FromSeconds(30);
                     ingest.EmbeddedBlob = new(EmbeddedBlobAssembly, EmbeddedBlobResourceName);
@@ -587,11 +587,11 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
             ValidateScopes = true
         });
 
-        var hostedServices = serviceProvider.GetServices<IHostedService>().OfType<FidoMetadataBackgroundIngestHostedService>().ToArray();
-        var options = serviceProvider.GetRequiredService<IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions>>().CurrentValue;
+        var backgroundServices = serviceProvider.GetServices<IHostedService>().OfType<FidoMetadataIngestBackgroundService>().ToArray();
+        var options = serviceProvider.GetRequiredService<IOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions>>().CurrentValue;
 
-        Assert.That(hostedServices, Has.Length.EqualTo(1));
-        Assert.That(hostedServices[0], Is.InstanceOf<BackgroundService>());
+        Assert.That(backgroundServices, Has.Length.EqualTo(1));
+        Assert.That(backgroundServices[0], Is.InstanceOf<BackgroundService>());
         Assert.Multiple(() =>
         {
             Assert.That(options.RetryInterval, Is.EqualTo(TimeSpan.FromSeconds(30)));
@@ -604,7 +604,7 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
     [Test]
     public void DefaultOptions_RetryEveryMinute_AndRefreshEveryDay()
     {
-        var options = new FidoMetadataBackgroundIngestHostedServiceOptions();
+        var options = new FidoMetadataIngestBackgroundServiceOptions();
 
         Assert.Multiple(() =>
         {
@@ -625,10 +625,10 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         IngestOptions.EmbeddedBlob = new(EmbeddedBlobAssembly, EmbeddedBlobResourceName);
     }
 
-    private GatedHostedService CreateService(IFidoMetadataProvider provider)
+    private GatedBackgroundService CreateService(IFidoMetadataProvider provider)
     {
         return new(
-            new FakeOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions>(IngestOptions),
+            new FakeOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions>(IngestOptions),
             new DefaultFidoMetadataIngestService(Storage, Counters, IngestLogger),
             provider,
             CreateDecoder(),
@@ -664,18 +664,18 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
         return FakeMetadataBlobPayloadJsonFactory.Create(static payload => payload.Remove("entries"));
     }
 
-    private sealed class GatedHostedService : FidoMetadataBackgroundIngestHostedService
+    private sealed class GatedBackgroundService : FidoMetadataIngestBackgroundService
     {
         private readonly Channel<TimeSpan> _delays = Channel.CreateUnbounded<TimeSpan>();
         private readonly Channel<bool> _releases = Channel.CreateUnbounded<bool>();
 
-        public GatedHostedService(
-            IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> options,
+        public GatedBackgroundService(
+            IOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions> options,
             IFidoMetadataIngestService metadataIngestService,
             IFidoMetadataProvider provider,
             IFidoMetadataDecoder decoder,
             FakeFidoMetadataCounters counters,
-            ILogger<FidoMetadataBackgroundIngestHostedService> logger)
+            ILogger<FidoMetadataIngestBackgroundService> logger)
             : base(options, metadataIngestService, provider, decoder, counters, logger)
         {
         }
@@ -830,17 +830,17 @@ public class FidoMetadataBackgroundIngestHostedServiceTests
     }
 
     // A derived class whose attempt throws instead of returning a failed result.
-    private sealed class ThrowingAttemptHostedService : FidoMetadataBackgroundIngestHostedService
+    private sealed class ThrowingAttemptBackgroundService : FidoMetadataIngestBackgroundService
     {
         private readonly Exception _exception;
 
-        public ThrowingAttemptHostedService(
-            IOptionsMonitor<FidoMetadataBackgroundIngestHostedServiceOptions> options,
+        public ThrowingAttemptBackgroundService(
+            IOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions> options,
             IFidoMetadataIngestService metadataIngestService,
             IFidoMetadataProvider provider,
             IFidoMetadataDecoder decoder,
             FakeFidoMetadataCounters counters,
-            ILogger<FidoMetadataBackgroundIngestHostedService> logger,
+            ILogger<FidoMetadataIngestBackgroundService> logger,
             Exception exception)
             : base(options, metadataIngestService, provider, decoder, counters, logger)
         {
