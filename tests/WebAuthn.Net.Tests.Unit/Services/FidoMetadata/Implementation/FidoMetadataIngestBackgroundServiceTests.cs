@@ -471,7 +471,7 @@ public class FidoMetadataIngestBackgroundServiceTests
     [Test]
     public async Task StartAsync_WhenLoadingEmbeddedBlobThrows_LogsErrorAndCounts_AndWaitsForFidoMetadataService()
     {
-        // For example, a custom provider that doesn't support the embedded blob (the default interface method throws NotSupportedException).
+        // For example, a custom provider that doesn't support the embedded blob (it throws NotSupportedException, as the XML docs of IFidoMetadataProvider.LoadEmbeddedMetadataAsync describe).
         ConfigureEmbeddedBlob();
         var exception = new NotSupportedException("The provider doesn't support the embedded blob");
         Provider.EmbeddedException = exception;
