@@ -20,11 +20,9 @@ using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL;
 using WebAuthn.Net.DSL.Fakes;
-using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
-using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Json;
@@ -284,17 +282,6 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await provider.LoadEmbeddedMetadataAsync(null!, CancellationToken.None));
     }
 
-    [Test]
-    public void LoadEmbeddedMetadataAsync_WhenProviderDoesNotImplementIt_ThrowsNotSupportedException()
-    {
-        // A provider implemented from scratch keeps compiling: the default interface method reports that it doesn't support the embedded blob.
-        IFidoMetadataProvider provider = new DownloadOnlyFidoMetadataProvider();
-
-        var exception = Assert.Throws<NotSupportedException>(() => provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(TestAssembly, BlobResourceName), CancellationToken.None));
-
-        Assert.That(exception!.Message, Does.Contain(nameof(DownloadOnlyFidoMetadataProvider)));
-    }
-
     private void AssertEmbeddedFailureCounted(string reason)
     {
         Assert.Multiple(() =>
@@ -398,19 +385,6 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         {
             Validations++;
             return Task.FromResult(false);
-        }
-    }
-
-    private sealed class DownloadOnlyFidoMetadataProvider : IFidoMetadataProvider
-    {
-        public Task<Result<MetadataBLOBPayloadJSON>> DownloadMetadataAsync(CancellationToken cancellationToken)
-        {
-            return Task.FromResult(Result<MetadataBLOBPayloadJSON>.Fail());
-        }
-
-        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken)
-        {
-            throw new NotSupportedException($"{GetType().FullName} doesn't support loading the FIDO Metadata Service blob embedded in the application");
         }
     }
 

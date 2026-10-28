@@ -23,8 +23,8 @@ public interface IFidoMetadataProvider
     ///     Asynchronously loads and validates the FIDO Metadata Service blob embedded in the application as a manifest resource of an assembly.
     /// </summary>
     /// <remarks>
-    ///     The default implementation of this interface method throws <see cref="NotSupportedException" />, so a provider that implements this interface from scratch
-    ///     (rather than deriving from the default implementation) has to implement this method to support the blob embedded in the application.
+    ///     <see cref="FidoMetadataIngestBackgroundService" /> calls this method only if <see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" /> is set. A provider that doesn't support
+    ///     the blob embedded in the application throws <see cref="NotSupportedException" />: the exception is logged and counted, and the metadata is loaded only from the FIDO Metadata Service.
     /// </remarks>
     /// <param name="embeddedBlob">The blob embedded in the application: the assembly and the name of its manifest resource that contains the blob exactly as the FIDO Metadata Service serves it (a JWS in the compact serialization).</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
