@@ -166,16 +166,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             rawMetadata = (await reader.ReadToEndAsync(cancellationToken)).Trim();
         }
 
-        var result = await ValidateBlobAsync(
-            rawMetadata,
-            true,
-            reason =>
-            {
-                // The warnings of the validation describe the reason, but not the blob: this one tells that it is the blob embedded in the application.
-                Logger.WarnEmbeddedBlobRejected(resourceName, assemblyName, reason);
-                return FailEmbeddedLoad(reason);
-            },
-            cancellationToken);
+        var result = await ValidateBlobAsync(rawMetadata, true, RejectEmbeddedBlob, cancellationToken);
         if (result.HasError)
         {
             return result;
@@ -184,6 +175,13 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         Logger.DebugEmbeddedMetadataLoaded(result.Ok.No, result.Ok.Entries?.Length ?? 0, resourceName, assemblyName);
         Counters.IncrementEmbeddedLoadEnd(true);
         return result;
+
+        Result<MetadataBLOBPayloadJSON> RejectEmbeddedBlob(string reason)
+        {
+            // The warnings of the validation describe the reason, but not the blob: this one tells that it is the blob embedded in the application.
+            Logger.WarnEmbeddedBlobRejected(resourceName, assemblyName, reason);
+            return FailEmbeddedLoad(reason);
+        }
     }
 
     // Validates the signature of the blob, its certificate chain and its payload. Every reason for which the blob is rejected is logged and reported through 'fail', which counts it.
