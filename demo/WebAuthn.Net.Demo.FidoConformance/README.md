@@ -16,7 +16,7 @@ This project contains a demo application designed for passing the [FIDO conforma
 
 These steps need to be performed only if you have not done them before.
 
-1. Install [.NET SDK 10.0.402+](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
+1. Install [.NET SDK 10.0.403+](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
 2. [Trust the ASP.NET Core HTTPS development certificate](https://learn.microsoft.com/en-us/aspnet/core/security/enforcing-ssl?view=aspnetcore-10.0&tabs=visual-studio%2Clinux-sles#trust-the-aspnet-core-https-development-certificate)
 
 ### Starting the FIDO Conformance test
