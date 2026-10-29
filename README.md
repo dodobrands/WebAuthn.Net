@@ -62,7 +62,7 @@ The documentation for each project is described in its README.md file.
 
 ### Required dependencies
 
-- [.NET SDK 10.0.402+](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
+- [.NET SDK 10.0.403+](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 ## Tips for Contribution
 
