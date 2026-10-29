@@ -23,6 +23,13 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
     // the length of the base64url encoding (without padding) of MaxAuthenticatorDataSize bytes: a longer 'authenticatorData' encodes more bytes
     private const int MaxAuthenticatorDataLength = ((MaxAuthenticatorDataSize * 4) + 2) / 3;
 
+    // The client data is parsed as JSON before the signature over its hash is verified, so its size is limited first.
+    // A browser sends a few hundred bytes of client data.
+    private const int MaxClientDataJsonSize = 512 * 1024;
+
+    // the length of the base64url encoding (without padding) of MaxClientDataJsonSize bytes: a longer 'clientDataJSON' encodes more bytes
+    private const int MaxClientDataJsonLength = ((MaxClientDataJsonSize * 4) + 2) / 3;
+
     /// <summary>
     ///     Constructs <see cref="DefaultAuthenticationResponseDecoder" />.
     /// </summary>
@@ -147,6 +154,13 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<AuthenticatorAssertionResponse>.Fail();
         }
 
+        if (response.ClientDataJson.Length > MaxClientDataJsonLength)
+        {
+            Logger.ClientDataJsonTooLarge(response.ClientDataJson.Length, MaxClientDataJsonLength, MaxClientDataJsonSize);
+            Counters.IncrementResponseAnomaly(AuthenticationResponseAnomalies.ClientDataJsonTooLarge, false);
+            return Result<AuthenticatorAssertionResponse>.Fail();
+        }
+
         if (!Base64Url.TryDecode(response.ClientDataJson, out var clientDataJson))
         {
             return Result<AuthenticatorAssertionResponse>.Fail();
@@ -253,4 +267,16 @@ public static partial class DefaultAuthenticationResponseDecoderLoggingExtension
         Level = LogLevel.Warning,
         Message = "The 'response.authenticatorData' of the authentication response is {Length} characters long, which exceeds the maximum of {MaxLength} characters (the base64url encoding of {MaxSize} bytes); the response is rejected")]
     public static partial void AuthenticatorDataTooLarge(this ILogger logger, int length, int maxLength, int maxSize);
+
+    /// <summary>
+    ///     The 'response.clientDataJSON' of the authentication response is {Length} characters long, which exceeds the maximum of {MaxLength} characters (the base64url encoding of {MaxSize} bytes); the response is rejected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="length">The length of the base64url-encoded client data of the response.</param>
+    /// <param name="maxLength">The maximum length of the base64url-encoded client data that is accepted.</param>
+    /// <param name="maxSize">The maximum size of the client data in bytes that is accepted.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'response.clientDataJSON' of the authentication response is {Length} characters long, which exceeds the maximum of {MaxLength} characters (the base64url encoding of {MaxSize} bytes); the response is rejected")]
+    public static partial void ClientDataJsonTooLarge(this ILogger logger, int length, int maxLength, int maxSize);
 }

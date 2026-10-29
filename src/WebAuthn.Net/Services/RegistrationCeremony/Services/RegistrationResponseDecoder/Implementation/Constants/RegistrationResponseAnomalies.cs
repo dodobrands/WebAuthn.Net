@@ -36,4 +36,10 @@ public static class RegistrationResponseAnomalies
     ///     and the largest attestation objects, those with a certificate chain, take less than 10 KB, so the response is rejected before the attestation object is decoded.
     /// </summary>
     public const string AttestationObjectTooLarge = "attestation_object.too_large";
+
+    /// <summary>
+    ///     Rejected: 'response.clientDataJSON' encodes more than 512 KiB. The client data is parsed as JSON before anything in it is verified, and the credential record keeps it,
+    ///     while a browser sends a few hundred bytes of client data, so the response is rejected before the client data is decoded.
+    /// </summary>
+    public const string ClientDataJsonTooLarge = "client_data_json.too_large";
 }
