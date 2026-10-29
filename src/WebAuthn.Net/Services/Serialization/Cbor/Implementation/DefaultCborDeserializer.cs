@@ -228,7 +228,8 @@ public class DefaultCborDeserializer : ICborDeserializer
             return Result<CborArray>.Fail();
         }
 
-        var accumulator = new List<AbstractCborObject>(count.Value);
+        // the declared number of items comes from the input and isn't checked until the items are read, so it isn't used as the capacity
+        var accumulator = new List<AbstractCborObject>();
         CborReaderState state;
         while ((state = reader.PeekState()) is not (CborReaderState.EndArray or CborReaderState.Finished))
         {
@@ -259,7 +260,8 @@ public class DefaultCborDeserializer : ICborDeserializer
             return Result<CborMap>.Fail();
         }
 
-        var accumulator = new Dictionary<AbstractCborObject, AbstractCborObject>(count.Value);
+        // the declared number of entries comes from the input and isn't checked until the entries are read, so it isn't used as the capacity
+        var accumulator = new Dictionary<AbstractCborObject, AbstractCborObject>();
         CborReaderState state;
         while ((state = reader.PeekState()) is not (CborReaderState.EndMap or CborReaderState.Finished))
         {

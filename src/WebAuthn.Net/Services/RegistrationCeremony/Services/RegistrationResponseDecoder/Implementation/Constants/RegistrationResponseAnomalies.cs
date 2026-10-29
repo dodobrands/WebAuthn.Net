@@ -30,4 +30,10 @@ public static class RegistrationResponseAnomalies
     ///     (<a href="https://www.w3.org/TR/webauthn-3/#dom-authenticatorattestationresponse-transports-slot">WebAuthn Level 3, §5.2.1</a>).
     /// </summary>
     public const string TransportsDuplicateValue = "transports.duplicate_value";
+
+    /// <summary>
+    ///     Rejected: 'response.attestationObject' encodes more than 512 KiB. The attestation object is decoded from CBOR before anything in it is verified,
+    ///     and the largest attestation objects, those with a certificate chain, take less than 10 KB, so the response is rejected before the attestation object is decoded.
+    /// </summary>
+    public const string AttestationObjectTooLarge = "attestation_object.too_large";
 }

@@ -31,6 +31,13 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
     private const int MaxListedTransports = 8;
     private const int MaxLoggedTransportLength = 64;
 
+    // The attestation object is decoded from CBOR into a tree of objects before anything in it is verified, so its size is limited first.
+    // The largest attestation objects, those with a certificate chain (android-safetynet, tpm, android-key), take less than 10 KB.
+    private const int MaxAttestationObjectSize = 512 * 1024;
+
+    // the length of the base64url encoding (without padding) of MaxAttestationObjectSize bytes: a longer 'attestationObject' encodes more bytes
+    private const int MaxAttestationObjectLength = ((MaxAttestationObjectSize * 4) + 2) / 3;
+
     /// <summary>
     ///     Constructs <see cref="DefaultRegistrationResponseDecoder" />.
     /// </summary>
@@ -206,6 +213,13 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
 
         if (string.IsNullOrEmpty(attestationResponseJson.AttestationObject))
         {
+            return Result<AuthenticatorAttestationResponse>.Fail();
+        }
+
+        if (attestationResponseJson.AttestationObject.Length > MaxAttestationObjectLength)
+        {
+            Logger.AttestationObjectTooLarge(attestationResponseJson.AttestationObject.Length, MaxAttestationObjectLength, MaxAttestationObjectSize);
+            Counters.IncrementResponseAnomaly(RegistrationResponseAnomalies.AttestationObjectTooLarge, false);
             return Result<AuthenticatorAttestationResponse>.Fail();
         }
 
@@ -389,4 +403,16 @@ public static partial class DefaultRegistrationResponseDecoderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "The 'transports' of the registration response contain {Count} duplicate value(s); the response is rejected")]
     public static partial void TransportsDuplicateValues(this ILogger logger, int count);
+
+    /// <summary>
+    ///     The 'response.attestationObject' of the registration response is {Length} characters long, which exceeds the maximum of {MaxLength} characters (the base64url encoding of {MaxSize} bytes); the response is rejected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="length">The length of the base64url-encoded attestation object of the response.</param>
+    /// <param name="maxLength">The maximum length of the base64url-encoded attestation object that is accepted.</param>
+    /// <param name="maxSize">The maximum size of the attestation object in bytes that is accepted.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'response.attestationObject' of the registration response is {Length} characters long, which exceeds the maximum of {MaxLength} characters (the base64url encoding of {MaxSize} bytes); the response is rejected")]
+    public static partial void AttestationObjectTooLarge(this ILogger logger, int length, int maxLength, int maxSize);
 }

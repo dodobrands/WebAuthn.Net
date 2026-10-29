@@ -1,11 +1,17 @@
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
+using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Constants;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder.Implementation;
 
@@ -25,14 +31,24 @@ public class DefaultAuthenticationResponseDecoderTests
 
     private const string PublicKeyType = "public-key";
 
+    // the largest authenticator data that is accepted, and the length of its base64url encoding
+    private const int MaxAuthenticatorDataSize = 128 * 1024;
+    private const int MaxAuthenticatorDataLength = 174763;
+
     private DefaultAuthenticationResponseDecoder Decoder { get; set; } = null!;
+    private FakeAuthenticationCeremonyCounters Counters { get; set; } = null!;
+    private FakeLogger<DefaultAuthenticationResponseDecoder> Logger { get; set; } = null!;
 
     [SetUp]
     public void SetupServices()
     {
+        Counters = new();
+        Logger = new();
         Decoder = new(
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
+            Counters,
+            Logger);
     }
 
     [Test]
@@ -138,6 +154,55 @@ public class DefaultAuthenticationResponseDecoderTests
         Assert.DoesNotThrow(() => result = Decoder.Decode(response));
 
         Assert.That(result?.HasError, Is.True);
+    }
+
+    // The authenticator data is decoded before the signature over it is verified, so a response whose 'authenticatorData' encodes more than 128 KiB
+    // is rejected before it is decoded. In an assertion the authenticator data takes 37 bytes plus the extension outputs.
+    [Test]
+    public void Decode_Succeeds_WhenAuthenticatorDataIsAtSizeLimit()
+    {
+        var authenticatorData = Base64Url.Encode(new byte[MaxAuthenticatorDataSize]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAssertionResponse(ClientDataJson, authenticatorData, Signature), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(authenticatorData, Has.Length.EqualTo(MaxAuthenticatorDataLength));
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.Response.AuthenticatorData, Has.Length.EqualTo(MaxAuthenticatorDataSize));
+            Assert.That(Logger.Entries, Is.Empty);
+            Assert.That(Counters.ResponseAnomalies, Is.Empty);
+        });
+    }
+
+    [TestCase(MaxAuthenticatorDataSize + 1)]
+    [TestCase(2 * MaxAuthenticatorDataSize)]
+    public void Decode_Fails_AndLogsWarning_WhenAuthenticatorDataExceedsSizeLimit(int size)
+    {
+        var authenticatorData = Base64Url.Encode(new byte[size]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAssertionResponse(ClientDataJson, authenticatorData, Signature), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { AuthenticatorDataTooLargeWarning(authenticatorData.Length) }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(AuthenticationResponseAnomalies.AuthenticatorDataTooLarge, false) }));
+        });
+    }
+
+    private IEnumerable<string> Warnings()
+    {
+        return Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message);
+    }
+
+    private static string AuthenticatorDataTooLargeWarning(int length)
+    {
+        return $"The 'response.authenticatorData' of the authentication response is {length.ToString(CultureInfo.InvariantCulture)} characters long, "
+               + $"which exceeds the maximum of {MaxAuthenticatorDataLength.ToString(CultureInfo.InvariantCulture)} characters "
+               + $"(the base64url encoding of {MaxAuthenticatorDataSize.ToString(CultureInfo.InvariantCulture)} bytes); the response is rejected";
     }
 
     private static AuthenticationResponseJSON CreateResponse(

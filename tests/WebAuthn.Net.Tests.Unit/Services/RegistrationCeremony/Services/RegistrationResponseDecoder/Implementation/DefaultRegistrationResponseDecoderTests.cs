@@ -11,6 +11,7 @@ using WebAuthn.Net.Models.Protocol.Json.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Models.Protocol.RegistrationCeremony.CreateCredential;
 using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation.Constants;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation;
 
@@ -26,6 +27,10 @@ public class DefaultRegistrationResponseDecoderTests
     private const string AttestationObject = "oA";
 
     private const string PublicKeyType = "public-key";
+
+    // the largest attestation object that is accepted, and the length of its base64url encoding
+    private const int MaxAttestationObjectSize = 512 * 1024;
+    private const int MaxAttestationObjectLength = 699051;
 
     private static readonly string[] EveryKnownTransport = { "hybrid", "internal", "usb", "nfc", "ble", "smart-card" };
     private static readonly string[] RepeatedTransports = { "usb", "nfc", "usb", "usb", "nfc" };
@@ -325,9 +330,53 @@ public class DefaultRegistrationResponseDecoderTests
         });
     }
 
+    // The attestation object is decoded from CBOR before anything in it is verified, so a response whose 'attestationObject' encodes more than 512 KiB
+    // is rejected before it is decoded. The largest attestation objects, those with a certificate chain, take less than 10 KB.
+    [Test]
+    public void Decode_Succeeds_WhenAttestationObjectIsAtSizeLimit()
+    {
+        var attestationObject = Base64Url.Encode(new byte[MaxAttestationObjectSize]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAttestationResponse(ClientDataJson, attestationObject), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(attestationObject, Has.Length.EqualTo(MaxAttestationObjectLength));
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.Response.AttestationObject, Has.Length.EqualTo(MaxAttestationObjectSize));
+            Assert.That(Logger.Entries, Is.Empty);
+            Assert.That(Counters.ResponseAnomalies, Is.Empty);
+        });
+    }
+
+    [TestCase(MaxAttestationObjectSize + 1)]
+    [TestCase(2 * MaxAttestationObjectSize)]
+    public void Decode_Fails_AndLogsWarning_WhenAttestationObjectExceedsSizeLimit(int size)
+    {
+        var attestationObject = Base64Url.Encode(new byte[size]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAttestationResponse(ClientDataJson, attestationObject), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { AttestationObjectTooLargeWarning(attestationObject.Length) }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.AttestationObjectTooLarge, false) }));
+        });
+    }
+
     private IEnumerable<string> Warnings()
     {
         return Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message);
+    }
+
+    private static string AttestationObjectTooLargeWarning(int length)
+    {
+        return $"The 'response.attestationObject' of the registration response is {length.ToString(CultureInfo.InvariantCulture)} characters long, "
+               + $"which exceeds the maximum of {MaxAttestationObjectLength.ToString(CultureInfo.InvariantCulture)} characters "
+               + $"(the base64url encoding of {MaxAttestationObjectSize.ToString(CultureInfo.InvariantCulture)} bytes); the response is rejected";
     }
 
     private static string TooManyTransportsWarning(int count)
