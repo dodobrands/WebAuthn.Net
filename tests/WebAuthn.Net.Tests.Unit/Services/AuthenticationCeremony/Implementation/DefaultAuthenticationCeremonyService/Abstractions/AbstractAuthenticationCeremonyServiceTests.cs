@@ -19,7 +19,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidSafetyNet;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Apple;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.None;
@@ -176,11 +175,6 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             digitalSignatureVerifier,
             asn1Deserializer,
             metadataSearchService);
-        var androidSafetyNetVerifier = new DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>(
-            TimeProvider,
-            safeJsonDeserializer,
-            metadataSearchService,
-            NullLogger<DefaultAndroidSafetyNetAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             asn1Deserializer,
@@ -196,7 +190,6 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             packedVerifier,
             tpmVerifier,
             androidKeyVerifier,
-            androidSafetyNetVerifier,
             fidoU2FVerifier,
             noneVerifier,
             appleAnonymousVerifier,
@@ -206,13 +199,11 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var packedDecoder = new DefaultPackedAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultPackedAttestationStatementDecoder>.Instance);
         var tpmDecoder = new DefaultTpmAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
         var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);
-        var androidSafetyNetDecoder = new DefaultAndroidSafetyNetAttestationStatementDecoder(NullLogger<DefaultAndroidSafetyNetAttestationStatementDecoder>.Instance);
         var fidoU2FDecoder = new DefaultFidoU2FAttestationStatementDecoder(NullLogger<DefaultFidoU2FAttestationStatementDecoder>.Instance);
         var noneDecoder = new DefaultNoneAttestationStatementDecoder(NullLogger<DefaultNoneAttestationStatementDecoder>.Instance);
         var appleAnonymousDecoder = new DefaultAppleAnonymousAttestationStatementDecoder(NullLogger<DefaultAppleAnonymousAttestationStatementDecoder>.Instance);
         var attestationStatementDecoder = new DefaultAttestationStatementDecoder(
             androidKeyDecoder,
-            androidSafetyNetDecoder,
             appleAnonymousDecoder,
             fidoU2FDecoder,
             noneDecoder,

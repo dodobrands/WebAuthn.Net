@@ -19,7 +19,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidKey;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidSafetyNet;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Apple;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.FidoU2F;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.None;
@@ -27,7 +26,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Pac
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Tpm;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidSafetyNet;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Apple;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.FidoU2F;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.None;
@@ -158,7 +156,6 @@ public static class WebAuthnBuilderExtensions
         // -- AttestationStatementDecoder --
         builder.Services.TryAddSingleton<IAttestationStatementDecoder, DefaultAttestationStatementDecoder>();
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatementDecoder, DefaultAndroidKeyAttestationStatementDecoder>();
-        builder.Services.TryAddSingleton<IAndroidSafetyNetAttestationStatementDecoder, DefaultAndroidSafetyNetAttestationStatementDecoder>();
         builder.Services.TryAddSingleton<IAppleAnonymousAttestationStatementDecoder, DefaultAppleAnonymousAttestationStatementDecoder>();
         builder.Services.TryAddSingleton<IFidoU2FAttestationStatementDecoder, DefaultFidoU2FAttestationStatementDecoder>();
         builder.Services.TryAddSingleton<INoneAttestationStatementDecoder, DefaultNoneAttestationStatementDecoder>();
@@ -170,8 +167,6 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<IAttestationStatementVerifier<TContext>, DefaultAttestationStatementVerifier<TContext>>();
         // AndroidKey
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatementVerifier<TContext>, DefaultAndroidKeyAttestationStatementVerifier<TContext>>();
-        // AndroidSafetyNet
-        builder.Services.TryAddSingleton<IAndroidSafetyNetAttestationStatementVerifier<TContext>, DefaultAndroidSafetyNetAttestationStatementVerifier<TContext>>();
         // Apple
         builder.Services.TryAddSingleton<IAppleAnonymousAttestationStatementVerifier<TContext>, DefaultAppleAnonymousAttestationStatementVerifier<TContext>>();
         // FidoU2F

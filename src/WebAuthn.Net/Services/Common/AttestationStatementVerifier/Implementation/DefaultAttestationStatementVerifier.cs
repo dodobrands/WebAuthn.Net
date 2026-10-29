@@ -10,7 +10,6 @@ using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidKey;
-using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidSafetyNet;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.Apple;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.FidoU2F;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.None;
@@ -35,7 +34,6 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
     /// <param name="packedVerifier">Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-packed-attestation">Packed attestation statement</a>.</param>
     /// <param name="tpmVerifier">Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">TPM attestation statement</a>.</param>
     /// <param name="androidKeyVerifier">Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-key-attestation">Android Key attestation statement</a>.</param>
-    /// <param name="androidSafetyNetVerifier">Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.</param>
     /// <param name="fidoU2FVerifier">Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-fido-u2f-attestation">FIDO U2F attestation statement</a>.</param>
     /// <param name="noneVerifier">Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-none-attestation">None attestation statement</a>.</param>
     /// <param name="appleAnonymousVerifier">Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-apple-anonymous-attestation">Apple Anonymous attestation statement</a>.</param>
@@ -45,7 +43,6 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
         IPackedAttestationStatementVerifier<TContext> packedVerifier,
         ITpmAttestationStatementVerifier<TContext> tpmVerifier,
         IAndroidKeyAttestationStatementVerifier<TContext> androidKeyVerifier,
-        IAndroidSafetyNetAttestationStatementVerifier<TContext> androidSafetyNetVerifier,
         IFidoU2FAttestationStatementVerifier<TContext> fidoU2FVerifier,
         INoneAttestationStatementVerifier<TContext> noneVerifier,
         IAppleAnonymousAttestationStatementVerifier<TContext> appleAnonymousVerifier,
@@ -54,7 +51,6 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
         ArgumentNullException.ThrowIfNull(packedVerifier);
         ArgumentNullException.ThrowIfNull(tpmVerifier);
         ArgumentNullException.ThrowIfNull(androidKeyVerifier);
-        ArgumentNullException.ThrowIfNull(androidSafetyNetVerifier);
         ArgumentNullException.ThrowIfNull(fidoU2FVerifier);
         ArgumentNullException.ThrowIfNull(noneVerifier);
         ArgumentNullException.ThrowIfNull(appleAnonymousVerifier);
@@ -62,7 +58,6 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
         PackedVerifier = packedVerifier;
         TpmVerifier = tpmVerifier;
         AndroidKeyVerifier = androidKeyVerifier;
-        AndroidSafetyNetVerifier = androidSafetyNetVerifier;
         FidoU2FVerifier = fidoU2FVerifier;
         NoneVerifier = noneVerifier;
         AppleAnonymousVerifier = appleAnonymousVerifier;
@@ -83,11 +78,6 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
     ///     Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-key-attestation">Android Key attestation statement</a>.
     /// </summary>
     protected IAndroidKeyAttestationStatementVerifier<TContext> AndroidKeyVerifier { get; }
-
-    /// <summary>
-    ///     Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a>.
-    /// </summary>
-    protected IAndroidSafetyNetAttestationStatementVerifier<TContext> AndroidSafetyNetVerifier { get; }
 
     /// <summary>
     ///     Verifier of <a href="https://www.w3.org/TR/webauthn-3/#sctn-fido-u2f-attestation">FIDO U2F attestation statement</a>.
@@ -151,16 +141,6 @@ public class DefaultAttestationStatementVerifier<TContext> : IAttestationStateme
                     }
 
                     return await AndroidKeyVerifier.VerifyAsync(context, androidKey, authenticatorData, clientDataHash, cancellationToken);
-                }
-            case AttestationStatementFormat.AndroidSafetyNet:
-                {
-                    if (attStmt is not AndroidSafetyNetAttestationStatement androidSafetyNet)
-                    {
-                        Logger.AttStmtVerifierInvalidAttestationStatement(attStmt.GetType().ToString(), AttestationStatementFormat.AndroidSafetyNet);
-                        return Result<VerifiedAttestationStatement>.Fail();
-                    }
-
-                    return await AndroidSafetyNetVerifier.VerifyAsync(context, androidSafetyNet, authenticatorData, clientDataHash, cancellationToken);
                 }
             case AttestationStatementFormat.FidoU2F:
                 {

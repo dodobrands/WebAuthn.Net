@@ -32,7 +32,7 @@ public class DefaultRegistrationResponseDecoder : IRegistrationResponseDecoder
     private const int MaxLoggedTransportLength = 64;
 
     // The attestation object is decoded from CBOR into a tree of objects before anything in it is verified, so its size is limited first.
-    // The largest attestation objects, those with a certificate chain (android-safetynet, tpm, android-key), take less than 10 KB.
+    // The largest attestation objects, those with a certificate chain (tpm, android-key), take less than 10 KB.
     private const int MaxAttestationObjectSize = 512 * 1024;
 
     // the length of the base64url encoding (without padding) of MaxAttestationObjectSize bytes: a longer 'attestationObject' encodes more bytes

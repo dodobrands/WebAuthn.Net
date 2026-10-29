@@ -17,7 +17,7 @@ public class DefaultAttestationObjectDecoderTests
 {
     // rpIdHash | flags (UP) | signCount
     private static readonly byte[] AuthData = SHA256.HashData("example.com"u8).Concat(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x01 }).ToArray();
-    private static readonly byte[] AttestationObject = BuildAttestationObject();
+    private static readonly byte[] AttestationObject = BuildAttestationObject("none");
 
     private FakeLogger<DefaultAttestationObjectDecoder> Logger { get; set; } = null!;
 
@@ -83,13 +83,29 @@ public class DefaultAttestationObjectDecoderTests
         });
     }
 
-    // {"fmt": "none", "attStmt": {}, "authData": <authData>}
-    private static byte[] BuildAttestationObject()
+    // The SafetyNet Attestation API has been turned down, and WebAuthn Level 3 deprecates the "android-safetynet" format, so it is not supported
+    [Test]
+    public void Decode_Fails_WhenFmtIsAndroidSafetyNet()
+    {
+        var attestationObject = BuildAttestationObject("android-safetynet");
+
+        var result = Decoder.Decode(attestationObject);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Logger.Entries.Select(static x => x.Level), Has.All.EqualTo(LogLevel.Warning));
+            Assert.That(Logger.Entries.Select(static x => x.Message), Has.Some.EqualTo("The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: android-safetynet"));
+        });
+    }
+
+    // {"fmt": <fmt>, "attStmt": {}, "authData": <authData>}
+    private static byte[] BuildAttestationObject(string fmt)
     {
         var writer = new CborWriter(CborConformanceMode.Ctap2Canonical);
         writer.WriteStartMap(3);
         writer.WriteTextString("fmt");
-        writer.WriteTextString("none");
+        writer.WriteTextString(fmt);
         writer.WriteTextString("attStmt");
         writer.WriteStartMap(0);
         writer.WriteEndMap();

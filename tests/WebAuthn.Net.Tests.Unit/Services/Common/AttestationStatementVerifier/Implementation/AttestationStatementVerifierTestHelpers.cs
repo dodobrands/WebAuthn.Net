@@ -24,7 +24,7 @@ using WebAuthn.Net.Services.Serialization.Cose.Models.Enums.EC2;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation;
 
 /// <summary>
-///     Certificates, authenticator data and FIDO Metadata Service stand-ins shared by the tests of the Packed, FIDO U2F, Apple Anonymous, Android SafetyNet and TPM attestation statement verifiers.
+///     Certificates, authenticator data and FIDO Metadata Service stand-ins shared by the tests of the Packed, FIDO U2F, Apple Anonymous and TPM attestation statement verifiers.
 /// </summary>
 internal static class AttestationStatementVerifierTestHelpers
 {

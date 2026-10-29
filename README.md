@@ -30,10 +30,12 @@ The documentation for each project is described in its README.md file.
     - [packed](https://www.w3.org/TR/webauthn-3/#sctn-packed-attestation)
     - [tpm](https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation)
     - [android-key](https://www.w3.org/TR/webauthn-3/#sctn-android-key-attestation)
-    - [android-safetynet](https://www.w3.org/TR/webauthn-3/#sctn-android-safetynet-attestation)
     - [fido-u2f](https://www.w3.org/TR/webauthn-3/#sctn-fido-u2f-attestation)
     - [none](https://www.w3.org/TR/webauthn-3/#sctn-none-attestation)
     - [apple](https://www.w3.org/TR/webauthn-3/#sctn-apple-anonymous-attestation)
+- ❌ The [android-safetynet](https://www.w3.org/TR/webauthn-3/#sctn-android-safetynet-attestation) attestation statement format is not supported, and a registration that uses it is rejected:
+    - Google deprecated the SafetyNet Attestation API in 2022 and [turned it down completely in January 2025](https://developer.android.com/training/safetynet/attestation). Every call to the API now fails, so no authenticator can produce a valid `android-safetynet` attestation statement anymore.
+    - The WebAuthn Level 3 specification marks the format as deprecated and expected to be removed. Its verification procedure relies on the SafetyNet online documentation, which no longer describes how to verify a response.
 - ✅ All cryptographic algorithms required to pass the [FIDO Conformance Test](https://fidoalliance.org/certification/functional-certification/conformance/)
     - [RS1](https://www.rfc-editor.org/rfc/rfc8812.html#section-2)
     - [RS256](https://www.rfc-editor.org/rfc/rfc8812.html#section-2)
