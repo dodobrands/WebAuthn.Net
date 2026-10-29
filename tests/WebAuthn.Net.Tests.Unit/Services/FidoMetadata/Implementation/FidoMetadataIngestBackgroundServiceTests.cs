@@ -27,6 +27,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
+using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 using WebAuthn.Net.Storage.FidoMetadata;
 using WebAuthn.Net.Storage.FidoMetadata.Implementation;
@@ -39,6 +40,7 @@ public class FidoMetadataIngestBackgroundServiceTests
 {
     private static readonly TimeSpan DefaultRetryInterval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan DefaultIngestInterval = TimeSpan.FromDays(1);
+    private static readonly DateTimeOffset Now = new(2026, 10, 28, 10, 0, 0, TimeSpan.Zero);
 
     // A regression must fail a test rather than hang the test run: everything the tests wait for is limited in time.
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
@@ -48,6 +50,7 @@ public class FidoMetadataIngestBackgroundServiceTests
     private FidoMetadataIngestBackgroundServiceOptions IngestOptions { get; set; } = null!;
     private ScriptedFidoMetadataProvider Provider { get; set; } = null!;
     private ObservableIngestStorage Storage { get; set; } = null!;
+    private FakeTimeProvider TimeProvider { get; set; } = null!;
     private FakeFidoMetadataCounters Counters { get; set; } = null!;
     private FakeLogger<FidoMetadataIngestBackgroundService> Logger { get; set; } = null!;
     private FakeLogger<DefaultFidoMetadataIngestService> IngestLogger { get; set; } = null!;
@@ -59,6 +62,7 @@ public class FidoMetadataIngestBackgroundServiceTests
         IngestOptions = new();
         Provider = new();
         Storage = new();
+        TimeProvider = new(Now);
         Counters = new();
         Logger = new();
         IngestLogger = new();
@@ -110,10 +114,8 @@ public class FidoMetadataIngestBackgroundServiceTests
         Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultRetryInterval));
         Service.ReleaseDelay();
         Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultRetryInterval));
-        Assert.That(Service.FailedAttempts, Is.EqualTo(2));
         Service.ReleaseDelay();
         Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultIngestInterval));
-        Assert.That(Service.FailedAttempts, Is.Zero);
         Assert.That(Storage.CurrentNo, Is.EqualTo(1));
         Service.ReleaseDelay();
         // a failed refresh falls back to the short retries
@@ -124,9 +126,75 @@ public class FidoMetadataIngestBackgroundServiceTests
         var messages = Logger.Entries.Select(static x => x.Message).ToArray();
         Assert.That(messages.Count(static x => x.Contains("Failed to download metadata", StringComparison.Ordinal)), Is.EqualTo(3));
         // the count of the consecutive failures starts over after the blob is loaded
-        Assert.That(messages.Count(static x => x.EndsWith("in 00:01:00, consecutive unsuccessful attempts: 1", StringComparison.Ordinal)), Is.EqualTo(2));
-        Assert.That(messages, Has.One.EndsWith("in 00:01:00, consecutive unsuccessful attempts: 2"));
+        Assert.That(messages.Count(static x => x.EndsWith("in 00:01:00 (at 2026-10-28T10:01:00.0000000+00:00), consecutive unsuccessful attempts: 1", StringComparison.Ordinal)), Is.EqualTo(2));
+        Assert.That(messages, Has.One.EndsWith("in 00:01:00 (at 2026-10-28T10:01:00.0000000+00:00), consecutive unsuccessful attempts: 2"));
         Assert.That(messages, Has.One.EndsWith("consecutive unsuccessful attempts before it: 2"));
+    }
+
+    [Test]
+    public async Task Log_ShowsTheStart_EverySuccessfulDownload_WhenTheNextRefreshIsMade_AndTheStop()
+    {
+        Provider.EnqueueSuccess(1);
+        Provider.EnqueueSuccess(2);
+
+        await StartServiceAsync();
+        Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultIngestInterval));
+        TimeProvider.Change(Now + DefaultIngestInterval);
+        Service.ReleaseDelay();
+        Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultIngestInterval));
+        await Service.StopAsync(CancellationToken.None);
+
+        Assert.That(Logger.Entries.Select(static x => (x.Level, x.Message)), Is.EqualTo(new[]
+        {
+            (LogLevel.Information, "The ingestion of metadata from the FIDO Metadata Service has started"),
+            (LogLevel.Information, "Metadata was loaded from the FIDO Metadata Service"),
+            (LogLevel.Information, "The next refresh of metadata from the FIDO Metadata Service will be made in 1.00:00:00 (at 2026-10-29T10:00:00.0000000+00:00)"),
+            (LogLevel.Information, "Metadata was loaded from the FIDO Metadata Service"),
+            (LogLevel.Information, "The next refresh of metadata from the FIDO Metadata Service will be made in 1.00:00:00 (at 2026-10-30T10:00:00.0000000+00:00)"),
+            (LogLevel.Information, "The ingestion of metadata from the FIDO Metadata Service has stopped")
+        }));
+    }
+
+    [Test]
+    public async Task Log_ShowsEveryLoad_WithFailures_AndWhenTheNextAttemptIsMade()
+    {
+        ConfigureEmbeddedBlob();
+        Provider.EmbeddedPayload = CreatePayload(291);
+        Provider.EnqueueFailure();
+        Provider.EnqueueSuccess(292);
+
+        await StartServiceAsync();
+        Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(TimeSpan.Zero));
+        Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultRetryInterval));
+        TimeProvider.Change(Now + DefaultRetryInterval);
+        Service.ReleaseDelay();
+        Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultIngestInterval));
+
+        // the download right after the start-up with the embedded metadata doesn't wait, so nothing is logged before it
+        Assert.That(Logger.Entries.Select(static x => (x.Level, x.Message)), Is.EqualTo(new[]
+        {
+            (LogLevel.Information, "The ingestion of metadata from the FIDO Metadata Service has started"),
+            (LogLevel.Information, "The FIDO Metadata Service blob embedded in the application was loaded"),
+            (LogLevel.Warning, "Failed to download metadata from the FIDO Metadata Service"),
+            (LogLevel.Information, "The next attempt to load metadata from the FIDO Metadata Service will be made in 00:01:00 (at 2026-10-28T10:01:00.0000000+00:00), consecutive unsuccessful attempts: 1"),
+            (LogLevel.Information, "Metadata was loaded from the FIDO Metadata Service, consecutive unsuccessful attempts before it: 1"),
+            (LogLevel.Information, "The next refresh of metadata from the FIDO Metadata Service will be made in 1.00:00:00 (at 2026-10-29T10:01:00.0000000+00:00)")
+        }));
+    }
+
+    [Test]
+    public async Task IntervalThatEndsAfterTheLatestRepresentableTime_IsLoggedWithThatTime_InsteadOfBreakingTheStart()
+    {
+        // For example, TimeSpan.MaxValue so that the loaded metadata is never refreshed: the time of the next refresh can't be represented.
+        IngestOptions.IngestInterval = TimeSpan.MaxValue;
+        Provider.EnqueueSuccess(1);
+
+        await StartServiceAsync();
+
+        Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(TimeSpan.MaxValue));
+        Assert.That(
+            Logger.Entries.Select(static x => x.Message),
+            Has.One.EqualTo("The next refresh of metadata from the FIDO Metadata Service will be made in 10675199.02:48:05.4775807 (at 9999-12-31T23:59:59.9999999+00:00)"));
     }
 
     [Test]
@@ -275,6 +343,7 @@ public class FidoMetadataIngestBackgroundServiceTests
             new DefaultFidoMetadataIngestService(Storage, Counters, IngestLogger),
             Provider,
             CreateDecoder(),
+            TimeProvider,
             Counters,
             Logger,
             exception);
@@ -319,6 +388,9 @@ public class FidoMetadataIngestBackgroundServiceTests
 
         Assert.That(backgroundService.ExecuteTask.IsCanceled, Is.True);
         Assert.That(hostLogs.Entries.Where(static x => x.Level >= LogLevel.Warning).Select(static x => x.Message), Is.Empty);
+        var information = hostLogs.Entries.Where(static x => x.Level == LogLevel.Information).Select(static x => x.Message).ToArray();
+        Assert.That(information, Has.One.EqualTo("The ingestion of metadata from the FIDO Metadata Service has started"));
+        Assert.That(information, Has.One.EqualTo("The ingestion of metadata from the FIDO Metadata Service has stopped"));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -424,7 +496,7 @@ public class FidoMetadataIngestBackgroundServiceTests
         Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultRetryInterval));
 
         Assert.That(Storage.CurrentNo, Is.EqualTo(291));
-        Assert.That(Service.FailedAttempts, Is.EqualTo(2));
+        Assert.That(Logger.Entries.Select(static x => x.Message), Has.One.EndsWith("in 00:01:00 (at 2026-10-28T10:01:00.0000000+00:00), consecutive unsuccessful attempts: 2"));
     }
 
     [Test]
@@ -441,7 +513,8 @@ public class FidoMetadataIngestBackgroundServiceTests
     [Test]
     public async Task StartAsync_WhenEmbeddedBlobIsRejected_WaitsForFidoMetadataService()
     {
-        // The provider has logged and counted the reason; the start waits for the FIDO Metadata Service as if there were no embedded blob.
+        // The provider has logged and counted the reason, and the service logs that the embedded blob wasn't loaded;
+        // the start waits for the FIDO Metadata Service as if there were no embedded blob.
         ConfigureEmbeddedBlob();
         Provider.EmbeddedPayload = null;
         Provider.EnqueueSuccess(292);
@@ -452,6 +525,7 @@ public class FidoMetadataIngestBackgroundServiceTests
         Assert.That(Provider.DownloadCalls, Is.EqualTo(1));
         Assert.That(Storage.CurrentNo, Is.EqualTo(292));
         Assert.That(await Service.WaitForDelayAsync(), Is.EqualTo(DefaultIngestInterval));
+        Assert.That(Logger.Entries.Single(static x => x.Level == LogLevel.Warning).Message, Is.EqualTo("Failed to load the FIDO Metadata Service blob embedded in the application"));
     }
 
     [Test]
@@ -536,6 +610,7 @@ public class FidoMetadataIngestBackgroundServiceTests
             new DefaultFidoMetadataIngestService(storage, Counters, IngestLogger),
             provider,
             CreateDecoder(),
+            TimeProvider,
             Counters,
             Logger);
 
@@ -632,6 +707,7 @@ public class FidoMetadataIngestBackgroundServiceTests
             new DefaultFidoMetadataIngestService(Storage, Counters, IngestLogger),
             provider,
             CreateDecoder(),
+            TimeProvider,
             Counters,
             Logger);
     }
@@ -672,15 +748,14 @@ public class FidoMetadataIngestBackgroundServiceTests
         public GatedBackgroundService(
             IOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions> options,
             IFidoMetadataIngestService metadataIngestService,
-            IFidoMetadataProvider provider,
+            IFidoMetadataProvider fidoMetadataProvider,
             IFidoMetadataDecoder decoder,
+            ITimeProvider timeProvider,
             FakeFidoMetadataCounters counters,
             ILogger<FidoMetadataIngestBackgroundService> logger)
-            : base(options, metadataIngestService, provider, decoder, counters, logger)
+            : base(options, metadataIngestService, fidoMetadataProvider, decoder, timeProvider, counters, logger)
         {
         }
-
-        public int FailedAttempts => ConsecutiveFailedAttempts;
 
         public async Task<TimeSpan> WaitForDelayAsync()
         {
@@ -736,9 +811,9 @@ public class FidoMetadataIngestBackgroundServiceTests
                 : Task.FromResult(Result<MetadataBLOBPayloadJSON>.Fail());
         }
 
-        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken)
+        public Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(Assembly assembly, string resourceName, CancellationToken cancellationToken)
         {
-            _embeddedRequests.Enqueue(embeddedBlob.ResourceName);
+            _embeddedRequests.Enqueue(resourceName);
             if (EmbeddedException is not null)
             {
                 throw EmbeddedException;
@@ -837,17 +912,18 @@ public class FidoMetadataIngestBackgroundServiceTests
         public ThrowingAttemptBackgroundService(
             IOptionsMonitor<FidoMetadataIngestBackgroundServiceOptions> options,
             IFidoMetadataIngestService metadataIngestService,
-            IFidoMetadataProvider provider,
+            IFidoMetadataProvider fidoMetadataProvider,
             IFidoMetadataDecoder decoder,
+            ITimeProvider timeProvider,
             FakeFidoMetadataCounters counters,
             ILogger<FidoMetadataIngestBackgroundService> logger,
             Exception exception)
-            : base(options, metadataIngestService, provider, decoder, counters, logger)
+            : base(options, metadataIngestService, fidoMetadataProvider, decoder, timeProvider, counters, logger)
         {
             _exception = exception;
         }
 
-        protected override Task<bool> DownloadAndUpsertMetadataAsync(CancellationToken stoppingToken)
+        protected override Task<bool> DownloadBlobAsync(CancellationToken cancellationToken)
         {
             return Task.FromException<bool>(_exception);
         }

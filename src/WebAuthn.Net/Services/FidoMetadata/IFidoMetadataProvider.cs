@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.Models;
@@ -26,9 +27,10 @@ public interface IFidoMetadataProvider
     ///     <see cref="FidoMetadataIngestBackgroundService" /> calls this method only if <see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" /> is set. A provider that doesn't support
     ///     the blob embedded in the application throws <see cref="NotSupportedException" />: the exception is logged and counted, and the metadata is loaded only from the FIDO Metadata Service.
     /// </remarks>
-    /// <param name="embeddedBlob">The blob embedded in the application: the assembly and the name of its manifest resource that contains the blob exactly as the FIDO Metadata Service serves it (a JWS in the compact serialization).</param>
+    /// <param name="assembly">The assembly that contains the blob as a manifest resource.</param>
+    /// <param name="resourceName">The name of the manifest resource that contains the blob exactly as the FIDO Metadata Service serves it (a JWS in the compact serialization).</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>If the loading and validation were successful - the result contains <see cref="MetadataBLOBPayloadJSON" />, otherwise the result indicates that an error occurred during the loading or validation.</returns>
     /// <exception cref="NotSupportedException">The provider doesn't support the blob embedded in the application.</exception>
-    Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken);
+    Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(Assembly assembly, string resourceName, CancellationToken cancellationToken);
 }

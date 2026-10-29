@@ -17,7 +17,6 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.Models;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataProvider.Protocol.Json;
 using WebAuthn.Net.Services.Metrics;
@@ -143,14 +142,14 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     ///         Every reason for which the blob is not provided is logged at the <see cref="LogLevel.Warning" /> level and counted (see <see cref="FidoMetadataEmbeddedBlobFailures" />).
     ///     </para>
     /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="embeddedBlob" /> is <see langword="null" /></exception>
-    public virtual async Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(FidoMetadataEmbeddedBlobOptions embeddedBlob, CancellationToken cancellationToken)
+    /// <exception cref="ArgumentNullException"><paramref name="assembly" /> or <paramref name="resourceName" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentException"><paramref name="resourceName" /> is empty or consists only of white-space characters</exception>
+    public virtual async Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(Assembly assembly, string resourceName, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(embeddedBlob);
+        ArgumentNullException.ThrowIfNull(assembly);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceName);
         cancellationToken.ThrowIfCancellationRequested();
         Counters.IncrementEmbeddedLoadStart();
-        var assembly = embeddedBlob.Assembly;
-        var resourceName = embeddedBlob.ResourceName;
         var assemblyName = assembly.FullName;
         string rawMetadata;
         await using (var resourceStream = assembly.GetManifestResourceStream(resourceName))

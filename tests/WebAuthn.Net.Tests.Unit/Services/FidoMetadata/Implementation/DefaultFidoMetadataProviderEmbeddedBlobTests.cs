@@ -20,7 +20,6 @@ using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL;
 using WebAuthn.Net.DSL.Fakes;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 using WebAuthn.Net.Services.Metrics;
@@ -84,7 +83,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         // The HTTP client throws: the embedded blob must not be downloaded, and its chain must be validated without the network.
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(TestAssembly, BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(TestAssembly, BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok!.No, Is.EqualTo(BlobNo));
@@ -112,7 +111,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         };
         var provider = CreateProvider(AfterSigningCertificateExpiration);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(TestAssembly, BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(TestAssembly, BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok!.No, Is.EqualTo(BlobNo));
@@ -145,7 +144,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         };
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(TestAssembly, BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(TestAssembly, BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.True);
         AssertEmbeddedFailureCounted(FidoMetadataEmbeddedBlobFailures.ChainInvalid);
@@ -167,7 +166,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
             Counters,
             Logger);
 
-        var embeddedResult = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(TestAssembly, BlobResourceName), CancellationToken.None);
+        var embeddedResult = await provider.LoadEmbeddedMetadataAsync(TestAssembly, BlobResourceName, CancellationToken.None);
         var downloadResult = await provider.DownloadMetadataAsync(CancellationToken.None);
 
         Assert.That(embeddedResult.HasError, Is.False);
@@ -181,7 +180,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
     {
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(TestAssembly, "WebAuthn.Net.blob.jwt"), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(TestAssembly, "WebAuthn.Net.blob.jwt", CancellationToken.None);
 
         Assert.That(result.HasError, Is.True);
         AssertEmbeddedFailureCounted(FidoMetadataEmbeddedBlobFailures.ResourceNotFound);
@@ -197,7 +196,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         var resources = Enumerable.Range(0, 20).ToDictionary(static x => $"Resource{x:D2}.txt", static _ => Array.Empty<byte>());
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(new InMemoryResourceAssembly(resources), BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(new InMemoryResourceAssembly(resources), BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.True);
         var warning = Logger.Entries.Single(static x => x.Level == LogLevel.Warning).Message;
@@ -209,7 +208,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
     {
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(new InMemoryResourceAssembly(new Dictionary<string, byte[]>()), BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(new InMemoryResourceAssembly(new Dictionary<string, byte[]>()), BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.True);
         AssertEmbeddedFailureCounted(FidoMetadataEmbeddedBlobFailures.ResourceNotFound);
@@ -223,7 +222,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         var provider = CreateProvider(CurrentDate);
         var assembly = CreateAssembly(content);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(assembly, BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(assembly, BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.True);
         AssertEmbeddedFailureCounted(FidoMetadataEmbeddedBlobFailures.JwtMalformed);
@@ -243,7 +242,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         var modifiedBlob = $"{segments[0]}.{WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(payload.ToJsonString()))}.{segments[2]}";
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(CreateAssembly(modifiedBlob), BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(CreateAssembly(modifiedBlob), BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.True);
         AssertEmbeddedFailureCounted(FidoMetadataEmbeddedBlobFailures.SignatureInvalid);
@@ -255,7 +254,7 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         // For example, a blob of the FIDO conformance tools embedded in a production application: it doesn't chain up to the root certificates of the FIDO Metadata Service.
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(CreateAssembly(ResignUnderAnotherRoot(GetGenuineBlob())), BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(CreateAssembly(ResignUnderAnotherRoot(GetGenuineBlob())), BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.True);
         AssertEmbeddedFailureCounted(FidoMetadataEmbeddedBlobFailures.ChainInvalid);
@@ -267,19 +266,42 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         // A file saved by an editor or by 'curl' usually ends with a line break.
         var provider = CreateProvider(CurrentDate);
 
-        var result = await provider.LoadEmbeddedMetadataAsync(new FidoMetadataEmbeddedBlobOptions(CreateAssembly(GetGenuineBlob() + "\r\n"), BlobResourceName), CancellationToken.None);
+        var result = await provider.LoadEmbeddedMetadataAsync(CreateAssembly(GetGenuineBlob() + "\r\n"), BlobResourceName, CancellationToken.None);
 
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok!.No, Is.EqualTo(BlobNo));
     }
 
     [Test]
-    public async Task LoadEmbeddedMetadataAsync_WhenEmbeddedBlobIsNull_Throws()
+    public async Task LoadEmbeddedMetadataAsync_WhenAssemblyIsNull_ThrowsArgumentNullException()
     {
-        // The assembly and the name of the resource are validated by FidoMetadataEmbeddedBlobOptions itself, see FidoMetadataEmbeddedBlobOptionsTests.
         var provider = CreateProvider(CurrentDate);
 
-        await Assert.ThrowsAsync<ArgumentNullException>(async () => await provider.LoadEmbeddedMetadataAsync(null!, CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () => await provider.LoadEmbeddedMetadataAsync(null!, BlobResourceName, CancellationToken.None));
+
+        Assert.That(exception!.ParamName, Is.EqualTo("assembly"));
+    }
+
+    [Test]
+    public async Task LoadEmbeddedMetadataAsync_WhenResourceNameIsNull_ThrowsArgumentNullException()
+    {
+        var provider = CreateProvider(CurrentDate);
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () => await provider.LoadEmbeddedMetadataAsync(TestAssembly, null!, CancellationToken.None));
+
+        Assert.That(exception!.ParamName, Is.EqualTo("resourceName"));
+    }
+
+    [TestCase("")]
+    [TestCase(" ")]
+    [TestCase("\t\r\n")]
+    public async Task LoadEmbeddedMetadataAsync_WhenResourceNameIsEmptyOrWhiteSpace_ThrowsArgumentException(string resourceName)
+    {
+        var provider = CreateProvider(CurrentDate);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () => await provider.LoadEmbeddedMetadataAsync(TestAssembly, resourceName, CancellationToken.None));
+
+        Assert.That(exception!.ParamName, Is.EqualTo("resourceName"));
     }
 
     private void AssertEmbeddedFailureCounted(string reason)
