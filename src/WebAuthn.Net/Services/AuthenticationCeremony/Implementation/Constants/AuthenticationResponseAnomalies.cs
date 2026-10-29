@@ -18,4 +18,10 @@ public static class AuthenticationResponseAnomalies
     ///     and in an assertion it takes 37 bytes plus the extension outputs, usually well under 1 KB, so the response is rejected before the authenticator data is decoded.
     /// </summary>
     public const string AuthenticatorDataTooLarge = "authenticator_data.too_large";
+
+    /// <summary>
+    ///     Rejected: 'response.clientDataJSON' encodes more than 512 KiB. The client data is parsed as JSON before the signature over its hash is verified,
+    ///     and a browser sends a few hundred bytes of client data, so the response is rejected before the client data is decoded.
+    /// </summary>
+    public const string ClientDataJsonTooLarge = "client_data_json.too_large";
 }

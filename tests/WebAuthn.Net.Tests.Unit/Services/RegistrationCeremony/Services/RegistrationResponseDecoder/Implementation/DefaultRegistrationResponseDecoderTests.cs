@@ -32,6 +32,10 @@ public class DefaultRegistrationResponseDecoderTests
     private const int MaxAttestationObjectSize = 512 * 1024;
     private const int MaxAttestationObjectLength = 699051;
 
+    // the largest client data that is accepted, and the length of its base64url encoding
+    private const int MaxClientDataJsonSize = 512 * 1024;
+    private const int MaxClientDataJsonLength = 699051;
+
     private static readonly string[] EveryKnownTransport = { "hybrid", "internal", "usb", "nfc", "ble", "smart-card" };
     private static readonly string[] RepeatedTransports = { "usb", "nfc", "usb", "usb", "nfc" };
     private static readonly string[] RepeatedAndUnknownTransports = { "usb", "usb", "future-transport" };
@@ -367,6 +371,43 @@ public class DefaultRegistrationResponseDecoderTests
         });
     }
 
+    // The client data is parsed as JSON before anything in it is verified, and the credential record keeps it, so a response whose 'clientDataJSON' encodes more than 512 KiB
+    // is rejected before it is decoded. A browser sends a few hundred bytes of client data.
+    [Test]
+    public void Decode_Succeeds_WhenClientDataJsonIsAtSizeLimit()
+    {
+        var clientDataJson = Base64Url.Encode(new byte[MaxClientDataJsonSize]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAttestationResponse(clientDataJson, AttestationObject), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(clientDataJson, Has.Length.EqualTo(MaxClientDataJsonLength));
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.Response.ClientDataJson, Has.Length.EqualTo(MaxClientDataJsonSize));
+            Assert.That(Logger.Entries, Is.Empty);
+            Assert.That(Counters.ResponseAnomalies, Is.Empty);
+        });
+    }
+
+    [TestCase(MaxClientDataJsonSize + 1)]
+    [TestCase(2 * MaxClientDataJsonSize)]
+    public void Decode_Fails_AndLogsWarning_WhenClientDataJsonExceedsSizeLimit(int size)
+    {
+        var clientDataJson = Base64Url.Encode(new byte[size]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAttestationResponse(clientDataJson, AttestationObject), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { ClientDataJsonTooLargeWarning(clientDataJson.Length) }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.ClientDataJsonTooLarge, false) }));
+        });
+    }
+
     private IEnumerable<string> Warnings()
     {
         return Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message);
@@ -377,6 +418,13 @@ public class DefaultRegistrationResponseDecoderTests
         return $"The 'response.attestationObject' of the registration response is {length.ToString(CultureInfo.InvariantCulture)} characters long, "
                + $"which exceeds the maximum of {MaxAttestationObjectLength.ToString(CultureInfo.InvariantCulture)} characters "
                + $"(the base64url encoding of {MaxAttestationObjectSize.ToString(CultureInfo.InvariantCulture)} bytes); the response is rejected";
+    }
+
+    private static string ClientDataJsonTooLargeWarning(int length)
+    {
+        return $"The 'response.clientDataJSON' of the registration response is {length.ToString(CultureInfo.InvariantCulture)} characters long, "
+               + $"which exceeds the maximum of {MaxClientDataJsonLength.ToString(CultureInfo.InvariantCulture)} characters "
+               + $"(the base64url encoding of {MaxClientDataJsonSize.ToString(CultureInfo.InvariantCulture)} bytes); the response is rejected";
     }
 
     private static string TooManyTransportsWarning(int count)

@@ -35,6 +35,10 @@ public class DefaultAuthenticationResponseDecoderTests
     private const int MaxAuthenticatorDataSize = 128 * 1024;
     private const int MaxAuthenticatorDataLength = 174763;
 
+    // the largest client data that is accepted, and the length of its base64url encoding
+    private const int MaxClientDataJsonSize = 512 * 1024;
+    private const int MaxClientDataJsonLength = 699051;
+
     private DefaultAuthenticationResponseDecoder Decoder { get; set; } = null!;
     private FakeAuthenticationCeremonyCounters Counters { get; set; } = null!;
     private FakeLogger<DefaultAuthenticationResponseDecoder> Logger { get; set; } = null!;
@@ -193,6 +197,43 @@ public class DefaultAuthenticationResponseDecoderTests
         });
     }
 
+    // The client data is parsed as JSON before the signature over its hash is verified, so a response whose 'clientDataJSON' encodes more than 512 KiB
+    // is rejected before it is decoded. A browser sends a few hundred bytes of client data.
+    [Test]
+    public void Decode_Succeeds_WhenClientDataJsonIsAtSizeLimit()
+    {
+        var clientDataJson = Base64Url.Encode(new byte[MaxClientDataJsonSize]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAssertionResponse(clientDataJson, AuthenticatorData, Signature), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(clientDataJson, Has.Length.EqualTo(MaxClientDataJsonLength));
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.Response.ClientDataJson, Has.Length.EqualTo(MaxClientDataJsonSize));
+            Assert.That(Logger.Entries, Is.Empty);
+            Assert.That(Counters.ResponseAnomalies, Is.Empty);
+        });
+    }
+
+    [TestCase(MaxClientDataJsonSize + 1)]
+    [TestCase(2 * MaxClientDataJsonSize)]
+    public void Decode_Fails_AndLogsWarning_WhenClientDataJsonExceedsSizeLimit(int size)
+    {
+        var clientDataJson = Base64Url.Encode(new byte[size]);
+        var response = CreateResponse(CredentialId, CredentialId, CreateAssertionResponse(clientDataJson, AuthenticatorData, Signature), PublicKeyType);
+
+        var result = Decoder.Decode(response);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(Warnings(), Is.EqualTo(new[] { ClientDataJsonTooLargeWarning(clientDataJson.Length) }));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(AuthenticationResponseAnomalies.ClientDataJsonTooLarge, false) }));
+        });
+    }
+
     private IEnumerable<string> Warnings()
     {
         return Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message);
@@ -203,6 +244,13 @@ public class DefaultAuthenticationResponseDecoderTests
         return $"The 'response.authenticatorData' of the authentication response is {length.ToString(CultureInfo.InvariantCulture)} characters long, "
                + $"which exceeds the maximum of {MaxAuthenticatorDataLength.ToString(CultureInfo.InvariantCulture)} characters "
                + $"(the base64url encoding of {MaxAuthenticatorDataSize.ToString(CultureInfo.InvariantCulture)} bytes); the response is rejected";
+    }
+
+    private static string ClientDataJsonTooLargeWarning(int length)
+    {
+        return $"The 'response.clientDataJSON' of the authentication response is {length.ToString(CultureInfo.InvariantCulture)} characters long, "
+               + $"which exceeds the maximum of {MaxClientDataJsonLength.ToString(CultureInfo.InvariantCulture)} characters "
+               + $"(the base64url encoding of {MaxClientDataJsonSize.ToString(CultureInfo.InvariantCulture)} bytes); the response is rejected";
     }
 
     private static AuthenticationResponseJSON CreateResponse(
