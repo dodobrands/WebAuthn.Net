@@ -26,6 +26,10 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestSe
 ///         and the serial number of the last blob accepted by this instance (<see cref="LastAcceptedNo" />), so the protection works within the lifetime of the application
 ///         with any storage and also across its restarts with a storage that tracks the serial number of the stored blob.
 ///     </para>
+///     <para>
+///         The blob embedded in the application (<see cref="UpsertEmbeddedAsync" />) is upserted only if it is newer than the blob in use: it is a fallback for the start without the FIDO Metadata Service,
+///         so an embedded blob that is older than the metadata in use is expected and is not reported as a rollback.
+///     </para>
 /// </remarks>
 public class DefaultFidoMetadataIngestService : IFidoMetadataIngestService
 {
@@ -111,6 +115,30 @@ public class DefaultFidoMetadataIngestService : IFidoMetadataIngestService
         Logger.InfoBlobIngested(metadataBlob.No, metadataBlob.Entries.Length);
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The embedded blob is upserted only if it is newer than the blob in use (see <see cref="GetBlobNoInUseAsync" />) or if there is no blob in use yet.
+    ///     Otherwise the metadata in use is kept: unlike an older blob served by the FIDO Metadata Service, an older embedded blob is expected and is not a rollback,
+    ///     so it is logged at the <see cref="LogLevel.Information" /> level and is not counted as a rejected blob.
+    /// </remarks>
+    public virtual async Task UpsertEmbeddedAsync(
+        MetadataBlobPayload metadataBlob,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(metadataBlob);
+        cancellationToken.ThrowIfCancellationRequested();
+        var currentNo = await GetBlobNoInUseAsync(cancellationToken);
+        if (currentNo.HasValue && metadataBlob.No <= currentNo.Value)
+        {
+            Logger.InfoEmbeddedBlobNotNewer(metadataBlob.No, currentNo.Value);
+            return;
+        }
+
+        await MetadataIngestStorage.UpsertAsync(metadataBlob, cancellationToken);
+        LastAcceptedNo = metadataBlob.No;
+        Logger.InfoEmbeddedBlobIngested(metadataBlob.No, metadataBlob.Entries.Length);
+    }
+
     /// <summary>
     ///     Returns the serial number (the <c>no</c> member) of the blob in use, which a new blob must not roll back.
     /// </summary>
@@ -182,4 +210,26 @@ public static partial class DefaultFidoMetadataIngestServiceLoggingExtensions
         Level = LogLevel.Information,
         Message = "The FIDO Metadata Service blob (no: {No}) with {Entries} entries was ingested")]
     public static partial void InfoBlobIngested(this ILogger logger, long no, int entries);
+
+    /// <summary>
+    ///     The FIDO Metadata Service blob (no: {No}) with {Entries} entries embedded in the application was ingested
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the ingested blob.</param>
+    /// <param name="entries">The number of entries in the ingested blob.</param>
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "The FIDO Metadata Service blob (no: {No}) with {Entries} entries embedded in the application was ingested")]
+    public static partial void InfoEmbeddedBlobIngested(this ILogger logger, long no, int entries);
+
+    /// <summary>
+    ///     The FIDO Metadata Service blob (no: {No}) embedded in the application was not ingested because the metadata in use (no: {CurrentNo}) is not older
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the embedded blob.</param>
+    /// <param name="currentNo">The serial number of the blob in use.</param>
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "The FIDO Metadata Service blob (no: {No}) embedded in the application was not ingested because the metadata in use (no: {CurrentNo}) is not older")]
+    public static partial void InfoEmbeddedBlobNotNewer(this ILogger logger, long no, long currentNo);
 }

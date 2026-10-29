@@ -29,6 +29,22 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
             "webauthn.mds.download.failures",
             null,
             "The number of FIDO Metadata Service blobs that could not be downloaded, or were rejected after the download because they are malformed or their signature could not be verified");
+        EmbeddedLoadStartCounter = Meter.CreateCounter<long>(
+            "webauthn.mds.embedded.start",
+            null,
+            "The number of calls to the method responsible for loading the FIDO Metadata Service blob embedded in the application and verifying its signature (IFidoMetadataProvider.LoadEmbeddedMetadataAsync)");
+        EmbeddedLoadEndCounter = Meter.CreateCounter<long>(
+            "webauthn.mds.embedded.end",
+            null,
+            "The number of completions of the method responsible for loading the FIDO Metadata Service blob embedded in the application and verifying its signature (IFidoMetadataProvider.LoadEmbeddedMetadataAsync)");
+        EmbeddedLoadFailuresCounter = Meter.CreateCounter<long>(
+            "webauthn.mds.embedded.failures",
+            null,
+            "The number of FIDO Metadata Service blobs embedded in the application that could not be loaded, or were rejected because they are malformed or their signature could not be verified");
+        IngestExceptionsCounter = Meter.CreateCounter<long>(
+            "webauthn.mds.ingest.exceptions",
+            null,
+            "The number of attempts to load and ingest the FIDO Metadata Service blob (embedded in the application or downloaded from the FIDO Metadata Service) that ended with an unexpected exception");
         DecodeStartCounter = Meter.CreateCounter<long>(
             "webauthn.mds.decode.start",
             null,
@@ -82,6 +98,26 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
     ///     Counter for the FIDO Metadata Service blobs that could not be downloaded, or were rejected after the download.
     /// </summary>
     protected Counter<long> DownloadFailuresCounter { get; }
+
+    /// <summary>
+    ///     Counter for calls to the method responsible for loading the FIDO Metadata Service blob embedded in the application and verifying its signature <see cref="IFidoMetadataProvider" />.<see cref="IFidoMetadataProvider.LoadEmbeddedMetadataAsync" />.
+    /// </summary>
+    protected Counter<long> EmbeddedLoadStartCounter { get; }
+
+    /// <summary>
+    ///     The completion counter of the method responsible for loading the FIDO Metadata Service blob embedded in the application and verifying its signature <see cref="IFidoMetadataProvider" />.<see cref="IFidoMetadataProvider.LoadEmbeddedMetadataAsync" />.
+    /// </summary>
+    protected Counter<long> EmbeddedLoadEndCounter { get; }
+
+    /// <summary>
+    ///     Counter for the FIDO Metadata Service blobs embedded in the application that could not be loaded, or were rejected.
+    /// </summary>
+    protected Counter<long> EmbeddedLoadFailuresCounter { get; }
+
+    /// <summary>
+    ///     Counter for the attempts to load and ingest the FIDO Metadata Service blob that ended with an unexpected exception.
+    /// </summary>
+    protected Counter<long> IngestExceptionsCounter { get; }
 
     /// <summary>
     ///     Counter for calls to the method responsible for decoding the FIDO Metadata Service blob <see cref="IFidoMetadataDecoder" />.<see cref="IFidoMetadataDecoder.Decode" />.
@@ -158,6 +194,48 @@ public class DefaultFidoMetadataCounters : IFidoMetadataCounters, IDisposable
             new TagList
             {
                 new(Tags.Reason, reason)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementEmbeddedLoadStart()
+    {
+        EmbeddedLoadStartCounter.Add(1);
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementEmbeddedLoadEnd(bool successful)
+    {
+        var status = successful
+            ? TagValues.StatusSuccess
+            : TagValues.StatusFail;
+        EmbeddedLoadEndCounter.Add(
+            1L,
+            new TagList
+            {
+                new(Tags.Status, status)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementEmbeddedLoadFailure(string reason)
+    {
+        EmbeddedLoadFailuresCounter.Add(
+            1L,
+            new TagList
+            {
+                new(Tags.Reason, reason)
+            });
+    }
+
+    /// <inheritdoc />
+    public virtual void IncrementIngestException(string source)
+    {
+        IngestExceptionsCounter.Add(
+            1L,
+            new TagList
+            {
+                new(Tags.Source, source)
             });
     }
 

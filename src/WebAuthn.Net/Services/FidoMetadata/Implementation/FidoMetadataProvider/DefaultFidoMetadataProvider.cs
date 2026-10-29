@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -101,26 +103,99 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     {
         cancellationToken.ThrowIfCancellationRequested();
         Counters.IncrementDownloadStart();
+        string rawMetadata;
+        try
+        {
+            rawMetadata = await MetadataHttpClient.DownloadMetadataAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TimeoutException or IOException)
+        {
+            // The request failed, the response has an unsuccessful status code or exceeds the limits of the client, or the connection was broken.
+            // A failed download is an expected failure rather than an exception: it is reported and counted with its reason, and the blob is rejected
+            // (the background ingestion retries the download later).
+            Logger.WarnDownloadFailed(exception);
+            return FailDownload(exception is TimeoutException
+                ? FidoMetadataDownloadFailures.Timeout
+                : FidoMetadataDownloadFailures.RequestFailed);
+        }
+
+        var result = await ValidateBlobAsync(rawMetadata, false, FailDownload, cancellationToken);
+        if (result.HasError)
+        {
+            return result;
+        }
+
+        Logger.DebugMetadataDownloaded(result.Ok.No, result.Ok.Entries?.Length ?? 0);
+        Counters.IncrementDownloadEnd(true);
+        return result;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     <para>
+    ///         The blob is validated the same way as a blob downloaded from the FIDO Metadata Service: its signature and its certificate chain up to the root certificates of the FIDO Metadata Service
+    ///         embedded in the library (<see cref="GetEmbeddedFidoRootCertificates" />). The only difference is that the chain is validated according to
+    ///         <see cref="X509ChainValidationOptions.OnValidateEmbeddedFidoMetadataBlobJwtChain" />, which by default doesn't check the validity period and the revocation status of the signing certificates,
+    ///         and without the additional validation (<see cref="ValidateJwtCertificateChainAsync" />), so that the blob embedded in the application can be used regardless of the time and of the availability of the network.
+    ///     </para>
+    ///     <para>
+    ///         Every reason for which the blob is not provided is logged at the <see cref="LogLevel.Warning" /> level and counted (see <see cref="FidoMetadataEmbeddedBlobFailures" />).
+    ///     </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="assembly" /> or <paramref name="resourceName" /> is <see langword="null" /></exception>
+    /// <exception cref="ArgumentException"><paramref name="resourceName" /> is empty or consists only of white-space characters</exception>
+    public virtual async Task<Result<MetadataBLOBPayloadJSON>> LoadEmbeddedMetadataAsync(Assembly assembly, string resourceName, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceName);
+        cancellationToken.ThrowIfCancellationRequested();
+        Counters.IncrementEmbeddedLoadStart();
+        var assemblyName = assembly.FullName;
+        string rawMetadata;
+        await using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
+        {
+            if (resourceStream is null)
+            {
+                Logger.WarnEmbeddedBlobResourceNotFound(resourceName, assemblyName, FormatManifestResourceNames(assembly));
+                return FailEmbeddedLoad(FidoMetadataEmbeddedBlobFailures.ResourceNotFound);
+            }
+
+            using var reader = new StreamReader(resourceStream, Encoding.UTF8, true);
+            // Not calling Trim can potentially break JWT validation (for example, the file of the blob may end with a line break).
+            rawMetadata = (await reader.ReadToEndAsync(cancellationToken)).Trim();
+        }
+
+        var result = await ValidateBlobAsync(rawMetadata, true, RejectEmbeddedBlob, cancellationToken);
+        if (result.HasError)
+        {
+            return result;
+        }
+
+        Logger.DebugEmbeddedMetadataLoaded(result.Ok.No, result.Ok.Entries?.Length ?? 0, resourceName, assemblyName);
+        Counters.IncrementEmbeddedLoadEnd(true);
+        return result;
+
+        Result<MetadataBLOBPayloadJSON> RejectEmbeddedBlob(string reason)
+        {
+            // The warnings of the validation describe the reason, but not the blob: this one tells that it is the blob embedded in the application.
+            Logger.WarnEmbeddedBlobRejected(resourceName, assemblyName, reason);
+            return FailEmbeddedLoad(reason);
+        }
+    }
+
+    // Validates the signature of the blob, its certificate chain and its payload. Every reason for which the blob is rejected is logged and reported through 'fail', which counts it.
+    // The blob embedded in the application (isEmbedded) is validated regardless of the validity period of its certificates and without the additional validation of the chain,
+    // see X509ChainValidationOptions.OnValidateEmbeddedFidoMetadataBlobJwtChain.
+    private async Task<Result<MetadataBLOBPayloadJSON>> ValidateBlobAsync(
+        string rawMetadata,
+        bool isEmbedded,
+        Func<string, Result<MetadataBLOBPayloadJSON>> fail,
+        CancellationToken cancellationToken)
+    {
         var certificatesToDispose = new List<X509Certificate2>();
         var keysToDispose = new List<AsymmetricAlgorithm>();
         try
         {
-            string rawMetadata;
-            try
-            {
-                rawMetadata = await MetadataHttpClient.DownloadMetadataAsync(cancellationToken);
-            }
-            catch (Exception exception) when (exception is HttpRequestException or TimeoutException or IOException)
-            {
-                // The request failed, the response has an unsuccessful status code or exceeds the limits of the client, or the connection was broken.
-                // A failed download must not propagate as an exception (it would break the start of the application or the background ingestion, which retries the download later),
-                // so it is reported and the blob is rejected.
-                Logger.WarnDownloadFailed(exception);
-                return FailDownload(exception is TimeoutException
-                    ? FidoMetadataDownloadFailures.Timeout
-                    : FidoMetadataDownloadFailures.RequestFailed);
-            }
-
             JsonWebToken jwt;
             try
             {
@@ -128,15 +203,15 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             }
             catch (ArgumentException exception)
             {
-                // The downloaded data is not a JWS in the compact serialization (for example, an error page returned with a successful status code).
+                // The data is not a JWS in the compact serialization (for example, an error page returned with a successful status code, or a wrong file embedded in the application).
                 Logger.WarnJwtMalformed(exception);
-                return FailDownload(FidoMetadataDownloadFailures.JwtMalformed);
+                return fail(FidoMetadataDownloadFailures.JwtMalformed);
             }
 
             if (!TryGetRawCertificates(jwt, out var headerCertificates) || headerCertificates.Length == 0)
             {
                 Logger.WarnJwtHeaderCertificatesMissing();
-                return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
+                return fail(FidoMetadataDownloadFailures.X5CInvalid);
             }
 
             var currentDate = TimeProvider.GetPreciseUtcDateTime();
@@ -147,12 +222,12 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 {
                     jwtCertificate?.Dispose();
                     Logger.WarnJwtHeaderCertificateInvalid(i);
-                    return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
+                    return fail(FidoMetadataDownloadFailures.X5CInvalid);
                 }
 
                 certificatesToDispose.Add(jwtCertificate);
                 jwtCertificates.Add(jwtCertificate);
-                if (currentDate < jwtCertificate.NotBefore || currentDate > jwtCertificate.NotAfter)
+                if (!isEmbedded && (currentDate < jwtCertificate.NotBefore || currentDate > jwtCertificate.NotAfter))
                 {
                     Logger.WarnJwtHeaderCertificateNotValidNow(
                         i,
@@ -160,16 +235,16 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                         jwtCertificate.NotBefore.ToUniversalTime(),
                         jwtCertificate.NotAfter.ToUniversalTime(),
                         currentDate);
-                    return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
+                    return fail(FidoMetadataDownloadFailures.X5CInvalid);
                 }
             }
 
-            // build root certificates chain that avoid expired certificates
+            // build root certificates chain that avoid expired certificates (the chain of the embedded blob is validated regardless of the validity period)
             var fidoRootCertificates = GetEmbeddedFidoRootCertificates();
             if (fidoRootCertificates.Count == 0)
             {
                 Logger.WarnRootCertificatesMissing();
-                return FailDownload(FidoMetadataDownloadFailures.RootCertificatesInvalid);
+                return fail(FidoMetadataDownloadFailures.RootCertificatesInvalid);
             }
 
             var rootCertificates = new List<X509Certificate2>();
@@ -180,11 +255,11 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 {
                     fidoRootCertificate?.Dispose();
                     Logger.WarnRootCertificateInvalid(rootCertificateIndex);
-                    return FailDownload(FidoMetadataDownloadFailures.RootCertificatesInvalid);
+                    return fail(FidoMetadataDownloadFailures.RootCertificatesInvalid);
                 }
 
                 certificatesToDispose.Add(fidoRootCertificate);
-                if (currentDate >= fidoRootCertificate.NotBefore && currentDate <= fidoRootCertificate.NotAfter)
+                if (isEmbedded || (currentDate >= fidoRootCertificate.NotBefore && currentDate <= fidoRootCertificate.NotAfter))
                 {
                     rootCertificates.Add(fidoRootCertificate);
                 }
@@ -195,7 +270,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             if (rootCertificates.Count == 0)
             {
                 Logger.WarnRootCertificatesNotValidNow(fidoRootCertificates.Count, currentDate);
-                return FailDownload(FidoMetadataDownloadFailures.RootCertificatesInvalid);
+                return fail(FidoMetadataDownloadFailures.RootCertificatesInvalid);
             }
 
             // https://www.rfc-editor.org/rfc/rfc7515#section-4.1.6
@@ -218,27 +293,30 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             else
             {
                 Logger.WarnJwtHeaderCertificateUnsupportedPublicKey(signingCertificate.Subject);
-                return FailDownload(FidoMetadataDownloadFailures.X5CInvalid);
+                return fail(FidoMetadataDownloadFailures.X5CInvalid);
             }
 
             X509Chain? jwtCertificateChain = null;
             try
             {
+                var chainValidationOptions = Options.CurrentValue.X509ChainValidation;
                 if (!X509TrustChainValidator.TryBuildFidoMetadataBlobJwtChain(
                         rootCertificates.ToArray(),
                         jwtCertificates.ToArray(),
-                        Options.CurrentValue.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain,
+                        isEmbedded
+                            ? chainValidationOptions.OnValidateEmbeddedFidoMetadataBlobJwtChain
+                            : chainValidationOptions.OnValidateFidoMetadataBlobJwtChain,
                         out jwtCertificateChain,
                         out var chainStatus))
                 {
                     Logger.WarnJwtCertificateChainInvalid(FormatChainStatus(chainStatus));
-                    return FailDownload(FidoMetadataDownloadFailures.ChainInvalid);
+                    return fail(FidoMetadataDownloadFailures.ChainInvalid);
                 }
 
-                if (!await ValidateJwtCertificateChainAsync(jwtCertificateChain, cancellationToken))
+                if (!isEmbedded && !await ValidateJwtCertificateChainAsync(jwtCertificateChain, cancellationToken))
                 {
                     Logger.WarnJwtCertificateChainRejected();
-                    return FailDownload(FidoMetadataDownloadFailures.ChainRejected);
+                    return fail(FidoMetadataDownloadFailures.ChainRejected);
                 }
             }
             finally
@@ -250,13 +328,13 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             if (!jwtValidationResult.IsValid)
             {
                 Logger.WarnJwtSignatureInvalid(jwtValidationResult.Exception);
-                return FailDownload(FidoMetadataDownloadFailures.SignatureInvalid);
+                return fail(FidoMetadataDownloadFailures.SignatureInvalid);
             }
 
             if (!Base64Url.TryDecode(jwt.EncodedPayload, out var jwtPayloadBytes))
             {
                 Logger.WarnJwtPayloadNotBase64Url();
-                return FailDownload(FidoMetadataDownloadFailures.PayloadInvalid);
+                return fail(FidoMetadataDownloadFailures.PayloadInvalid);
             }
 
             var payload = Encoding.UTF8.GetString(jwtPayloadBytes);
@@ -264,11 +342,9 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
             if (blobPayloadResult.HasError)
             {
                 Logger.WarnJwtPayloadDeserializationFailed();
-                return FailDownload(FidoMetadataDownloadFailures.PayloadInvalid);
+                return fail(FidoMetadataDownloadFailures.PayloadInvalid);
             }
 
-            Logger.DebugMetadataDownloaded(blobPayloadResult.Ok.No, blobPayloadResult.Ok.Entries?.Length ?? 0);
-            Counters.IncrementDownloadEnd(true);
             return Result<MetadataBLOBPayloadJSON>.Success(blobPayloadResult.Ok);
         }
         finally
@@ -293,6 +369,30 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         return Result<MetadataBLOBPayloadJSON>.Fail();
     }
 
+    // the blob embedded in the application is not provided: the reason (one of FidoMetadataEmbeddedBlobFailures) and the unsuccessful completion are counted
+    private Result<MetadataBLOBPayloadJSON> FailEmbeddedLoad(string reason)
+    {
+        Counters.IncrementEmbeddedLoadFailure(reason);
+        Counters.IncrementEmbeddedLoadEnd(false);
+        return Result<MetadataBLOBPayloadJSON>.Fail();
+    }
+
+    // The names of the manifest resources of the assembly, for the warning about a resource that is not found (the most common mistake is the name of the resource).
+    private static string FormatManifestResourceNames(Assembly assembly)
+    {
+        const int maxNames = 16;
+        var names = assembly.GetManifestResourceNames();
+        if (names.Length == 0)
+        {
+            return "<none>";
+        }
+
+        var formattedNames = string.Join(", ", names.Order(StringComparer.Ordinal).Take(maxNames).Select(static x => $"'{x}'"));
+        return names.Length > maxNames
+            ? $"{formattedNames}, ... ({names.Length} in total)"
+            : formattedNames;
+    }
+
     /// <summary>
     ///     Performs additional validation of the successfully built signing certificate chain of the blob obtained from the FIDO Metadata Service.
     /// </summary>
@@ -306,6 +406,10 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     ///         a revocation check against CRLs that the platform doesn't download (the .NET chain engine on macOS doesn't download CRLs at all,
     ///         and on Linux it downloads them only from <c>http://</c> URLs). In such a case, configure <see cref="X509ChainPolicy.RevocationMode" />
     ///         to <see cref="X509RevocationMode.NoCheck" /> in <see cref="X509ChainValidationOptions.OnValidateFidoMetadataBlobJwtChain" /> and check the revocation here.
+    ///     </para>
+    ///     <para>
+    ///         The method is called only for the blobs downloaded from the FIDO Metadata Service. The chain of the blob embedded in the application is validated only according to
+    ///         <see cref="X509ChainValidationOptions.OnValidateEmbeddedFidoMetadataBlobJwtChain" />, without the network.
     ///     </para>
     /// </remarks>
     /// <param name="chain">The successfully built signing certificate chain of the blob. The chain is disposed by the caller after this method completes.</param>
@@ -609,4 +713,41 @@ public static partial class DefaultFidoMetadataProviderLoggingExtensions
         Level = LogLevel.Debug,
         Message = "The FIDO Metadata Service blob (no: {No}) with {Entries} entries was downloaded and its signature was verified")]
     public static partial void DebugMetadataDownloaded(this ILogger logger, long no, int entries);
+
+    /// <summary>
+    ///     The FIDO Metadata Service blob embedded in the application can't be loaded: the assembly '{Assembly}' doesn't contain the manifest resource '{ResourceName}' (the manifest resources of the assembly: {ResourceNames})
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="resourceName">The name of the manifest resource that is expected to contain the blob.</param>
+    /// <param name="assembly">The full name of the assembly.</param>
+    /// <param name="resourceNames">The names of the manifest resources that the assembly contains.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service blob embedded in the application can't be loaded: the assembly '{Assembly}' doesn't contain the manifest resource '{ResourceName}' (the manifest resources of the assembly: {ResourceNames})")]
+    public static partial void WarnEmbeddedBlobResourceNotFound(this ILogger logger, string resourceName, string? assembly, string resourceNames);
+
+    /// <summary>
+    ///     The FIDO Metadata Service blob embedded in the application (the manifest resource '{ResourceName}' of the assembly '{Assembly}') was rejected: {Reason}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="resourceName">The name of the manifest resource that contains the blob.</param>
+    /// <param name="assembly">The full name of the assembly.</param>
+    /// <param name="reason">The reason why the blob was rejected (one of <see cref="FidoMetadataEmbeddedBlobFailures" />).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The FIDO Metadata Service blob embedded in the application (the manifest resource '{ResourceName}' of the assembly '{Assembly}') was rejected: {Reason}")]
+    public static partial void WarnEmbeddedBlobRejected(this ILogger logger, string resourceName, string? assembly, string reason);
+
+    /// <summary>
+    ///     The FIDO Metadata Service blob (no: {No}) with {Entries} entries embedded in the application (the manifest resource '{ResourceName}' of the assembly '{Assembly}') was loaded and its signature was verified
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="no">The serial number of the blob.</param>
+    /// <param name="entries">The number of entries in the blob.</param>
+    /// <param name="resourceName">The name of the manifest resource that contains the blob.</param>
+    /// <param name="assembly">The full name of the assembly.</param>
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "The FIDO Metadata Service blob (no: {No}) with {Entries} entries embedded in the application (the manifest resource '{ResourceName}' of the assembly '{Assembly}') was loaded and its signature was verified")]
+    public static partial void DebugEmbeddedMetadataLoaded(this ILogger logger, long no, int entries, string resourceName, string? assembly);
 }

@@ -19,6 +19,22 @@ internal sealed class NullFidoMetadataCounters : IFidoMetadataCounters
     {
     }
 
+    public void IncrementEmbeddedLoadStart()
+    {
+    }
+
+    public void IncrementEmbeddedLoadEnd(bool successful)
+    {
+    }
+
+    public void IncrementEmbeddedLoadFailure(string reason)
+    {
+    }
+
+    public void IncrementIngestException(string source)
+    {
+    }
+
     public void IncrementDecodeStart()
     {
     }

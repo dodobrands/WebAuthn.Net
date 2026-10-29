@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -175,6 +176,74 @@ public class DefaultFidoMetadataIngestServiceTests
         Assert.That(Logger.Entries.Where(static x => x.Level == LogLevel.Warning), Has.Exactly(1).Items);
     }
 
+    [Test]
+    public async Task DefaultFidoMetadataIngestService_UpsertEmbeddedAsync_WhenNoBlobIsInUse_AcceptsBlob()
+    {
+        var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
+        var ingestService = new DefaultFidoMetadataIngestService(storage, Counters, Logger);
+
+        await ingestService.UpsertEmbeddedAsync(CreateBlob(291, FirstAaguid), CancellationToken.None);
+
+        Assert.That(await storage.GetCurrentBlobNoAsync(CancellationToken.None), Is.EqualTo(291));
+        Assert.That(Logger.Entries.Single(static x => x.Level == LogLevel.Information).Message, Does.Contain("(no: 291) with 1 entries embedded in the application was ingested"));
+    }
+
+    [TestCase(300)]
+    [TestCase(291)]
+    public async Task DefaultFidoMetadataIngestService_UpsertEmbeddedAsync_WhenBlobInUseIsNotOlder_KeepsItWithoutReportingRollback(long currentNo)
+    {
+        // A persistent storage keeps the blob downloaded before the restart of the application, so an older embedded blob is expected: it is not a rollback.
+        var storage = new BlobNoTrackingIngestStorage(currentNo);
+        var ingestService = new DefaultFidoMetadataIngestService(storage, Counters, Logger);
+
+        await ingestService.UpsertEmbeddedAsync(CreateBlob(291, FirstAaguid), CancellationToken.None);
+
+        Assert.That(storage.Upserts, Is.Zero);
+        Assert.That(storage.CurrentBlobNo, Is.EqualTo(currentNo));
+        Assert.That(Counters.BlobsRejectedDueToRollback, Is.Zero);
+        Assert.That(Logger.Entries.Where(static x => x.Level >= LogLevel.Warning), Is.Empty);
+        Assert.That(Logger.Entries.Single(static x => x.Level == LogLevel.Information).Message, Does.Contain($"(no: 291) embedded in the application was not ingested because the metadata in use (no: {currentNo}) is not older"));
+    }
+
+    [Test]
+    public async Task DefaultFidoMetadataIngestService_UpsertEmbeddedAsync_WhenBlobInUseIsOlder_AcceptsBlob()
+    {
+        var storage = new BlobNoTrackingIngestStorage(285);
+        var ingestService = new DefaultFidoMetadataIngestService(storage, Counters, Logger);
+
+        await ingestService.UpsertEmbeddedAsync(CreateBlob(291, FirstAaguid), CancellationToken.None);
+
+        Assert.That(storage.Upserts, Is.EqualTo(1));
+        Assert.That(storage.CurrentBlobNo, Is.EqualTo(291));
+    }
+
+    [Test]
+    public async Task DefaultFidoMetadataIngestService_UpsertAsync_AfterEmbeddedBlob_RejectsOlderBlobFromFidoMetadataService()
+    {
+        // The embedded blob is a blob in use like any other, so a blob served by the FIDO Metadata Service must not roll it back.
+        var storage = new UpsertOnlyIngestStorage();
+        var ingestService = new DefaultFidoMetadataIngestService(storage, Counters, Logger);
+        await ingestService.UpsertEmbeddedAsync(CreateBlob(291, FirstAaguid), CancellationToken.None);
+
+        await ingestService.UpsertAsync(CreateBlob(290, FirstAaguid), CancellationToken.None);
+        await ingestService.UpsertAsync(CreateBlob(292, FirstAaguid), CancellationToken.None);
+
+        Assert.That(storage.Upserts, Is.EqualTo(2));
+        Assert.That(storage.LastUpserted?.No, Is.EqualTo(292));
+        Assert.That(Counters.BlobsRejectedDueToRollback, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task IFidoMetadataIngestService_UpsertEmbeddedAsync_ByDefault_UpsertsLikeUpsertAsync()
+    {
+        // An ingestion service implemented from scratch keeps compiling: the default interface method passes the embedded blob to UpsertAsync.
+        IFidoMetadataIngestService ingestService = new RecordingIngestService();
+
+        await ingestService.UpsertEmbeddedAsync(CreateBlob(291, FirstAaguid), CancellationToken.None);
+
+        Assert.That(((RecordingIngestService) ingestService).Upserted.Select(static x => x.No).Single(), Is.EqualTo(291));
+    }
+
     private static MetadataBlobPayload CreateBlob(long no, params Guid[] aaguids)
     {
         var entries = aaguids
@@ -227,6 +296,19 @@ public class DefaultFidoMetadataIngestServiceTests
         public Task<long?> GetCurrentBlobNoAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult(CurrentBlobNo);
+        }
+    }
+
+    private sealed class RecordingIngestService : IFidoMetadataIngestService
+    {
+        private readonly List<MetadataBlobPayload> _upserted = new();
+
+        public IReadOnlyList<MetadataBlobPayload> Upserted => _upserted;
+
+        public Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
+        {
+            _upserted.Add(metadataBlob);
+            return Task.CompletedTask;
         }
     }
 

@@ -145,7 +145,7 @@ public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
     /// </summary>
     /// <remarks>
     ///     The default is 5 minutes, which is enough to download the current blob (about 10.6 MB) even over a slow connection (about 300 kbit/s),
-    ///     while a hostile endpoint that sends the body slowly can't make the download (and the start of the application, which awaits the first download) hang indefinitely.
+    ///     while a hostile endpoint that sends the body slowly can't make the download (and the start of the application, which awaits the first download unless the blob embedded in the application is loaded) hang indefinitely.
     /// </remarks>
     /// <returns>The time limit for the whole download.</returns>
     protected virtual TimeSpan GetDownloadTimeout()

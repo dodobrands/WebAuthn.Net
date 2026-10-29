@@ -1,6 +1,8 @@
 using System.Diagnostics.Metrics;
 using NUnit.Framework;
 using WebAuthn.Net.DSL;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest.Constants;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 
 namespace WebAuthn.Net.Services.Metrics.Implementation;
 
@@ -14,6 +16,21 @@ public class DefaultFidoMetadataCountersTests
         new("webauthn.mds.download.end", 1, "status=fail"),
         new("webauthn.mds.download.start", 1, ""),
         new("webauthn.mds.download.end", 1, "status=ok")
+    };
+
+    private static readonly RecordedMeasurement[] ExpectedEmbeddedLoadMeasurements =
+    {
+        new("webauthn.mds.embedded.start", 1, ""),
+        new("webauthn.mds.embedded.failures", 1, "reason=resource_not_found"),
+        new("webauthn.mds.embedded.end", 1, "status=fail"),
+        new("webauthn.mds.embedded.start", 1, ""),
+        new("webauthn.mds.embedded.end", 1, "status=ok")
+    };
+
+    private static readonly RecordedMeasurement[] ExpectedIngestExceptionMeasurements =
+    {
+        new("webauthn.mds.ingest.exceptions", 1, "source=embedded"),
+        new("webauthn.mds.ingest.exceptions", 1, "source=mds")
     };
 
     private static readonly RecordedMeasurement[] ExpectedValueIgnoredMeasurements =
@@ -39,6 +56,33 @@ public class DefaultFidoMetadataCountersTests
         counters.IncrementDownloadEnd(true);
 
         Assert.That(recorder.Measurements, Is.EqualTo(ExpectedDownloadMeasurements));
+    }
+
+    [Test]
+    public void EmbeddedLoad_IsRecordedWithStatusAndFailureReason()
+    {
+        using var counters = new ObservableFidoMetadataCounters();
+        using var recorder = new MeterRecorder(counters.ObservedMeter);
+
+        counters.IncrementEmbeddedLoadStart();
+        counters.IncrementEmbeddedLoadFailure(FidoMetadataEmbeddedBlobFailures.ResourceNotFound);
+        counters.IncrementEmbeddedLoadEnd(false);
+        counters.IncrementEmbeddedLoadStart();
+        counters.IncrementEmbeddedLoadEnd(true);
+
+        Assert.That(recorder.Measurements, Is.EqualTo(ExpectedEmbeddedLoadMeasurements));
+    }
+
+    [Test]
+    public void IngestException_IsRecordedWithSource()
+    {
+        using var counters = new ObservableFidoMetadataCounters();
+        using var recorder = new MeterRecorder(counters.ObservedMeter);
+
+        counters.IncrementIngestException(FidoMetadataBlobSources.Embedded);
+        counters.IncrementIngestException(FidoMetadataBlobSources.FidoMetadataService);
+
+        Assert.That(recorder.Measurements, Is.EqualTo(ExpectedIngestExceptionMeasurements));
     }
 
     [Test]

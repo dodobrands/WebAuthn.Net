@@ -39,4 +39,9 @@ public static class Tags
     ///     The outcome of an anomaly: whether it was tolerated or caused a rejection.
     /// </summary>
     public const string Outcome = "outcome";
+
+    /// <summary>
+    ///     The source of the FIDO Metadata Service blob: embedded in the application or downloaded from the FIDO Metadata Service.
+    /// </summary>
+    public const string Source = "source";
 }

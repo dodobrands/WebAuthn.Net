@@ -25,6 +25,30 @@ public interface IFidoMetadataCounters
     void IncrementDownloadFailure(string reason);
 
     /// <summary>
+    ///     Increments the counter of <see cref="IFidoMetadataProvider" />.<see cref="IFidoMetadataProvider.LoadEmbeddedMetadataAsync" /> calls: the loads of the FIDO Metadata Service blob embedded in the application.
+    /// </summary>
+    void IncrementEmbeddedLoadStart();
+
+    /// <summary>
+    ///     Increments the counter of <see cref="IFidoMetadataProvider" />.<see cref="IFidoMetadataProvider.LoadEmbeddedMetadataAsync" /> completions.
+    /// </summary>
+    /// <param name="successful">Flag indicating whether the completion was successful: the embedded blob was read and its signature was verified.</param>
+    void IncrementEmbeddedLoadEnd(bool successful);
+
+    /// <summary>
+    ///     Increments the counter of the FIDO Metadata Service blobs embedded in the application that could not be loaded, or were rejected because they are malformed or their signature could not be verified.
+    /// </summary>
+    /// <param name="reason">The reason, one of a bounded set of values defined by the provider of the metadata (for example, <c>resource_not_found</c>).</param>
+    void IncrementEmbeddedLoadFailure(string reason);
+
+    /// <summary>
+    ///     Increments the counter of the attempts to load and ingest the FIDO Metadata Service blob that ended with an unexpected exception
+    ///     (for example, an exception of a resilience policy of the HttpClient or a timeout of a persistent storage) instead of a failed result.
+    /// </summary>
+    /// <param name="source">The source of the blob, one of a bounded set of values defined by the background ingestion (<c>embedded</c> or <c>mds</c>).</param>
+    void IncrementIngestException(string source);
+
+    /// <summary>
     ///     Increments the counter of <see cref="IFidoMetadataDecoder" />.<see cref="IFidoMetadataDecoder.Decode" /> calls.
     /// </summary>
     void IncrementDecodeStart();

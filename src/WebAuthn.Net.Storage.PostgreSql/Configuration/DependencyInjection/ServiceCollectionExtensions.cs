@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Configuration.Options;
-using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataBackgroundIngest;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Storage.PostgreSql.Configuration.Builder;
 using WebAuthn.Net.Storage.PostgreSql.Configuration.Options;
@@ -27,7 +27,7 @@ public static class ServiceCollectionExtensions
     ///     An optional delegate for configuring the HttpClient that will be used to access the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>. Here you can add retries using
     ///     <a href="https://github.com/App-vNext/Polly">Polly</a>, set timeouts, add your own DelegatingHandlers, or otherwise customize the behavior of HttpClient.
     /// </param>
-    /// <param name="configureBackgroundIngest">An optional delegate for configuring the behavior of metadata ingestion from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.</param>
+    /// <param name="configureIngestBackgroundService">An optional delegate for configuring the loading of metadata from <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a> (<see cref="FidoMetadataIngestBackgroundServiceOptions" />): the blob embedded in the application that is loaded at start-up, the intervals of the refreshes and of the retries after a failure, and whether the application fails to start without metadata.</param>
     /// <param name="configureRegistration">An optional delegate for configuring the behavior of the storage responsible for storing registration ceremony data.</param>
     /// <param name="configureAuthentication">An optional delegate for configuring the behavior of the storage responsible for storing authentication ceremony data.</param>
     /// <param name="configurePostgreSql">An optional delegate for configuring the parameters of PostgreSQL-based storage.</param>
@@ -36,14 +36,14 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         Action<WebAuthnOptions>? configure = null,
         Action<IHttpClientBuilder>? configureFidoHttpClientBuilder = null,
-        Action<FidoMetadataBackgroundIngestHostedServiceOptions>? configureBackgroundIngest = null,
+        Action<FidoMetadataIngestBackgroundServiceOptions>? configureIngestBackgroundService = null,
         Action<DefaultCookieRegistrationCeremonyStorageOptions>? configureRegistration = null,
         Action<DefaultCookieAuthenticationCeremonyStorageOptions>? configureAuthentication = null,
         Action<PostgreSqlOptions>? configurePostgreSql = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         services
-            .AddWebAuthnCore<DefaultPostgreSqlContext>(configure, configureFidoHttpClientBuilder, configureBackgroundIngest)
+            .AddWebAuthnCore<DefaultPostgreSqlContext>(configure, configureFidoHttpClientBuilder, configureIngestBackgroundService)
             .AddDefaultStorages(configureRegistration, configureAuthentication)
             .AddContextFactory<DefaultPostgreSqlContext, DefaultPostgreSqlContextFactory>()
             .AddCredentialStorage<DefaultPostgreSqlContext, DefaultPostgreSqlCredentialStorage<DefaultPostgreSqlContext>>();

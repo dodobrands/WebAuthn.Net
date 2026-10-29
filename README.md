@@ -46,6 +46,7 @@ The documentation for each project is described in its README.md file.
     - [ES384](https://www.rfc-editor.org/rfc/rfc9053.html#section-2.1)
     - [ES512](https://www.rfc-editor.org/rfc/rfc9053.html#section-2.1)
     - [EdDSA](https://www.rfc-editor.org/rfc/rfc9053.html#section-2.2) (via [libsodium](https://github.com/jedisct1/libsodium), because .NET currently [doesn't support Ed25519](https://github.com/dotnet/runtime/issues/14741))
+- ✅ [FIDO Metadata Service](https://fidoalliance.org/metadata) support: the metadata is verified and refreshed daily, a failed download is retried every minute, and the metadata can be [embedded in the application](src/WebAuthn.Net/README.md#embedding-the-metadata-in-the-application), so that the application starts and works even when the FIDO Metadata Service is unavailable
 - ✅ Processing of each request with a single transaction
 - ✅ Ready-to-use storage implementations
     - [Microsoft SQL Server](src/WebAuthn.Net.Storage.SqlServer)

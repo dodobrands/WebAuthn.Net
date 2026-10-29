@@ -255,15 +255,76 @@ The context is created by calling the `IWebAuthnContextFactory.CreateAsync` meth
 
 To ensure trustworthiness, the service refers to the metadata in the [FIDO Metadata Service](https://fidoalliance.org/metadata) and uses its data in the process of validating requests.
 
-WebAuthn.Net includes a background service (`FidoMetadataBackgroundIngestHostedService`, which implements the `IHostedService` and `IDisposable` interfaces) that downloads, verifies, and periodically updates these metadata in the background.
+WebAuthn.Net includes a background service (`FidoMetadataIngestBackgroundService`, derived from [`BackgroundService`](https://learn.microsoft.com/dotnet/core/extensions/workers)) that loads, verifies, and periodically updates these metadata. It loads them at start-up, in `StartAsync`, and then updates them in the background, in `ExecuteAsync`, until the application stops. By default, WebAuthn.Net keeps them in an in-memory storage.
 
-The service is designed to first download the data and then go into a background update. This is done so that the application, at start-up, downloads and verifies the blob from the FIDO Metadata Service, and then continues its initialization. After that, the metadata is updated every `IngestInterval` (1 day by default).
+### Loading and updates
 
-Meanwhile, WebAuthn.Net uses an in-memory storage implementation for such data.
+1. At start-up, the blob embedded in the application is loaded first, if you have embedded one (see [Embedding the metadata in the application](#embedding-the-metadata-in-the-application)).
+2. Then the blob is loaded from the FIDO Metadata Service, in any case:
+    - if the embedded blob has been loaded, the start of the application doesn't wait for the FIDO Metadata Service: the blob is downloaded in the background right away;
+    - otherwise, the start of the application waits for the first attempt to download the blob.
+3. If an attempt fails (the blob can't be downloaded, verified or decoded, or an exception occurs), the next attempt is made after `RetryInterval` (1 minute by default), and so on until the blob is loaded. The metadata in use, if any, is kept meanwhile.
+4. Once the blob is loaded, the metadata is refreshed every `IngestInterval` (1 day by default, as the FIDO Metadata Service [recommends](https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-considerations) for typical applications). If a refresh fails, the attempts are made every `RetryInterval` again until the blob is loaded.
 
-This approach is very simple and requires no complex logic, but it has one significant drawback:
+A failure never stops the background updates: it is logged and counted (see [Monitoring](#monitoring)), and the attempts go on. `ExecuteAsync` ends only when the application stops, so the host never treats the service as failed, which by default (`BackgroundServiceExceptionBehavior.StopHost`) would stop the whole application.
+
+The intervals are set in `FidoMetadataIngestBackgroundServiceOptions`, which are configured by the `configureIngestBackgroundService` parameter of the `AddWebAuthn*` extension methods:
+
+```csharp
+services.AddWebAuthnSqlServer(
+    configureIngestBackgroundService: ingest =>
+    {
+        ingest.RetryInterval = TimeSpan.FromMinutes(1);
+        ingest.IngestInterval = TimeSpan.FromDays(1);
+    },
+    configureSqlServer: sqlServer =>
+    {
+        sqlServer.ConnectionString = "CONNECTION_STRING_HERE";
+    });
+```
+
+### Embedding the metadata in the application
+
+So that the application starts with metadata and works even if the FIDO Metadata Service is unavailable (it is down, it limits the rate of the requests, or the outbound connections of the application are restricted), embed the blob in the application.
+
+1. Download the blob, for example, with `curl -L -o FidoMetadata/blob.jwt https://mds3.fidoalliance.org`. The retrieval and use of the blob are subject to the [legal terms of the FIDO Metadata Service](https://fidoalliance.org/metadata/metadata-legal-terms/).
+2. Embed the file in an assembly of the application as a manifest resource:
+
+    ```xml
+    <ItemGroup>
+      <EmbeddedResource Include="FidoMetadata/blob.jwt" LogicalName="FidoMetadata.blob.jwt" />
+    </ItemGroup>
+    ```
+
+    Without `LogicalName`, the name of the resource is the root namespace of the project followed by the path of the file, with dots instead of the directory separators (for example, `MyApp.FidoMetadata.blob.jwt`).
+3. Set `EmbeddedBlob` in `FidoMetadataIngestBackgroundServiceOptions` to the assembly and the name of the resource:
+
+    ```csharp
+    services.AddWebAuthnSqlServer(
+        configureIngestBackgroundService: ingest =>
+        {
+            ingest.EmbeddedBlob = new FidoMetadataEmbeddedBlobOptions(typeof(Program).Assembly, "FidoMetadata.blob.jwt");
+        },
+        configureSqlServer: sqlServer =>
+        {
+            sqlServer.ConnectionString = "CONNECTION_STRING_HERE";
+        });
+    ```
+
+    `FidoMetadataEmbeddedBlobOptions` (in the `WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest` namespace, like `FidoMetadataIngestBackgroundServiceOptions`) requires both the assembly and the name of the resource and throws an exception if either of them is missing, so the embedded blob is either specified completely or not specified at all (`EmbeddedBlob` is `null` by default).
+
+The embedded blob has to be the blob exactly as the FIDO Metadata Service serves it (a JWS). It is verified like a downloaded blob: its signature and its certificate chain up to the root certificates of the FIDO Metadata Service built into WebAuthn.Net. The only difference is that the validity period and the revocation status of the signing certificates are not checked, so that the embedded blob works regardless of the time and without the network: the blobs are signed with short-lived certificates (the certificate of the blob published in October 2026 is valid for about 200 days), so an embedded blob would otherwise stop working within months, and the revocation status can't be checked without the network. This is set by `OnValidateEmbeddedFidoMetadataBlobJwtChain` in `X509ChainValidationOptions` and doesn't affect the blobs downloaded from the FIDO Metadata Service.
+
+- The blob from the FIDO Metadata Service replaces the embedded one as soon as it is loaded, so the embedded blob is used only until then.
+- An embedded blob that is not newer than the metadata in use (for example, a persistent storage keeps the blob downloaded before the restart of the application) is not ingested.
+- If the embedded blob can't be loaded (for example, the resource is not found: the warning lists the names of the resources of the assembly), the reason is logged and counted, and the metadata is loaded from the FIDO Metadata Service only, as if no blob were embedded.
+
+The statuses of the authenticators in the embedded blob become outdated over time, and the application relies on them for as long as the FIDO Metadata Service is unavailable. Therefore, update the embedded blob regularly, for example, download it in the build pipeline of the application.
+
+### Without metadata
+
 > [!WARNING]
-> If the FIDO Metadata Service is unavailable at start-up, or the downloaded blob can't be verified, the application starts without metadata. A warning is logged, and the next attempt is made only after `IngestInterval`.
+> If no blob is embedded in the application and the FIDO Metadata Service is unavailable at start-up, or the downloaded blob can't be verified, the application starts without metadata. A warning is logged, and the attempts to load the blob are made every `RetryInterval` until it is loaded.
 
 Until the metadata is available:
 
@@ -271,15 +332,28 @@ Until the metadata is available:
 - `tpm`, `android-key` and `android-safetynet` attestation statements are verified against the root certificates built into WebAuthn.Net, without the authenticator statuses from the metadata;
 - `none`, `apple` and `packed` self attestation don't depend on the metadata.
 
-Both situations are counted in the `WebAuthn.Net.FidoMetadata` meter, so you can alert on them: a blob that can't be downloaded or verified increments `webauthn.mds.download.failures` (the `reason` tag tells why, for example `request_failed` or `chain_invalid`), and every lookup performed without metadata increments `webauthn.mds.search.no_metadata`.
+If the application shouldn't start without metadata, set `ThrowExceptionOnFailure` to `true` in `FidoMetadataIngestBackgroundServiceOptions`. Then the start of the application fails with an exception if no metadata could be loaded at start-up: neither the embedded blob nor the blob from the FIDO Metadata Service. The flag applies only to the start-up: the failures of the background updates never throw.
 
-If the application shouldn't start without metadata, set `ThrowExceptionOnFailure` to `true` in `FidoMetadataBackgroundIngestHostedServiceOptions` (the `configureBackgroundIngest` parameter of the `AddWebAuthn*` extension methods).
+### Monitoring
+
+The loading of the metadata is counted in the `WebAuthn.Net.FidoMetadata` meter, so you can alert on it:
+
+- `webauthn.mds.download.failures` is incremented for a blob that can't be downloaded or verified (the `reason` tag tells why, for example `request_failed` or `chain_invalid`). While the FIDO Metadata Service is unavailable, it grows every `RetryInterval`;
+- `webauthn.mds.embedded.failures` is incremented when the blob embedded in the application can't be loaded (the `reason` tag tells why, for example `resource_not_found` or `signature_invalid`);
+- `webauthn.mds.ingest.exceptions` is incremented when an attempt to load a blob ends with an unexpected exception, for example, of a resilience policy of the HttpClient or of a persistent storage (the `source` tag is `embedded` or `mds`). Such an exception is also logged at the `Error` level;
+- `webauthn.mds.search.no_metadata` is incremented for every lookup performed without metadata.
+
+Besides, the service logs at the `Information` level its start and its stop, every successful load, and, before each wait, how long the wait lasts and when the next attempt is made. A failed load is logged at the `Warning` level (`Error` for an unexpected exception).
+
+### Statuses of authenticators
 
 An authenticator that has no entry in the metadata is handled the same way as when no metadata is available. When the metadata has an entry for the authenticator, its status reports are checked first. If they don't allow to trust the authenticator (`REVOKED`, `ATTESTATION_KEY_COMPROMISE`, `USER_KEY_REMOTE_COMPROMISE`, `USER_KEY_PHYSICAL_COMPROMISE`, `USER_VERIFICATION_BYPASS`, `UPDATE_AVAILABLE`, `RETIRED`, or no status known to WebAuthn.Net), the registration is rejected for every attestation statement format that uses the metadata: `packed` with a certificate chain, `fido-u2f`, `tpm`, `android-key` and `android-safetynet`. This holds even if the attestation chains up to a root certificate built into WebAuthn.Net: the revocation of attestation certificates isn't checked through X.509 revocation lists, so the statuses in the metadata are how revoked authenticator models are recognized. Every such lookup logs a warning and increments `webauthn.mds.search.untrusted`. To change which statuses are trusted, override `CanTrustMetadata` in a class derived from `DefaultFidoMetadataSearchService<TContext>`.
 
 For `fido-u2f` attestation statements, the authenticator model is identified by the attestation certificate only: by the AAGUID of its `id-fido-gen-ce-aaguid` extension, then by its key identifier (listed in `attestationCertificateKeyIdentifiers` of the metadata), and then by the value of its Subject Key Identifier extension. The FIDO U2F attestation signature doesn't cover the AAGUID of the authenticator data, so that AAGUID is never used to find the metadata, and a registration whose non-zero AAGUID differs from the AAGUID extension of the attestation certificate is rejected: a warning is logged and `webauthn.reg.attestation.anomalies` is incremented.
 
-You can also implement your own storage and update of metadata based on a persistent storage, so that the application doesn't depend on the availability of the FIDO Metadata Service at start-up. The search methods of `IFidoMetadataSearchStorage<TContext>` report why nothing was found: `NotFound` if the storage has metadata but no entry for the authenticator, or `MetadataNotAvailable` if it has no metadata at all, so that the latter is logged and counted.
+### Custom storage
+
+You can also implement your own storage of metadata based on a persistent storage, so that the metadata survive the restarts of the application (implement `IFidoMetadataIngestStorage` and `IFidoMetadataSearchStorage<TContext>`). Such a storage should report the serial number of the stored blob (`IFidoMetadataIngestStorage.GetCurrentBlobNoAsync`), so that an older blob never replaces it, including the embedded one. The search methods of `IFidoMetadataSearchStorage<TContext>` report why nothing was found: `NotFound` if the storage has metadata but no entry for the authenticator, or `MetadataNotAvailable` if it has no metadata at all, so that the latter is logged and counted.
 
 ## Dependency Injection
 

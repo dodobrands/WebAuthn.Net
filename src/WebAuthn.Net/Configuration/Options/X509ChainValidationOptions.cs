@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Security.Cryptography.X509Certificates;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
 
 namespace WebAuthn.Net.Configuration.Options;
@@ -12,6 +13,9 @@ public class X509ChainValidationOptions
     /// <summary>
     ///     A delegate that is called during the validation of the X509v3 certificate chain of a metadata blob returned by the <a href="https://fidoalliance.org/metadata">FIDO Metadata Service</a>.
     /// </summary>
+    /// <remarks>
+    ///     <see cref="X509ChainPolicy.TrustMode" /> is set to <see cref="X509ChainTrustMode.CustomRootTrust" /> before this delegate is called, so that only the root certificates of the FIDO Metadata Service are trust anchors.
+    /// </remarks>
     public Action<X509Chain> OnValidateFidoMetadataBlobJwtChain { get; set; } = chain =>
     {
         chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
@@ -19,6 +23,43 @@ public class X509ChainValidationOptions
         chain.ChainPolicy.UrlRetrievalTimeout = TimeSpan.FromSeconds(10);
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
         chain.ChainPolicy.VerificationFlags = X509VerificationFlags.NoFlag;
+    };
+
+    /// <summary>
+    ///     A delegate that is called during the validation of the X509v3 certificate chain of the metadata blob embedded in the application
+    ///     (see <see cref="FidoMetadataIngestBackgroundServiceOptions.EmbeddedBlob" />).
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The embedded blob is a part of the application: it has been obtained from the FIDO Metadata Service when the application was built, and it is used when the FIDO Metadata Service is unavailable.
+    ///         Its signature and its certificate chain up to the root certificates of the FIDO Metadata Service are verified like those of a downloaded blob, but the default delegate doesn't check
+    ///         what describes the signing certificates at the current time rather than at the time the blob was signed:
+    ///     </para>
+    ///     <list type="bullet">
+    ///         <item>
+    ///             <description>
+    ///                 the validity period (<see cref="X509VerificationFlags.IgnoreNotTimeValid" />): the blobs are signed with short-lived certificates (the certificate of the blob published in October 2026 is valid for about 200 days),
+    ///                 so a blob embedded in the application would otherwise become unusable within months, or within days if it was signed shortly before its certificate expired;
+    ///             </description>
+    ///         </item>
+    ///         <item>
+    ///             <description>
+    ///                 the revocation status (<see cref="X509RevocationMode.NoCheck" />, and <see cref="X509ChainPolicy.DisableCertificateDownloads" /> is <see langword="true" />): it can't be checked without the network,
+    ///                 and certification authorities may stop publishing the revocation status of a certificate once it expires.
+    ///             </description>
+    ///         </item>
+    ///     </list>
+    ///     <para>
+    ///         This doesn't affect the blobs downloaded from the FIDO Metadata Service, which are validated according to <see cref="OnValidateFidoMetadataBlobJwtChain" />.
+    ///         <see cref="X509ChainPolicy.TrustMode" /> is set to <see cref="X509ChainTrustMode.CustomRootTrust" /> before this delegate is called.
+    ///     </para>
+    /// </remarks>
+    public Action<X509Chain> OnValidateEmbeddedFidoMetadataBlobJwtChain { get; set; } = chain =>
+    {
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        chain.ChainPolicy.DisableCertificateDownloads = true;
+        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+        chain.ChainPolicy.VerificationFlags = X509VerificationFlags.IgnoreNotTimeValid;
     };
 
     /// <summary>
