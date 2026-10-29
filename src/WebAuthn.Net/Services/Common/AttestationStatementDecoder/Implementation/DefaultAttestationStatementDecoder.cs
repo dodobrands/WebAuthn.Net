@@ -20,9 +20,6 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
     /// <param name="androidKeyDecoder">
     ///     Decoder of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-key-attestation">Android Key attestation statement</a> into a typed representation.
     /// </param>
-    /// <param name="androidSafetyNetDecoder">
-    ///     Decoder of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a> into a typed representation.
-    /// </param>
     /// <param name="appleAnonymousDecoder">
     ///     Decoder of <a href="https://www.w3.org/TR/webauthn-3/#sctn-apple-anonymous-attestation">Apple Anonymous attestation statement</a> into a typed representation.
     /// </param>
@@ -33,7 +30,6 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAttestationStatementDecoder(
         IAndroidKeyAttestationStatementDecoder androidKeyDecoder,
-        IAndroidSafetyNetAttestationStatementDecoder androidSafetyNetDecoder,
         IAppleAnonymousAttestationStatementDecoder appleAnonymousDecoder,
         IFidoU2FAttestationStatementDecoder fidoU2FDecoder,
         INoneAttestationStatementDecoder noneDecoder,
@@ -41,14 +37,12 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
         ITpmAttestationStatementDecoder tpmDecoder)
     {
         ArgumentNullException.ThrowIfNull(androidKeyDecoder);
-        ArgumentNullException.ThrowIfNull(androidSafetyNetDecoder);
         ArgumentNullException.ThrowIfNull(appleAnonymousDecoder);
         ArgumentNullException.ThrowIfNull(fidoU2FDecoder);
         ArgumentNullException.ThrowIfNull(noneDecoder);
         ArgumentNullException.ThrowIfNull(packedDecoder);
         ArgumentNullException.ThrowIfNull(tpmDecoder);
         AndroidKeyDecoder = androidKeyDecoder;
-        AndroidSafetyNetDecoder = androidSafetyNetDecoder;
         AppleAnonymousDecoder = appleAnonymousDecoder;
         FidoU2FDecoder = fidoU2FDecoder;
         NoneDecoder = noneDecoder;
@@ -60,11 +54,6 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
     ///     Decoder of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-key-attestation">Android Key attestation statement</a> into a typed representation.
     /// </summary>
     protected IAndroidKeyAttestationStatementDecoder AndroidKeyDecoder { get; }
-
-    /// <summary>
-    ///     Decoder of <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-safetynet-attestation">Android SafetyNet attestation statement</a> into a typed representation.
-    /// </summary>
-    protected IAndroidSafetyNetAttestationStatementDecoder AndroidSafetyNetDecoder { get; }
 
     /// <summary>
     ///     Decoder of <a href="https://www.w3.org/TR/webauthn-3/#sctn-apple-anonymous-attestation">Apple Anonymous attestation statement</a> into a typed representation.
@@ -107,7 +96,6 @@ public class DefaultAttestationStatementDecoder : IAttestationStatementDecoder
             AttestationStatementFormat.Packed => Transform(PackedDecoder.Decode(attStmt)),
             AttestationStatementFormat.Tpm => Transform(TpmDecoder.Decode(attStmt)),
             AttestationStatementFormat.AndroidKey => Transform(AndroidKeyDecoder.Decode(attStmt)),
-            AttestationStatementFormat.AndroidSafetyNet => Transform(AndroidSafetyNetDecoder.Decode(attStmt)),
             AttestationStatementFormat.FidoU2F => Transform(FidoU2FDecoder.Decode(attStmt)),
             AttestationStatementFormat.None => Transform(NoneDecoder.Decode(attStmt)),
             AttestationStatementFormat.AppleAnonymous => Transform(AppleAnonymousDecoder.Decode(attStmt)),

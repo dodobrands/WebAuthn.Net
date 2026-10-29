@@ -29,12 +29,6 @@ public enum AttestationStatementFormat
     AndroidKey = 2,
 
     /// <summary>
-    ///     Android-based platform authenticators MAY produce an attestation statement based on the Android SafetyNet API.
-    /// </summary>
-    [EnumMember(Value = "android-safetynet")]
-    AndroidSafetyNet = 3,
-
-    /// <summary>
     ///     Used with FIDO U2F authenticators
     /// </summary>
     [EnumMember(Value = "fido-u2f")]
