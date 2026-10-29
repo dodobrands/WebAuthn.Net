@@ -34,7 +34,7 @@ public interface IRegistrationCeremonyCounters
     ///     Increments the counter of the anomalies found while verifying an attestation statement during the registration ceremony:
     ///     deviations from the specifications that the library tolerates (the attestation statement is still accepted), and values unknown to the library or inconsistent with the attestation
     ///     that cause the attestation statement to be rejected (for example, a TPM manufacturer that is not in the library's copy of the TCG TPM Vendor ID Registry,
-    ///     or an aaguid of the authenticator data that differs from the aaguid of the FIDO U2F attestation certificate).
+    ///     or a non-zero aaguid in the authenticator data of a FIDO U2F attestation statement).
     /// </summary>
     /// <param name="fmt">The <a href="https://www.w3.org/TR/webauthn-3/#attestation-statement-format-identifier">attestation statement format identifier</a> (for example, <c>tpm</c>).</param>
     /// <param name="anomaly">The anomaly, one of a bounded set of values defined by the verifier of the attestation statement format (for example, <c>pubarea.reserved_bit_3</c>).</param>
