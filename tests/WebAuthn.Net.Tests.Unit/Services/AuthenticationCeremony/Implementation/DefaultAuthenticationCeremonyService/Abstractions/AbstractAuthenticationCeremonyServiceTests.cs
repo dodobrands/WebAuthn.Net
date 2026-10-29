@@ -34,6 +34,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngestService;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataSearchService;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Metrics.Implementation;
 using WebAuthn.Net.Services.RegistrationCeremony.Implementation;
@@ -145,11 +146,12 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
                 throw new InvalidOperationException("Can't decode metadata");
             }
 
-            var storage = new DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext>();
-            metadataSearchService = new(storage, TimeProvider);
-            var metadataIngestService = new DefaultFidoMetadataIngestService(storage);
+            MetadataBlob = decodeMetadataResult.Ok;
+            MetadataStorage = new();
+            metadataSearchService = new(MetadataStorage, TimeProvider);
+            var metadataIngestService = new DefaultFidoMetadataIngestService(MetadataStorage);
             await metadataIngestService.UpsertAsync(
-                decodeMetadataResult.Ok,
+                MetadataBlob,
                 CancellationToken.None);
         }
 
@@ -174,7 +176,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             TimeProvider,
             digitalSignatureVerifier,
             asn1Deserializer,
-            metadataSearchService);
+            metadataSearchService,
+            NullLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             asn1Deserializer,
@@ -198,7 +201,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(coseDecoder, cborDeserializer, NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
         var packedDecoder = new DefaultPackedAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultPackedAttestationStatementDecoder>.Instance);
         var tpmDecoder = new DefaultTpmAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
-        var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);
+        var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);
         var fidoU2FDecoder = new DefaultFidoU2FAttestationStatementDecoder(NullLogger<DefaultFidoU2FAttestationStatementDecoder>.Instance);
         var noneDecoder = new DefaultNoneAttestationStatementDecoder(NullLogger<DefaultNoneAttestationStatementDecoder>.Instance);
         var appleAnonymousDecoder = new DefaultAppleAnonymousAttestationStatementDecoder(NullLogger<DefaultAppleAnonymousAttestationStatementDecoder>.Instance);
@@ -295,4 +298,6 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
     protected FakeWebAuthnContextFactory ContextFactory { get; set; } = null!;
     protected DefaultRegistrationCeremonyCounters RegistrationCounters { get; set; } = null!;
     protected FakeAuthenticationCeremonyCounters AuthenticationCounters { get; set; } = null!;
+    protected MetadataBlobPayload MetadataBlob { get; set; } = null!;
+    protected DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext> MetadataStorage { get; set; } = null!;
 }

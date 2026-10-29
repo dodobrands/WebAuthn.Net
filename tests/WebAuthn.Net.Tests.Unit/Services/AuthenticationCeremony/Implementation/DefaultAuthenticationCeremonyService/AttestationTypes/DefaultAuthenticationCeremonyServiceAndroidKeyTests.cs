@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
+using WebAuthn.Net.DSL;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.DefaultAuthenticationCeremonyService.Abstractions;
 using WebAuthn.Net.Services.AuthenticationCeremony.Models.CreateOptions;
@@ -24,6 +25,9 @@ public class DefaultAuthenticationCeremonyServiceAndroidKeyTests : AbstractAuthe
     [SetUp]
     public async Task SetupRegistrationAsync()
     {
+        // The attestation certificate of the test vector chains up to a Google Hardware Attestation root, and the authenticator data has the zero aaguid,
+        // for which the downloaded blob has no entry: the Android Key attestation statement doesn't attest the aaguid, so its entry has to list that root.
+        await MetadataStorage.UpsertAsync(MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.AndroidAuthenticatorAaguid), CancellationToken.None);
         TimeProvider.Change(DateTimeOffset.Parse("2023-11-02T13:29:06Z", CultureInfo.InvariantCulture));
         var userId = WebEncoders.Base64UrlDecode("AAAAAAAAAAAAAAAAAAAAAQ");
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(

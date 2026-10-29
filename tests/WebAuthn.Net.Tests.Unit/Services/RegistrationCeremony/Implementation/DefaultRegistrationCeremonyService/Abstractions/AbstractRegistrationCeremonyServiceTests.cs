@@ -159,6 +159,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             asn1Deserializer,
             metadataSearchService,
             NullLogger<DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
+        TpmVerifierLogger = new();
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             new DefaultTpmPubAreaDecoder(),
@@ -168,13 +169,15 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             asn1Deserializer,
             metadataSearchService,
             RegistrationCounters,
-            NullLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
+            TpmVerifierLogger);
+        AndroidKeyVerifierLogger = new();
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
             digitalSignatureVerifier,
             asn1Deserializer,
-            metadataSearchService);
+            metadataSearchService,
+            AndroidKeyVerifierLogger);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
             asn1Deserializer,
@@ -198,7 +201,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(coseDecoder, cborDeserializer, NullLogger<DefaultAuthenticatorDataDecoder>.Instance);
         var packedDecoder = new DefaultPackedAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultPackedAttestationStatementDecoder>.Instance);
         var tpmDecoder = new DefaultTpmAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultTpmAttestationStatementDecoder>.Instance);
-        var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);
+        var androidKeyDecoder = new DefaultAndroidKeyAttestationStatementDecoder(RegistrationCounters, NullLogger<DefaultAndroidKeyAttestationStatementDecoder>.Instance);
         var fidoU2FDecoder = new DefaultFidoU2FAttestationStatementDecoder(NullLogger<DefaultFidoU2FAttestationStatementDecoder>.Instance);
         var noneDecoder = new DefaultNoneAttestationStatementDecoder(NullLogger<DefaultNoneAttestationStatementDecoder>.Instance);
         var appleAnonymousDecoder = new DefaultAppleAnonymousAttestationStatementDecoder(NullLogger<DefaultAppleAnonymousAttestationStatementDecoder>.Instance);
@@ -298,4 +301,6 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected DefaultInMemoryFidoMetadataStorage<FakeWebAuthnContext> MetadataStorage { get; set; } = null!;
     protected FakeFidoMetadataCounters FidoMetadataCounters { get; set; } = null!;
     protected FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>> FidoMetadataSearchLogger { get; set; } = null!;
+    protected FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>> TpmVerifierLogger { get; set; } = null!;
+    protected FakeLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>> AndroidKeyVerifierLogger { get; set; } = null!;
 }
