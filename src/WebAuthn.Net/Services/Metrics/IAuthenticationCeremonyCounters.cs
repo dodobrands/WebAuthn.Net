@@ -34,7 +34,7 @@ public interface IAuthenticationCeremonyCounters
     ///     signals that the Relying Party policy either tolerates (the response is still accepted) or treats as a reason to reject the response
     ///     (for example, a signature counter that did not increase, which may mean that the authenticator is cloned).
     /// </summary>
-    /// <param name="anomaly">The anomaly, one of a bounded set of values defined by the authentication ceremony service (for example, <c>sign_count.not_increased</c>).</param>
+    /// <param name="anomaly">The anomaly, one of a bounded set of values defined by the authentication ceremony service and the decoder of the response (for example, <c>sign_count.not_increased</c>).</param>
     /// <param name="tolerated"><see langword="true" /> if the response was accepted despite the anomaly, <see langword="false" /> if it was rejected because of it.</param>
     void IncrementResponseAnomaly(string anomaly, bool tolerated);
 }

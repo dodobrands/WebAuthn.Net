@@ -1,8 +1,8 @@
 namespace WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Constants;
 
 /// <summary>
-///     The anomalies that <see cref="DefaultAuthenticationCeremonyService{TContext}" /> reports with a Warning log entry and the
-///     <c>webauthn.authn.response.anomalies</c> counter (<see cref="Metrics.IAuthenticationCeremonyCounters.IncrementResponseAnomaly" />).
+///     The anomalies that <see cref="DefaultAuthenticationCeremonyService{TContext}" /> and <see cref="Services.AuthenticationResponseDecoder.Implementation.DefaultAuthenticationResponseDecoder" />
+///     report with a Warning log entry and the <c>webauthn.authn.response.anomalies</c> counter (<see cref="Metrics.IAuthenticationCeremonyCounters.IncrementResponseAnomaly" />).
 /// </summary>
 public static class AuthenticationResponseAnomalies
 {
@@ -12,4 +12,10 @@ public static class AuthenticationResponseAnomalies
     ///     Rejected when <see cref="Configuration.Options.AuthenticationCeremonyOptions.AbortCeremonyWhenSignCountIsLessOrEqualStoredValue" /> is <see langword="true" /> (the default), otherwise tolerated.
     /// </summary>
     public const string SignCountNotIncreased = "sign_count.not_increased";
+
+    /// <summary>
+    ///     Rejected: 'response.authenticatorData' encodes more than 128 KiB. The authenticator data is decoded (its extensions from CBOR) before the signature over it is verified,
+    ///     and in an assertion it takes 37 bytes plus the extension outputs, usually well under 1 KB, so the response is rejected before the authenticator data is decoded.
+    /// </summary>
+    public const string AuthenticatorDataTooLarge = "authenticator_data.too_large";
 }

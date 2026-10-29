@@ -1,8 +1,11 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.AuthenticationCeremony.VerifyAssertion;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Models.Protocol.Json.AuthenticationCeremony.VerifyAssertion;
+using WebAuthn.Net.Services.AuthenticationCeremony.Implementation.Constants;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Static;
 
@@ -13,20 +16,35 @@ namespace WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationRe
 /// </summary>
 public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecoder
 {
+    // The authenticator data is decoded (its extensions from CBOR) before the signature over it is verified, so its size is limited first.
+    // In an assertion it takes 37 bytes plus the extension outputs, usually well under 1 KB.
+    private const int MaxAuthenticatorDataSize = 128 * 1024;
+
+    // the length of the base64url encoding (without padding) of MaxAuthenticatorDataSize bytes: a longer 'authenticatorData' encodes more bytes
+    private const int MaxAuthenticatorDataLength = ((MaxAuthenticatorDataSize * 4) + 2) / 3;
+
     /// <summary>
     ///     Constructs <see cref="DefaultAuthenticationResponseDecoder" />.
     /// </summary>
     /// <param name="authenticatorAttachmentSerializer">Serializer for the <see cref="AuthenticatorAttachment" /> enum.</param>
     /// <param name="publicKeyCredentialTypeSerializer">Serializer for the <see cref="PublicKeyCredentialType" /> enum.</param>
+    /// <param name="counters">Counters for authentication ceremony metrics, used to count the anomalies found while decoding the response.</param>
+    /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAuthenticationResponseDecoder(
         IEnumMemberAttributeSerializer<AuthenticatorAttachment> authenticatorAttachmentSerializer,
-        IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer)
+        IEnumMemberAttributeSerializer<PublicKeyCredentialType> publicKeyCredentialTypeSerializer,
+        IAuthenticationCeremonyCounters counters,
+        ILogger<DefaultAuthenticationResponseDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(authenticatorAttachmentSerializer);
         ArgumentNullException.ThrowIfNull(publicKeyCredentialTypeSerializer);
+        ArgumentNullException.ThrowIfNull(counters);
+        ArgumentNullException.ThrowIfNull(logger);
         AuthenticatorAttachmentSerializer = authenticatorAttachmentSerializer;
         PublicKeyCredentialTypeSerializer = publicKeyCredentialTypeSerializer;
+        Counters = counters;
+        Logger = logger;
     }
 
     /// <summary>
@@ -38,6 +56,17 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
     ///     Serializer for the <see cref="PublicKeyCredentialType" /> enum.
     /// </summary>
     protected IEnumMemberAttributeSerializer<PublicKeyCredentialType> PublicKeyCredentialTypeSerializer { get; }
+
+    /// <summary>
+    ///     Counters for authentication ceremony metrics, used to count the anomalies found while decoding the response
+    ///     (see <see cref="AuthenticationResponseAnomalies" />).
+    /// </summary>
+    protected IAuthenticationCeremonyCounters Counters { get; }
+
+    /// <summary>
+    ///     Logger.
+    /// </summary>
+    protected ILogger<DefaultAuthenticationResponseDecoder> Logger { get; }
 
     /// <inheritdoc />
     public virtual Result<AuthenticationResponse> Decode(AuthenticationResponseJSON authenticationResponse)
@@ -128,6 +157,13 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
             return Result<AuthenticatorAssertionResponse>.Fail();
         }
 
+        if (response.AuthenticatorData.Length > MaxAuthenticatorDataLength)
+        {
+            Logger.AuthenticatorDataTooLarge(response.AuthenticatorData.Length, MaxAuthenticatorDataLength, MaxAuthenticatorDataSize);
+            Counters.IncrementResponseAnomaly(AuthenticationResponseAnomalies.AuthenticatorDataTooLarge, false);
+            return Result<AuthenticatorAssertionResponse>.Fail();
+        }
+
         if (!Base64Url.TryDecode(response.AuthenticatorData, out var authenticatorData))
         {
             return Result<AuthenticatorAssertionResponse>.Fail();
@@ -199,4 +235,22 @@ public class DefaultAuthenticationResponseDecoder : IAuthenticationResponseDecod
 
         return Result<PublicKeyCredentialType>.Success(publicKeyCredentialType.Value);
     }
+}
+
+/// <summary>
+///     Extension methods for logging the authentication response decoder.
+/// </summary>
+public static partial class DefaultAuthenticationResponseDecoderLoggingExtensions
+{
+    /// <summary>
+    ///     The 'response.authenticatorData' of the authentication response is {Length} characters long, which exceeds the maximum of {MaxLength} characters (the base64url encoding of {MaxSize} bytes); the response is rejected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="length">The length of the base64url-encoded authenticator data of the response.</param>
+    /// <param name="maxLength">The maximum length of the base64url-encoded authenticator data that is accepted.</param>
+    /// <param name="maxSize">The maximum size of the authenticator data in bytes that is accepted.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'response.authenticatorData' of the authentication response is {Length} characters long, which exceeds the maximum of {MaxLength} characters (the base64url encoding of {MaxSize} bytes); the response is rejected")]
+    public static partial void AuthenticatorDataTooLarge(this ILogger logger, int length, int maxLength, int maxSize);
 }

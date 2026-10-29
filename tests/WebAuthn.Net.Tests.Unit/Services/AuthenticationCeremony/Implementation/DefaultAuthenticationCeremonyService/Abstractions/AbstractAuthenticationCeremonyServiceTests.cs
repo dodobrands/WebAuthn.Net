@@ -225,11 +225,12 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             new DefaultEnumMemberAttributeSerializer<AuthenticatorTransport>(),
             new DefaultEnumMemberAttributeSerializer<UserVerificationRequirement>(),
             new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialHints>());
+        AuthenticationCounters = new();
         var authenticationResponseDecoder = new DefaultAuthenticationResponseDecoder(
             new DefaultEnumMemberAttributeSerializer<AuthenticatorAttachment>(),
-            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>());
-
-        AuthenticationCounters = new();
+            new DefaultEnumMemberAttributeSerializer<PublicKeyCredentialType>(),
+            AuthenticationCounters,
+            NullLogger<DefaultAuthenticationResponseDecoder>.Instance);
 
         RegistrationCeremonyService = new(
             Options,
