@@ -12,8 +12,8 @@ public static class FidoU2FAttestationStatementAnomalies
     public const string Format = "fido-u2f";
 
     /// <summary>
-    ///     Rejected: the aaguid of the authenticator data is not zero and differs from the aaguid of the id-fido-gen-ce-aaguid extension of the attestation certificate.
-    ///     The FIDO U2F attestation signature doesn't cover the aaguid of the authenticator data, so only the extension attests the authenticator model, and the authenticator data claims another one.
+    ///     Rejected: the aaguid of the authenticator data is not zero.
+    ///     The client builds the authenticator data of a FIDO U2F attestation with an aaguid of all zeros (FIDO CTAP §10.2), and the FIDO U2F attestation signature doesn't cover it, so a non-zero aaguid is attested by nothing.
     /// </summary>
-    public const string AuthenticatorDataAaguidMismatch = "authdata.aaguid_mismatch";
+    public const string AuthenticatorDataAaguidNotZero = "authdata.aaguid_not_zero";
 }

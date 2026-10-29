@@ -91,17 +91,21 @@ public class DefaultRegistrationCeremonyServiceFidoU2FTests : AbstractRegistrati
         Assert.Multiple(() =>
         {
             Assert.That(completeResult.HasError, Is.True);
-            // the metadata isn't consulted at all: the claimed aaguid differs from the aaguid extension of the attestation certificate
+            // the metadata isn't consulted at all: a non-zero aaguid of the authenticator data is rejected first
             Assert.That(FidoMetadataCounters.LookupsWithUntrustedEntry, Is.Zero);
         });
     }
 
-    [Test]
-    public async Task DefaultRegistrationCeremonyService_PerformsCeremonyForFidoU2F_WhenAuthenticatorDataAaguidMatchesAaguidExtension()
+    // FIDO CTAP §10.2: the client sets the aaguid of the authenticator data to zero for a CTAP1/U2F authenticator, so a non-zero one is rejected
+    // even when it is the aaguid of the extension of the attestation certificate ("YubiKey 5 Series")
+    [TestCase("cb69481e-8ff7-4039-93ec-0a2729a154a8")]
+    // the aaguid that FIDO conformance test Server-ServerAuthenticatorAttestationResponse-Resp-8 F-1 puts into the authenticator data
+    [TestCase("937dd8ca-647e-4ed3-9729-43a796cf572a")]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForFidoU2F_WhenAuthenticatorDataAaguidIsNotZero(string aaguid)
     {
-        var completeResult = await CompleteCeremonyAsync(ReplaceAuthenticatorDataAaguid(AttestationObject, YubiKey5SeriesAaguid));
+        var completeResult = await CompleteCeremonyAsync(ReplaceAuthenticatorDataAaguid(AttestationObject, Guid.Parse(aaguid)));
 
-        Assert.That(completeResult.HasError, Is.False);
+        Assert.That(completeResult.HasError, Is.True);
     }
 
     // Replaces the metadata in use with a copy of the downloaded blob in which both entries for "YubiKey 5 Series" (the fido2 one for the aaguid

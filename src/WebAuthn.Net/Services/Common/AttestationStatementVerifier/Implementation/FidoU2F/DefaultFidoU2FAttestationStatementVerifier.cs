@@ -172,23 +172,22 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
-            // The 'aaguid' of 'authenticatorData' is not part of 'verificationData', so the attestation signature doesn't cover it: unlike in the other attestation statement formats,
-            // it is not attested here, and the authenticator model is identified by 'attCert' only (step 7). The only attested aaguid is the one of the id-fido-gen-ce-aaguid extension of 'attCert'.
-            // Like the 'packed' (§8.2) and 'tpm' (§8.3) verification procedures, and as §13.3.1 intends ("so that it can be verified against the authenticator data"),
-            // a non-zero 'aaguid' in 'authenticatorData' that differs from the extension rejects the attestation statement. A zero 'aaguid' is what a client reports for a CTAP1/U2F authenticator.
+            // The 'aaguid' of 'authenticatorData' is not part of 'verificationData', so the attestation signature doesn't cover it. The client builds 'authenticatorData' from the U2F registration response message
+            // with an 'aaguid' of all zeros ([FIDO-CTAP] §10.2 "Using the CTAP2 authenticatorMakeCredential Command with CTAP1/U2F authenticators"), so a non-zero 'aaguid' is attested by nothing
+            // and rejects the attestation statement (FIDO conformance test Server-ServerAuthenticatorAttestationResponse-Resp-8 F-1 requires this too).
+            var authenticatorDataAaguid = authenticatorData.AttestedCredentialData.Aaguid;
+            if (authenticatorDataAaguid != Guid.Empty)
+            {
+                Logger.FidoU2FAuthenticatorDataAaguidNotZero(authenticatorDataAaguid);
+                Counters.IncrementAttestationStatementAnomaly(FidoU2FAttestationStatementAnomalies.Format, FidoU2FAttestationStatementAnomalies.AuthenticatorDataAaguidNotZero, false);
+                return Result<VerifiedAttestationStatement>.Fail();
+            }
+
+            // The authenticator model is identified by 'attCert' only (step 7): the only attested aaguid is the one of the id-fido-gen-ce-aaguid extension of 'attCert'.
             var aaguidExtensionResult = GetAaguidIfExists(attCert);
             if (aaguidExtensionResult.HasError)
             {
                 Logger.FidoU2FAttCertAaguidExtensionInvalid();
-                return Result<VerifiedAttestationStatement>.Fail();
-            }
-
-            var aaguidExtension = aaguidExtensionResult.Ok;
-            var authenticatorDataAaguid = authenticatorData.AttestedCredentialData.Aaguid;
-            if (aaguidExtension.HasValue && authenticatorDataAaguid != Guid.Empty && authenticatorDataAaguid != aaguidExtension.Value)
-            {
-                Logger.FidoU2FAuthenticatorDataAaguidMismatch(authenticatorDataAaguid, aaguidExtension.Value);
-                Counters.IncrementAttestationStatementAnomaly(FidoU2FAttestationStatementAnomalies.Format, FidoU2FAttestationStatementAnomalies.AuthenticatorDataAaguidMismatch, false);
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
@@ -197,7 +196,7 @@ public class DefaultFidoU2FAttestationStatementVerifier<TContext>
             var attestationTypeResult = await GetAttestationTypeAsync(
                 context,
                 attCert,
-                aaguidExtension,
+                aaguidExtensionResult.Ok,
                 cancellationToken);
             if (attestationTypeResult.HasError)
             {
@@ -761,15 +760,14 @@ public static partial class DefaultFidoU2FAttestationStatementVerifierLoggingExt
     public static partial void FidoU2FMetadataUntrustedByAaguid(this ILogger logger, Guid aaguid);
 
     /// <summary>
-    ///     The aaguid {AuthenticatorDataAaguid} of the authenticator data differs from the aaguid {AaguidExtension} of the id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement
+    ///     The aaguid {AuthenticatorDataAaguid} of the authenticator data of the FIDO U2F attestation statement is not zero
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="authenticatorDataAaguid">The aaguid of the authenticator data, which the FIDO U2F attestation signature doesn't cover.</param>
-    /// <param name="aaguidExtension">The aaguid of the id-fido-gen-ce-aaguid extension of the attCert.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The aaguid {AuthenticatorDataAaguid} of the authenticator data differs from the aaguid {AaguidExtension} of the id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement")]
-    public static partial void FidoU2FAuthenticatorDataAaguidMismatch(this ILogger logger, Guid authenticatorDataAaguid, Guid aaguidExtension);
+        Message = "The aaguid {AuthenticatorDataAaguid} of the authenticator data of the FIDO U2F attestation statement is not zero")]
+    public static partial void FidoU2FAuthenticatorDataAaguidNotZero(this ILogger logger, Guid authenticatorDataAaguid);
 
     /// <summary>
     ///     The id-fido-gen-ce-aaguid extension of the attCert of the FIDO U2F attestation statement is invalid
