@@ -54,6 +54,9 @@ public static class Program
                 // The MDS3 test server signs its blobs with its own test certificates under its own root certificate (see LocalFilesFidoMetadataProviderForMdsTests),
                 // not with the certificate of the FIDO Metadata Service, so the DNS name of the signing certificate is not checked.
                 options.FidoMetadata.SigningCertificateDnsName = null;
+                // The conformance tools make the "android-key" attestation as the software keystore of Android does: the KeyDescription of their attestation certificate
+                // says Software for attestationSecurityLevel and keymasterSecurityLevel, so keys outside a trusted execution environment are accepted too.
+                options.AttestationStatements.AndroidKey.AcceptKeysOnlyFromTrustedExecutionEnvironment = false;
             },
             static fidoHttp =>
             {
@@ -81,6 +84,7 @@ public static class Program
         //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //         options.FidoMetadata.SigningCertificateDnsName = null;
+        //         options.AttestationStatements.AndroidKey.AcceptKeysOnlyFromTrustedExecutionEnvironment = false;
         //     },
         //     static fidoHttp =>
         //     {
@@ -112,6 +116,7 @@ public static class Program
         //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //         options.FidoMetadata.SigningCertificateDnsName = null;
+        //         options.AttestationStatements.AndroidKey.AcceptKeysOnlyFromTrustedExecutionEnvironment = false;
         //     },
         //     static fidoHttp =>
         //     {
@@ -143,6 +148,7 @@ public static class Program
         //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
         //         options.FidoMetadata.SigningCertificateDnsName = null;
+        //         options.AttestationStatements.AndroidKey.AcceptKeysOnlyFromTrustedExecutionEnvironment = false;
         //     },
         //     static fidoHttp =>
         //     {
