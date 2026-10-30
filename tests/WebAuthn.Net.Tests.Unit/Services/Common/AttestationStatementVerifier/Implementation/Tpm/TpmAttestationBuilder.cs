@@ -9,6 +9,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
@@ -618,8 +620,8 @@ internal sealed class TpmAttestationBuilder
 internal sealed record TpmAttestation(TpmAttestationStatement AttStmt, AttestedAuthenticatorData AuthenticatorData, byte[] ClientDataHash);
 
 /// <summary>
-///     <see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> with the default decoders, a fixed clock, recording counters and logger,
-///     the default manufacturer verifier unless another one is given, and a FIDO Metadata Service stand-in that answers only what it is given
+///     <see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> with the default decoders, a fixed clock, recording counters and logger, the default options of the library
+///     (<see cref="AcceptOnlyTpmBoundKeys" /> can be changed), the default manufacturer verifier unless another one is given, and a FIDO Metadata Service stand-in that answers only what it is given
 ///     (by default an "attca" entry for <see cref="TpmAttestationBuilder.Aaguid" /> that lists <see cref="TpmAttestationBuilder.MetadataRoot" />, and nothing for any other aaguid).
 /// </summary>
 internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>
@@ -656,6 +658,7 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
         FakeRegistrationCeremonyCounters counters,
         FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>> logger)
         : base(
+            new OptionsMonitorStub(),
             timeProvider,
             new DefaultTpmPubAreaDecoder(),
             new DefaultTpmCertInfoDecoder(),
@@ -677,8 +680,12 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
 
     public FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>> FakeLogger { get; }
 
-    // the policy of IsTpmBoundCredentialKeyRequired: whether a credential key that is not bound to the TPM is rejected (null - the default of the verifier, which rejects it)
-    public bool? RequireTpmBoundCredentialKey { get; init; }
+    // AcceptOnlyTpmBoundKeys of the options: whether a credential key that is not bound to the TPM is rejected (the default of the options rejects it)
+    public bool AcceptOnlyTpmBoundKeys
+    {
+        get => Options.CurrentValue.AttestationStatements.Tpm.AcceptOnlyTpmBoundKeys;
+        init => Options.CurrentValue.AttestationStatements.Tpm.AcceptOnlyTpmBoundKeys = value;
+    }
 
     // the FIDO Metadata Service stand-in of the constructors that don't take one: an "attca" entry for the aaguid of the builder
     public static RecordingFidoMetadataSearchService DefaultFidoMetadataSearchService()
@@ -699,8 +706,18 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
         return TryParseSanExtensionValues(extension, out values);
     }
 
-    protected override bool IsTpmBoundCredentialKeyRequired(PubArea pubArea, AttestedAuthenticatorData authenticatorData)
+    private sealed class OptionsMonitorStub : IOptionsMonitor<WebAuthnOptions>
     {
-        return RequireTpmBoundCredentialKey ?? base.IsTpmBoundCredentialKeyRequired(pubArea, authenticatorData);
+        public WebAuthnOptions CurrentValue { get; } = new();
+
+        public WebAuthnOptions Get(string? name)
+        {
+            return CurrentValue;
+        }
+
+        public IDisposable? OnChange(Action<WebAuthnOptions, string?> listener)
+        {
+            return null;
+        }
     }
 }

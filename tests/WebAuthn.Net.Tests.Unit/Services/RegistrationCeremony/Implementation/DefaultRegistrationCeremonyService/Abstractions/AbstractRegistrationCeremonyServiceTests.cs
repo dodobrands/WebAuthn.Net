@@ -161,6 +161,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             NullLogger<DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         TpmVerifierLogger = new();
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
+            Options,
             TimeProvider,
             new DefaultTpmPubAreaDecoder(),
             new DefaultTpmCertInfoDecoder(),
