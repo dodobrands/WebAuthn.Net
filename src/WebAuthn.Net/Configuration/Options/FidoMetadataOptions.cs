@@ -39,7 +39,7 @@ public class FidoMetadataOptions
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         The certificate chain of the blob ends at one of the root certificates of the FIDO Metadata Service embedded in the library (the root certificates of the certification authority GlobalSign).
+    ///         The certificate chain of the blob ends at the root certificate of the FIDO Metadata Service embedded in the library (GlobalSign Root R46).
     ///         The chain shows who issued the signing certificate, but not to whom. Therefore the signing certificate also has to contain this DNS name in its Subject Alternative Name extension
     ///         (an exact match: neither a wildcard name nor the common name of the subject is considered), and its Extended Key Usage extension has to allow TLS server authentication (<c>id-kp-serverAuth</c>),
     ///         as in the certificate of the FIDO Metadata Service. Otherwise the blob is rejected, logged and counted (<see cref="FidoMetadataDownloadFailures.SignerInvalid" />).
