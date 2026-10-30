@@ -38,9 +38,17 @@ public class DefaultPostgreSqlContextFactory : IWebAuthnContextFactory<DefaultPo
     {
         cancellationToken.ThrowIfCancellationRequested();
         var connection = await CreateConnectionAsync(httpContext, cancellationToken);
-        var transaction = await CreateTransactionAsync(httpContext, connection, cancellationToken);
-        var context = new DefaultPostgreSqlContext(httpContext, connection, transaction);
-        return context;
+        try
+        {
+            var transaction = await CreateTransactionAsync(httpContext, connection, cancellationToken);
+            var context = new DefaultPostgreSqlContext(httpContext, connection, transaction);
+            return context;
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     /// <summary>
