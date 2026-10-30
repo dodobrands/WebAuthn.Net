@@ -33,6 +33,12 @@ public static class FidoMetadataEmbeddedBlobFailures
     public const string RootCertificatesInvalid = FidoMetadataDownloadFailures.RootCertificatesInvalid;
 
     /// <summary>
+    ///     The signing certificate (the first certificate in the 'x5c' member of the JWT header) is not a certificate of the FIDO Metadata Service: its Subject Alternative Name extension doesn't contain
+    ///     the DNS name <see cref="Configuration.Options.FidoMetadataOptions.SigningCertificateDnsName" />, or its Extended Key Usage extension doesn't allow TLS server authentication.
+    /// </summary>
+    public const string SignerInvalid = FidoMetadataDownloadFailures.SignerInvalid;
+
+    /// <summary>
     ///     The signing certificate chain of the blob is invalid: it can't be built from the signing certificate to one of the root certificates,
     ///     or it doesn't satisfy the chain policy (<see cref="Configuration.Options.X509ChainValidationOptions.OnValidateEmbeddedFidoMetadataBlobJwtChain" />).
     /// </summary>

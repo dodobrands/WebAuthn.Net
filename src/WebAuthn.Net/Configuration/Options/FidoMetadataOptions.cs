@@ -1,4 +1,6 @@
 ﻿using System;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider;
+using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 
 namespace WebAuthn.Net.Configuration.Options;
 
@@ -30,4 +32,24 @@ public class FidoMetadataOptions
     ///     <see cref="System.Net.Http.HttpClient.Timeout" /> doesn't replace it: it covers only the time until the response headers are received, because the body is read as a stream.
     /// </remarks>
     public TimeSpan DownloadTimeout { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    ///     The DNS name to which the certificate that signs the blob (the first certificate in the 'x5c' member of the JWT header) has to be issued.
+    ///     The default is <c>mds.fidoalliance.org</c>, the name in the certificate with which the FIDO Metadata Service signs its blobs.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The certificate chain of the blob ends at one of the root certificates of the FIDO Metadata Service embedded in the library (the root certificates of the certification authority GlobalSign).
+    ///         The chain shows who issued the signing certificate, but not to whom. Therefore the signing certificate also has to contain this DNS name in its Subject Alternative Name extension
+    ///         (an exact match: neither a wildcard name nor the common name of the subject is considered), and its Extended Key Usage extension has to allow TLS server authentication (<c>id-kp-serverAuth</c>),
+    ///         as in the certificate of the FIDO Metadata Service. Otherwise the blob is rejected, logged and counted (<see cref="FidoMetadataDownloadFailures.SignerInvalid" />).
+    ///         This applies both to the blobs downloaded from <see cref="Mds3BlobUri" /> and to the blob embedded in the application.
+    ///     </para>
+    ///     <para>
+    ///         <see langword="null" /> turns the check off, so that any certificate that chains up to the root certificates can sign the blob. This is meant only for a test environment that signs its blobs
+    ///         under its own root certificates, for example, the MDS3 test server of the FIDO Conformance Tools. An invalid DNS name (for example, an empty string or a wildcard name)
+    ///         makes <see cref="DefaultFidoMetadataProvider" /> throw <see cref="ArgumentException" /> for every blob.
+    ///     </para>
+    /// </remarks>
+    public string? SigningCertificateDnsName { get; set; } = "mds.fidoalliance.org";
 }

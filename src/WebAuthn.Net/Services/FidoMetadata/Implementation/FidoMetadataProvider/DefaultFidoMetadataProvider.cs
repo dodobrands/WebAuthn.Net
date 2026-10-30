@@ -133,8 +133,8 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     /// <inheritdoc />
     /// <remarks>
     ///     <para>
-    ///         The blob is validated the same way as a blob downloaded from the FIDO Metadata Service: its signature and its certificate chain up to the root certificates of the FIDO Metadata Service
-    ///         embedded in the library (<see cref="GetEmbeddedFidoRootCertificates" />). The only difference is that the chain is validated according to
+    ///         The blob is validated the same way as a blob downloaded from the FIDO Metadata Service: its signature, its signing certificate (see <see cref="FidoMetadataOptions.SigningCertificateDnsName" />)
+    ///         and its certificate chain up to the root certificates of the FIDO Metadata Service embedded in the library (<see cref="GetEmbeddedFidoRootCertificates" />). The only difference is that the chain is validated according to
     ///         <see cref="X509ChainValidationOptions.OnValidateEmbeddedFidoMetadataBlobJwtChain" />, which by default doesn't check the validity period and the revocation status of the signing certificates,
     ///         and without the additional validation (<see cref="ValidateJwtCertificateChainAsync" />), so that the blob embedded in the application can be used regardless of the time and of the availability of the network.
     ///     </para>
@@ -183,7 +183,7 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         }
     }
 
-    // Validates the signature of the blob, its certificate chain and its payload. Every reason for which the blob is rejected is logged and reported through 'fail', which counts it.
+    // Validates the signature of the blob, its signing certificate, its certificate chain and its payload. Every reason for which the blob is rejected is logged and reported through 'fail', which counts it.
     // The blob embedded in the application (isEmbedded) is validated regardless of the validity period of its certificates and without the additional validation of the chain,
     // see X509ChainValidationOptions.OnValidateEmbeddedFidoMetadataBlobJwtChain.
     private async Task<Result<MetadataBLOBPayloadJSON>> ValidateBlobAsync(
@@ -296,6 +296,15 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
                 return fail(FidoMetadataDownloadFailures.X5CInvalid);
             }
 
+            // The chain shows who issued the signing certificate, but not to whom: the certificate of the FIDO Metadata Service is identified by its DNS name (FidoMetadataOptions.SigningCertificateDnsName).
+            // It is checked before the chain is built, so that the chain engine (with the revocation checks of its policy) doesn't process the certificates of another signer.
+            var signingCertificateDnsName = Options.CurrentValue.FidoMetadata.SigningCertificateDnsName;
+            if (signingCertificateDnsName is not null && !IsTlsServerCertificateFor(signingCertificate, signingCertificateDnsName))
+            {
+                Logger.WarnJwtSignerInvalid(signingCertificate.Subject, signingCertificateDnsName);
+                return fail(FidoMetadataDownloadFailures.SignerInvalid);
+            }
+
             X509Chain? jwtCertificateChain = null;
             try
             {
@@ -361,6 +370,23 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
         }
     }
 
+    // Whether the certificate is a TLS server certificate for the DNS name: the name is one of the dNSName entries of its Subject Alternative Name extension
+    // (an exact match: neither a wildcard name nor the common name of the subject is considered), and its Extended Key Usage extension allows TLS server authentication.
+    private static bool IsTlsServerCertificateFor(X509Certificate2 certificate, string dnsName)
+    {
+        const string serverAuthentication = "1.3.6.1.5.5.7.3.1";
+        try
+        {
+            return certificate.MatchesHostname(dnsName, allowWildcards: false, allowCommonName: false)
+                   && certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().Any(static x => x.EnhancedKeyUsages.Cast<Oid>().Any(static oid => oid.Value == serverAuthentication));
+        }
+        catch (CryptographicException)
+        {
+            // The Subject Alternative Name extension is malformed: unlike the Extended Key Usage extension, it is not decoded when the certificate is loaded (see X509CertificateInMemoryLoader).
+            return false;
+        }
+    }
+
     // the blob is not provided: the reason (one of FidoMetadataDownloadFailures) and the unsuccessful completion are counted
     private Result<MetadataBLOBPayloadJSON> FailDownload(string reason)
     {
@@ -398,8 +424,8 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         The default implementation accepts every chain, because the chain has already been validated according to
-    ///         <see cref="X509ChainValidationOptions.OnValidateFidoMetadataBlobJwtChain" />.
+    ///         The default implementation accepts every chain, because the signing certificate has already been checked (see <see cref="FidoMetadataOptions.SigningCertificateDnsName" />)
+    ///         and the chain has already been validated according to <see cref="X509ChainValidationOptions.OnValidateFidoMetadataBlobJwtChain" />.
     ///     </para>
     ///     <para>
     ///         Override this method to apply checks that the <see cref="X509Chain" /> engine of the platform can't perform itself, for example,
@@ -655,6 +681,17 @@ public static partial class DefaultFidoMetadataProviderLoggingExtensions
         Level = LogLevel.Warning,
         Message = "The signing certificate '{Subject}' (the first certificate in the 'x5c' member of the FIDO Metadata Service blob JWT header) contains neither an ECDSA nor an RSA public key")]
     public static partial void WarnJwtHeaderCertificateUnsupportedPublicKey(this ILogger logger, string subject);
+
+    /// <summary>
+    ///     The signing certificate '{Subject}' (the first certificate in the 'x5c' member of the FIDO Metadata Service blob JWT header) is not a certificate of the FIDO Metadata Service: it is not issued to '{DnsName}' for TLS server authentication
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="subject">The subject of the certificate.</param>
+    /// <param name="dnsName">The DNS name to which the signing certificate has to be issued (<see cref="FidoMetadataOptions.SigningCertificateDnsName" />).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The signing certificate '{Subject}' (the first certificate in the 'x5c' member of the FIDO Metadata Service blob JWT header) is not a certificate of the FIDO Metadata Service: it is not issued to '{DnsName}' for TLS server authentication")]
+    public static partial void WarnJwtSignerInvalid(this ILogger logger, string subject, string dnsName);
 
     /// <summary>
     ///     The signing certificate chain of the FIDO Metadata Service blob is invalid: {ChainStatus}
