@@ -28,8 +28,8 @@ using WebAuthn.Net.Services.Serialization.Json.Implementation;
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.Tpm;
 
 // Regression tests for the hardening of DefaultTpmAttestationStatementVerifier.VerifyAsync beyond the steps of WebAuthn L3 §8.3:
-// the key-protection attributes of the credential key, the SHA-1 nameAlg report, the empty-trust-anchor configuration, the status of the authenticator in the FIDO Metadata Service
-// and the sanitization of untrusted strings in log messages.
+// the key-protection attributes of the credential key, the SHA-1 nameAlg report, the empty-trust-anchor configuration, the trust anchors and the status of the authenticator
+// in the FIDO Metadata Service, and the sanitization of untrusted strings in log messages.
 public class DefaultTpmAttestationStatementVerifierHardeningTests
 {
     // TPM 2.0 Library Part 2 v185, 8.3 TPMA_OBJECT (Table 37)
@@ -51,15 +51,16 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
     private const string WindowsHelloRsaAttestationObject = "o2NmbXRjdHBtZ2F0dFN0bXSmY2FsZzn__mNzaWdZAQCK21mSjJlYRipS1cVylixSEF_TlaYKRwSRsQVmmgndlsUVrcliKPRSWBkCR4mDfSiOLsXr3Gi1AaB734uxaDKx74PVDNy_yFZ2Z0xlzc5KNyamZVTTNAsBQYB-Dvo2CsBwQS9GH5w7n_X9yROAwChUV8GDye2dBxt3-SYEWgcTQA7mRMGQKbh8esmrDy8pFwrkTqfUF_CguZomZtyFapgMuFeLzrhHyH1thcL2Fms4COhvMNYz6QXWYQcupMsP8Q3YtRbUZjUmW6yl2Dv39vtBiM3dWISWib1nC_e63xTqSf2kr8JKxRWpNq2pWN17yOmSKHakV6Y_gJk1uHguDKBTY3ZlcmMyLjBjeDVjglkFuzCCBbcwggOfoAMCAQICEBWVq6zFF0c7iiQdgQCWL-wwDQYJKoZIhvcNAQELBQAwQTE_MD0GA1UEAxM2RVVTLUFNRC1LRVlJRC1CQzhFQUMxMDg0NEY1QzdFQkZFOEJBQzJDRUI1MEU4Q0RGMzRFRjg4MB4XDTIzMTAwNTE3NDcxNloXDTI4MDQxNDE4MjkyMFowADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALWqOarMTXdWEyM8QLK7YJUtMeJRecG2cxezCI0rxR7gzRriuaYFCf5qkgc0SVjknDz6qBz_bp-7CG-7IP4PT_65PZarjskCVSW_6uOt2g0KAcseG-_08JCndFQnXUCmoIbpgZ7ZmJUqJfhTHdX0v1mYlZe4QvtUsJqucYOcYSiHMiHI_eM52p3DdW3KEakKrG5vjr_QShLDKCrJ_te_yAWqrs4dTC9Ut_fSlgCiDRzwazJAA0ZaXRYfU7RzHNnb7tqKDD3lyF6zCSw0qF39Iqr5tDiW7PHNBtSn8GEhrHs5nVuf_v6j-17U_ByBCNPlNqb4MPk6vhZgEzzVYANFnbUCAwEAAaOCAeowggHmMA4GA1UdDwEB_wQEAwIHgDAMBgNVHRMBAf8EAjAAMG0GA1UdIAEB_wRjMGEwXwYJKwYBBAGCNxUfMFIwUAYIKwYBBQUHAgIwRB5CAFQAQwBQAEEAIAAgAFQAcgB1AHMAdABlAGQAIAAgAFAAbABhAHQAZgBvAHIAbQAgACAASQBkAGUAbgB0AGkAdAB5MBAGA1UdJQQJMAcGBWeBBQgDMFAGA1UdEQEB_wRGMESkQjBAMRYwFAYFZ4EFAgEMC2lkOjQxNEQ0NDAwMQ4wDAYFZ4EFAgIMA0FNRDEWMBQGBWeBBQIDDAtpZDowMDAzMDAwMTAfBgNVHSMEGDAWgBR3E2MbHcNeIfGHGxCZHZ8L4MGNwjAdBgNVHQ4EFgQUDrrdtNqzpqMCfaTQQfCvLIjeFIkwgbIGCCsGAQUFBwEBBIGlMIGiMIGfBggrBgEFBQcwAoaBkmh0dHA6Ly9hemNzcHJvZGV1c2Fpa3B1Ymxpc2guYmxvYi5jb3JlLndpbmRvd3MubmV0L2V1cy1hbWQta2V5aWQtYmM4ZWFjMTA4NDRmNWM3ZWJmZThiYWMyY2ViNTBlOGNkZjM0ZWY4OC80ZDNkZjQ2Mi1kYWQyLTRlNTUtYThmMC1hN2IyNmYwYWEzZmMuY2VyMA0GCSqGSIb3DQEBCwUAA4ICAQAqoj8hVQPX0wmVgO6FhH7qOh5mHDpMceR0HIVDk_UIIIeg8G3-oK0jb-eVltwd9bgdO3zJVfLDLWpABddrCisXxu7D5uIWLGE_rjllHS8hosxMRLsFuTrWT3sFgjloyxFbjTPPfE6DQuNgFI85odzBvaPMMFwNrt_LGt0Uw00_aMBBvAsv0SUgUgb7kXWT8kE4fzDwlVrYvbl-Expa1eEavMnugL-l4fNB7DZsyXpc7hwQDL3QU-rcqRMW60UC7b3x5ghsMJDfoubthZ856lBUdQtUg-ZxE2hOHd3fa_FhlxPXbnIL3L7yTbLCgCbcpgiQ0qPDs65KOJI8k0-FIN3LSoVxgevEIBKY1zfRbiS5oo_7AlhMD28G0-HYlYUFqGe9BhuVi5zjld96yJfRNqjV7zYTbIx-CRfFyjM0Ynqp477oFC-jfc2WQmrSI-GQD7bZ9j6o9puZS4QEoipjDPfwl4h47bKME_lDMMSvSpoc4-wVTcmgPMFfXpHEqRyNEzoRBQfH8kkxvGL0z6hrSDShV6C0p5PubFLH4aTm5BeIV43DY7jdlP39yU12bKnFEARmKp-lzYjUHrze-qRDyesDTuhM8e8ok69KDBwgz-_n_F6UBZnEwppI32fZ6rVK_B_1lbi4EZ2AJG5wIduIEHs3pdfDm_--xFjgfkG9Vcj-xFkG7zCCBuswggTToAMCAQICEzMAAAd7jiICI2S3Wc4AAAAAB3swDQYJKoZIhvcNAQELBQAwgYwxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpXYXNoaW5ndG9uMRAwDgYDVQQHEwdSZWRtb25kMR4wHAYDVQQKExVNaWNyb3NvZnQgQ29ycG9yYXRpb24xNjA0BgNVBAMTLU1pY3Jvc29mdCBUUE0gUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgMjAxNDAeFw0yMjA0MTQxODI5MjBaFw0yODA0MTQxODI5MjBaMEExPzA9BgNVBAMTNkVVUy1BTUQtS0VZSUQtQkM4RUFDMTA4NDRGNUM3RUJGRThCQUMyQ0VCNTBFOENERjM0RUY4ODCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAKODi9d9Um54NFsCyBsYsYOLTVPMqa9XewhPIpScPQ2_8iS9CDvIolHmViWpzNcUVwCEPWy_bbtFHeUEQeZ0My3nP21tT__Zc_BGJs4XO9ys78B1Zpp1_6mh3KoesxMjYhrdzLtIGI_RzxCff3FzYK3pFCBPz3uxBtwMsq1ckNr1GsWfZBOLjKRoYDEKM0mqd6cAaIm_IR6oWC2zulJQSmlHz35MxW_OF7MQZHt1n0PwLekZ4udfxsy6L5zfRFhJCE_Enq8ggSETBgFTNImYKpQllOcfojEF3axUnIPZmIsJNWIWSX5WyCfKD1Rfju3IntIQArY221N8BV8tALcUFeGKGBPYN10pYb1KLcdkhdvJGpqOhmAhvSVF9rxMLlzOnrWiEXVsO1YU3hSmR3WGHg8ahbCxKyBGfISYgx9bVMYijvQA33dfPJEcigHLZmqOOlLFA5td3m_hWIyD76dXkY6Cy483wtKGUdRYrjN94JMOY14PhUpFpIh-KKaPFjwKab93u9dfX_jWbmPBdUrmL2aHGUVg8ljU_-pQj9aObXPYngjomFJJ4e0kJFe4au6gTVRRMqXePkwBcmPsbhxWBR07u9nY5EGYOpikTiicOp0hRmZ-b9qn2i_r8hCSzAVeRMsbujOfgmQtIAMXeF8wjWg41f5tbgXKxR_lRGI6ojz1AgMBAAGjggGOMIIBijAOBgNVHQ8BAf8EBAMCAoQwGwYDVR0lBBQwEgYJKwYBBAGCNxUkBgVngQUIAzAWBgNVHSAEDzANMAsGCSsGAQQBgjcVHzASBgNVHRMBAf8ECDAGAQH_AgEAMB0GA1UdDgQWBBR3E2MbHcNeIfGHGxCZHZ8L4MGNwjAfBgNVHSMEGDAWgBR6jArOL0hiF-KU0a5VwVLscXSkVjBwBgNVHR8EaTBnMGWgY6Bhhl9odHRwOi8vd3d3Lm1pY3Jvc29mdC5jb20vcGtpb3BzL2NybC9NaWNyb3NvZnQlMjBUUE0lMjBSb290JTIwQ2VydGlmaWNhdGUlMjBBdXRob3JpdHklMjAyMDE0LmNybDB9BggrBgEFBQcBAQRxMG8wbQYIKwYBBQUHMAKGYWh0dHA6Ly93d3cubWljcm9zb2Z0LmNvbS9wa2lvcHMvY2VydHMvTWljcm9zb2Z0JTIwVFBNJTIwUm9vdCUyMENlcnRpZmljYXRlJTIwQXV0aG9yaXR5JTIwMjAxNC5jcnQwDQYJKoZIhvcNAQELBQADggIBAExrsXgXU6oRgruZcut7iICBfJj3tIuDi5OTzzdnvmHeNI0jPLk7NW8qoDdRUW8Xc8LoIxga8M_-5s88oflyhDGRPToO_uqg2DxcatGy-WxMnboGnlVYjt-kbvuMJCtxLC_3PkCtkC2uKXxTwpTEweokBSuISdcaJDk7rutWiAcmXAB4VKO1KiZajc-h7HjchVy58-CE7E2rLaHuOlQKkROahSsbTb-OZhsoRhT6Oky71mlgYwIsWHyPulVcliIy6VSM1ih7E93d2CVctz1WcbxLnmW9_liK_UyXYIKk1YVFMCeFu9DJC9LcK2wmQ_Bzn8K98RnWF5bisDmS184dQAppNRsqkjWH8p4MhvYyazDeQzIuS2wIw1wTBa4iiRFNzbT0OUcX68VO1mUJKgSN2USHLW8YO1OTJhcTvYVxIeJxezvCi31cqGDiy5jREfNTio4bKzvkDjPDn-i9p592ccLxyZzAErNB6aj3dWNy9UXNzdRzSbrgOJxxaqvN5qoCv3e97OSj191_DZPj7aOQhfhM4DqGFrORySRCGK0gIJhLhSp4sQseI98Dii-CESIhGvjKB0eSCdelwQQDtTqXmWhfx8IctXLxca2dOsNMHSvVpcIua8OgS-PTSAHfwGbh-0CrfSQdhehcMHapu5Hu0D9Ub0vDZCDvIcqJ2jp40KSlZ3B1YkFyZWFZATYAAQALAAYEcgAgnf_L82w4OuaZ-5ho3G3LidcVOIS-KAOSLBJBWL-tIq4AEAAQCAAAAAAAAQDFDUWoiW3cyTF1U1_JXxw7LXpUDgM5C9yT3MnttgDi-pCXUWKy_uVjy01YNPBjM5mVAY2n3u1BZuCywXKMI14rF9lP75X3wcrglfjT8HjJLMJBBQyzb590VF6JN_IZTLIKru8ABB7AC0HGcEQ9OhsYVRPG7bQe9IaQMrWbLu-WLnxKC0kbBbiwWCHV0yUDjlwzr9ZVgDpuDpUPcFw1KR2znKr3lqI7xighrNTZu3OehrQ5KqU7qP7qY-bmArjAkqJyIyCDvHMsnPXesLLQ1zGnpI3suohkrnjP0hbDZ074E4ZgIk0qDxTzCMbxVGFZ_eTnDAcURGb7_Cf_LSmuRFDLaGNlcnRJbmZvWKH_VENHgBcAIgALyd_zbaLt5GPnaDWmewGFmHDb8lKateJ2y_9huujAwIYAFJiWZNORqhB90ezuUD1PiN-4eBDkAAAAAvri7RvN324YB6IkmAG8PWZOPxEKJAAiAAsJ_1MoAQe5NSYcoHJnEnfkrviEq0oYWLwB3NWmQBO2EgAiAAvWAlj5mIfOmc3b5ZSHHN1OrnChuexo6MVctkho2ulrvGhhdXRoRGF0YVkBZ8GxkeySm_95wg0v2W_08clHuGuK7RV2gLBgFAaEEBj1RQAAAAAImHBYytxLgbbhMN5Q3L6WACCWsDztacHu0W6J_WbmqCEsh44fzKfXT1RKjrCrfURWMKQBAwM5AQAgWQEAxQ1FqIlt3MkxdVNfyV8cOy16VA4DOQvck9zJ7bYA4vqQl1Fisv7lY8tNWDTwYzOZlQGNp97tQWbgssFyjCNeKxfZT--V98HK4JX40_B4ySzCQQUMs2-fdFReiTfyGUyyCq7vAAQewAtBxnBEPTobGFUTxu20HvSGkDK1my7vli58SgtJGwW4sFgh1dMlA45cM6_WVYA6bg6VD3BcNSkds5yq95aiO8YoIazU2btznoa0OSqlO6j-6mPm5gK4wJKiciMgg7xzLJz13rCy0Ncxp6SN7LqIZK54z9IWw2dO-BOGYCJNKg8U8wjG8VRhWf3k5wwHFERm-_wn_y0prkRQyyFDAQAB";
 
     // ---------------------------------------------------------------------------------------------
-    // The credential key is bound to the TPM (fixedTPM, fixedParent and sensitiveDataOrigin SET): otherwise reported, and rejected only on request
+    // The credential key is bound to the TPM (fixedTPM, fixedParent and sensitiveDataOrigin SET): otherwise reported, and rejected unless the policy hook tolerates it
 
     [TestCase(0x00040040u)] // sign | userWithAuth only: the attributes of a key imported with TPM2_Import() or loaded with TPM2_LoadExternal()
     [TestCase(TpmAttestationBuilder.EccObjectAttributes & ~FixedTpm)] // fixedTPM CLEAR
     [TestCase(TpmAttestationBuilder.EccObjectAttributes & ~(FixedTpm | FixedParent))] // fixedTPM and fixedParent CLEAR (fixedTPM SET requires fixedParent SET, so fixedParent cannot be CLEAR alone)
     [TestCase(TpmAttestationBuilder.EccObjectAttributes & ~SensitiveDataOrigin)] // sensitiveDataOrigin CLEAR
-    public async Task VerifyAsync_Succeeds_AndReportsAnomaly_WhenCredentialKeyIsNotTpmBound(uint objectAttributes)
+    public async Task VerifyAsync_Succeeds_AndReportsAnomaly_WhenCredentialKeyIsNotTpmBound_AndTpmBoundKeyIsNotRequired(uint objectAttributes)
     {
-        var verifier = new TestTpmAttestationStatementVerifier();
+        // the policy hook (IsTpmBoundCredentialKeyRequired) turns the rejection into a tolerated anomaly
+        var verifier = new TestTpmAttestationStatementVerifier { RequireTpmBoundCredentialKey = false };
 
         var result = await verifier.VerifyAsync(new TpmAttestationBuilder { ObjectAttributes = objectAttributes }.Build());
 
@@ -75,9 +76,9 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
     }
 
     [Test]
-    public async Task VerifyAsync_Succeeds_AndReportsAnomaly_WhenRsaCredentialKeyIsNotTpmBound()
+    public async Task VerifyAsync_Succeeds_AndReportsAnomaly_WhenRsaCredentialKeyIsNotTpmBound_AndTpmBoundKeyIsNotRequired()
     {
-        var verifier = new TestTpmAttestationStatementVerifier();
+        var verifier = new TestTpmAttestationStatementVerifier { RequireTpmBoundCredentialKey = false };
         var attestation = new TpmAttestationBuilder
         {
             RsaCredentialKey = true,
@@ -94,29 +95,33 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
         });
     }
 
-    [Test]
-    public async Task VerifyAsync_Fails_AndReportsAnomaly_WhenCredentialKeyIsNotTpmBound_AndTpmBoundKeyIsRequired()
+    [TestCase(0x00040040u)] // sign | userWithAuth only: the attributes of a key imported with TPM2_Import() or loaded with TPM2_LoadExternal()
+    [TestCase(TpmAttestationBuilder.EccObjectAttributes & ~SensitiveDataOrigin)] // sensitiveDataOrigin CLEAR
+    public async Task VerifyAsync_Fails_AndReportsAnomaly_WhenCredentialKeyIsNotTpmBound(uint objectAttributes)
     {
-        // the policy hook (IsTpmBoundCredentialKeyRequired) turns the tolerated anomaly into a rejection
-        var verifier = new TestTpmAttestationStatementVerifier { RequireTpmBoundCredentialKey = true };
+        // by default a credential key that is not bound to the TPM is rejected: a key loaded with TPM2_LoadExternal(), whose private part the client holds,
+        // would otherwise get the AttCA attestation of a TPM key
+        var verifier = new TestTpmAttestationStatementVerifier();
 
-        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { ObjectAttributes = 0x00040040 }.Build());
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { ObjectAttributes = objectAttributes }.Build());
 
         Assert.Multiple(() =>
         {
             Assert.That(result.HasError, Is.True);
             AssertAnomaly(verifier, TpmAttestationStatementAnomalies.PubAreaKeyNotTpmBound, false);
             Assert.That(verifier.FakeCounters.AttestationStatementAnomalies, Has.Count.EqualTo(1));
-            AssertWarning(verifier, "The credential key in the 'pubArea' of the TPM attestation statement is not bound to the TPM: fixedTPM, fixedParent or sensitiveDataOrigin is CLEAR in its objectAttributes (UserWithAuth, SignEncrypt); rejected, a TPM-bound credential key is required");
+            AssertWarning(verifier, "The credential key in the 'pubArea' of the TPM attestation statement is not bound to the TPM: fixedTPM, fixedParent or sensitiveDataOrigin is CLEAR in its objectAttributes");
+            AssertWarning(verifier, "; rejected, a TPM-bound credential key is required");
+            Assert.That(verifier.FakeFidoMetadataSearchService.AaguidLookups, Is.Empty);
         });
     }
 
     [TestCase(false)]
     [TestCase(true)]
-    public async Task VerifyAsync_Succeeds_WithoutAnomaly_WhenCredentialKeyIsTpmBound_AndTpmBoundKeyIsRequired(bool rsaCredentialKey)
+    public async Task VerifyAsync_Succeeds_WithoutAnomaly_WhenCredentialKeyIsTpmBound(bool rsaCredentialKey)
     {
         // the default objectAttributes of the builder are those of the Windows Hello keys: fixedTPM | fixedParent | sensitiveDataOrigin | userWithAuth | [noDA | decrypt |] sign
-        var verifier = new TestTpmAttestationStatementVerifier { RequireTpmBoundCredentialKey = true };
+        var verifier = new TestTpmAttestationStatementVerifier();
 
         var result = await verifier.VerifyAsync(new TpmAttestationBuilder { RsaCredentialKey = rsaCredentialKey }.Build());
 
@@ -130,10 +135,10 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
 
     [TestCase(WindowsHelloEcdsaAttestationObject, WindowsHelloEcdsaClientDataJson)]
     [TestCase(WindowsHelloRsaAttestationObject, WindowsHelloRsaClientDataJson)]
-    public async Task VerifyAsync_Succeeds_WithoutAnomaly_ForWindowsHelloAttestation_EvenWhenTpmBoundKeyIsRequired(string attestationObjectBase64Url, string clientDataJsonBase64Url)
+    public async Task VerifyAsync_Succeeds_WithoutAnomaly_ForWindowsHelloAttestation(string attestationObjectBase64Url, string clientDataJsonBase64Url)
     {
-        // a genuine TPM attestation (alg = RS1, SHA-256 Names, TPM-bound keys) is accepted without a single anomaly or log entry, even under the strict policy
-        var verifier = new TestTpmAttestationStatementVerifier(WindowsHelloTime) { RequireTpmBoundCredentialKey = true };
+        // a genuine TPM attestation (alg = RS1, SHA-256 Names, TPM-bound keys) is accepted without a single anomaly or log entry
+        var verifier = new TestTpmAttestationStatementVerifier(WindowsHelloTime);
         var attestation = DecodeAttestation(attestationObjectBase64Url, clientDataJsonBase64Url);
 
         var result = await verifier.VerifyAsync(attestation);
@@ -143,7 +148,8 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
             Assert.That(result.HasError, Is.False);
             Assert.That(result.Ok!.AttestationType, Is.EqualTo(AttestationType.AttCa));
             Assert.That(result.Ok.AttestationTrustPath, Has.Length.EqualTo(2)); // aikCert and the EUS-AMD-KEYID intermediate CA certificate
-            Assert.That(result.Ok.AttestationRootCertificates, Is.EquivalentTo(TpmRoots.AMD));
+            // the AIK certificates of Windows don't certify the aaguid (no id-fido-gen-ce-aaguid extension), so only the roots of the FIDO Metadata Service entry for the aaguid (Windows Hello) are acceptable
+            Assert.That(result.Ok.AttestationRootCertificates, Is.EquivalentTo(new[] { TpmAttestationBuilder.MetadataRoot }));
             Assert.That(verifier.FakeCounters.AttestationStatementAnomalies, Is.Empty);
             Assert.That(verifier.FakeLogger.Entries, Is.Empty);
         });
@@ -224,9 +230,10 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
     [Test]
     public async Task VerifyAsync_Fails_WithoutException_WhenNeitherManufacturerVerifierNorFidoMetadataSupplyTrustAnchors()
     {
-        // a manufacturer verifier that knows the vendor but supplies no roots (its contract allows that: "additional trust anchors come from the FIDO Metadata Service"), and no metadata for the aaguid
-        var verifier = new TestTpmAttestationStatementVerifier(new NoRootsTpmManufacturerVerifier());
-        var attestation = new TpmAttestationBuilder().Build();
+        // the AIK certificate certifies an aaguid that has no entry in the FIDO Metadata Service, so only the roots of the manufacturer would be acceptable,
+        // but the manufacturer verifier knows the vendor and supplies no roots (its contract allows that: "additional trust anchors come from the FIDO Metadata Service")
+        var verifier = new TestTpmAttestationStatementVerifier(new NoRootsTpmManufacturerVerifier(), new RecordingFidoMetadataSearchService());
+        var attestation = new TpmAttestationBuilder { AaguidExtension = TpmAttestationBuilder.Aaguid }.Build();
 
         Result<VerifiedAttestationStatement>? result = null;
         await Assert.DoesNotThrowAsync(async () => result = await verifier.VerifyAsync(attestation));
@@ -245,7 +252,7 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
             .WithAaguid(TpmAttestationBuilder.Aaguid, new FidoMetadataResult(metadataRoots.ToArray(), new[] { AuthenticatorAttestationType.ATTESTATION_ATTCA }));
         var verifier = new TestTpmAttestationStatementVerifier(new NoRootsTpmManufacturerVerifier(), metadataSearchService);
 
-        var result = await verifier.VerifyAsync(new TpmAttestationBuilder().Build());
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { AaguidExtension = TpmAttestationBuilder.Aaguid }.Build());
 
         Assert.Multiple(() =>
         {
@@ -256,16 +263,83 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
     }
 
     // ---------------------------------------------------------------------------------------------
-    // The status of the authenticator in the FIDO Metadata Service: an entry that doesn't allow to trust the authenticator rejects the attestation statement
-    // even though the AIK certificate chains up to the embedded roots of the manufacturer; without a usable entry or without metadata only the embedded roots are used
+    // The trust anchors come from the FIDO Metadata Service entry for the aaguid: the aaguid in the authenticator data is chosen by the client,
+    // so the embedded roots of the manufacturer are acceptable only when the AIK certificate certifies the aaguid (id-fido-gen-ce-aaguid)
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenAaguidHasNoFidoMetadataEntry_AndAikCertificateDoesNotCertifyIt()
+    {
+        // e.g. the zero aaguid or a random one: before, the embedded roots of the manufacturer made it acceptable, so any aaguid could be claimed
+        var claimedAaguid = Guid.Parse("4f1b2a8c-5d3e-4a6b-9c7d-0e1f2a3b4c5d");
+        var verifier = new TestTpmAttestationStatementVerifier();
+
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { AuthenticatorDataAaguid = claimedAaguid }.Build());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(verifier.FakeFidoMetadataSearchService.AaguidLookups, Is.EqualTo(new[] { claimedAaguid }));
+            AssertWarning(verifier, $"The FIDO Metadata Service has no usable metadata for the aaguid {claimedAaguid} of the TPM attestation statement, and the AIK certificate doesn't certify the aaguid (it has no id-fido-gen-ce-aaguid extension), so no trust anchor is acceptable");
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Succeeds_WithEmbeddedManufacturerRoots_WhenAikCertificateCertifiesAaguidThatHasNoFidoMetadataEntry()
+    {
+        var verifier = new TestTpmAttestationStatementVerifier(new RecordingFidoMetadataSearchService());
+
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { AaguidExtension = TpmAttestationBuilder.Aaguid }.Build());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok!.AttestationRootCertificates, Is.EquivalentTo(TpmRoots.AMD));
+            Assert.That(verifier.FakeLogger.Entries, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task VerifyAsync_Fails_WhenFidoMetadataEntryOfAaguidDoesNotListAttCa()
+    {
+        // e.g. the aaguid of a security key whose entry lists only "basic_full" (the YubiKey 5 Series): before, the embedded roots of the manufacturer made the claim acceptable
+        var metadataSearchService = new RecordingFidoMetadataSearchService()
+            .WithAaguid(TpmAttestationBuilder.Aaguid, RecordingFidoMetadataSearchService.Metadata(TpmAttestationBuilder.MetadataRoot, AuthenticatorAttestationType.ATTESTATION_BASIC_FULL));
+        var verifier = new TestTpmAttestationStatementVerifier(metadataSearchService);
+
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { AaguidExtension = TpmAttestationBuilder.Aaguid }.Build());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            AssertWarning(verifier, $"The metadata of the aaguid {TpmAttestationBuilder.Aaguid} doesn't list the attestation type that a TPM attestation statement conveys (attca), so no trust anchor is acceptable");
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task VerifyAsync_Fails_WhenNoFidoMetadataIsAvailable(bool aikCertificateCertifiesAaguid)
+    {
+        // without metadata the status of the authenticator can't be checked, so not even the embedded roots of the manufacturer are acceptable
+        var metadataSearchService = new RecordingFidoMetadataSearchService().WithAaguid(TpmAttestationBuilder.Aaguid, FidoMetadataSearchError.MetadataNotAvailable);
+        var verifier = new TestTpmAttestationStatementVerifier(metadataSearchService);
+
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { AaguidExtension = aikCertificateCertifiesAaguid ? TpmAttestationBuilder.Aaguid : null }.Build());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            AssertWarning(verifier, $"No metadata from the FIDO Metadata Service is available to check the status of the authenticator with the aaguid {TpmAttestationBuilder.Aaguid} of the TPM attestation statement, so no trust anchor is acceptable");
+        });
+    }
 
     [Test]
     public async Task VerifyAsync_Fails_WhenFidoMetadataEntryIsUntrusted_DespiteEmbeddedManufacturerRoots()
     {
+        // the AIK certificate certifies the aaguid, so the embedded roots of the manufacturer would be acceptable, but the entry doesn't allow to trust the authenticator
         var metadataSearchService = new RecordingFidoMetadataSearchService().WithAaguid(TpmAttestationBuilder.Aaguid, FidoMetadataSearchError.Untrusted);
         var verifier = new TestTpmAttestationStatementVerifier(new DefaultTpmManufacturerVerifier(), metadataSearchService);
 
-        var result = await verifier.VerifyAsync(new TpmAttestationBuilder().Build());
+        var result = await verifier.VerifyAsync(new TpmAttestationBuilder { AaguidExtension = TpmAttestationBuilder.Aaguid }.Build());
 
         Assert.Multiple(() =>
         {
@@ -275,20 +349,20 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
         });
     }
 
-    [TestCase(FidoMetadataSearchError.NotFound)]
-    [TestCase(FidoMetadataSearchError.MetadataNotAvailable)]
-    public async Task VerifyAsync_Succeeds_WithEmbeddedManufacturerRoots_WhenFidoMetadataHasNoUsableEntry(FidoMetadataSearchError error)
+    [Test]
+    public async Task VerifyAsync_UsesFidoMetadataAndManufacturerRoots_WhenAikCertificateCertifiesAaguid()
     {
-        var metadataSearchService = new RecordingFidoMetadataSearchService().WithAaguid(TpmAttestationBuilder.Aaguid, error);
-        var verifier = new TestTpmAttestationStatementVerifier(new DefaultTpmManufacturerVerifier(), metadataSearchService);
+        var verifier = new TestTpmAttestationStatementVerifier();
 
-        var result = await verifier.VerifyAsync(new TpmAttestationBuilder().Build());
+        var withoutExtension = await verifier.VerifyAsync(new TpmAttestationBuilder().Build());
+        var withExtension = await verifier.VerifyAsync(new TpmAttestationBuilder { AaguidExtension = TpmAttestationBuilder.Aaguid }.Build());
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.HasError, Is.False);
-            Assert.That(result.Ok!.AttestationRootCertificates, Is.EquivalentTo(TpmRoots.AMD));
-            Assert.That(verifier.FakeLogger.Entries, Is.Empty);
+            Assert.That(withoutExtension.HasError, Is.False);
+            Assert.That(withoutExtension.Ok!.AttestationRootCertificates, Is.EquivalentTo(new[] { TpmAttestationBuilder.MetadataRoot }));
+            Assert.That(withExtension.HasError, Is.False);
+            Assert.That(withExtension.Ok!.AttestationRootCertificates, Is.EquivalentTo(TpmRoots.AMD.Append(TpmAttestationBuilder.MetadataRoot)));
         });
     }
 

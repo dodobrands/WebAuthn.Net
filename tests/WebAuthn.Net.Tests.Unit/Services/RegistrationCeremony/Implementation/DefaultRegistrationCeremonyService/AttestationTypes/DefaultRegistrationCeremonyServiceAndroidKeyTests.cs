@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using WebAuthn.Net.DSL;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
@@ -25,20 +26,82 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
         return new("https://vanbukin-pc.local", UriKind.Absolute);
     }
 
+    // The test vector was produced by an application on a real device: the attestation certificate chains up to a Google Hardware Attestation root,
+    // and the authenticator data has the zero aaguid, for which the downloaded blob has no entry.
+
     [Test]
     public async Task DefaultRegistrationCeremonyService_PerformsCeremonyWithoutErrorsForAndroidKey_WhenAllAlgorithms()
     {
+        // the entry for the aaguid lists the Google Hardware Attestation roots, like the entry of the Android Authenticator does
+        await MetadataStorage.UpsertAsync(MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.AndroidAuthenticatorAaguid), CancellationToken.None);
+
         var completeResult = await CompleteCeremonyAsync();
-        Assert.That(completeResult.HasError, Is.False);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.False);
+            Assert.That(AndroidKeyVerifierLogger.Entries, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenAaguidHasNoMetadataEntry()
+    {
+        // The attestation certificate chains up to a Google Hardware Attestation root, but the Android Key attestation statement doesn't attest the aaguid:
+        // the authenticator data is signed with the credential key, which the application holds. Without an entry for the aaguid no root is acceptable,
+        // otherwise any application on any Android device could claim any authenticator model.
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(
+                AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The FIDO Metadata Service has no usable metadata for the aaguid {Guid.Empty} of the Android Key attestation statement, which doesn't attest the aaguid itself, so no trust anchor is acceptable"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenMetadataEntryOfAaguidDoesNotListBasicFull()
+    {
+        await MetadataStorage.UpsertAsync(
+            MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.AndroidAuthenticatorAaguid, new[] { AuthenticatorAttestationType.ATTESTATION_BASIC_SURROGATE }),
+            CancellationToken.None);
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(
+                AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The metadata of the aaguid {Guid.Empty} doesn't list the attestation type that an Android Key attestation statement conveys (basic_full), so no trust anchor is acceptable"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenMetadataEntryOfAaguidListsOtherRoots()
+    {
+        // The claimed model is a security key (the entry of the YubiKey 5 Series, "basic_full" with the Yubico roots):
+        // the attestation certificate doesn't chain up to any root of that entry, so the attestation statement is not trustworthy.
+        await MetadataStorage.UpsertAsync(MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.YubiKey5Aaguid), CancellationToken.None);
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(AndroidKeyVerifierLogger.Entries, Is.Empty);
+        });
     }
 
     [TestCase(AuthenticatorStatus.REVOKED)]
     [TestCase(AuthenticatorStatus.ATTESTATION_KEY_COMPROMISE)]
     public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenMetadataStatusIsUntrusted(AuthenticatorStatus status)
     {
-        // The attestation certificate chains up to an embedded root of the Android Key Attestation, so the attestation doesn't need the root certificates of the FIDO Metadata Service.
-        // But the entry of the FIDO Metadata Service for the aaguid of the authenticator has a status that doesn't allow to trust it, so the registration must be rejected despite the embedded root.
-        // The test vector has the zero aaguid, for which the downloaded blob has no entry, so an entry with only this status report is added.
+        // The entry of the FIDO Metadata Service for the aaguid of the authenticator lists the roots that the attestation certificate chains up to,
+        // but it has a status that doesn't allow to trust the authenticator, so the registration must be rejected.
+        MetadataBlob = MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.AndroidAuthenticatorAaguid);
         await UpsertMetadataWithStatusReportAsync(Guid.Empty, status);
 
         var completeResult = await CompleteCeremonyAsync();
@@ -49,7 +112,10 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
             Assert.That(FidoMetadataCounters.LookupsWithUntrustedEntry, Is.EqualTo(1));
             Assert.That(
                 FidoMetadataSearchLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
-                Has.Exactly(1).EqualTo($"The status reports of the FIDO Metadata Service entry for the authenticator with AAGUID {Guid.Empty} don't allow to trust the authenticator: {status}"));
+                Has.Exactly(1).EqualTo($"The status reports of the FIDO Metadata Service entry for the authenticator with AAGUID {Guid.Empty} don't allow to trust the authenticator: FIDO_CERTIFIED_L1, FIDO_CERTIFIED, {status}"));
+            Assert.That(
+                AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The FIDO Metadata Service entry for the aaguid {Guid.Empty} of the Android Key attestation statement doesn't allow to trust the authenticator, so no trust anchor is acceptable"));
         });
     }
 

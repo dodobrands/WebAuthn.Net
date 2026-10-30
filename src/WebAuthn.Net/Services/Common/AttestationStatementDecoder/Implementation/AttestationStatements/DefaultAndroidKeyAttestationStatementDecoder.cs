@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Abstractions.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
+using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey.Constants;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Enums;
@@ -20,16 +22,30 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
     /// </summary>
     protected const int MaxX5CCertificates = 16;
 
+    // the members defined by androidStmtFormat
+    private static readonly string[] SyntaxMembers = { "alg", "sig", "x5c" };
+
     /// <summary>
     ///     Constructs <see cref="DefaultAndroidKeyAttestationStatementDecoder" />.
     /// </summary>
+    /// <param name="counters">Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation statement.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
-    public DefaultAndroidKeyAttestationStatementDecoder(ILogger<DefaultAndroidKeyAttestationStatementDecoder> logger)
+    public DefaultAndroidKeyAttestationStatementDecoder(
+        IRegistrationCeremonyCounters counters,
+        ILogger<DefaultAndroidKeyAttestationStatementDecoder> logger)
     {
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
+        Counters = counters;
         Logger = logger;
     }
+
+    /// <summary>
+    ///     Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation statement
+    ///     (see <see cref="AndroidKeyAttestationStatementAnomalies" />).
+    /// </summary>
+    protected IRegistrationCeremonyCounters Counters { get; }
 
     /// <summary>
     ///     Logger.
@@ -58,8 +74,31 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
             return Result<AndroidKeyAttestationStatement>.Fail();
         }
 
+        ReportUnknownMembers(attStmt);
         var result = new AndroidKeyAttestationStatement(alg.Value, sig, x5C);
         return Result<AndroidKeyAttestationStatement>.Success(result);
+    }
+
+    /// <summary>
+    ///     Reports the members of 'attStmt' that are not defined by the CDDL of the Android Key attestation statement (alg, sig, x5c) with a single Warning log entry
+    ///     and the <see cref="AndroidKeyAttestationStatementAnomalies.AttStmtMemberOutsideSyntax" /> anomaly; such members are ignored (tolerated), not rejected.
+    /// </summary>
+    /// <remarks>
+    ///     The members are chosen by the client and are reported before any signature is verified, so their number doesn't multiply the log entries or the anomalies:
+    ///     the log entry contains their total number and the keys of at most <c>8</c> of them, and the anomaly is counted once.
+    /// </remarks>
+    /// <param name="attStmt">The 'attStmt' map.</param>
+    protected virtual void ReportUnknownMembers(CborMap attStmt)
+    {
+        ArgumentNullException.ThrowIfNull(attStmt);
+        // https://www.w3.org/TR/webauthn-3/#sctn-android-key-attestation
+        // androidStmtFormat = { alg: COSEAlgorithmIdentifier, sig: bytes, x5c: [ credCert: bytes, * (caCert: bytes) ] }
+        // The map is closed, but unknown members are tolerated like in the Packed and TPM attestation statements, and only reported.
+        if (AttestationStatementMembersOutsideSyntax.TryDescribe(attStmt, SyntaxMembers, out var count, out var members))
+        {
+            Logger.AndroidKeyUnknownMembers(count, members);
+            Counters.IncrementAttestationStatementAnomaly(AndroidKeyAttestationStatementAnomalies.Format, AndroidKeyAttestationStatementAnomalies.AttStmtMemberOutsideSyntax, true);
+        }
     }
 
     private bool TryDecodeAlg(
@@ -143,6 +182,14 @@ public class DefaultAndroidKeyAttestationStatementDecoder : IAndroidKeyAttestati
         }
 
         var cborArrayItems = x5CborArray.RawValue;
+        // x5c: [ credCert: bytes, * (caCert: bytes) ] - credCert is required
+        if (cborArrayItems.Length == 0)
+        {
+            Logger.AndroidKeyX5CEmptyArray();
+            value = null;
+            return false;
+        }
+
         if (cborArrayItems.Length > MaxX5CCertificates)
         {
             Logger.AndroidKeyX5CTooManyElements(cborArrayItems.Length, MaxX5CCertificates);
@@ -292,4 +339,24 @@ public static partial class DefaultAndroidKeyAttestationStatementDecoderLoggingE
         Level = LogLevel.Warning,
         Message = "The 'x5c' array in the 'attStmt' contains {Count} elements, which exceeds the maximum of {MaxCount}")]
     public static partial void AndroidKeyX5CTooManyElements(this ILogger logger, int count, int maxCount);
+
+    /// <summary>
+    ///     The 'x5c' array in the 'attStmt' is empty, but it must contain at least credCert
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'x5c' array in the 'attStmt' is empty, but it must contain at least credCert")]
+    public static partial void AndroidKeyX5CEmptyArray(this ILogger logger);
+
+    /// <summary>
+    ///     The 'attStmt' of the Android Key attestation statement contains {Count} member(s) that are not defined by its CDDL (alg, sig, x5c); they are ignored: {Members}
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="count">The number of members outside the syntax.</param>
+    /// <param name="members">The keys of at most 8 of those members (see AttestationStatementMembersOutsideSyntax).</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The 'attStmt' of the Android Key attestation statement contains {Count} member(s) that are not defined by its CDDL (alg, sig, x5c); they are ignored: {Members}")]
+    public static partial void AndroidKeyUnknownMembers(this ILogger logger, int count, string members);
 }

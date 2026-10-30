@@ -37,8 +37,8 @@ public class DefaultTpmAttestationStatementVerifierVerifyAsyncTests
             Assert.That(result.Ok!.Fmt, Is.EqualTo(AttestationStatementFormat.Tpm));
             Assert.That(result.Ok.AttestationType, Is.EqualTo(AttestationType.AttCa));
             Assert.That(result.Ok.AttestationTrustPath, Is.EqualTo(attestation.AttStmt.X5C));
-            // the embedded roots of the manufacturer named in the AIK certificate (id:414D4400 - AMD)
-            Assert.That(result.Ok.AttestationRootCertificates, Is.EquivalentTo(TpmRoots.AMD));
+            // the root of the FIDO Metadata Service entry for the aaguid: the AIK certificate doesn't certify the aaguid, so the embedded roots of the manufacturer aren't acceptable
+            Assert.That(result.Ok.AttestationRootCertificates, Is.EquivalentTo(new[] { TpmAttestationBuilder.MetadataRoot }));
             Assert.That(verifier.FakeCounters.AttestationStatementAnomalies, Is.Empty);
             Assert.That(verifier.FakeLogger.Entries, Is.Empty);
         });
@@ -86,7 +86,12 @@ public class DefaultTpmAttestationStatementVerifierVerifyAsyncTests
 
         var result = await verifier.VerifyAsync(new TpmAttestationBuilder { AaguidExtension = TpmAttestationBuilder.Aaguid }.Build());
 
-        Assert.That(result.HasError, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.False);
+            // the AIK certificate certifies the aaguid, so the embedded roots of the manufacturer named in it (id:414D4400 - AMD) are acceptable as well
+            Assert.That(result.Ok!.AttestationRootCertificates, Is.EquivalentTo(TpmRoots.AMD.Append(TpmAttestationBuilder.MetadataRoot)));
+        });
     }
 
     // ---------------------------------------------------------------------------------------------

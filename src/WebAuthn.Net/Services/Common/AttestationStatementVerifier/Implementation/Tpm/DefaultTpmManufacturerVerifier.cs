@@ -24,6 +24,8 @@ namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementati
 ///     <para>
 ///         Vendors with embedded root certificates of their own (see <see cref="TpmRoots" />) get those roots; every other known vendor gets the Microsoft TPM roots
 ///         (Microsoft TPM Root Certificate Authority 2014, which the AIK certificates of Windows issued through intermediate CAs chain to, and Microsoft Pluton Root CA 2021).
+///         <see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> accepts these roots only for an AIK certificate that certifies the aaguid of the authenticator (id-fido-gen-ce-aaguid);
+///         otherwise the trust anchors come from the FIDO Metadata Service entry for the aaguid.
 ///     </para>
 /// </remarks>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]

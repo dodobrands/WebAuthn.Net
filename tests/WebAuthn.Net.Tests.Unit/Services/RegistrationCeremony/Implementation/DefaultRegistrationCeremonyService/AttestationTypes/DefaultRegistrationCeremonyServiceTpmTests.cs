@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using WebAuthn.Net.Configuration.Options;
+using WebAuthn.Net.DSL;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
@@ -73,6 +74,64 @@ public class DefaultRegistrationCeremonyServiceTpmTests : AbstractRegistrationCe
             Assert.That(
                 FidoMetadataSearchLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
                 Has.Exactly(1).EqualTo($"The status reports of the FIDO Metadata Service entry for the authenticator with AAGUID {WindowsHelloAaguid} don't allow to trust the authenticator: FIDO_CERTIFIED_L1, FIDO_CERTIFIED, {status}"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForTpm_WhenAaguidHasNoMetadataEntry()
+    {
+        // The AIK certificate chains up to the embedded "Microsoft TPM Root Certificate Authority 2014", but it doesn't certify the aaguid (no id-fido-gen-ce-aaguid extension),
+        // and the aaguid in the authenticator data is chosen by the client. Without an entry for the aaguid the model isn't attested, so the embedded root isn't acceptable.
+        await MetadataStorage.UpsertAsync(MetadataBlob.WithoutEntry(WindowsHelloAaguid), CancellationToken.None);
+
+        var completeResult = await CompleteCeremonyWithEcdsaAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(
+                TpmVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The FIDO Metadata Service has no usable metadata for the aaguid {WindowsHelloAaguid} of the TPM attestation statement, and the AIK certificate doesn't certify the aaguid (it has no id-fido-gen-ce-aaguid extension), so no trust anchor is acceptable"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForTpm_WhenMetadataEntryOfAaguidDoesNotListAttCa()
+    {
+        // The entry for the aaguid lists the Microsoft TPM root, but not the "attca" attestation type that a TPM attestation statement conveys
+        // (like the entry of a security key that a client could claim, for example the YubiKey 5 Series with "basic_full" only).
+        await MetadataStorage.UpsertAsync(
+            MetadataBlob.WithEntryCopy(WindowsHelloAaguid, WindowsHelloAaguid, new[] { AuthenticatorAttestationType.ATTESTATION_BASIC_SURROGATE }),
+            CancellationToken.None);
+
+        var completeResult = await CompleteCeremonyWithEcdsaAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(
+                TpmVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo($"The metadata of the aaguid {WindowsHelloAaguid} doesn't list the attestation type that a TPM attestation statement conveys (attca), so no trust anchor is acceptable"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForTpm_WhenMetadataEntryOfAaguidListsOtherRoots()
+    {
+        // The entry for the aaguid lists "attca", but not the root that the AIK certificate chains up to: the embedded root of the manufacturer doesn't make up for it.
+        await MetadataStorage.UpsertAsync(
+            MetadataBlob.WithEntryCopy(
+                WindowsHelloAaguid,
+                WindowsHelloAaguid,
+                attestationRootCertificates: MetadataBlob.Entries.Single(static x => x.Aaguid == MetadataBlobPayloadEdits.YubiKey5Aaguid).MetadataStatement!.AttestationRootCertificates),
+            CancellationToken.None);
+
+        var completeResult = await CompleteCeremonyWithEcdsaAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(TpmVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning), Is.Empty);
         });
     }
 

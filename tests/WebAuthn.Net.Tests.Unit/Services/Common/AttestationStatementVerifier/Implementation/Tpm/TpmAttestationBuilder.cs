@@ -18,6 +18,7 @@ using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.Attestati
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models.Enums;
 using WebAuthn.Net.Services.Cryptography.Sign.Implementation;
+using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.Serialization.Asn1.Implementation;
 using WebAuthn.Net.Services.Serialization.Cose.Models;
 using WebAuthn.Net.Services.Serialization.Cose.Models.Abstractions;
@@ -43,6 +44,15 @@ internal sealed class TpmAttestationBuilder
 
     public static readonly DateTimeOffset Now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     public static readonly Guid Aaguid = Guid.Parse("08987058-cadc-4b81-b6e1-30de50dcbe96");
+
+    // the root certificate that the FIDO Metadata Service stand-in of TestTpmAttestationStatementVerifier lists for Aaguid by default (an "attca" entry);
+    // it is none of the embedded roots, so the tests can tell the roots of the metadata from those of the manufacturer
+    public static readonly byte[] MetadataRoot = CreateMetadataRoot();
+
+    // ---------- authenticator data
+
+    // the aaguid in the authenticator data, chosen by the client (the AIK certificate certifies it only with the id-fido-gen-ce-aaguid extension, see AaguidExtension)
+    public Guid AuthenticatorDataAaguid { get; init; } = Aaguid;
 
     // ---------- credential key (pubArea)
 
@@ -138,7 +148,7 @@ internal sealed class TpmAttestationBuilder
         var rpIdHash = SHA256.HashData("example.com"u8);
         var rawAuthenticatorData = rpIdHash
             .Concat(new byte[] { 0x45, 0, 0, 0, 0 })
-            .Concat(Aaguid.ToByteArray(true))
+            .Concat(AuthenticatorDataAaguid.ToByteArray(true))
             .Concat(new byte[] { 0, 16 })
             .Concat(credentialId)
             .ToArray();
@@ -147,7 +157,7 @@ internal sealed class TpmAttestationBuilder
             rpIdHash,
             AuthenticatorDataFlags.UserPresent | AuthenticatorDataFlags.UserVerified | AuthenticatorDataFlags.AttestedCredentialData,
             0,
-            new(Aaguid, credentialId, coseKey));
+            new(AuthenticatorDataAaguid, credentialId, coseKey));
         var clientDataHash = SHA256.HashData("{\"type\":\"webauthn.create\"}"u8);
         // extraData = H_alg(attToBeSigned), with the hash algorithm of 'alg' (RS256 and ES256: SHA-256, RS1: SHA-1)
         var attToBeSigned = rawAuthenticatorData.Concat(WrongExtraData ? new byte[32] : clientDataHash).ToArray();
@@ -557,6 +567,15 @@ internal sealed class TpmAttestationBuilder
 
     // ---------- bytes
 
+    private static byte[] CreateMetadataRoot()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var request = new CertificateRequest("CN=WebAuthn.Net TPM Test Metadata Root", key, HashAlgorithmName.SHA256);
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        using var certificate = request.CreateSelfSigned(Now.AddYears(-1), Now.AddYears(10));
+        return certificate.RawData;
+    }
+
     public static byte[] Pattern(int length, int seed)
     {
         var result = new byte[length];
@@ -601,22 +620,27 @@ internal sealed record TpmAttestation(TpmAttestationStatement AttStmt, AttestedA
 /// <summary>
 ///     <see cref="DefaultTpmAttestationStatementVerifier{TContext}" /> with the default decoders, a fixed clock, recording counters and logger,
 ///     the default manufacturer verifier unless another one is given, and a FIDO Metadata Service stand-in that answers only what it is given
-///     (by default it finds nothing, so the acceptable trust anchors are the embedded manufacturer roots only).
+///     (by default an "attca" entry for <see cref="TpmAttestationBuilder.Aaguid" /> that lists <see cref="TpmAttestationBuilder.MetadataRoot" />, and nothing for any other aaguid).
 /// </summary>
 internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>
 {
     public TestTpmAttestationStatementVerifier()
-        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), new DefaultTpmManufacturerVerifier(), new RecordingFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), new DefaultTpmManufacturerVerifier(), DefaultFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
     {
     }
 
     public TestTpmAttestationStatementVerifier(DateTimeOffset now)
-        : this(new FakeTimeProvider(now), new DefaultTpmManufacturerVerifier(), new RecordingFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+        : this(new FakeTimeProvider(now), new DefaultTpmManufacturerVerifier(), DefaultFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
     {
     }
 
     public TestTpmAttestationStatementVerifier(ITpmManufacturerVerifier tpmManufacturerVerifier)
-        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), tpmManufacturerVerifier, new RecordingFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), tpmManufacturerVerifier, DefaultFidoMetadataSearchService(), new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
+    {
+    }
+
+    public TestTpmAttestationStatementVerifier(RecordingFidoMetadataSearchService fidoMetadataSearchService)
+        : this(new FakeTimeProvider(TpmAttestationBuilder.Now), new DefaultTpmManufacturerVerifier(), fidoMetadataSearchService, new FakeRegistrationCeremonyCounters(), new FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>>())
     {
     }
 
@@ -653,8 +677,15 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
 
     public FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>> FakeLogger { get; }
 
-    // the policy of IsTpmBoundCredentialKeyRequired: reject a credential key that is not bound to the TPM (the default of the verifier is to tolerate it)
-    public bool RequireTpmBoundCredentialKey { get; init; }
+    // the policy of IsTpmBoundCredentialKeyRequired: whether a credential key that is not bound to the TPM is rejected (null - the default of the verifier, which rejects it)
+    public bool? RequireTpmBoundCredentialKey { get; init; }
+
+    // the FIDO Metadata Service stand-in of the constructors that don't take one: an "attca" entry for the aaguid of the builder
+    public static RecordingFidoMetadataSearchService DefaultFidoMetadataSearchService()
+    {
+        return new RecordingFidoMetadataSearchService()
+            .WithAaguid(TpmAttestationBuilder.Aaguid, RecordingFidoMetadataSearchService.Metadata(TpmAttestationBuilder.MetadataRoot, AuthenticatorAttestationType.ATTESTATION_ATTCA));
+    }
 
     public async Task<Result<VerifiedAttestationStatement>> VerifyAsync(TpmAttestation attestation)
     {
@@ -670,6 +701,6 @@ internal sealed class TestTpmAttestationStatementVerifier : DefaultTpmAttestatio
 
     protected override bool IsTpmBoundCredentialKeyRequired(PubArea pubArea, AttestedAuthenticatorData authenticatorData)
     {
-        return RequireTpmBoundCredentialKey;
+        return RequireTpmBoundCredentialKey ?? base.IsTpmBoundCredentialKeyRequired(pubArea, authenticatorData);
     }
 }
