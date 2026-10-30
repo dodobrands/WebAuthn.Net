@@ -195,37 +195,12 @@ public class DefaultFidoMetadataHttpClientDownloadLimitsTests
         Assert.That(warnings[0].Message, Does.Contain("declares a body of 2147483648 bytes").And.Contain("67108864 bytes"));
     }
 
-    private BoundedFidoMetadataHttpClient CreateClient(TimeSpan? downloadTimeout = null)
+    private DefaultFidoMetadataHttpClient CreateClient(TimeSpan? downloadTimeout = null)
     {
-        return new(HttpClient, Options, Logger, MaxResponseSize, downloadTimeout ?? LongDownloadTimeout);
-    }
-
-    private sealed class BoundedFidoMetadataHttpClient : DefaultFidoMetadataHttpClient
-    {
-        private readonly TimeSpan _downloadTimeout;
-        private readonly long _maxResponseSizeInBytes;
-
-        public BoundedFidoMetadataHttpClient(
-            HttpClient httpClient,
-            IOptionsMonitor<WebAuthnOptions> options,
-            ILogger<DefaultFidoMetadataHttpClient> logger,
-            long maxResponseSizeInBytes,
-            TimeSpan downloadTimeout)
-            : base(httpClient, options, logger)
-        {
-            _maxResponseSizeInBytes = maxResponseSizeInBytes;
-            _downloadTimeout = downloadTimeout;
-        }
-
-        protected override long GetMaxResponseSizeInBytes()
-        {
-            return _maxResponseSizeInBytes;
-        }
-
-        protected override TimeSpan GetDownloadTimeout()
-        {
-            return _downloadTimeout;
-        }
+        var fidoMetadataOptions = Options.CurrentValue.FidoMetadata;
+        fidoMetadataOptions.MaxResponseSizeInBytes = MaxResponseSize;
+        fidoMetadataOptions.DownloadTimeout = downloadTimeout ?? LongDownloadTimeout;
+        return new(HttpClient, Options, Logger);
     }
 
     private sealed class FakeResponseHandler : HttpMessageHandler

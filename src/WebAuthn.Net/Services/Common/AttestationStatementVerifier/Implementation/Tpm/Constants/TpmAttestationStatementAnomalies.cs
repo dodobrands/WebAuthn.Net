@@ -35,7 +35,7 @@ public static class TpmAttestationStatementAnomalies
     public const string PubAreaNameAlgNotSupported = "pubarea.name_alg_not_supported";
 
     /// <summary>
-    ///     Tolerated by default, rejected when <see cref="DefaultTpmAttestationStatementVerifier{TContext}.IsTpmBoundCredentialKeyRequired" /> says so: the credential key of the pubArea is not bound to the TPM -
+    ///     Rejected by default, tolerated when <see cref="Configuration.Options.AttestationStatements.TpmAttestationStatementOptions.AcceptOnlyTpmBoundKeys" /> is <see langword="false" />: the credential key of the pubArea is not bound to the TPM -
     ///     at least one of fixedTPM, fixedParent and sensitiveDataOrigin is CLEAR in its objectAttributes (TPM 2.0 Library Part 2 v185 §8.3.3.2, §8.3.3.4 and §8.3.3.5).
     ///     That is what a key imported with TPM2_Import() or loaded with TPM2_LoadExternal() looks like, so a copy of its private part may exist outside the TPM.
     /// </summary>

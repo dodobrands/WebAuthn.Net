@@ -18,8 +18,8 @@ namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataHttpClie
 /// </summary>
 /// <remarks>
 ///     The download is bounded to protect the application from a hostile or compromised endpoint. The response body is read as a stream
-///     and the download is aborted as soon as the body exceeds <see cref="GetMaxResponseSizeInBytes" /> (regardless of the 'Content-Length' header)
-///     or the download takes longer than <see cref="GetDownloadTimeout" /> (<see cref="System.Net.Http.HttpClient.Timeout" /> covers only the time
+///     and the download is aborted as soon as the body exceeds <see cref="FidoMetadataOptions.MaxResponseSizeInBytes" /> (regardless of the 'Content-Length' header)
+///     or the download takes longer than <see cref="FidoMetadataOptions.DownloadTimeout" /> (<see cref="System.Net.Http.HttpClient.Timeout" /> covers only the time
 ///     until the response headers are received, because the body is read as a stream).
 /// </remarks>
 public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
@@ -86,16 +86,17 @@ public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
     protected ILogger<DefaultFidoMetadataHttpClient> Logger { get; }
 
     /// <inheritdoc />
-    /// <exception cref="HttpRequestException">The request failed, the response has an unsuccessful status code, or the response body exceeds <see cref="GetMaxResponseSizeInBytes" />.</exception>
+    /// <exception cref="HttpRequestException">The request failed, the response has an unsuccessful status code, or the response body exceeds <see cref="FidoMetadataOptions.MaxResponseSizeInBytes" />.</exception>
     /// <exception cref="TimeoutException">
-    ///     The download wasn't completed within <see cref="GetDownloadTimeout" />, or <see cref="System.Net.Http.HttpClient.Timeout" /> elapsed before the response headers were received.
+    ///     The download wasn't completed within <see cref="FidoMetadataOptions.DownloadTimeout" />, or <see cref="System.Net.Http.HttpClient.Timeout" /> elapsed before the response headers were received.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation was requested through <paramref name="cancellationToken" />.</exception>
     public virtual async Task<string> DownloadMetadataAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var maxResponseSizeInBytes = GetMaxResponseSizeInBytes();
-        var downloadTimeout = GetDownloadTimeout();
+        var options = Options.CurrentValue.FidoMetadata;
+        var maxResponseSizeInBytes = options.MaxResponseSizeInBytes;
+        var downloadTimeout = options.DownloadTimeout;
         // The timeout covers the whole download, including the reading of the response body,
         // which HttpClient.Timeout doesn't limit when the response is read as a stream (HttpCompletionOption.ResponseHeadersRead).
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -103,7 +104,7 @@ public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
         try
         {
             using var response = await HttpClient.GetAsync(
-                Options.CurrentValue.FidoMetadata.Mds3BlobUri,
+                options.Mds3BlobUri,
                 HttpCompletionOption.ResponseHeadersRead,
                 timeoutCts.Token);
             response.EnsureSuccessStatusCode();
@@ -125,32 +126,6 @@ public class DefaultFidoMetadataHttpClient : IFidoMetadataHttpClient
             Logger.WarnDownloadTimedOut(downloadTimeout, HttpClient.Timeout);
             throw new TimeoutException($"The download of the FIDO Metadata Service blob wasn't completed within the download timeout of {downloadTimeout} (or the HttpClient timeout of {HttpClient.Timeout} elapsed before the response headers were received)", exception);
         }
-    }
-
-    /// <summary>
-    ///     Returns the maximum size of the response body (the blob) in bytes that the client agrees to download.
-    /// </summary>
-    /// <remarks>
-    ///     The default is 64 MiB (67108864 bytes). For comparison, the blob published by the FIDO Alliance in October 2026 (no: 291) is about 10.6 MB.
-    ///     Override this method if the blob grows beyond the limit or a stricter limit is desired.
-    /// </remarks>
-    /// <returns>The maximum size of the response body in bytes.</returns>
-    protected virtual long GetMaxResponseSizeInBytes()
-    {
-        return 64L * 1024 * 1024;
-    }
-
-    /// <summary>
-    ///     Returns the time limit for the whole download of the blob: from sending the request to reading the last byte of the response body.
-    /// </summary>
-    /// <remarks>
-    ///     The default is 5 minutes, which is enough to download the current blob (about 10.6 MB) even over a slow connection (about 300 kbit/s),
-    ///     while a hostile endpoint that sends the body slowly can't make the download (and the start of the application, which awaits the first download unless the blob embedded in the application is loaded) hang indefinitely.
-    /// </remarks>
-    /// <returns>The time limit for the whole download.</returns>
-    protected virtual TimeSpan GetDownloadTimeout()
-    {
-        return TimeSpan.FromMinutes(5);
     }
 
     /// <summary>

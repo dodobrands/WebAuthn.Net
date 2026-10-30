@@ -162,6 +162,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             metadataSearchService,
             NullLogger<DefaultPackedAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var tpmVerifier = new DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>(
+            Options,
             TimeProvider,
             new DefaultTpmPubAreaDecoder(),
             new DefaultTpmCertInfoDecoder(),

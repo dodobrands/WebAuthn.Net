@@ -8,6 +8,11 @@ namespace WebAuthn.Net.Configuration.Options;
 public class AttestationStatementOptions
 {
     /// <summary>
+    ///     Options that define behavior when working with <a href="https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation">"TPM" attestation format</a>.
+    /// </summary>
+    public TpmAttestationStatementOptions Tpm { get; set; } = new();
+
+    /// <summary>
     ///     Options that define behavior when working with <a href="https://www.w3.org/TR/webauthn-3/#sctn-android-key-attestation">"Android Key" attestation format</a>.
     /// </summary>
     public AndroidKeyAttestationStatementOptions AndroidKey { get; set; } = new();
