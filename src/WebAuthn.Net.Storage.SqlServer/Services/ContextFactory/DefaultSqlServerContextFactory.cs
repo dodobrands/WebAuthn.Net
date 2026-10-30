@@ -38,9 +38,17 @@ public class DefaultSqlServerContextFactory : IWebAuthnContextFactory<DefaultSql
     {
         cancellationToken.ThrowIfCancellationRequested();
         var connection = await CreateConnectionAsync(httpContext, cancellationToken);
-        var transaction = await CreateTransactionAsync(httpContext, connection, cancellationToken);
-        var context = new DefaultSqlServerContext(httpContext, connection, transaction);
-        return context;
+        try
+        {
+            var transaction = await CreateTransactionAsync(httpContext, connection, cancellationToken);
+            var context = new DefaultSqlServerContext(httpContext, connection, transaction);
+            return context;
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     /// <summary>
