@@ -251,7 +251,8 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
     [Test]
     public async Task LoadEmbeddedMetadataAsync_WhenBlobIsSignedUnderAnotherRoot_ReturnsFail()
     {
-        // For example, a blob of the FIDO conformance tools embedded in a production application: it doesn't chain up to the root certificates of the FIDO Metadata Service.
+        // For example, a blob of a test environment embedded in a production application: it doesn't chain up to the root certificates of the FIDO Metadata Service,
+        // so it is rejected even though its signing certificate is issued to the FIDO Metadata Service.
         var provider = CreateProvider(CurrentDate);
 
         var result = await provider.LoadEmbeddedMetadataAsync(CreateAssembly(ResignUnderAnotherRoot(GetGenuineBlob())), BlobResourceName, CancellationToken.None);
@@ -329,7 +330,8 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         });
     }
 
-    // The genuine payload signed by a certificate issued by a root that is not a root certificate of the FIDO Metadata Service.
+    // The genuine payload signed by a certificate issued to the FIDO Metadata Service (mds.fidoalliance.org, for TLS server authentication, like the genuine signing certificate)
+    // by a root that is not a root certificate of the FIDO Metadata Service.
     private static string ResignUnderAnotherRoot(string jwt)
     {
         var segments = jwt.Split('.');
@@ -339,8 +341,12 @@ public class DefaultFidoMetadataProviderEmbeddedBlobTests
         rootRequest.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
         using var root = rootRequest.CreateSelfSigned(CurrentDate.AddYears(-1), CurrentDate.AddYears(1));
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var signingRequest = new CertificateRequest("CN=WebAuthn.Net Test Metadata Signer", signingKey, HashAlgorithmName.SHA256);
+        var signingRequest = new CertificateRequest("CN=mds.fidoalliance.org", signingKey, HashAlgorithmName.SHA256);
         signingRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+        var subjectAlternativeName = new SubjectAlternativeNameBuilder();
+        subjectAlternativeName.AddDnsName("mds.fidoalliance.org");
+        signingRequest.CertificateExtensions.Add(subjectAlternativeName.Build());
+        signingRequest.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new Oid("1.3.6.1.5.5.7.3.1") }, false));
         using var signingCertificate = signingRequest.Create(root, CurrentDate.AddDays(-1), CurrentDate.AddDays(30), new byte[] { 1, 2, 3, 4 });
         var header = new JsonObject
         {

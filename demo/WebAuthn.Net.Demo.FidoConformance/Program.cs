@@ -51,6 +51,9 @@ public static class Program
                 options.AttestationTypes.Self.IsAcceptable = true;
                 options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
                 options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
+                // The MDS3 test server signs its blobs with its own test certificates under its own root certificate (see LocalFilesFidoMetadataProviderForMdsTests),
+                // not with the certificate of the FIDO Metadata Service, so the DNS name of the signing certificate is not checked.
+                options.FidoMetadata.SigningCertificateDnsName = null;
             },
             static fidoHttp =>
             {
@@ -77,6 +80,7 @@ public static class Program
         //         options.AttestationTypes.Self.IsAcceptable = true;
         //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
+        //         options.FidoMetadata.SigningCertificateDnsName = null;
         //     },
         //     static fidoHttp =>
         //     {
@@ -107,6 +111,7 @@ public static class Program
         //         options.AttestationTypes.Self.IsAcceptable = true;
         //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
+        //         options.FidoMetadata.SigningCertificateDnsName = null;
         //     },
         //     static fidoHttp =>
         //     {
@@ -137,6 +142,7 @@ public static class Program
         //         options.AttestationTypes.Self.IsAcceptable = true;
         //         options.X509ChainValidation.OnValidateAttestationTrustPathChain = ConformanceAttestationTrustPathChain.Configure;
         //         options.X509ChainValidation.OnValidateFidoMetadataBlobJwtChain = ConformanceCrlRevocationChecker.ConfigureFidoMetadataBlobJwtChain;
+        //         options.FidoMetadata.SigningCertificateDnsName = null;
         //     },
         //     static fidoHttp =>
         //     {
