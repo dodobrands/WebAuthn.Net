@@ -577,6 +577,10 @@ public class DefaultFidoMetadataProvider : IFidoMetadataProvider
     /// <summary>
     ///     Returns a collection of FIDO root certificates embedded in the library for validating certificate chains that sign the blobs obtained from the FIDO Metadata Service.
     /// </summary>
+    /// <remarks>
+    ///     By default, it holds only GlobalSign Root R46 (<see cref="FidoMetadataRoots.GlobalSign" />), the root certificate that FIDO publishes for verifying the blob.
+    ///     If the FIDO Metadata Service moves to another root certificate, its blobs are rejected until the library is updated or an override of this method returns the new root certificate.
+    /// </remarks>
     /// <returns>An instance of <see cref="UniqueByteArraysCollection" />. It may return an empty collection, but it never returns <see langword="null" />.</returns>
     protected virtual UniqueByteArraysCollection GetEmbeddedFidoRootCertificates()
     {

@@ -7,12 +7,14 @@ using WebAuthn.Net.Services.Static;
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataProvider.Constants;
 
 /// <summary>
-///     Embedded root certificates for FIDO Metadata Service, used for validation of a certificate chain obtained from a blob downloaded from FIDO MDS.
+///     The embedded root certificate of FIDO Metadata Service, used for validation of a certificate chain obtained from a blob downloaded from FIDO MDS.
 /// </summary>
 public static class FidoMetadataRoots
 {
     /// <summary>
-    ///     Root CA certificates for FIDO Metadata Service blobs (<a href="https://fidoalliance.org/metadata/">FIDO uses GlobalSign</a>).
+    ///     The root CA certificate for FIDO Metadata Service blobs: GlobalSign Root R46, the only root certificate that <a href="https://fidoalliance.org/metadata/">FIDO publishes</a> for verifying the blob
+    ///     (the root signing trust anchor of <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-mds-blob-proc-rules">FIDO Metadata Service v3.1.1 §3.2</a>).
+    ///     The other root certificates of GlobalSign are not trusted, including GlobalSign Root CA - R3, which cross-signs GlobalSign Root R46.
     /// </summary>
     public static readonly byte[][] GlobalSign = GetRoots();
 
