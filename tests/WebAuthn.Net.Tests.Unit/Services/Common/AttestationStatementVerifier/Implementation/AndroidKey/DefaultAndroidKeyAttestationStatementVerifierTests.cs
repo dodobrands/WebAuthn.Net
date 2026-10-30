@@ -385,7 +385,7 @@ public class DefaultAndroidKeyAttestationStatementVerifierTests
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Malformed or repeated fields of the authorization lists are rejected without an exception (report OPEN-15: AsnContentException escaped the verifier),
+    // Malformed or repeated fields of the authorization lists are rejected without an exception,
     // and never taken for absent ones (which the union of the lists would then look up in the other list)
 
     [TestCase("A1083106020103020102", "purpose")] // [1] { SET { INTEGER 3, INTEGER 2 } } - a SET OF that is not in DER order
