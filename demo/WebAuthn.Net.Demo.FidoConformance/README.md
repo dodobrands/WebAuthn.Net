@@ -28,6 +28,7 @@ These steps need to be performed only if you have not done them before.
    ![SELECT TESTS TO RUN - options](docs/images/select-tests.png)
 4. In the `"TESTS CONFIGURATION"` section, enable all options under `"Server support for OPTIONAL algorithms and attestations"`
    ![TESTS CONFIGURATION - options](docs/images/tests-config.png)
+   > **Note on Android Key attestation.** By default, the library accepts an `android-key` attestation only for a key of a trusted execution environment (TEE) or StrongBox. The FIDO Conformance Tools make their `android-key` attestations the way the software keystore of Android does: the KeyDescription of their attestation certificate says `Software` for `attestationSecurityLevel` and `keymasterSecurityLevel`. So the demo accepts keys outside a trusted execution environment too (`options.AttestationStatements.AndroidKey.AcceptKeysOnlyFromTrustedExecutionEnvironment = false` in `Program.cs`). DO NOT copy this setting into a production application.
 5. In the `"TESTS CONFIGURATION"` section, specify the application URL (by default `https://localhost:5000`)
    ![TESTS CONFIGURATION - application URL](docs/images/tests-config-url.png)
 6. Download the test metadata by clicking on the `"DOWNLOAD TEST METADATA"` button.
