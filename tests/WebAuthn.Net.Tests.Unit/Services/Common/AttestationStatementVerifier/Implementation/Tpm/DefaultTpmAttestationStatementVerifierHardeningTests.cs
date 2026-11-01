@@ -427,6 +427,7 @@ public class DefaultTpmAttestationStatementVerifierHardeningTests
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
             cborDeserializer,
             new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>(),
+            new FakeRegistrationCeremonyCounters(),
             NullLogger<DefaultAttestationObjectDecoder>.Instance);
         var authenticatorDataDecoder = new DefaultAuthenticatorDataDecoder(
             new DefaultCoseKeyDeserializer(cborDeserializer, NullLogger<DefaultCoseKeyDeserializer>.Instance),

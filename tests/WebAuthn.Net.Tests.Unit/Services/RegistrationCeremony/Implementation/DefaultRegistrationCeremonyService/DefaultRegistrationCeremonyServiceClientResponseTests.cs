@@ -273,6 +273,24 @@ public class DefaultRegistrationCeremonyServiceClientResponseTests : AbstractReg
         Assert.That(result.HasError, Is.True);
     }
 
+    // The identifier of the ceremony comes with the request, and the application may take it from the client:
+    // the logging scope contains it with its control characters replaced by '?' and truncated to 64 characters
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_LogsSanitizedCeremonyIdInScope_WhenCeremonyIdContainsControlCharactersAndIsLong()
+    {
+        using var authenticator = new SoftwareAuthenticator();
+
+        var result = await CompleteCeremonyAsync(
+            "\r\n[Information] forged\u001b[0m" + new string('a', 1000),
+            authenticator.CreateRegistrationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.create", "AAAAAAAAAAAAAAAAAAAAAA", Origin)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(RegistrationCeremonyLogger.Scopes, Is.EqualTo(new[] { "Completion of registration ceremony with Id: ??[Information] forged?[0m" + new string('a', 38) + "..." }));
+        });
+    }
+
     private async Task<PublicKeyCredentialDescriptor> FindStoredDescriptorAsync(byte[] credentialId)
     {
         await using var context = await ContextFactory.CreateAsync(new DefaultHttpContext(new FeatureCollection()), CancellationToken.None);

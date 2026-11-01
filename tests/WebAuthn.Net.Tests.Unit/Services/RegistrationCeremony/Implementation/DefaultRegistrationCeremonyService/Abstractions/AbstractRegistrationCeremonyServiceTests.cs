@@ -106,6 +106,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
             cborDeserializer,
             new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>(),
+            RegistrationCounters,
             NullLogger<DefaultAttestationObjectDecoder>.Instance);
         DefaultFidoMetadataSearchService<FakeWebAuthnContext> metadataSearchService;
         using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
@@ -214,6 +215,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             packedDecoder,
             tpmDecoder);
         var attestationTrustPathValidator = new DefaultAttestationTrustPathValidator(Options);
+        RegistrationCeremonyLogger = new();
         RegistrationCeremonyService = new(
             Options,
             ContextFactory,
@@ -232,7 +234,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             attestationStatementVerifier,
             attestationTrustPathValidator,
             RegistrationCounters,
-            NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
+            RegistrationCeremonyLogger);
     }
 
     [TearDown]
@@ -291,6 +293,7 @@ public abstract class AbstractRegistrationCeremonyServiceTests
 
     protected abstract Uri GetRelyingPartyAddress();
     protected DefaultRegistrationCeremonyService<FakeWebAuthnContext> RegistrationCeremonyService { get; set; } = null!;
+    protected FakeLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>> RegistrationCeremonyLogger { get; set; } = null!;
     protected OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
     protected ConfigurationManager ConfigurationManager { get; set; } = null!;
     protected FakeCredentialStorage CredentialStorage { get; set; } = null!;

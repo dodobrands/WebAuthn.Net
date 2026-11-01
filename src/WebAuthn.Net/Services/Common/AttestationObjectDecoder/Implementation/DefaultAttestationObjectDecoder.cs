@@ -4,9 +4,12 @@ using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Models;
+using WebAuthn.Net.Services.Metrics;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation.Constants;
 using WebAuthn.Net.Services.Serialization.Cbor;
 using WebAuthn.Net.Services.Serialization.Cbor.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Json;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 
@@ -16,22 +19,30 @@ namespace WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 {
+    // the 'fmt' is chosen by the client: an unknown one is truncated to this length in the log message (see LogValue.Sanitize)
+    private const int MaxLoggedFmtLength = 64;
+
     /// <summary>
     ///     Constructs <see cref="DefaultAttestationObjectDecoder" />.
     /// </summary>
     /// <param name="cborDeserializer">CBOR format deserializer.</param>
     /// <param name="attestationStatementFormatSerializer">Serializer for the <see cref="AttestationStatementFormat" /> enum.</param>
+    /// <param name="counters">Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation object.</param>
     /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAttestationObjectDecoder(
         ICborDeserializer cborDeserializer,
         IEnumMemberAttributeSerializer<AttestationStatementFormat> attestationStatementFormatSerializer,
+        IRegistrationCeremonyCounters counters,
         ILogger<DefaultAttestationObjectDecoder> logger)
     {
         ArgumentNullException.ThrowIfNull(cborDeserializer);
         ArgumentNullException.ThrowIfNull(attestationStatementFormatSerializer);
+        ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
         CborDeserializer = cborDeserializer;
         AttestationStatementFormatSerializer = attestationStatementFormatSerializer;
+        Counters = counters;
         Logger = logger;
     }
 
@@ -44,6 +55,12 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
     ///     Serializer for the <see cref="AttestationStatementFormat" /> enum.
     /// </summary>
     protected IEnumMemberAttributeSerializer<AttestationStatementFormat> AttestationStatementFormatSerializer { get; }
+
+    /// <summary>
+    ///     Counters for registration ceremony metrics, used to count the anomalies found while decoding the attestation object
+    ///     (see <see cref="RegistrationResponseAnomalies" />).
+    /// </summary>
+    protected IRegistrationCeremonyCounters Counters { get; }
 
     /// <summary>
     ///     Logger.
@@ -135,7 +152,8 @@ public class DefaultAttestationObjectDecoder : IAttestationObjectDecoder
 
         if (!AttestationStatementFormatSerializer.TryDeserialize(fmtCborText.RawValue, out var attestationStatementFormat))
         {
-            Logger.AttObjFmtValueUnknown(fmtCborText.RawValue);
+            Logger.AttObjFmtValueUnknown(LogValue.Sanitize(fmtCborText.RawValue, MaxLoggedFmtLength));
+            Counters.IncrementResponseAnomaly(RegistrationResponseAnomalies.FmtUnknownValue, false);
             value = null;
             return false;
         }
@@ -317,7 +335,7 @@ public static partial class DefaultAttestationObjectDecoderLoggingExtensions
     ///     The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: {UnknownFmt}
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="unknownFmt">Value of the unknown fmt.</param>
+    /// <param name="unknownFmt">Value of the unknown fmt, prepared for logging with <see cref="LogValue.Sanitize" />.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: {UnknownFmt}")]

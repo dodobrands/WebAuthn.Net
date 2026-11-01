@@ -329,6 +329,22 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
         });
     }
 
+    // The identifier of the ceremony comes with the request, and the application may take it from the client:
+    // the logging scope contains it with its control characters replaced by '?' and truncated to 64 characters
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_LogsSanitizedCeremonyIdInScope_WhenCeremonyIdContainsControlCharactersAndIsLong()
+    {
+        var result = await CompleteCeremonyAsync(
+            "\r\n[Information] forged\u001b[0m" + new string('a', 1000),
+            SecondAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", "AAAAAAAAAAAAAAAAAAAAAA", Origin), UserHandle));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(AuthenticationCeremonyLogger.Scopes, Is.EqualTo(new[] { "Completion of the authentication ceremony: ??[Information] forged?[0m" + new string('a', 38) + "..." }));
+        });
+    }
+
     private async Task RegisterAsync(SoftwareAuthenticator authenticator, uint signCount)
     {
         var beginResult = await RegistrationCeremonyService.BeginCeremonyAsync(

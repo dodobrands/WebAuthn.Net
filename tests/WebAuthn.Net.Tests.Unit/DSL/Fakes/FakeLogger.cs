@@ -7,12 +7,17 @@ namespace WebAuthn.Net.DSL.Fakes;
 public class FakeLogger<T> : ILogger<T>
 {
     private readonly List<FakeLogEntry> _entries = new();
+    private readonly List<string?> _scopes = new();
 
     public IReadOnlyList<FakeLogEntry> Entries => _entries;
+
+    // the formatted state of every scope that was begun
+    public IReadOnlyList<string?> Scopes => _scopes;
 
     public IDisposable? BeginScope<TState>(TState state)
         where TState : notnull
     {
+        _scopes.Add(state.ToString());
         return null;
     }
 
