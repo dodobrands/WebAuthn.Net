@@ -651,6 +651,7 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             //      or not, or fails the authentication ceremony or not, is Relying Party-specific.
             //      For more information on signature counter considerations,
             //      see "Signature Counter Considerations" (https://www.w3.org/TR/webauthn-3/#sctn-sign-counter).
+            var signCountNotIncreased = false;
             if (authData.SignCount is not 0 || credentialRecord.SignCount is not 0)
             {
                 if (authData.SignCount <= credentialRecord.SignCount)
@@ -663,9 +664,11 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
                         return Result<CompleteAuthenticationCeremonyResult>.Fail();
                     }
 
-                    // The ceremony continues by Relying Party policy, but the signal of a possibly cloned authenticator must stay visible.
+                    // The ceremony continues by Relying Party policy, but the signal of a possibly cloned authenticator must stay visible:
+                    // it is logged, counted and returned in the result, and the stored signCount is kept (see UpdateCredentialRecord).
                     Logger.SignCountNotIncreased(authData.SignCount, credentialRecord.SignCount);
                     Counters.IncrementResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true);
+                    signCountNotIncreased = true;
                 }
             }
 
@@ -712,7 +715,8 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
             var successfulResult = new CompleteAuthenticationCeremonyResult(
                 recommendedActions,
                 credentialRecordUpdateResult.UserVerificationFlagMayBeUpdatedToTrue,
-                updatedCredential.UserHandle);
+                updatedCredential.UserHandle,
+                signCountNotIncreased);
             var result = Result<CompleteAuthenticationCeremonyResult>.Success(successfulResult);
             await context.CommitAsync(cancellationToken);
             Counters.IncrementCompleteCeremonyEnd(true);
@@ -778,11 +782,15 @@ public class DefaultAuthenticationCeremonyService<TContext> : IAuthenticationCer
         var uv = (authData.Flags & AuthenticatorDataFlags.UserVerified) is AuthenticatorDataFlags.UserVerified;
         var userVerificationFlagMayBeUpdatedToTrue = !credentialRecord.UvInitialized && uv;
         var bs = (authData.Flags & AuthenticatorDataFlags.BackupState) is AuthenticatorDataFlags.BackupState;
+        // Update credentialRecord.signCount to the value of authData.signCount only if it has increased.
+        // When it hasn't (step 22), the specification leaves the update to the Relying Party, and a lowered stored value would hide the signal from the next assertions:
+        // the increasing signCount of a cloned authenticator would pass the check, and after a zero signCount the check would skip the next zero ones.
+        var signCount = Math.Max(authData.SignCount, credentialRecord.SignCount);
         var updatedCredentialRecord = new CredentialRecord(
             credentialRecord.Type,
             credentialRecord.Id,
             credentialRecord.PublicKey,
-            authData.SignCount, // Update credentialRecord.signCount to the value of authData.signCount.
+            signCount,
             credentialRecord.Transports,
             credentialRecord.UvInitialized,
             credentialRecord.BackupEligible,
@@ -1201,14 +1209,14 @@ public static partial class DefaultAuthenticationCeremonyServiceLoggingExtension
     public static partial void AbortBySignCount(this ILogger logger);
 
     /// <summary>
-    ///     The obtained signCount {ReceivedSignCount} is less than or equal to the saved one {StoredSignCount}, the authenticator may be cloned. The ceremony continues by Relying Party policy
+    ///     The obtained signCount {ReceivedSignCount} is less than or equal to the saved one {StoredSignCount}, the authenticator may be cloned. The ceremony continues by Relying Party policy, and the saved signCount is kept
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="receivedSignCount">The signCount obtained in the current authentication ceremony.</param>
     /// <param name="storedSignCount">The signCount saved in the credential record.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The obtained signCount {ReceivedSignCount} is less than or equal to the saved one {StoredSignCount}, the authenticator may be cloned. The ceremony continues by Relying Party policy")]
+        Message = "The obtained signCount {ReceivedSignCount} is less than or equal to the saved one {StoredSignCount}, the authenticator may be cloned. The ceremony continues by Relying Party policy, and the saved signCount is kept")]
     public static partial void SignCountNotIncreased(this ILogger logger, uint receivedSignCount, uint storedSignCount);
 
     /// <summary>

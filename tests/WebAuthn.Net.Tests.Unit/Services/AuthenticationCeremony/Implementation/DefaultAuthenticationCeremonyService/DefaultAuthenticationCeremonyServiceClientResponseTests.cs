@@ -221,8 +221,55 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
         Assert.Multiple(() =>
         {
             Assert.That(result.HasError, Is.False);
-            // the signal of a possibly cloned authenticator stays visible in the metrics
+            // the signal of a possibly cloned authenticator stays visible in the result and in the metrics
+            Assert.That(result.Ok?.SignCountNotIncreased, Is.True);
             Assert.That(AuthenticationCounters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true) }));
+        });
+    }
+
+    // A signCount that didn't increase doesn't replace the stored one, so the next signCounts (for example, of a cloned authenticator) are compared with the highest one.
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_KeepsStoredSignCount_WhenSignCountDidNotIncreaseAndAbortIsDisabled()
+    {
+        var firstResult = await AuthenticateAsync(FirstAuthenticator, 3);
+        var secondResult = await AuthenticateAsync(FirstAuthenticator, 4);
+        var storedSignCount = await GetStoredSignCountAsync(FirstAuthenticator);
+        var increasedResult = await AuthenticateAsync(FirstAuthenticator, 6);
+        var increasedStoredSignCount = await GetStoredSignCountAsync(FirstAuthenticator);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstResult.Ok?.SignCountNotIncreased, Is.True);
+            Assert.That(secondResult.Ok?.SignCountNotIncreased, Is.True);
+            Assert.That(storedSignCount, Is.EqualTo(5u));
+            Assert.That(increasedResult.Ok?.SignCountNotIncreased, Is.False);
+            Assert.That(increasedStoredSignCount, Is.EqualTo(6u));
+            Assert.That(AuthenticationCounters.ResponseAnomalies, Is.EqualTo(new[]
+            {
+                new FakeResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true),
+                new FakeResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true)
+            }));
+        });
+    }
+
+    // A zero signCount doesn't reset the stored one, so the check stays on for the next zero signCounts.
+    [Test]
+    public async Task DefaultAuthenticationCeremonyService_KeepsStoredSignCount_WhenSignCountIsZeroAndAbortIsDisabled()
+    {
+        var firstResult = await AuthenticateAsync(FirstAuthenticator, 0);
+        var secondResult = await AuthenticateAsync(FirstAuthenticator, 0);
+        var storedSignCount = await GetStoredSignCountAsync(FirstAuthenticator);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstResult.Ok?.SignCountNotIncreased, Is.True);
+            Assert.That(secondResult.Ok?.SignCountNotIncreased, Is.True);
+            Assert.That(storedSignCount, Is.EqualTo(5u));
+            Assert.That(AuthenticationCounters.ResponseAnomalies, Is.EqualTo(new[]
+            {
+                new FakeResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true),
+                new FakeResponseAnomaly(AuthenticationResponseAnomalies.SignCountNotIncreased, true)
+            }));
         });
     }
 
@@ -253,10 +300,13 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
         var result = await CompleteCeremonyAsync(
             ceremonyId,
             FirstAuthenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin), UserHandle, signCount: signCount));
+        var storedSignCount = await GetStoredSignCountAsync(FirstAuthenticator);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.SignCountNotIncreased, Is.False);
+            Assert.That(storedSignCount, Is.EqualTo(signCount));
             Assert.That(AuthenticationCounters.ResponseAnomalies, Is.Empty);
         });
     }
@@ -274,6 +324,7 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
         Assert.Multiple(() =>
         {
             Assert.That(result.HasError, Is.False);
+            Assert.That(result.Ok?.SignCountNotIncreased, Is.False);
             Assert.That(AuthenticationCounters.ResponseAnomalies, Is.Empty);
         });
     }
@@ -355,5 +406,25 @@ public class DefaultAuthenticationCeremonyServiceClientResponseTests : AbstractA
             new DefaultHttpContext(new FeatureCollection()),
             new(ceremonyId, response),
             CancellationToken.None);
+    }
+
+    private async Task<Result<CompleteAuthenticationCeremonyResult>> AuthenticateAsync(SoftwareAuthenticator authenticator, uint signCount)
+    {
+        var (ceremonyId, challenge) = await BeginCeremonyAsync(null);
+        return await CompleteCeremonyAsync(
+            ceremonyId,
+            authenticator.CreateAuthenticationResponse(RpId, SoftwareAuthenticator.CreateClientDataJson("webauthn.get", challenge, Origin), UserHandle, signCount: signCount));
+    }
+
+    private async Task<uint?> GetStoredSignCountAsync(SoftwareAuthenticator authenticator)
+    {
+        await using var context = new FakeWebAuthnContext(null, new());
+        var credential = await CredentialStorage.FindExistingCredentialForAuthenticationAsync(
+            context,
+            RpId,
+            UserHandle,
+            authenticator.CredentialId,
+            CancellationToken.None);
+        return credential?.CredentialRecord.SignCount;
     }
 }
