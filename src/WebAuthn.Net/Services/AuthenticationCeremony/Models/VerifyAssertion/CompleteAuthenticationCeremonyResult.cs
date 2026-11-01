@@ -23,17 +23,30 @@ public class CompleteAuthenticationCeremonyResult
     ///     </para>
     /// </param>
     /// <param name="userHandle">Identifier of the user account.</param>
+    /// <param name="signCountNotIncreased">
+    ///     <para>
+    ///         <see langword="true" /> if the signature counter of the authenticator data ('authData.signCount') is less than or equal to the one stored in the credential record, although at least one of them is nonzero
+    ///         (<a href="https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion">step 22</a> of the authentication ceremony). This is a signal, but not proof, that the authenticator may be cloned: two or more copies of the credential private key
+    ///         may exist and are being used in parallel, the authenticator may be malfunctioning, or the assertions may be processed in an order other than the order they were generated at the authenticator.
+    ///     </para>
+    ///     <para>
+    ///         A ceremony with this signal completes only if <see cref="Configuration.Options.AuthenticationCeremonyOptions.AbortCeremonyWhenSignCountIsLessOrEqualStoredValue" /> is <see langword="false" /> (by default, it fails).
+    ///         The stored signature counter then keeps its value, so the next assertions are compared with the highest one. The specification recommends incorporating this signal into the risk scoring of the Relying Party.
+    ///     </para>
+    /// </param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public CompleteAuthenticationCeremonyResult(
         CredentialBackupStateRecommendedAction[] recommendedActions,
         bool userVerificationFlagMayBeUpdatedToTrue,
-        byte[] userHandle)
+        byte[] userHandle,
+        bool signCountNotIncreased)
     {
         ArgumentNullException.ThrowIfNull(recommendedActions);
         ArgumentNullException.ThrowIfNull(userHandle);
         RecommendedActions = recommendedActions;
         UserVerificationFlagMayBeUpdatedToTrue = userVerificationFlagMayBeUpdatedToTrue;
         UserHandle = userHandle;
+        SignCountNotIncreased = signCountNotIncreased;
     }
 
     /// <summary>
@@ -57,4 +70,17 @@ public class CompleteAuthenticationCeremonyResult
     ///     Identifier of the user account.
     /// </summary>
     public byte[] UserHandle { get; }
+
+    /// <summary>
+    ///     <para>
+    ///         <see langword="true" /> if the signature counter of the authenticator data ('authData.signCount') is less than or equal to the one stored in the credential record, although at least one of them is nonzero
+    ///         (<a href="https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion">step 22</a> of the authentication ceremony). This is a signal, but not proof, that the authenticator may be cloned: two or more copies of the credential private key
+    ///         may exist and are being used in parallel, the authenticator may be malfunctioning, or the assertions may be processed in an order other than the order they were generated at the authenticator.
+    ///     </para>
+    ///     <para>
+    ///         A ceremony with this signal completes only if <see cref="Configuration.Options.AuthenticationCeremonyOptions.AbortCeremonyWhenSignCountIsLessOrEqualStoredValue" /> is <see langword="false" /> (by default, it fails).
+    ///         The stored signature counter then keeps its value, so the next assertions are compared with the highest one. The specification recommends incorporating this signal into the risk scoring of the Relying Party.
+    ///     </para>
+    /// </summary>
+    public bool SignCountNotIncreased { get; }
 }

@@ -241,6 +241,12 @@ With conditional mediation (`mediation: "conditional"`, passkey autofill), the b
 
 After a successful `CompleteCeremonyAsync`, the ceremony is removed from the storage. The default storage keeps the ceremony in an encrypted cookie, so for it the removal is only a request to the browser to delete the cookie, and a captured cookie together with the response can be replayed until the ceremony expires. If this matters, use a server-side storage for ceremonies (implement `IRegistrationCeremonyStorage<TContext>` and `IAuthenticationCeremonyStorage<TContext>`).
 
+## Signature counter
+
+An authenticator may keep a [signature counter](https://www.w3.org/TR/webauthn-3/#sctn-sign-counter) that grows with every assertion and is reported as `signCount` in the authenticator data. WebAuthn.Net stores it in the credential record. A `signCount` that is less than or equal to the stored one, although one of them is nonzero, is a signal (but not proof) that the authenticator may be cloned: it may also be malfunctioning, or the assertions may be processed in another order than they were made. By default, the authentication ceremony fails on this signal. Authenticators without a counter, such as synced passkeys, always report zero, so the check doesn't apply to them while the stored value is zero too.
+
+To let such ceremonies complete, set `AbortCeremonyWhenSignCountIsLessOrEqualStoredValue` to `false` in `AuthenticationCeremonyOptions` (`AuthenticationCeremony` in `WebAuthnOptions`). The result of such a ceremony has `SignCountNotIncreased` set to `true`, so that you can take the signal into account in your risk scoring, as the specification recommends. The stored counter keeps its value: the next assertions are compared with the highest counter seen, so a cloned authenticator can't lower it to get past the check. In both cases, a warning is logged and `webauthn.authn.response.anomalies` is incremented with the `anomaly` tag `sign_count.not_increased`.
+
 ## Context
 
 To ensure the execution of each operation in a transaction (creation of registration ceremony options, completion of the registration ceremony, creation of authentication ceremony options, completion of the authentication ceremony), a context is used.
