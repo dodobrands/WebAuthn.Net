@@ -57,6 +57,10 @@ public class DefaultRegistrationCeremonyService<TContext>
     : IRegistrationCeremonyService
     where TContext : class, IWebAuthnContext
 {
+    // the identifier of the ceremony comes with the request, and the application may take it from the client (for example, from a cookie),
+    // so it is truncated to this length in the logging scope (see LogValue.Sanitize)
+    private const int MaxLoggedCeremonyIdLength = 64;
+
     /// <summary>
     ///     Constructs <see cref="DefaultRegistrationCeremonyService{TContext}" />.
     /// </summary>
@@ -288,7 +292,7 @@ public class DefaultRegistrationCeremonyService<TContext>
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         Counters.IncrementCompleteCeremonyStart();
-        using (Logger.BeginCompleteRegistrationCeremonyScope(request.RegistrationCeremonyId))
+        using (Logger.BeginCompleteRegistrationCeremonyScope(LogValue.Sanitize(request.RegistrationCeremonyId, MaxLoggedCeremonyIdLength)))
         await using (var context = await ContextFactory.CreateAsync(httpContext, cancellationToken))
         {
             var registrationCeremonyParameters = await CeremonyStorage.FindAsync(
@@ -1007,7 +1011,7 @@ public static partial class DefaultRegistrationCeremonyServiceLoggingExtensions
     ///     Creates a logging scope, within which the start of the registration ceremony will be handled.
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="registrationCeremonyId">Unique identifier of the registration ceremony.</param>
+    /// <param name="registrationCeremonyId">Unique identifier of the registration ceremony, prepared for logging with <see cref="LogValue.Sanitize" />.</param>
     /// <returns>A logging scope, in the form of an IDisposable object, the Dispose of which signifies the end of the scope's operation.</returns>
     public static IDisposable? BeginCompleteRegistrationCeremonyScope(
         this ILogger logger,

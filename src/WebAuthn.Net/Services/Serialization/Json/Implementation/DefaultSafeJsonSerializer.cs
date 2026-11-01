@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.Static;
 
 namespace WebAuthn.Net.Services.Serialization.Json.Implementation;
 
@@ -11,6 +12,11 @@ namespace WebAuthn.Net.Services.Serialization.Json.Implementation;
 /// </summary>
 public class DefaultSafeJsonSerializer : ISafeJsonSerializer
 {
+    // The JSON may come from a client (the client data), and the message of an exception repeats parts of it verbatim: the JSON path contains the names of its members,
+    // and an invalid literal is quoted together with the rest of the input. So a deserialization error is logged without the exception: only its type and its message,
+    // truncated to this length (see LogValue.Sanitize).
+    private const int MaxLoggedExceptionMessageLength = 512;
+
     /// <summary>
     ///     Constructs <see cref="DefaultSafeJsonSerializer" />
     /// </summary>
@@ -50,7 +56,7 @@ public class DefaultSafeJsonSerializer : ISafeJsonSerializer
         }
         catch (Exception exception)
         {
-            Logger.WarnDeserializationError(exception);
+            Logger.WarnDeserializationError(typeof(TValue).ToString(), exception.GetType().ToString(), LogValue.Sanitize(exception.Message, MaxLoggedExceptionMessageLength));
             return Result<TValue>.Fail();
         }
     }
@@ -72,7 +78,7 @@ public class DefaultSafeJsonSerializer : ISafeJsonSerializer
         }
         catch (Exception exception)
         {
-            Logger.WarnDeserializationError(exception);
+            Logger.WarnDeserializationError(typeof(TValue).ToString(), exception.GetType().ToString(), LogValue.Sanitize(exception.Message, MaxLoggedExceptionMessageLength));
             return Result<TValue>.Fail();
         }
     }
@@ -99,11 +105,6 @@ public class DefaultSafeJsonSerializer : ISafeJsonSerializer
 /// </summary>
 public static partial class DefaultSafeJsonSerializerLoggingExtensions
 {
-    private static readonly Action<ILogger, Exception?> WarnDeserializationErrorCallback = LoggerMessage.Define(
-        LogLevel.Warning,
-        new(default, nameof(WarnDeserializationError)),
-        "An error occurred during the deserialization");
-
     private static readonly Action<ILogger, Exception?> WarnSerializationToUtf8BytesErrorCallback = LoggerMessage.Define(
         LogLevel.Warning,
         new(default, nameof(WarnSerializationToUtf8BytesError)),
@@ -129,18 +130,16 @@ public static partial class DefaultSafeJsonSerializerLoggingExtensions
     public static partial void WarnNullDuringDeserialization(this ILogger logger, string type);
 
     /// <summary>
-    ///     An error occurred during the deserialization
+    ///     An error occurred during the deserialization of the '{Type}' value: {ExceptionType}: {ExceptionMessage}
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="exception">Exception.</param>
-    public static void WarnDeserializationError(this ILogger logger, Exception? exception)
-    {
-        ArgumentNullException.ThrowIfNull(logger);
-        if (logger.IsEnabled(LogLevel.Warning))
-        {
-            WarnDeserializationErrorCallback(logger, exception);
-        }
-    }
+    /// <param name="type">The name of the type whose value was being deserialized.</param>
+    /// <param name="exceptionType">The name of the type of the exception.</param>
+    /// <param name="exceptionMessage">The message of the exception, prepared for logging with <see cref="LogValue.Sanitize" />.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "An error occurred during the deserialization of the '{Type}' value: {ExceptionType}: {ExceptionMessage}")]
+    public static partial void WarnDeserializationError(this ILogger logger, string type, string exceptionType, string exceptionMessage);
 
     /// <summary>
     ///     An error occurred during the serialization into utf8 byte[]

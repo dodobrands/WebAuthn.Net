@@ -3,8 +3,9 @@ using WebAuthn.Net.Models.Protocol.Enums;
 namespace WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation.Constants;
 
 /// <summary>
-///     The anomalies that <see cref="DefaultRegistrationResponseDecoder" /> reports with a Warning log entry and the
-///     <c>webauthn.reg.response.anomalies</c> counter (<see cref="Metrics.IRegistrationCeremonyCounters.IncrementResponseAnomaly" />).
+///     The anomalies of the registration response that are reported with a Warning log entry and the <c>webauthn.reg.response.anomalies</c> counter
+///     (<see cref="Metrics.IRegistrationCeremonyCounters.IncrementResponseAnomaly" />): by <see cref="DefaultRegistrationResponseDecoder" />,
+///     and by <see cref="Common.AttestationObjectDecoder.Implementation.DefaultAttestationObjectDecoder" /> for the 'fmt' of the attestation object.
 /// </summary>
 /// <remarks>
 ///     The values of the response are chosen by the client, so every anomaly is counted at most once per response, however many values of the response it concerns.
@@ -42,4 +43,12 @@ public static class RegistrationResponseAnomalies
     ///     while a browser sends a few hundred bytes of client data, so the response is rejected before the client data is decoded.
     /// </summary>
     public const string ClientDataJsonTooLarge = "client_data_json.too_large";
+
+    /// <summary>
+    ///     Rejected: the 'fmt' of 'response.attestationObject' is not a member of <see cref="AttestationStatementFormat" /> (for example, a format registered after this version of the library,
+    ///     or <c>android-safetynet</c>, which the library doesn't support). The attestation statement format is determined by matching 'fmt' against the supported formats
+    ///     (<a href="https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential">WebAuthn Level 3, §7.1, step 21</a>), so the response is rejected.
+    ///     Reported by <see cref="Common.AttestationObjectDecoder.Implementation.DefaultAttestationObjectDecoder" />.
+    /// </summary>
+    public const string FmtUnknownValue = "fmt.unknown_value";
 }

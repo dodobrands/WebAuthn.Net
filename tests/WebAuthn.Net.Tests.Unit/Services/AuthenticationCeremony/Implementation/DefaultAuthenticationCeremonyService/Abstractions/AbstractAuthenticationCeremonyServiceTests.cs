@@ -110,6 +110,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
         var attestationObjectDecoder = new DefaultAttestationObjectDecoder(
             cborDeserializer,
             new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>(),
+            RegistrationCounters,
             NullLogger<DefaultAttestationObjectDecoder>.Instance);
         DefaultFidoMetadataSearchService<FakeWebAuthnContext> metadataSearchService;
         using (var fakeFidoHttpClientProvider = new FakeFidoMetadataHttpClientProvider())
@@ -246,6 +247,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             attestationTrustPathValidator,
             RegistrationCounters,
             NullLogger<DefaultRegistrationCeremonyService<FakeWebAuthnContext>>.Instance);
+        AuthenticationCeremonyLogger = new();
         AuthenticationCeremonyService = new(
             Options,
             ContextFactory,
@@ -261,7 +263,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             authenticatorDataDecoder,
             digitalSignatureVerifier,
             AuthenticationCounters,
-            NullLogger<DefaultAuthenticationCeremonyService<FakeWebAuthnContext>>.Instance);
+            AuthenticationCeremonyLogger);
     }
 
     [TearDown]
@@ -290,6 +292,7 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
     protected abstract Uri GetRelyingPartyAddress();
     protected DefaultRegistrationCeremonyService<FakeWebAuthnContext> RegistrationCeremonyService { get; set; } = null!;
     protected DefaultAuthenticationCeremonyService<FakeWebAuthnContext> AuthenticationCeremonyService { get; set; } = null!;
+    protected FakeLogger<DefaultAuthenticationCeremonyService<FakeWebAuthnContext>> AuthenticationCeremonyLogger { get; set; } = null!;
     protected OptionsMonitor<WebAuthnOptions> Options { get; set; } = null!;
     protected ConfigurationManager ConfigurationManager { get; set; } = null!;
     protected FakeRegistrationCeremonyStorage RegistrationCeremonyStorage { get; set; } = null!;

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.RegistrationCeremony.Services.RegistrationResponseDecoder.Implementation.Constants;
 using WebAuthn.Net.Services.Serialization.Cbor.Implementation;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
 
@@ -21,15 +22,19 @@ public class DefaultAttestationObjectDecoderTests
 
     private FakeLogger<DefaultAttestationObjectDecoder> Logger { get; set; } = null!;
 
+    private FakeRegistrationCeremonyCounters Counters { get; set; } = null!;
+
     private DefaultAttestationObjectDecoder Decoder { get; set; } = null!;
 
     [SetUp]
     public void SetupServices()
     {
         Logger = new();
+        Counters = new();
         Decoder = new(
             new DefaultCborDeserializer(NullLogger<DefaultCborDeserializer>.Instance),
             new DefaultEnumMemberAttributeSerializer<AttestationStatementFormat>(),
+            Counters,
             Logger);
     }
 
@@ -45,6 +50,7 @@ public class DefaultAttestationObjectDecoderTests
             Assert.That(result.Ok?.AttStmt.RawValue, Is.Empty);
             Assert.That(result.Ok?.AuthData, Is.EqualTo(AuthData));
             Assert.That(Logger.Entries, Is.Empty);
+            Assert.That(Counters.ResponseAnomalies, Is.Empty);
         });
     }
 
@@ -96,6 +102,27 @@ public class DefaultAttestationObjectDecoderTests
             Assert.That(result.HasError, Is.True);
             Assert.That(Logger.Entries.Select(static x => x.Level), Has.All.EqualTo(LogLevel.Warning));
             Assert.That(Logger.Entries.Select(static x => x.Message), Has.Some.EqualTo("The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: android-safetynet"));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.FmtUnknownValue, false) }));
+        });
+    }
+
+    // The 'fmt' is chosen by the client: an unknown one is logged with its control characters replaced by '?' and truncated to 64 characters,
+    // so that it can't forge log records or flood the log
+    [Test]
+    public void Decode_Fails_AndLogsSanitizedFmt_WhenUnknownFmtContainsControlCharactersAndIsLong()
+    {
+        var attestationObject = BuildAttestationObject("none\r\n[Information] forged\u001b[0m" + new string('a', 100_000));
+
+        var result = Decoder.Decode(attestationObject);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasError, Is.True);
+            Assert.That(
+                Logger.Entries.Select(static x => x.Message),
+                Has.Some.EqualTo("The 'fmt' key in the 'attestationObject' map has an unknown attestation statement format: none??[Information] forged?[0m" + new string('a', 34) + "..."));
+            Assert.That(Logger.Entries.SelectMany(static x => x.Message), Has.None.Matches<char>(char.IsControl));
+            Assert.That(Counters.ResponseAnomalies, Is.EqualTo(new[] { new FakeResponseAnomaly(RegistrationResponseAnomalies.FmtUnknownValue, false) }));
         });
     }
 
