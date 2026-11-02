@@ -13,6 +13,7 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.DSL.Fakes.Storage;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusSerialNumberFormatter;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
@@ -173,12 +174,17 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             RegistrationCounters,
             TpmVerifierLogger);
         AndroidKeyVerifierLogger = new();
+        AndroidKeyStatusStorage = new();
+        AndroidKeyStatusCounters = new();
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
             digitalSignatureVerifier,
             asn1Deserializer,
             metadataSearchService,
+            AndroidKeyStatusStorage,
+            new DefaultAndroidKeyAttestationStatusSerialNumberFormatter(),
+            AndroidKeyStatusCounters,
             AndroidKeyVerifierLogger);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
@@ -307,4 +313,6 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>> FidoMetadataSearchLogger { get; set; } = null!;
     protected FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>> TpmVerifierLogger { get; set; } = null!;
     protected FakeLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>> AndroidKeyVerifierLogger { get; set; } = null!;
+    protected FakeAndroidKeyAttestationStatusStorage AndroidKeyStatusStorage { get; set; } = null!;
+    protected FakeAndroidKeyAttestationStatusCounters AndroidKeyStatusCounters { get; set; } = null!;
 }

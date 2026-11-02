@@ -31,7 +31,7 @@ public static class Tags
     public const string AttestationStatementFormat = "fmt";
 
     /// <summary>
-    ///     An anomaly found while decoding or verifying an attestation statement or a response of a ceremony.
+    ///     An anomaly found while decoding or verifying an attestation statement or a response of a ceremony, or while decoding the certificate revocation status list of the Android attestation keys.
     /// </summary>
     public const string Anomaly = "anomaly";
 
@@ -41,7 +41,7 @@ public static class Tags
     public const string Outcome = "outcome";
 
     /// <summary>
-    ///     The source of the FIDO Metadata Service blob: embedded in the application or downloaded from the FIDO Metadata Service.
+    ///     The source of the FIDO Metadata Service blob or of the certificate revocation status list of the Android attestation keys: embedded in the application or downloaded.
     /// </summary>
     public const string Source = "source";
 }

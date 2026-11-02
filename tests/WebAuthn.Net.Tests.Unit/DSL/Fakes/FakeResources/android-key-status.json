@@ -1,0 +1,16 @@
+{
+  "entries": {
+    "6681152659205225093" : {
+      "status": "REVOKED",
+      "reason": "KEY_COMPROMISE"
+    },
+    "c35747a084470c3135aeefe2b8d40cd6" : {
+      "status": "REVOKED",
+      "reason": "SOFTWARE_FLAW"
+    },
+    "c8966fcb2fbb0d7a": {
+      "status": "SUSPENDED",
+      "reason": "SOFTWARE_FLAW"
+    }
+  }
+}

@@ -366,6 +366,48 @@ For `fido-u2f` attestation statements, the authenticator model is identified by 
 
 You can also implement your own storage of metadata based on a persistent storage, so that the metadata survive the restarts of the application (implement `IFidoMetadataIngestStorage` and `IFidoMetadataSearchStorage<TContext>`). Such a storage should report the serial number of the stored blob (`IFidoMetadataIngestStorage.GetCurrentBlobNoAsync`), so that an older blob never replaces it, including the embedded one. The search methods of `IFidoMetadataSearchStorage<TContext>` report why nothing was found: `NotFound` if the storage has metadata but no entry for the authenticator, or `MetadataNotAvailable` if it has no metadata at all, so that the latter is logged and counted.
 
+## Revoked Android attestation keys
+
+Google revokes the attestation keys of single Android devices (for example, keys that were extracted from devices and are used to fake hardware attestation) through its [certificate revocation status list](https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status). The statuses in the FIDO metadata describe authenticator models and can't revoke a single device, and the certificate chain of an attestation is validated without X.509 revocation checks. Therefore, every certificate in `x5c` of an `android-key` attestation statement is looked up in the status list by its serial number (in lowercase hexadecimal without leading zeros, as the status list keys its entries), and the registration is rejected if any of them is in it, whatever its status (`REVOKED`, `SUSPENDED` or another one): the status list contains only the certificates that don't have a normal valid status. A warning is logged and `webauthn.android_key.status_list.check.listed` is incremented.
+
+WebAuthn.Net includes a background service (`AndroidKeyAttestationStatusIngestBackgroundService`) that downloads the status list from `https://android.googleapis.com/attestation/status` and keeps it in memory, the same way as the [FIDO metadata](#loading-and-updates):
+
+1. At start-up, the status list embedded in the application is loaded first, if you have embedded one. It doesn't replace a status list that is already in use (for example, kept by a persistent storage).
+2. Then the status list is downloaded, in any case: if the embedded status list has been loaded, the start of the application doesn't wait for the download; otherwise, the start of the application waits for the first attempt.
+3. If an attempt fails (the status list can't be downloaded or decoded, or an exception occurs), the next attempt is made after `RetryInterval` (1 minute by default), and so on until the status list is downloaded. The status list in use, if any, is kept meanwhile.
+4. Once the status list is downloaded, it is refreshed every `IngestInterval` (1 day by default: Google serves the status list with `Cache-Control: max-age=86400`).
+
+> [!WARNING]
+> While no status list is available (none is embedded in the application, and none has been downloaded yet), every `android-key` attestation statement is rejected, because it can't be told from one whose attestation key is revoked. A warning is logged and `webauthn.android_key.status_list.check.no_list` is incremented.
+
+The options of the status list are `StatusList` in `AndroidKeyAttestationStatementOptions` (`AttestationStatements.AndroidKey` in `WebAuthnOptions`): `DownloadUri`, `MaxResponseSizeInBytes` (16 MiB by default), `DownloadTimeout` (1 minute by default), `IngestInterval`, `RetryInterval` and `EmbeddedStatusList`. To embed the status list in the application, download it (for example, with `curl -o AndroidKey/status.json https://android.googleapis.com/attestation/status`), embed the file in an assembly of the application as a manifest resource (as for the [FIDO metadata](#embedding-the-metadata-in-the-application)), and set `EmbeddedStatusList` to the assembly and the name of the resource:
+
+```csharp
+services.AddWebAuthnSqlServer(
+    configure: options =>
+    {
+        options.AttestationStatements.AndroidKey.StatusList.EmbeddedStatusList =
+            new AndroidKeyAttestationEmbeddedStatusListOptions(typeof(Program).Assembly, "AndroidKey.status.json");
+    },
+    configureSqlServer: sqlServer =>
+    {
+        sqlServer.ConnectionString = "CONNECTION_STRING_HERE";
+    });
+```
+
+Google doesn't sign the status list, so the embedded one is used as it is, like the downloaded one. It becomes outdated over time, so update it regularly, for example, download it in the build pipeline of the application.
+
+The loading of the status list is counted in the `WebAuthn.Net.AndroidKeyAttestationStatus` meter:
+
+- `webauthn.android_key.status_list.download.failures` is incremented for a status list that can't be downloaded, or doesn't match its [documented JSON format](https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status), for example, if a status is not a string (the `reason` tag is `request_failed`, `timeout` or `list_invalid`). Such a status list is rejected as a whole, and the status list in use is kept. While the status list can't be downloaded, the counter grows every `RetryInterval`;
+- `webauthn.android_key.status_list.embedded.failures` is incremented when the status list embedded in the application can't be loaded (the `reason` tag is `resource_not_found` or `list_invalid`);
+- `webauthn.android_key.status_list.ingest.exceptions` is incremented when an attempt ends with an unexpected exception (the `source` tag is `embedded` or `download`). Such an exception is also logged at the `Error` level;
+- `webauthn.android_key.status_list.decode.anomalies` is incremented for an entry whose key, status or reason deviates from the documented values (the `anomaly` tag tells how, for example `status.unknown` or `reason.unknown`). Such an entry is kept, without the status or the reason that the library doesn't know, so its certificate stays untrusted, unless its key is not a serial number at all (`key.invalid`) or an earlier entry has the same serial number (`key.duplicate`, for a key in another case or with leading zeros).
+
+Besides, the service logs at the `Information` level its start and its stop, every successful load with the number of entries, and, before each wait, how long the wait lasts and when the next attempt is made.
+
+Like the FIDO metadata, the loading is split into services that you can replace: `IAndroidKeyAttestationStatusProvider` downloads the status list (through `IAndroidKeyAttestationStatusHttpClient`) or loads the embedded one, and checks that it matches its JSON format; `IAndroidKeyAttestationStatusDecoder` decodes its entries (the statuses and the reasons into enums); `IAndroidKeyAttestationStatusIngestService` stores it in `IAndroidKeyAttestationStatusStorage`. The serial numbers of the keys of the status list and of the certificates are brought to the same form by `IAndroidKeyAttestationStatusSerialNumberFormatter`. To keep the status list in a persistent storage, implement `IAndroidKeyAttestationStatusStorage`. To configure the HttpClient that downloads it (for example, to add retries), pass a delegate to `AddAndroidKeyAttestationStatusHttpClient`.
+
 ## Dependency Injection
 
 WebAuthn.Net has ready-to-use extension methods that allow easy integration with `Microsoft.Extensions.DependencyInjection`.

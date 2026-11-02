@@ -20,6 +20,7 @@ public static class MeterProviderBuilderExtensions
         builder.AddMeter(Meters.RegistrationCeremonyMeterName);
         builder.AddMeter(Meters.AuthenticationCeremonyMeterName);
         builder.AddMeter(Meters.FidoMetadataMeterName);
+        builder.AddMeter(Meters.AndroidKeyAttestationStatusMeterName);
         return builder;
     }
 }

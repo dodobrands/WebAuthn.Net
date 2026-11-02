@@ -12,6 +12,7 @@ using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.DSL.Fakes.Storage;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusSerialNumberFormatter;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder.Implementation;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.PublicKeyCredentialRequestOptionsEncoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
@@ -179,6 +180,9 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             digitalSignatureVerifier,
             asn1Deserializer,
             metadataSearchService,
+            new FakeAndroidKeyAttestationStatusStorage(),
+            new DefaultAndroidKeyAttestationStatusSerialNumberFormatter(),
+            new FakeAndroidKeyAttestationStatusCounters(),
             NullLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,

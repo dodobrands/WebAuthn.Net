@@ -14,4 +14,14 @@ public class AndroidKeyAttestationStatementOptions
     ///     When it is <see langword="false" />, the union of the teeEnforced and softwareEnforced authorization lists is used, so keys of the software keystore are accepted too.
     /// </remarks>
     public bool AcceptKeysOnlyFromTrustedExecutionEnvironment { get; set; } = true;
+
+    /// <summary>
+    ///     Options of the <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">certificate revocation status list</a> that Google publishes for the Android attestation keys:
+    ///     where it is downloaded from, how often it is refreshed, and the status list embedded in the application.
+    /// </summary>
+    /// <remarks>
+    ///     An "Android Key" attestation statement is rejected if any certificate in its 'x5c' is in the status list, whatever its status (REVOKED, SUSPENDED or another one),
+    ///     and while no status list is available.
+    /// </remarks>
+    public AndroidKeyAttestationStatusListOptions StatusList { get; set; } = new();
 }

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using WebAuthn.Net.DSL;
+using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
@@ -116,6 +117,43 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
             Assert.That(
                 AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
                 Has.Exactly(1).EqualTo($"The FIDO Metadata Service entry for the aaguid {Guid.Empty} of the Android Key attestation statement doesn't allow to trust the authenticator, so no trust anchor is acceptable"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenCertificateOfAttestationChainIsInStatusList()
+    {
+        await MetadataStorage.UpsertAsync(MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.AndroidAuthenticatorAaguid), CancellationToken.None);
+        // The third certificate of the test vector (an intermediate of its chain) has the serial number 0x0095424d3dbd29ca3a25bdcac5ee51187c: the status list names it without the leading zero octet.
+        AndroidKeyStatusStorage.StatusList = FakeAndroidKeyAttestationStatusStorage.With("95424d3dbd29ca3a25bdcac5ee51187c");
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(AndroidKeyStatusCounters.CertificatesListed, Is.EqualTo(1));
+            Assert.That(
+                AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo("The certificate #2 (serial number '95424d3dbd29ca3a25bdcac5ee51187c') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status 'Revoked' and the reason 'KeyCompromise'"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenNoStatusListIsAvailable()
+    {
+        await MetadataStorage.UpsertAsync(MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.AndroidAuthenticatorAaguid), CancellationToken.None);
+        AndroidKeyStatusStorage.StatusList = null;
+
+        var completeResult = await CompleteCeremonyAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completeResult.HasError, Is.True);
+            Assert.That(AndroidKeyStatusCounters.ChecksWithoutStatusList, Is.EqualTo(1));
+            Assert.That(
+                AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo("The certificate revocation status list of the Android attestation keys is not available, so the Android Key attestation statement is rejected"));
         });
     }
 
