@@ -23,11 +23,13 @@ using WebAuthn.Net.Services.Cryptography.Sign;
 using WebAuthn.Net.Services.FidoMetadata;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataDecoder.Enums;
 using WebAuthn.Net.Services.FidoMetadata.Models.FidoMetadataService.Enums;
+using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Asn1;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree;
 using WebAuthn.Net.Services.Serialization.Asn1.Models.Tree.Abstractions;
 using WebAuthn.Net.Services.Static;
+using WebAuthn.Net.Storage.AndroidKeyAttestationStatus;
 
 namespace WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey;
 
@@ -55,6 +57,9 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     // the values of a field are listed in a log message up to this number (the field comes from the client, see FormatIntegers)
     private const int MaxLoggedValues = 8;
 
+    // the status and the reason of an entry of the status list are logged with at most this number of characters
+    private const int MaxLoggedStatusLength = 64;
+
     // https://android.googlesource.com/platform/hardware/libhardware/+/refs/heads/main/include_all/hardware/keymaster_defs.h
     // KM_PURPOSE_SIGN (Usable with RSA, EC and HMAC keys.) and KM_ORIGIN_GENERATED (Generated in keymaster. Should not exist outside the TEE.);
     // KeyMint keeps the values (KeyPurpose.SIGN = 2, KeyOrigin.GENERATED = 0)
@@ -69,6 +74,8 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     /// <param name="signatureVerifier">Digital signature verifier.</param>
     /// <param name="asn1Deserializer">ASN.1 format deserializer.</param>
     /// <param name="fidoMetadataSearchService">A service for searching in the data provided by the FIDO Metadata Service.</param>
+    /// <param name="statusStorage">Storage of the certificate revocation status list of the Android attestation keys that is in use.</param>
+    /// <param name="statusCounters">Counters for the metrics of the certificate revocation status list of the Android attestation keys, used to count the attestation statements that it rejects.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public DefaultAndroidKeyAttestationStatementVerifier(
@@ -77,6 +84,8 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         IDigitalSignatureVerifier signatureVerifier,
         IAsn1Deserializer asn1Deserializer,
         IFidoMetadataSearchService<TContext> fidoMetadataSearchService,
+        IAndroidKeyAttestationStatusStorage statusStorage,
+        IAndroidKeyAttestationStatusCounters statusCounters,
         ILogger<DefaultAndroidKeyAttestationStatementVerifier<TContext>> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -84,12 +93,16 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         ArgumentNullException.ThrowIfNull(signatureVerifier);
         ArgumentNullException.ThrowIfNull(asn1Deserializer);
         ArgumentNullException.ThrowIfNull(fidoMetadataSearchService);
+        ArgumentNullException.ThrowIfNull(statusStorage);
+        ArgumentNullException.ThrowIfNull(statusCounters);
         ArgumentNullException.ThrowIfNull(logger);
         Options = options;
         TimeProvider = timeProvider;
         SignatureVerifier = signatureVerifier;
         Asn1Deserializer = asn1Deserializer;
         FidoMetadataSearchService = fidoMetadataSearchService;
+        StatusStorage = statusStorage;
+        StatusCounters = statusCounters;
         Logger = logger;
     }
 
@@ -117,6 +130,16 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
     ///     A service for searching in the data provided by the FIDO Metadata Service.
     /// </summary>
     protected IFidoMetadataSearchService<TContext> FidoMetadataSearchService { get; }
+
+    /// <summary>
+    ///     Storage of the certificate revocation status list of the Android attestation keys that is in use.
+    /// </summary>
+    protected IAndroidKeyAttestationStatusStorage StatusStorage { get; }
+
+    /// <summary>
+    ///     Counters for the metrics of the certificate revocation status list of the Android attestation keys, used to count the attestation statements that it rejects.
+    /// </summary>
+    protected IAndroidKeyAttestationStatusCounters StatusCounters { get; }
 
     /// <summary>
     ///     Logger.
@@ -231,6 +254,15 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
                 return Result<VerifiedAttestationStatement>.Fail();
             }
 
+            // Google revokes the attestation keys of single Android devices (for example, keys extracted from devices and used to fake hardware attestation) through its certificate revocation status list:
+            // the statuses of the FIDO Metadata Service describe the authenticator model, and the trust path is validated without X.509 revocation checks.
+            // https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status
+            // (IsTrustedByStatusListAsync logs why the attestation statement is rejected)
+            if (!await IsTrustedByStatusListAsync(x5CCertificates, cancellationToken))
+            {
+                return Result<VerifiedAttestationStatement>.Fail();
+            }
+
             var result = new VerifiedAttestationStatement(
                 AttestationStatementFormat.AndroidKey,
                 AttestationType.Basic,
@@ -313,6 +345,52 @@ public class DefaultAndroidKeyAttestationStatementVerifier<TContext>
         }
 
         return Result<UniqueByteArraysCollection>.Success(new(metadata.RootCertificates));
+    }
+
+    /// <summary>
+    ///     Checks the certificates of the attestation statement against the <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">certificate revocation status list</a>
+    ///     that Google publishes for the Android attestation keys.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Google <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">requires</a> to check the status of each certificate in an attestation chain against the status list,
+    ///         which contains the certificates that don't have a normal valid status. Therefore, a certificate in the status list is untrusted whatever its status (REVOKED, SUSPENDED or another one),
+    ///         and so is the attestation statement. The certificates are looked up by their serial numbers, as the status list keys them (see <see cref="Services.AndroidKeyAttestationStatus.Models.AndroidKeyAttestationStatusList.FormatSerialNumber" />).
+    ///     </para>
+    ///     <para>
+    ///         While no status list is available (for example, before the first successful download), the attestation statement is rejected too: it can't be told from one whose attestation key is revoked.
+    ///     </para>
+    /// </remarks>
+    /// <param name="certificates">The certificates of 'x5c', in their order.</param>
+    /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
+    /// <returns><see langword="true" /> if a status list is available and none of the certificates is in it, otherwise <see langword="false" />.</returns>
+    protected virtual async Task<bool> IsTrustedByStatusListAsync(IReadOnlyList<X509Certificate2> certificates, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(certificates);
+        cancellationToken.ThrowIfCancellationRequested();
+        var statusList = await StatusStorage.GetAsync(cancellationToken);
+        if (statusList is null)
+        {
+            Logger.AndroidKeyStatusListNotAvailable();
+            StatusCounters.IncrementCheckWithoutStatusList();
+            return false;
+        }
+
+        for (var index = 0; index < certificates.Count; index++)
+        {
+            if (statusList.TryFindEntry(certificates[index], out var serialNumber, out var entry))
+            {
+                Logger.AndroidKeyCertificateInStatusList(
+                    index,
+                    serialNumber,
+                    LogValue.Sanitize(entry.Status ?? "<none>", MaxLoggedStatusLength),
+                    LogValue.Sanitize(entry.Reason ?? "<none>", MaxLoggedStatusLength));
+                StatusCounters.IncrementCertificateListed();
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -916,4 +994,26 @@ public static partial class DefaultAndroidKeyAttestationStatementVerifierLogging
         Level = LogLevel.Warning,
         Message = "The metadata of the aaguid {Aaguid} doesn't list the attestation type that an Android Key attestation statement conveys (basic_full), so no trust anchor is acceptable")]
     public static partial void AndroidKeyMetadataAttestationTypeNotSupported(this ILogger logger, Guid aaguid);
+
+    /// <summary>
+    ///     The certificate revocation status list of the Android attestation keys is not available, so the Android Key attestation statement is rejected
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The certificate revocation status list of the Android attestation keys is not available, so the Android Key attestation statement is rejected")]
+    public static partial void AndroidKeyStatusListNotAvailable(this ILogger logger);
+
+    /// <summary>
+    ///     The certificate #{Index} (serial number '{SerialNumber}') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status '{Status}' and the reason '{Reason}'
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="index">The zero-based index of the certificate in 'x5c'.</param>
+    /// <param name="serialNumber">The serial number of the certificate in lowercase hexadecimal.</param>
+    /// <param name="status">The status of the entry, sanitized.</param>
+    /// <param name="reason">The reason of the entry, sanitized.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The certificate #{Index} (serial number '{SerialNumber}') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status '{Status}' and the reason '{Reason}'")]
+    public static partial void AndroidKeyCertificateInStatusList(this ILogger logger, int index, string serialNumber, string status, string reason);
 }

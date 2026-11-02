@@ -3,8 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using WebAuthn.Net.Configuration.Builder;
 using WebAuthn.Net.Configuration.Options;
+using WebAuthn.Net.Configuration.Options.AttestationStatements;
 using WebAuthn.Net.Models.Abstractions;
 using WebAuthn.Net.Models.Protocol.Enums;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusDecoder;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusHttpClient;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngest;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder;
@@ -69,6 +74,8 @@ using WebAuthn.Net.Services.Serialization.Cose;
 using WebAuthn.Net.Services.Serialization.Cose.Implementation;
 using WebAuthn.Net.Services.Serialization.Json;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
+using WebAuthn.Net.Storage.AndroidKeyAttestationStatus;
+using WebAuthn.Net.Storage.AndroidKeyAttestationStatus.Implementation;
 using WebAuthn.Net.Storage.AuthenticationCeremony;
 using WebAuthn.Net.Storage.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Storage.Credential;
@@ -110,7 +117,10 @@ public static class WebAuthnBuilderExtensions
             builder.Services.Configure(configure);
         }
 
-        builder.AddAuthenticationCeremonyServices()
+        builder.AddAndroidKeyAttestationStatusServices()
+            .AddAndroidKeyAttestationStatusHttpClient()
+            .AddAndroidKeyAttestationStatusIngestBackgroundService()
+            .AddAuthenticationCeremonyServices()
             .AddCommonServices()
             .AddCryptographyServices()
             .AddFidoMetadataServices()
@@ -119,6 +129,64 @@ public static class WebAuthnBuilderExtensions
             .AddProviders()
             .AddRegistrationCeremonyServices()
             .AddSerializationServices();
+        return builder;
+    }
+
+    /// <summary>
+    ///     Adds a set of services to DI responsible for the <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">certificate revocation status list</a>
+    ///     of the Android attestation keys: its decoder and the storage that keeps it in memory.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
+    public static IWebAuthnBuilder<TContext> AddAndroidKeyAttestationStatusServices<TContext>(this IWebAuthnBuilder<TContext> builder)
+        where TContext : class, IWebAuthnContext
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusDecoder, DefaultAndroidKeyAttestationStatusDecoder>();
+        builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusStorage, DefaultInMemoryAndroidKeyAttestationStatusStorage>();
+        return builder;
+    }
+
+    /// <summary>
+    ///     Adds an HttpClient to DI, responsible for downloading the <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">certificate revocation status list</a>
+    ///     of the Android attestation keys.
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <param name="configure">
+    ///     An optional delegate for configuring the HttpClient that will be used to download the status list. Here you can add retries using <a href="https://github.com/App-vNext/Polly">Polly</a>, set timeouts,
+    ///     add your own DelegatingHandlers, or otherwise customize the behavior of HttpClient. Every call adds its configuration to the same HttpClient.
+    /// </param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
+    public static IWebAuthnBuilder<TContext> AddAndroidKeyAttestationStatusHttpClient<TContext>(
+        this IWebAuthnBuilder<TContext> builder,
+        Action<IHttpClientBuilder>? configure = null)
+        where TContext : class, IWebAuthnContext
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        var httpClientBuilder = builder.Services.AddHttpClient<IAndroidKeyAttestationStatusHttpClient, DefaultAndroidKeyAttestationStatusHttpClient>();
+        if (configure is not null)
+        {
+            configure(httpClientBuilder);
+        }
+
+        return builder;
+    }
+
+    /// <summary>
+    ///     Adds <see cref="AndroidKeyAttestationStatusIngestBackgroundService" /> to DI, the background service that loads the
+    ///     <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">certificate revocation status list</a> of the Android attestation keys and periodically updates it.
+    ///     It is configured by the options of the status list (<see cref="WebAuthnOptions.AttestationStatements" />.<see cref="AttestationStatementOptions.AndroidKey" />.<see cref="AndroidKeyAttestationStatementOptions.StatusList" />).
+    /// </summary>
+    /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
+    /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
+    /// <returns>An instance of <see cref="IWebAuthnBuilder{TContext}" /> that can be used to call additional WebAuthn.Net extension methods.</returns>
+    public static IWebAuthnBuilder<TContext> AddAndroidKeyAttestationStatusIngestBackgroundService<TContext>(this IWebAuthnBuilder<TContext> builder)
+        where TContext : class, IWebAuthnContext
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddHostedService<AndroidKeyAttestationStatusIngestBackgroundService>();
         return builder;
     }
 
@@ -202,6 +270,7 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<IAuthenticationCeremonyCounters, DefaultAuthenticationCeremonyCounters>();
         builder.Services.TryAddSingleton<IRegistrationCeremonyCounters, DefaultRegistrationCeremonyCounters>();
         builder.Services.TryAddSingleton<IFidoMetadataCounters, DefaultFidoMetadataCounters>();
+        builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusCounters, DefaultAndroidKeyAttestationStatusCounters>();
         // ---------------------
 
         return builder;

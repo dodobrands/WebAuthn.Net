@@ -173,12 +173,16 @@ public abstract class AbstractRegistrationCeremonyServiceTests
             RegistrationCounters,
             TpmVerifierLogger);
         AndroidKeyVerifierLogger = new();
+        AndroidKeyStatusStorage = new();
+        AndroidKeyStatusCounters = new();
         var androidKeyVerifier = new DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>(
             Options,
             TimeProvider,
             digitalSignatureVerifier,
             asn1Deserializer,
             metadataSearchService,
+            AndroidKeyStatusStorage,
+            AndroidKeyStatusCounters,
             AndroidKeyVerifierLogger);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,
@@ -307,4 +311,6 @@ public abstract class AbstractRegistrationCeremonyServiceTests
     protected FakeLogger<DefaultFidoMetadataSearchService<FakeWebAuthnContext>> FidoMetadataSearchLogger { get; set; } = null!;
     protected FakeLogger<DefaultTpmAttestationStatementVerifier<FakeWebAuthnContext>> TpmVerifierLogger { get; set; } = null!;
     protected FakeLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>> AndroidKeyVerifierLogger { get; set; } = null!;
+    protected FakeAndroidKeyAttestationStatusStorage AndroidKeyStatusStorage { get; set; } = null!;
+    protected FakeAndroidKeyAttestationStatusCounters AndroidKeyStatusCounters { get; set; } = null!;
 }

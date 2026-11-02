@@ -21,4 +21,9 @@ public static class Meters
     ///     Name of the <see cref="Meter" /> responsible for creating and tracking Instruments of the FIDO Metadata Service.
     /// </summary>
     public const string FidoMetadataMeterName = "WebAuthn.Net.FidoMetadata";
+
+    /// <summary>
+    ///     Name of the <see cref="Meter" /> responsible for creating and tracking Instruments of the certificate revocation status list of the Android attestation keys.
+    /// </summary>
+    public const string AndroidKeyAttestationStatusMeterName = "WebAuthn.Net.AndroidKeyAttestationStatus";
 }

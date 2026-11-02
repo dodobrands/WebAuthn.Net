@@ -19,6 +19,7 @@ using WebAuthn.Net.Configuration.DependencyInjection;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataDecoder;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest;
 using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataIngest.Constants;
@@ -372,6 +373,8 @@ public class FidoMetadataIngestBackgroundServiceTests
         // registered before AddWebAuthnCore, so its TryAddSingleton keeps this provider
         builder.Services.AddSingleton<IFidoMetadataProvider>(Provider);
         builder.Services.AddWebAuthnCore<FakeWebAuthnContext>().AddDefaultFidoMetadataStorage();
+        // registered after AddWebAuthnCore, so that it replaces the typed HttpClient: the status list of the Android attestation keys is not downloaded from the network
+        builder.Services.AddSingleton<IAndroidKeyAttestationStatusHttpClient>(new FakeAndroidKeyAttestationStatusHttpClient());
         Provider.EnqueueSuccess(291);
         using var host = builder.Build();
         var backgroundService = host.Services.GetServices<IHostedService>().OfType<FidoMetadataIngestBackgroundService>().Single();

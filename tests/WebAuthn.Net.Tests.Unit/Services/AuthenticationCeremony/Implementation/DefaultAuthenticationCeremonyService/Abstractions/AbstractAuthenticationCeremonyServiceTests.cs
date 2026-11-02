@@ -179,6 +179,8 @@ public abstract class AbstractAuthenticationCeremonyServiceTests
             digitalSignatureVerifier,
             asn1Deserializer,
             metadataSearchService,
+            new FakeAndroidKeyAttestationStatusStorage(),
+            new FakeAndroidKeyAttestationStatusCounters(),
             NullLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>.Instance);
         var fidoU2FVerifier = new DefaultFidoU2FAttestationStatementVerifier<FakeWebAuthnContext>(
             TimeProvider,

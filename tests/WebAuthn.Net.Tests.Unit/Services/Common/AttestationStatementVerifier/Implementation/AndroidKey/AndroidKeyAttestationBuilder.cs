@@ -89,6 +89,9 @@ internal sealed class AndroidKeyAttestationBuilder
 
     public byte[][] SoftwareEnforcedExtraFields { get; init; } = Array.Empty<byte[]>();
 
+    // when set, 'x5c' also contains the certificate of the attestation key (the issuer of credCert) with this serial number, as the status list of the Android attestation keys revokes such certificates
+    public byte[]? AttestationCertificateSerialNumber { get; init; }
+
     public AndroidKeyAttestation Build()
     {
         using var issuerKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -115,8 +118,21 @@ internal sealed class AndroidKeyAttestationBuilder
             signature[^1] ^= 0xFF;
         }
 
-        var attStmt = new AndroidKeyAttestationStatement(CoseAlgorithm.ES256, signature, EmptyX5C ? Array.Empty<byte[]>() : new[] { credCert });
+        var x5C = new List<byte[]> { credCert };
+        if (AttestationCertificateSerialNumber is not null)
+        {
+            x5C.Add(BuildAttestationCertificate(issuerKey, AttestationCertificateSerialNumber));
+        }
+
+        var attStmt = new AndroidKeyAttestationStatement(CoseAlgorithm.ES256, signature, EmptyX5C ? Array.Empty<byte[]>() : x5C.ToArray());
         return new(attStmt, authenticatorData, clientDataHash);
+    }
+
+    private static byte[] BuildAttestationCertificate(ECDsa issuerKey, byte[] serialNumber)
+    {
+        var request = new CertificateRequest("CN=WebAuthn.Net Android Key Test CA", issuerKey, HashAlgorithmName.SHA256);
+        using var certificate = request.Create(request.SubjectName, X509SignatureGenerator.CreateForECDsa(issuerKey), Now.AddDays(-1), Now.AddDays(30), serialNumber);
+        return certificate.RawData;
     }
 
     private byte[] BuildKeyDescription(byte[] clientDataHash)
@@ -209,13 +225,33 @@ internal sealed class TestAndroidKeyAttestationStatementVerifier : DefaultAndroi
     }
 
     public TestAndroidKeyAttestationStatementVerifier(RecordingFidoMetadataSearchService fidoMetadataSearchService, bool acceptKeysOnlyFromTrustedExecutionEnvironment)
-        : this(new OptionsMonitorStub(acceptKeysOnlyFromTrustedExecutionEnvironment), fidoMetadataSearchService, new FakeLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>())
+        : this(fidoMetadataSearchService, new FakeAndroidKeyAttestationStatusStorage(), acceptKeysOnlyFromTrustedExecutionEnvironment)
+    {
+    }
+
+    public TestAndroidKeyAttestationStatementVerifier(FakeAndroidKeyAttestationStatusStorage statusStorage)
+        : this(DefaultFidoMetadataSearchService(), statusStorage, true)
+    {
+    }
+
+    public TestAndroidKeyAttestationStatementVerifier(
+        RecordingFidoMetadataSearchService fidoMetadataSearchService,
+        FakeAndroidKeyAttestationStatusStorage statusStorage,
+        bool acceptKeysOnlyFromTrustedExecutionEnvironment)
+        : this(
+            new OptionsMonitorStub(acceptKeysOnlyFromTrustedExecutionEnvironment),
+            fidoMetadataSearchService,
+            statusStorage,
+            new FakeAndroidKeyAttestationStatusCounters(),
+            new FakeLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>())
     {
     }
 
     private TestAndroidKeyAttestationStatementVerifier(
         OptionsMonitorStub options,
         RecordingFidoMetadataSearchService fidoMetadataSearchService,
+        FakeAndroidKeyAttestationStatusStorage statusStorage,
+        FakeAndroidKeyAttestationStatusCounters statusCounters,
         FakeLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>> logger)
         : base(
             options,
@@ -223,13 +259,21 @@ internal sealed class TestAndroidKeyAttestationStatementVerifier : DefaultAndroi
             new DefaultDigitalSignatureVerifier(),
             new DefaultAsn1Deserializer(NullLogger<DefaultAsn1Deserializer>.Instance),
             fidoMetadataSearchService,
+            statusStorage,
+            statusCounters,
             logger)
     {
         FakeFidoMetadataSearchService = fidoMetadataSearchService;
+        FakeStatusStorage = statusStorage;
+        FakeStatusCounters = statusCounters;
         FakeLogger = logger;
     }
 
     public RecordingFidoMetadataSearchService FakeFidoMetadataSearchService { get; }
+
+    public FakeAndroidKeyAttestationStatusStorage FakeStatusStorage { get; }
+
+    public FakeAndroidKeyAttestationStatusCounters FakeStatusCounters { get; }
 
     public FakeLogger<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>> FakeLogger { get; }
 
