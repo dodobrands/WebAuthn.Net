@@ -159,6 +159,33 @@ public static class X509TrustChainValidator
         byte[][] trustPath,
         Action<X509Chain>? configureChain)
     {
+        return TryBuildAttestationTrustPathChain(rootCertificates, trustPath, configureChain, out _);
+    }
+
+    /// <summary>
+    ///     Builds and validates the certificate chain of the attestation trust path received during the WebAuthn ceremony, and returns the certificates of the built chain.
+    /// </summary>
+    /// <remarks>
+    ///     The <paramref name="trustPath" /> is supplied by the client, i.e. it is untrusted input. Before <paramref name="configureChain" /> is called, the chain policy is set to
+    ///     <see cref="X509ChainTrustMode.CustomRootTrust" /> (only <paramref name="rootCertificates" /> are trust anchors), <see cref="X509ChainPolicy.DisableCertificateDownloads" /> is set to <see langword="true" />
+    ///     and <see cref="X509ChainPolicy.RevocationMode" /> to <see cref="X509RevocationMode.NoCheck" />, so that the chain engine never fetches issuer certificates, CRLs or OCSP responses from the URLs
+    ///     embedded in the client-supplied certificates; a custom <paramref name="configureChain" /> delegate has to opt in explicitly to change this.
+    /// </remarks>
+    /// <param name="rootCertificates">Root CA certificates.</param>
+    /// <param name="trustPath">Intermediate certificates of the attestation trust path.</param>
+    /// <param name="configureChain">A delegate for configuring the behavior of certificate chain validation.</param>
+    /// <param name="chainCertificates">
+    ///     Output parameter. If the certificate chain is valid, the DER-encoded certificates of the built chain, from the first certificate of the attestation trust path up to the root certificate that it chains up to;
+    ///     otherwise - <see langword="null" />.
+    /// </param>
+    /// <returns><see langword="true" /> if the certificate chain is valid, otherwise - <see langword="false" />.</returns>
+    public static bool TryBuildAttestationTrustPathChain(
+        byte[][] rootCertificates,
+        byte[][] trustPath,
+        Action<X509Chain>? configureChain,
+        [NotNullWhen(true)] out byte[][]? chainCertificates)
+    {
+        chainCertificates = null;
         // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         if (!(rootCertificates?.Length > 0))
         {
@@ -223,7 +250,20 @@ public static class X509TrustChainValidator
                 chain.ChainPolicy.ExtraStore.Add(additionalCertificate);
             }
 
-            return chain.Build(certificateToValidate);
+            if (!chain.Build(certificateToValidate))
+            {
+                return false;
+            }
+
+            var builtChainCertificates = new byte[chain.ChainElements.Count][];
+            for (var index = 0; index < builtChainCertificates.Length; index++)
+            {
+                using var elementCertificate = chain.ChainElements[index].Certificate;
+                builtChainCertificates[index] = elementCertificate.RawData;
+            }
+
+            chainCertificates = builtChainCertificates;
+            return true;
         }
         finally
         {

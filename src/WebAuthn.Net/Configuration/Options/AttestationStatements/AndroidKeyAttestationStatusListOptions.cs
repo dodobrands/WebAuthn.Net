@@ -5,7 +5,7 @@ namespace WebAuthn.Net.Configuration.Options.AttestationStatements;
 
 /// <summary>
 ///     Options of the <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">certificate revocation status list</a> that Google publishes for the Android attestation keys.
-///     The certificates of every "Android Key" attestation statement are checked against it.
+///     The certificates of every attestation statement whose certificate chain ends at a root certificate of the key attestation of Google, whatever its format, are checked against it.
 /// </summary>
 /// <remarks>
 ///     <para>
@@ -15,7 +15,8 @@ namespace WebAuthn.Net.Configuration.Options.AttestationStatements;
 ///     </para>
 ///     <para>
 ///         If the status list embedded in the application is loaded, the start of the application doesn't wait for the download: the status list is downloaded in the background right away.
-///         Otherwise, the start of the application waits for the first attempt to download it. While no status list is available, every "Android Key" attestation statement is rejected.
+///         Otherwise, the start of the application waits for the first attempt to download it. While no status list is available, every attestation statement whose certificate chain ends at
+///         a root certificate of the key attestation of Google is rejected.
 ///     </para>
 /// </remarks>
 public class AndroidKeyAttestationStatusListOptions
@@ -67,7 +68,8 @@ public class AndroidKeyAttestationStatusListOptions
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         The embedded status list is loaded at start-up before the download, so that "Android Key" attestation statements can be verified even if <see cref="DownloadUri" /> is unavailable.
+    ///         The embedded status list is loaded at start-up before the download, so that the attestation statements whose certificate chains end at a root certificate of the key attestation of Google
+    ///         can be verified even if <see cref="DownloadUri" /> is unavailable.
     ///         It doesn't replace a status list that is already in use (for example, a persistent storage keeps the status list downloaded before the restart of the application).
     ///         The status list downloaded from <see cref="DownloadUri" /> replaces it as soon as it is downloaded. If the embedded status list can't be loaded, the reason is logged and counted,
     ///         and the status list is downloaded from <see cref="DownloadUri" /> only.

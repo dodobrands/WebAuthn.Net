@@ -35,11 +35,11 @@ public class DefaultAndroidKeyAttestationStatusCounters : IAndroidKeyAttestation
         ChecksWithoutStatusListCounter = Meter.CreateCounter<long>(
             "webauthn.android_key.status_list.check.no_list",
             null,
-            "The number of \"Android Key\" attestation statements that were rejected because no certificate revocation status list of the Android attestation keys is available (for example, before the first successful download)");
+            "The number of attestation statements whose certificate chain ends at a root certificate of the key attestation of Google that were rejected because no certificate revocation status list of the Android attestation keys is available (for example, before the first successful download)");
         CertificatesListedCounter = Meter.CreateCounter<long>(
             "webauthn.android_key.status_list.check.listed",
             null,
-            "The number of \"Android Key\" attestation statements that were rejected because a certificate in their 'x5c' is in the certificate revocation status list of the Android attestation keys");
+            "The number of attestation statements whose certificate chain ends at a root certificate of the key attestation of Google that were rejected because a certificate of the chain is in the certificate revocation status list of the Android attestation keys");
     }
 
     /// <summary>
@@ -68,12 +68,12 @@ public class DefaultAndroidKeyAttestationStatusCounters : IAndroidKeyAttestation
     protected Counter<long> DecodeAnomaliesCounter { get; }
 
     /// <summary>
-    ///     Counter of the "Android Key" attestation statements that were rejected because no status list is available.
+    ///     Counter of the attestation statements whose certificate chain ends at a root certificate of the key attestation of Google that were rejected because no status list is available.
     /// </summary>
     protected Counter<long> ChecksWithoutStatusListCounter { get; }
 
     /// <summary>
-    ///     Counter of the "Android Key" attestation statements that were rejected because a certificate in their 'x5c' is in the status list.
+    ///     Counter of the attestation statements whose certificate chain ends at a root certificate of the key attestation of Google that were rejected because a certificate of the chain is in the status list.
     /// </summary>
     protected Counter<long> CertificatesListedCounter { get; }
 

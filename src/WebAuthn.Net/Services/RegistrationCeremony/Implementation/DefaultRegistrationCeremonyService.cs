@@ -626,7 +626,7 @@ public class DefaultRegistrationCeremonyService<TContext>
             // 24.3 Otherwise, use the X.509 certificates returned as the attestation trust path from the verification procedure
             // to verify that the attestation public key either correctly chains up to an acceptable root certificate,
             // or is itself an acceptable certificate (i.e., it and the root certificate obtained in step 22 may be the same).
-            if (!AttestationTrustPathValidator.IsValid(attStmtVerification))
+            if (!await AttestationTrustPathValidator.IsValidAsync(attStmtVerification, cancellationToken))
             {
                 Logger.AttestationTrustPathIsInvalid();
                 Counters.IncrementCompleteCeremonyEnd(false);

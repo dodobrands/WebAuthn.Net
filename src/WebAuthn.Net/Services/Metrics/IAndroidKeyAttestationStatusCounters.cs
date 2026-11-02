@@ -34,12 +34,13 @@ public interface IAndroidKeyAttestationStatusCounters
     void IncrementDecodeAnomaly(string anomaly, bool tolerated);
 
     /// <summary>
-    ///     Increments the counter of the "Android Key" attestation statements that were rejected because no status list is available (for example, before the first successful download).
+    ///     Increments the counter of the attestation statements whose certificate chain ends at a root certificate of the key attestation of Google that were rejected because no status list is available
+    ///     (for example, before the first successful download).
     /// </summary>
     void IncrementCheckWithoutStatusList();
 
     /// <summary>
-    ///     Increments the counter of the "Android Key" attestation statements that were rejected because a certificate in their 'x5c' is in the status list.
+    ///     Increments the counter of the attestation statements whose certificate chain ends at a root certificate of the key attestation of Google that were rejected because a certificate of the chain is in the status list.
     /// </summary>
     void IncrementCertificateListed();
 }

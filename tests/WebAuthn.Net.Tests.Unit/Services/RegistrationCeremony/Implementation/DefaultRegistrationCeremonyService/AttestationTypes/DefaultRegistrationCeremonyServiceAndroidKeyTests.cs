@@ -124,7 +124,8 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
     public async Task DefaultRegistrationCeremonyService_FailsCeremonyForAndroidKey_WhenCertificateOfAttestationChainIsInStatusList()
     {
         await MetadataStorage.UpsertAsync(MetadataBlob.WithEntryCopy(Guid.Empty, MetadataBlobPayloadEdits.AndroidAuthenticatorAaguid), CancellationToken.None);
-        // The third certificate of the test vector (an intermediate of its chain) has the serial number 0x0095424d3dbd29ca3a25bdcac5ee51187c: the status list names it without the leading zero octet.
+        // The chain of the test vector ends at a root certificate of the key attestation of Google (serial number c36b7c44b9ae1831), so its certificates are looked up in the status list.
+        // The third certificate (an intermediate of the chain) has the serial number 0x0095424d3dbd29ca3a25bdcac5ee51187c: the status list names it without the leading zero octet.
         AndroidKeyStatusStorage.StatusList = FakeAndroidKeyAttestationStatusStorage.With("95424d3dbd29ca3a25bdcac5ee51187c");
 
         var completeResult = await CompleteCeremonyAsync();
@@ -134,8 +135,8 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
             Assert.That(completeResult.HasError, Is.True);
             Assert.That(AndroidKeyStatusCounters.CertificatesListed, Is.EqualTo(1));
             Assert.That(
-                AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
-                Has.Exactly(1).EqualTo("The certificate #2 (serial number '95424d3dbd29ca3a25bdcac5ee51187c') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status 'Revoked' and the reason 'KeyCompromise'"));
+                AttestationTrustPathValidatorLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo("The certificate #2 (serial number '95424d3dbd29ca3a25bdcac5ee51187c') of the certificate chain of the 'AndroidKey' attestation statement is in the certificate revocation status list of the Android attestation keys with the status 'Revoked' and the reason 'KeyCompromise'"));
         });
     }
 
@@ -152,8 +153,8 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
             Assert.That(completeResult.HasError, Is.True);
             Assert.That(AndroidKeyStatusCounters.ChecksWithoutStatusList, Is.EqualTo(1));
             Assert.That(
-                AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
-                Has.Exactly(1).EqualTo("The certificate revocation status list of the Android attestation keys is not available, so the Android Key attestation statement is rejected"));
+                AttestationTrustPathValidatorLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.Exactly(1).EqualTo("The certificate revocation status list of the Android attestation keys is not available, so the 'AndroidKey' attestation statement, whose certificate chain ends at a root certificate of the key attestation of Google, is rejected"));
         });
     }
 

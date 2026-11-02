@@ -20,8 +20,8 @@ public class AndroidKeyAttestationStatementOptions
     ///     where it is downloaded from, how often it is refreshed, and the status list embedded in the application.
     /// </summary>
     /// <remarks>
-    ///     An "Android Key" attestation statement is rejected if any certificate in its 'x5c' is in the status list, whatever its status (REVOKED, SUSPENDED or another one),
-    ///     and while no status list is available.
+    ///     An attestation statement whose certificate chain ends at a root certificate of the key attestation of Google is rejected, whatever its format, if any certificate of the chain is in the status list,
+    ///     whatever its status (REVOKED, SUSPENDED or another one), and while no status list is available.
     /// </remarks>
     public AndroidKeyAttestationStatusListOptions StatusList { get; set; } = new();
 }

@@ -27,6 +27,8 @@ using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Protocol.Json;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidKey;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey;
+using WebAuthn.Net.Services.Common.AttestationTrustPathValidator;
+using WebAuthn.Net.Services.Common.AttestationTrustPathValidator.Implementation;
 using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
 using WebAuthn.Net.Services.Serialization.Json.Implementation;
@@ -356,6 +358,7 @@ public class AndroidKeyAttestationStatusIngestBackgroundServiceTests
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatusSerialNumberFormatter>(), Is.InstanceOf<DefaultAndroidKeyAttestationStatusSerialNumberFormatter>());
             Assert.That(storage, Is.InstanceOf<DefaultInMemoryAndroidKeyAttestationStatusStorage>());
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>(), Is.InstanceOf<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>());
+            Assert.That(serviceProvider.GetRequiredService<IAttestationTrustPathValidator>(), Is.InstanceOf<DefaultAttestationTrustPathValidator>());
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatusCounters>(), Is.Not.Null);
             Assert.That(serviceProvider.GetRequiredService<IOptionsMonitor<WebAuthnOptions>>().CurrentValue.AttestationStatements.AndroidKey.StatusList.RetryInterval, Is.EqualTo(TimeSpan.FromSeconds(30)));
             Assert.That(HttpClient.Calls, Is.EqualTo(1));
