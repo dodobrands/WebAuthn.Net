@@ -23,14 +23,11 @@ public interface IFidoMetadataIngestService
     /// </summary>
     /// <remarks>
     ///     The embedded blob is a fallback for the case when the FIDO Metadata Service is unavailable, so it is expected to be older than the metadata in use, if there is any
-    ///     (for example, a persistent storage keeps the blob downloaded before the restart of the application). The default implementation of this interface method upserts it the same way as <see cref="UpsertAsync" />.
+    ///     (for example, a persistent storage keeps the blob downloaded before the restart of the application).
     /// </remarks>
     /// <param name="metadataBlob">A blob with metadata.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     Task UpsertEmbeddedAsync(
         MetadataBlobPayload metadataBlob,
-        CancellationToken cancellationToken)
-    {
-        return UpsertAsync(metadataBlob, cancellationToken);
-    }
+        CancellationToken cancellationToken);
 }

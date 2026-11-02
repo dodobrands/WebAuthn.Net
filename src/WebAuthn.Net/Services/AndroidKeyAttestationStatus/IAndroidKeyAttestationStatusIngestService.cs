@@ -24,14 +24,11 @@ public interface IAndroidKeyAttestationStatusIngestService
     /// </summary>
     /// <remarks>
     ///     The embedded status list is a fallback for the case when the status list can't be downloaded, so it is expected to be older than the status list in use, if there is any
-    ///     (for example, a persistent storage keeps the status list downloaded before the restart of the application). The default implementation of this interface method upserts it the same way as <see cref="UpsertAsync" />.
+    ///     (for example, a persistent storage keeps the status list downloaded before the restart of the application).
     /// </remarks>
     /// <param name="statusList">The status list.</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     Task UpsertEmbeddedAsync(
         AndroidKeyAttestationStatusList statusList,
-        CancellationToken cancellationToken)
-    {
-        return UpsertAsync(statusList, cancellationToken);
-    }
+        CancellationToken cancellationToken);
 }

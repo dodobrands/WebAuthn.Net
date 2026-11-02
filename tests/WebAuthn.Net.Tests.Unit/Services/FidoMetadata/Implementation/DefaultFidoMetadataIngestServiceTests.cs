@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -233,17 +232,6 @@ public class DefaultFidoMetadataIngestServiceTests
         Assert.That(Counters.BlobsRejectedDueToRollback, Is.EqualTo(1));
     }
 
-    [Test]
-    public async Task IFidoMetadataIngestService_UpsertEmbeddedAsync_ByDefault_UpsertsLikeUpsertAsync()
-    {
-        // An ingestion service implemented from scratch keeps compiling: the default interface method passes the embedded blob to UpsertAsync.
-        IFidoMetadataIngestService ingestService = new RecordingIngestService();
-
-        await ingestService.UpsertEmbeddedAsync(CreateBlob(291, FirstAaguid), CancellationToken.None);
-
-        Assert.That(((RecordingIngestService) ingestService).Upserted.Select(static x => x.No).Single(), Is.EqualTo(291));
-    }
-
     private static MetadataBlobPayload CreateBlob(long no, params Guid[] aaguids)
     {
         var entries = aaguids
@@ -273,6 +261,11 @@ public class DefaultFidoMetadataIngestServiceTests
             LastUpserted = metadataBlob;
             return Task.CompletedTask;
         }
+
+        public Task<long?> GetCurrentBlobNoAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult<long?>(null);
+        }
     }
 
     private sealed class BlobNoTrackingIngestStorage : IFidoMetadataIngestStorage
@@ -296,19 +289,6 @@ public class DefaultFidoMetadataIngestServiceTests
         public Task<long?> GetCurrentBlobNoAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult(CurrentBlobNo);
-        }
-    }
-
-    private sealed class RecordingIngestService : IFidoMetadataIngestService
-    {
-        private readonly List<MetadataBlobPayload> _upserted = new();
-
-        public IReadOnlyList<MetadataBlobPayload> Upserted => _upserted;
-
-        public Task UpsertAsync(MetadataBlobPayload metadataBlob, CancellationToken cancellationToken)
-        {
-            _upserted.Add(metadataBlob);
-            return Task.CompletedTask;
         }
     }
 
