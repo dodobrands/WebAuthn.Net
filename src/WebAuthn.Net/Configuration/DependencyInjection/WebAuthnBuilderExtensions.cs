@@ -12,6 +12,8 @@ using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKe
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngest;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngestService;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusProvider;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusSerialNumberFormatter;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder;
@@ -148,6 +150,7 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusDecoder, DefaultAndroidKeyAttestationStatusDecoder>();
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusIngestService, DefaultAndroidKeyAttestationStatusIngestService>();
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusProvider, DefaultAndroidKeyAttestationStatusProvider>();
+        builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusSerialNumberFormatter, DefaultAndroidKeyAttestationStatusSerialNumberFormatter>();
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusStorage, DefaultInMemoryAndroidKeyAttestationStatusStorage>();
         return builder;
     }
@@ -425,6 +428,8 @@ public static class WebAuthnBuilderExtensions
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AttestationConveyancePreference>, DefaultEnumMemberAttributeSerializer<AttestationConveyancePreference>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<ResidentKeyRequirement>, DefaultEnumMemberAttributeSerializer<ResidentKeyRequirement>>();
         builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<TokenBindingStatus>, DefaultEnumMemberAttributeSerializer<TokenBindingStatus>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationStatus>, DefaultEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationStatus>>();
+        builder.Services.TryAddSingleton<IEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationReason>, DefaultEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationReason>>();
         return builder;
     }
 

@@ -22,6 +22,8 @@ using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKe
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngestService;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusProvider;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusProvider.Constants;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusSerialNumberFormatter;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Protocol.Json;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Abstractions.AndroidKey;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Implementation.AndroidKey;
@@ -351,6 +353,7 @@ public class AndroidKeyAttestationStatusIngestBackgroundServiceTests
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatusProvider>(), Is.InstanceOf<DefaultAndroidKeyAttestationStatusProvider>());
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatusDecoder>(), Is.InstanceOf<DefaultAndroidKeyAttestationStatusDecoder>());
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatusIngestService>(), Is.InstanceOf<DefaultAndroidKeyAttestationStatusIngestService>());
+            Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatusSerialNumberFormatter>(), Is.InstanceOf<DefaultAndroidKeyAttestationStatusSerialNumberFormatter>());
             Assert.That(storage, Is.InstanceOf<DefaultInMemoryAndroidKeyAttestationStatusStorage>());
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>(), Is.InstanceOf<DefaultAndroidKeyAttestationStatementVerifier<FakeWebAuthnContext>>());
             Assert.That(serviceProvider.GetRequiredService<IAndroidKeyAttestationStatusCounters>(), Is.Not.Null);
@@ -366,7 +369,12 @@ public class AndroidKeyAttestationStatusIngestBackgroundServiceTests
             new OptionsMonitorStub(WebAuthnOptions),
             new DefaultAndroidKeyAttestationStatusIngestService(Storage, new FakeLogger<DefaultAndroidKeyAttestationStatusIngestService>()),
             provider,
-            new DefaultAndroidKeyAttestationStatusDecoder(Counters, new FakeLogger<DefaultAndroidKeyAttestationStatusDecoder>()),
+            new DefaultAndroidKeyAttestationStatusDecoder(
+                new DefaultAndroidKeyAttestationStatusSerialNumberFormatter(),
+                new DefaultEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationStatus>(),
+                new DefaultEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationReason>(),
+                Counters,
+                new FakeLogger<DefaultAndroidKeyAttestationStatusDecoder>()),
             new FakeTimeProvider(Now),
             Counters,
             Logger);

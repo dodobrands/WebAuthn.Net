@@ -5,7 +5,11 @@ using NUnit.Framework;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusDecoder;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusDecoder.Constants;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusSerialNumberFormatter;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Protocol.Json;
+using WebAuthn.Net.Services.Serialization.Json.Implementation;
 
 namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation;
 
@@ -20,7 +24,12 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     {
         Counters = new();
         Logger = new();
-        Decoder = new(Counters, Logger);
+        Decoder = new(
+            new DefaultAndroidKeyAttestationStatusSerialNumberFormatter(),
+            new DefaultEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationStatus>(),
+            new DefaultEnumMemberAttributeSerializer<AndroidKeyAttestationRevocationReason>(),
+            Counters,
+            Logger);
     }
 
     [Test]
@@ -35,8 +44,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
                                   "reason": "KEY_COMPROMISE"
                                 },
                                 "c35747a084470c3135aeefe2b8d40cd6" : {
-                                  "status": "REVOKED",
-                                  "reason": "SOFTWARE_FLAW"
+                                  "status": "REVOKED"
                                 },
                                 "c8966fcb2fbb0d7a": {
                                   "status": "SUSPENDED",
@@ -51,16 +59,49 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
         var result = Decoder.Decode(Json(json));
 
         Assert.That(result.HasError, Is.False);
-        var entries = result.Ok!.Entries;
+        var statusList = result.Ok!;
         Assert.Multiple(() =>
         {
-            Assert.That(entries.Keys, Is.EquivalentTo(Values("6681152659205225093", "c35747a084470c3135aeefe2b8d40cd6", "c8966fcb2fbb0d7a")));
-            Assert.That(entries["6681152659205225093"].Status, Is.EqualTo("REVOKED"));
-            Assert.That(entries["6681152659205225093"].Reason, Is.EqualTo("KEY_COMPROMISE"));
-            Assert.That(entries["c35747a084470c3135aeefe2b8d40cd6"].Reason, Is.EqualTo("SOFTWARE_FLAW"));
-            Assert.That(entries["c8966fcb2fbb0d7a"].Status, Is.EqualTo("SUSPENDED"));
+            Assert.That(Keys(statusList), Is.EquivalentTo(Values("6681152659205225093", "c35747a084470c3135aeefe2b8d40cd6", "c8966fcb2fbb0d7a")));
+            Assert.That(Entry(statusList, "6681152659205225093").Status, Is.EqualTo(AndroidKeyAttestationRevocationStatus.Revoked));
+            Assert.That(Entry(statusList, "6681152659205225093").Reason, Is.EqualTo(AndroidKeyAttestationRevocationReason.KeyCompromise));
+            Assert.That(Entry(statusList, "c35747a084470c3135aeefe2b8d40cd6").Status, Is.EqualTo(AndroidKeyAttestationRevocationStatus.Revoked));
+            Assert.That(Entry(statusList, "c35747a084470c3135aeefe2b8d40cd6").Reason, Is.Null);
+            Assert.That(Entry(statusList, "c8966fcb2fbb0d7a").Status, Is.EqualTo(AndroidKeyAttestationRevocationStatus.Suspended));
+            Assert.That(Entry(statusList, "c8966fcb2fbb0d7a").Reason, Is.EqualTo(AndroidKeyAttestationRevocationReason.SoftwareFlaw));
             Assert.That(Counters.DecodeAnomalies, Is.Empty);
             Assert.That(Logger.Entries, Is.Empty);
+        });
+    }
+
+    [TestCase("REVOKED", AndroidKeyAttestationRevocationStatus.Revoked)]
+    [TestCase("SUSPENDED", AndroidKeyAttestationRevocationStatus.Suspended)]
+    public void Decode_DecodesDocumentedStatus(string status, AndroidKeyAttestationRevocationStatus expected)
+    {
+        var result = Decoder.Decode(Json($$$$"""{"entries":{"1a":{"status":"{{{{status}}}}"}}}"""));
+
+        Assert.That(result.HasError, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Entry(result.Ok!, "1a").Status, Is.EqualTo(expected));
+            Assert.That(Counters.DecodeAnomalies, Is.Empty);
+        });
+    }
+
+    [TestCase("UNSPECIFIED", AndroidKeyAttestationRevocationReason.Unspecified)]
+    [TestCase("KEY_COMPROMISE", AndroidKeyAttestationRevocationReason.KeyCompromise)]
+    [TestCase("CA_COMPROMISE", AndroidKeyAttestationRevocationReason.CaCompromise)]
+    [TestCase("SUPERSEDED", AndroidKeyAttestationRevocationReason.Superseded)]
+    [TestCase("SOFTWARE_FLAW", AndroidKeyAttestationRevocationReason.SoftwareFlaw)]
+    public void Decode_DecodesDocumentedReason(string reason, AndroidKeyAttestationRevocationReason expected)
+    {
+        var result = Decoder.Decode(Json($$$$"""{"entries":{"1a":{"status":"REVOKED","reason":"{{{{reason}}}}"}}}"""));
+
+        Assert.That(result.HasError, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Entry(result.Ok!, "1a").Reason, Is.EqualTo(expected));
+            Assert.That(Counters.DecodeAnomalies, Is.Empty);
         });
     }
 
@@ -97,7 +138,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Ok!.Entries.Keys, Is.EqualTo(Values("1a")));
+            Assert.That(Keys(result.Ok!), Is.EqualTo(Values("1a")));
             Assert.That(Counters.DecodeAnomalies, Is.EqualTo(new[] { (AndroidKeyAttestationStatusAnomalies.KeyInvalid, false) }));
             Assert.That(
                 Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
@@ -130,8 +171,8 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Ok!.Entries.Keys, Is.EqualTo(new[] { serialNumber }));
-            Assert.That(result.Ok.Entries[serialNumber].Status, Is.EqualTo("REVOKED"));
+            Assert.That(Keys(result.Ok!), Is.EqualTo(Values(serialNumber)));
+            Assert.That(Entry(result.Ok!, serialNumber).Status, Is.EqualTo(AndroidKeyAttestationRevocationStatus.Revoked));
             Assert.That(Counters.DecodeAnomalies, Is.EqualTo(new[] { (AndroidKeyAttestationStatusAnomalies.KeyNotCanonical, true) }));
             Assert.That(
                 Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
@@ -140,15 +181,33 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     }
 
     [Test]
-    public void Decode_KeepsFirstEntry_WhenKeysNameTheSameSerialNumber()
+    public void Decode_SkipsEntry_WhenEarlierEntryHasSameSerialNumber()
     {
         var result = Decoder.Decode(Json("""{"entries":{"1a":{"status":"REVOKED"},"01A":{"status":"SUSPENDED"}}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Ok!.Entries.Keys, Is.EqualTo(Values("1a")));
-            Assert.That(result.Ok.Entries["1a"].Status, Is.EqualTo("REVOKED"));
+            Assert.That(Keys(result.Ok!), Is.EqualTo(Values("1a")));
+            Assert.That(Entry(result.Ok!, "1a").Status, Is.EqualTo(AndroidKeyAttestationRevocationStatus.Revoked));
+            Assert.That(Counters.DecodeAnomalies, Is.EqualTo(new[] { (AndroidKeyAttestationStatusAnomalies.KeyDuplicate, false) }));
+            Assert.That(
+                Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Is.EqualTo(Values("The entry '01A' of the status list of the Android attestation keys was skipped because an earlier entry has the same serial number '1a'")));
+        });
+    }
+
+    [Test]
+    public void Decode_SkipsEntry_WhenEarlierEntryWithNonCanonicalKeyHasSameSerialNumber()
+    {
+        var result = Decoder.Decode(Json("""{"entries":{"01A":{"status":"SUSPENDED"},"1a":{"status":"REVOKED"}}}"""));
+
+        Assert.That(result.HasError, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Keys(result.Ok!), Is.EqualTo(Values("1a")));
+            Assert.That(Entry(result.Ok!, "1a").Status, Is.EqualTo(AndroidKeyAttestationRevocationStatus.Suspended));
+            Assert.That(Counters.DecodeAnomalies, Is.EqualTo(new[] { (AndroidKeyAttestationStatusAnomalies.KeyNotCanonical, true), (AndroidKeyAttestationStatusAnomalies.KeyDuplicate, false) }));
         });
     }
 
@@ -165,8 +224,8 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Ok!.Entries.Keys, Is.EqualTo(Values("1a")));
-            Assert.That(result.Ok.Entries["1a"].Status, Is.Null);
+            Assert.That(Keys(result.Ok!), Is.EqualTo(Values("1a")));
+            Assert.That(Entry(result.Ok!, "1a").Status, Is.Null);
             Assert.That(Counters.DecodeAnomalies, Is.EqualTo(new[] { (AndroidKeyAttestationStatusAnomalies.StatusMissing, true) }));
             Assert.That(
                 Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
@@ -176,20 +235,67 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
 
     [TestCase("VALID")]
     [TestCase("revoked")]
-    public void Decode_KeepsEntry_WhenStatusIsUnknown(string status)
+    public void Decode_KeepsEntryWithoutStatus_WhenStatusIsUnknown(string status)
     {
         var result = Decoder.Decode(Json($$$$"""{"entries":{"1a":{"status":"{{{{status}}}}","reason":"UNSPECIFIED"}}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Ok!.Entries["1a"].Status, Is.EqualTo(status));
-            Assert.That(result.Ok.Entries["1a"].Reason, Is.EqualTo("UNSPECIFIED"));
+            Assert.That(Keys(result.Ok!), Is.EqualTo(Values("1a")));
+            Assert.That(Entry(result.Ok!, "1a").Status, Is.Null);
+            Assert.That(Entry(result.Ok!, "1a").Reason, Is.EqualTo(AndroidKeyAttestationRevocationReason.Unspecified));
             Assert.That(Counters.DecodeAnomalies, Is.EqualTo(new[] { (AndroidKeyAttestationStatusAnomalies.StatusUnknown, true) }));
             Assert.That(
                 Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
                 Has.One.EqualTo($"The entry for the certificate with the serial number '1a' in the status list of the Android attestation keys has the unknown status '{status}', so the certificate is untrusted"));
         });
+    }
+
+    [TestCase("PRIVILEGE_WITHDRAWN")]
+    [TestCase("key_compromise")]
+    [TestCase("")]
+    public void Decode_KeepsEntryWithoutReason_WhenReasonIsUnknown(string reason)
+    {
+        var result = Decoder.Decode(Json($$$$"""{"entries":{"1a":{"status":"REVOKED","reason":"{{{{reason}}}}"}}}"""));
+
+        Assert.That(result.HasError, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Keys(result.Ok!), Is.EqualTo(Values("1a")));
+            Assert.That(Entry(result.Ok!, "1a").Status, Is.EqualTo(AndroidKeyAttestationRevocationStatus.Revoked));
+            Assert.That(Entry(result.Ok!, "1a").Reason, Is.Null);
+            Assert.That(Counters.DecodeAnomalies, Is.EqualTo(new[] { (AndroidKeyAttestationStatusAnomalies.ReasonUnknown, true) }));
+            Assert.That(
+                Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
+                Has.One.EqualTo($"The entry for the certificate with the serial number '1a' in the status list of the Android attestation keys has the unknown reason '{reason}', so the reason is ignored"));
+        });
+    }
+
+    [Test]
+    public void Decode_LogsSanitizedValues_WhenStatusAndReasonContainControlCharacters()
+    {
+        var result = Decoder.Decode(Json("""{"entries":{"1a":{"status":"REVOKED\r\nFAKE","reason":"KEY\u001b[31m"}}}"""));
+
+        Assert.That(result.HasError, Is.False);
+        var warnings = Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message).ToArray();
+        Assert.Multiple(() =>
+        {
+            Assert.That(warnings, Has.Length.EqualTo(2));
+            Assert.That(warnings, Has.One.Contains("the unknown status 'REVOKED??FAKE'"));
+            Assert.That(warnings, Has.One.Contains("the unknown reason 'KEY?[31m'"));
+            Assert.That(string.Concat(warnings), Has.None.Matches<char>(char.IsControl));
+        });
+    }
+
+    private static string[] Keys(AndroidKeyAttestationStatusList statusList)
+    {
+        return statusList.Entries.Keys.ToArray();
+    }
+
+    private static AndroidKeyAttestationStatusEntry Entry(AndroidKeyAttestationStatusList statusList, string serialNumber)
+    {
+        return statusList.Entries[serialNumber];
     }
 
     private static AndroidKeyAttestationStatusListJSON Json(string json)

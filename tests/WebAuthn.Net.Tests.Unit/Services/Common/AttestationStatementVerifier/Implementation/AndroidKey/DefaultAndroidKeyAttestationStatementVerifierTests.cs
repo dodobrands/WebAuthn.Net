@@ -11,6 +11,7 @@ using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Models.Protocol.Enums;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
 using WebAuthn.Net.Services.Common.AttestationObjectDecoder.Implementation;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Implementation.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
@@ -501,9 +502,9 @@ public class DefaultAndroidKeyAttestationStatementVerifierTests
     [Test]
     public async Task VerifyAsync_Fails_WhenCertificateOfAttestationKeyIsInStatusList()
     {
-        // the serial number of a factory-provisioned attestation key of a Pixel 3: its hexadecimal digits are all decimal, and the first one is a leading zero
+        // the serial number of a factory-provisioned attestation key of a Pixel 3: its hexadecimal digits are all decimal, and its octets start with a zero digit (05 01 41 ...)
         var verifier = new TestAndroidKeyAttestationStatementVerifier(new FakeAndroidKeyAttestationStatusStorage(FakeAndroidKeyAttestationStatusStorage.With("5014131950868983053")));
-        var attestation = new AndroidKeyAttestationBuilder { AttestationCertificateSerialNumber = Convert.FromHexString("05014131950868983053") }.Build();
+        var attestation = new AndroidKeyAttestationBuilder { AttestationCertificateSerialNumber = "5014131950868983053" }.Build();
 
         var result = await verifier.VerifyAsync(attestation);
 
@@ -511,7 +512,7 @@ public class DefaultAndroidKeyAttestationStatementVerifierTests
         {
             Assert.That(result.HasError, Is.True);
             Assert.That(verifier.FakeStatusCounters.CertificatesListed, Is.EqualTo(1));
-            AssertWarning(verifier, "The certificate #1 (serial number '5014131950868983053') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status 'REVOKED' and the reason 'KEY_COMPROMISE'");
+            AssertWarning(verifier, "The certificate #1 (serial number '5014131950868983053') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status 'Revoked' and the reason 'KeyCompromise'");
         });
     }
 
@@ -531,14 +532,14 @@ public class DefaultAndroidKeyAttestationStatementVerifierTests
         });
     }
 
-    [TestCase("SUSPENDED", "SOFTWARE_FLAW", "with the status 'SUSPENDED' and the reason 'SOFTWARE_FLAW'")]
-    [TestCase("VALID", null, "with the status 'VALID' and the reason '<none>'")]
-    [TestCase(null, null, "with the status '<none>' and the reason '<none>'")]
-    public async Task VerifyAsync_Fails_WhenCertificateIsInStatusList_WhateverItsStatus(string? status, string? reason, string expectedMessagePart)
+    [TestCase(AndroidKeyAttestationRevocationStatus.Suspended, AndroidKeyAttestationRevocationReason.SoftwareFlaw, "with the status 'Suspended' and the reason 'SoftwareFlaw'")]
+    [TestCase(null, null, "with the status '(null)' and the reason '(null)'")]
+    public async Task VerifyAsync_Fails_WhenCertificateIsInStatusList_WhateverItsStatus(AndroidKeyAttestationRevocationStatus? status, AndroidKeyAttestationRevocationReason? reason, string expectedMessagePart)
     {
         // the status list contains only the certificates that don't have a normal valid status
+        // (an entry without a status is one whose status is missing or unknown in the status list)
         var verifier = new TestAndroidKeyAttestationStatementVerifier(new FakeAndroidKeyAttestationStatusStorage(FakeAndroidKeyAttestationStatusStorage.With("abcdef", status, reason)));
-        var attestation = new AndroidKeyAttestationBuilder { AttestationCertificateSerialNumber = Convert.FromHexString("abcdef") }.Build();
+        var attestation = new AndroidKeyAttestationBuilder { AttestationCertificateSerialNumber = "abcdef" }.Build();
 
         var result = await verifier.VerifyAsync(attestation);
 
@@ -568,15 +569,15 @@ public class DefaultAndroidKeyAttestationStatementVerifierTests
     [Test]
     public async Task VerifyAsync_Succeeds_WhenOnlyOtherCertificatesAreInStatusList()
     {
-        var statusList = new AndroidKeyAttestationStatusList(new Dictionary<string, AndroidKeyAttestationStatusEntry>
+        var statusList = new AndroidKeyAttestationStatusList(new Dictionary<string, AndroidKeyAttestationStatusEntry>(StringComparer.Ordinal)
         {
-            // the serial number of the attestation certificate in decimal, and other serial numbers
-            ["2280"] = new("REVOKED", "KEY_COMPROMISE"),
-            ["8e9"] = new("REVOKED", "KEY_COMPROMISE"),
-            ["1020305"] = new("SUSPENDED", null)
+            // the serial number of the attestation certificate (8e8) in decimal, and other serial numbers
+            ["2280"] = new(AndroidKeyAttestationRevocationStatus.Revoked, AndroidKeyAttestationRevocationReason.KeyCompromise),
+            ["8e9"] = new(AndroidKeyAttestationRevocationStatus.Revoked, AndroidKeyAttestationRevocationReason.KeyCompromise),
+            ["1020305"] = new(AndroidKeyAttestationRevocationStatus.Suspended, null)
         });
         var verifier = new TestAndroidKeyAttestationStatementVerifier(new FakeAndroidKeyAttestationStatusStorage(statusList));
-        var attestation = new AndroidKeyAttestationBuilder { AttestationCertificateSerialNumber = Convert.FromHexString("08e8") }.Build();
+        var attestation = new AndroidKeyAttestationBuilder { AttestationCertificateSerialNumber = "8e8" }.Build();
 
         var result = await verifier.VerifyAsync(attestation);
 

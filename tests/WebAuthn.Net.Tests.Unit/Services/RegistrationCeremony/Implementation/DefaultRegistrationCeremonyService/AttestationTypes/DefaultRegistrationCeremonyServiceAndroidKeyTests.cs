@@ -135,7 +135,7 @@ public class DefaultRegistrationCeremonyServiceAndroidKeyTests : AbstractRegistr
             Assert.That(AndroidKeyStatusCounters.CertificatesListed, Is.EqualTo(1));
             Assert.That(
                 AndroidKeyVerifierLogger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message),
-                Has.Exactly(1).EqualTo("The certificate #2 (serial number '95424d3dbd29ca3a25bdcac5ee51187c') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status 'REVOKED' and the reason 'KEY_COMPROMISE'"));
+                Has.Exactly(1).EqualTo("The certificate #2 (serial number '95424d3dbd29ca3a25bdcac5ee51187c') from 'x5c' of the Android Key attestation statement is in the certificate revocation status list of the Android attestation keys with the status 'Revoked' and the reason 'KeyCompromise'"));
         });
     }
 

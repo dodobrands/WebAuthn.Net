@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
 using WebAuthn.Net.Storage.AndroidKeyAttestationStatus.Implementation;
 
 namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation;
@@ -23,7 +24,7 @@ public class DefaultInMemoryAndroidKeyAttestationStatusStorageTests
     public async Task UpsertAsync_ReplacesTheStatusListInUse()
     {
         var storage = new DefaultInMemoryAndroidKeyAttestationStatusStorage();
-        var first = new AndroidKeyAttestationStatusList(new Dictionary<string, AndroidKeyAttestationStatusEntry> { ["1"] = new("REVOKED", null) });
+        var first = new AndroidKeyAttestationStatusList(new Dictionary<string, AndroidKeyAttestationStatusEntry> { ["1"] = new(AndroidKeyAttestationRevocationStatus.Revoked, null) });
         var second = new AndroidKeyAttestationStatusList(new Dictionary<string, AndroidKeyAttestationStatusEntry>());
 
         await storage.UpsertAsync(first, CancellationToken.None);

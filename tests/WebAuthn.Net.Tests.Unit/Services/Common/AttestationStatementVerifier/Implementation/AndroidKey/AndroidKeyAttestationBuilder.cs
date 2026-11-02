@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using WebAuthn.Net.Configuration.Options;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Models;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusSerialNumberFormatter;
 using WebAuthn.Net.Services.Common.AttestationStatementDecoder.Models.AttestationStatements;
 using WebAuthn.Net.Services.Common.AttestationStatementVerifier.Models.AttestationStatementVerifier;
 using WebAuthn.Net.Services.Common.AuthenticatorDataDecoder.Models;
@@ -90,7 +91,8 @@ internal sealed class AndroidKeyAttestationBuilder
     public byte[][] SoftwareEnforcedExtraFields { get; init; } = Array.Empty<byte[]>();
 
     // when set, 'x5c' also contains the certificate of the attestation key (the issuer of credCert) with this serial number, as the status list of the Android attestation keys revokes such certificates
-    public byte[]? AttestationCertificateSerialNumber { get; init; }
+    // (in the form of the keys of the status list: lowercase hexadecimal without leading zeros)
+    public string? AttestationCertificateSerialNumber { get; init; }
 
     public AndroidKeyAttestation Build()
     {
@@ -128,10 +130,12 @@ internal sealed class AndroidKeyAttestationBuilder
         return new(attStmt, authenticatorData, clientDataHash);
     }
 
-    private static byte[] BuildAttestationCertificate(ECDsa issuerKey, byte[] serialNumber)
+    private static byte[] BuildAttestationCertificate(ECDsa issuerKey, string serialNumber)
     {
+        // CertificateRequest adds the zero octet that a serial number whose first octet has the high bit set needs to stay positive
+        var serialNumberOctets = Convert.FromHexString(serialNumber.Length % 2 == 0 ? serialNumber : "0" + serialNumber);
         var request = new CertificateRequest("CN=WebAuthn.Net Android Key Test CA", issuerKey, HashAlgorithmName.SHA256);
-        using var certificate = request.Create(request.SubjectName, X509SignatureGenerator.CreateForECDsa(issuerKey), Now.AddDays(-1), Now.AddDays(30), serialNumber);
+        using var certificate = request.Create(request.SubjectName, X509SignatureGenerator.CreateForECDsa(issuerKey), Now.AddDays(-1), Now.AddDays(30), serialNumberOctets);
         return certificate.RawData;
     }
 
@@ -260,6 +264,7 @@ internal sealed class TestAndroidKeyAttestationStatementVerifier : DefaultAndroi
             new DefaultAsn1Deserializer(NullLogger<DefaultAsn1Deserializer>.Instance),
             fidoMetadataSearchService,
             statusStorage,
+            new DefaultAndroidKeyAttestationStatusSerialNumberFormatter(),
             statusCounters,
             logger)
     {

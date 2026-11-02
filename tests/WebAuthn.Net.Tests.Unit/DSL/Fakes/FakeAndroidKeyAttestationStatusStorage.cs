@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
 using WebAuthn.Net.Storage.AndroidKeyAttestationStatus;
 
 namespace WebAuthn.Net.DSL.Fakes;
@@ -40,12 +41,16 @@ public class FakeAndroidKeyAttestationStatusStorage : IAndroidKeyAttestationStat
 
     public static AndroidKeyAttestationStatusList Empty()
     {
-        return new(new Dictionary<string, AndroidKeyAttestationStatusEntry>());
+        return new(new Dictionary<string, AndroidKeyAttestationStatusEntry>(StringComparer.Ordinal));
     }
 
-    public static AndroidKeyAttestationStatusList With(string serialNumber, string? status = "REVOKED", string? reason = "KEY_COMPROMISE")
+    // the serial number in the form of the keys of the status list: lowercase hexadecimal without leading zeros
+    public static AndroidKeyAttestationStatusList With(
+        string serialNumber,
+        AndroidKeyAttestationRevocationStatus? status = AndroidKeyAttestationRevocationStatus.Revoked,
+        AndroidKeyAttestationRevocationReason? reason = AndroidKeyAttestationRevocationReason.KeyCompromise)
     {
-        return new(new Dictionary<string, AndroidKeyAttestationStatusEntry>
+        return new(new Dictionary<string, AndroidKeyAttestationStatusEntry>(StringComparer.Ordinal)
         {
             [serialNumber] = new(status, reason)
         });

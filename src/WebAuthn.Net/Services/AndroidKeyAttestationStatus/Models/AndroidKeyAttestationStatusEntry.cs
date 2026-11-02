@@ -1,3 +1,5 @@
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Enums;
+
 namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models;
 
 /// <summary>
@@ -9,22 +11,22 @@ public class AndroidKeyAttestationStatusEntry
     /// <summary>
     ///     Constructs <see cref="AndroidKeyAttestationStatusEntry" />.
     /// </summary>
-    /// <param name="status">The current status of the certificate (REVOKED or SUSPENDED, or another value), or <see langword="null" /> if the entry has no status.</param>
-    /// <param name="reason">The reason for the current status (UNSPECIFIED, KEY_COMPROMISE, CA_COMPROMISE, SUPERSEDED or SOFTWARE_FLAW, or another value), or <see langword="null" /> if the entry has no reason.</param>
-    public AndroidKeyAttestationStatusEntry(string? status, string? reason)
+    /// <param name="status">The status of the certificate, or <see langword="null" /> if the entry has no status or a status that the library doesn't know.</param>
+    /// <param name="reason">The reason for the status, or <see langword="null" /> if the entry has no reason or a reason that the library doesn't know.</param>
+    public AndroidKeyAttestationStatusEntry(AndroidKeyAttestationRevocationStatus? status, AndroidKeyAttestationRevocationReason? reason)
     {
         Status = status;
         Reason = reason;
     }
 
     /// <summary>
-    ///     The current status of the certificate (REVOKED or SUSPENDED, or another value), or <see langword="null" /> if the entry has no status.
+    ///     The status of the certificate, or <see langword="null" /> if the entry has no status or a status that the library doesn't know.
     ///     The status list contains only the certificates that don't have a normal valid status, so every certificate in it is untrusted, whatever its status.
     /// </summary>
-    public string? Status { get; }
+    public AndroidKeyAttestationRevocationStatus? Status { get; }
 
     /// <summary>
-    ///     The reason for the current status (UNSPECIFIED, KEY_COMPROMISE, CA_COMPROMISE, SUPERSEDED or SOFTWARE_FLAW, or another value), or <see langword="null" /> if the entry has no reason.
+    ///     The reason for the status, or <see langword="null" /> if the entry has no reason or a reason that the library doesn't know.
     /// </summary>
-    public string? Reason { get; }
+    public AndroidKeyAttestationRevocationReason? Reason { get; }
 }
