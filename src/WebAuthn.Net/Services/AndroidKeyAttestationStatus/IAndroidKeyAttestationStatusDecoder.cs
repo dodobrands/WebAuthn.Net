@@ -1,5 +1,6 @@
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Protocol.Json;
 
 namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus;
 
@@ -9,9 +10,12 @@ namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus;
 public interface IAndroidKeyAttestationStatusDecoder
 {
     /// <summary>
-    ///     Decodes the status list.
+    ///     Decodes the status list into a typed representation.
     /// </summary>
-    /// <param name="json">The status list in JSON, as Google serves it.</param>
-    /// <returns>If the status list was decoded, the result contains it, otherwise the result indicates that the status list is malformed.</returns>
-    Result<AndroidKeyAttestationStatusList> Decode(string json);
+    /// <remarks>
+    ///     The entries of the status list are decoded independently of each other. The result indicates an error only if the status list has no entries object.
+    /// </remarks>
+    /// <param name="json">JSON model of the status list.</param>
+    /// <returns>If decoding was successful, the result contains the <see cref="AndroidKeyAttestationStatusList" />, otherwise the result indicates that an error occurred.</returns>
+    Result<AndroidKeyAttestationStatusList> Decode(AndroidKeyAttestationStatusListJSON json);
 }

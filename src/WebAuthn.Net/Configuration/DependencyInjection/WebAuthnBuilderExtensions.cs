@@ -10,6 +10,8 @@ using WebAuthn.Net.Services.AndroidKeyAttestationStatus;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusDecoder;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusHttpClient;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngest;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngestService;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusProvider;
 using WebAuthn.Net.Services.AuthenticationCeremony;
 using WebAuthn.Net.Services.AuthenticationCeremony.Implementation;
 using WebAuthn.Net.Services.AuthenticationCeremony.Services.AuthenticationResponseDecoder;
@@ -134,7 +136,7 @@ public static class WebAuthnBuilderExtensions
 
     /// <summary>
     ///     Adds a set of services to DI responsible for the <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">certificate revocation status list</a>
-    ///     of the Android attestation keys: its decoder and the storage that keeps it in memory.
+    ///     of the Android attestation keys: its decoder, ingestion service and provider, and the storage that keeps it in memory.
     /// </summary>
     /// <param name="builder">An extensible <see cref="IWebAuthnBuilder{TContext}" />  instance for configuring the collection of services responsible for handling WebAuthn operations.</param>
     /// <typeparam name="TContext">The type of context in which the WebAuthn operation will be performed.</typeparam>
@@ -144,6 +146,8 @@ public static class WebAuthnBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusDecoder, DefaultAndroidKeyAttestationStatusDecoder>();
+        builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusIngestService, DefaultAndroidKeyAttestationStatusIngestService>();
+        builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusProvider, DefaultAndroidKeyAttestationStatusProvider>();
         builder.Services.TryAddSingleton<IAndroidKeyAttestationStatusStorage, DefaultInMemoryAndroidKeyAttestationStatusStorage>();
         return builder;
     }

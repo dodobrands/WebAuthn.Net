@@ -372,7 +372,7 @@ Google revokes the attestation keys of single Android devices (for example, keys
 
 WebAuthn.Net includes a background service (`AndroidKeyAttestationStatusIngestBackgroundService`) that downloads the status list from `https://android.googleapis.com/attestation/status` and keeps it in memory, the same way as the [FIDO metadata](#loading-and-updates):
 
-1. At start-up, the status list embedded in the application is loaded first, if you have embedded one.
+1. At start-up, the status list embedded in the application is loaded first, if you have embedded one. It doesn't replace a status list that is already in use (for example, kept by a persistent storage).
 2. Then the status list is downloaded, in any case: if the embedded status list has been loaded, the start of the application doesn't wait for the download; otherwise, the start of the application waits for the first attempt.
 3. If an attempt fails (the status list can't be downloaded or decoded, or an exception occurs), the next attempt is made after `RetryInterval` (1 minute by default), and so on until the status list is downloaded. The status list in use, if any, is kept meanwhile.
 4. Once the status list is downloaded, it is refreshed every `IngestInterval` (1 day by default: Google serves the status list with `Cache-Control: max-age=86400`).
@@ -404,7 +404,9 @@ The loading of the status list is counted in the `WebAuthn.Net.AndroidKeyAttesta
 - `webauthn.android_key.status_list.ingest.exceptions` is incremented when an attempt ends with an unexpected exception (the `source` tag is `embedded` or `download`). Such an exception is also logged at the `Error` level;
 - `webauthn.android_key.status_list.decode.anomalies` is incremented for an entry whose key or status deviates from the documented values (the `anomaly` tag tells how, for example `status.unknown`). Such an entry is kept, so its certificate stays untrusted, unless its key is not a serial number at all (`key.invalid`).
 
-Besides, the service logs at the `Information` level its start and its stop, every successful load with the number of entries, and, before each wait, how long the wait lasts and when the next attempt is made. To keep the status list in a persistent storage, implement `IAndroidKeyAttestationStatusStorage`. To configure the HttpClient that downloads it (for example, to add retries), pass a delegate to `AddAndroidKeyAttestationStatusHttpClient`.
+Besides, the service logs at the `Information` level its start and its stop, every successful load with the number of entries, and, before each wait, how long the wait lasts and when the next attempt is made.
+
+Like the FIDO metadata, the loading is split into services that you can replace: `IAndroidKeyAttestationStatusProvider` downloads the status list (through `IAndroidKeyAttestationStatusHttpClient`) or loads the embedded one, and checks that it matches its JSON format; `IAndroidKeyAttestationStatusDecoder` decodes its entries; `IAndroidKeyAttestationStatusIngestService` stores it in `IAndroidKeyAttestationStatusStorage`. To keep the status list in a persistent storage, implement `IAndroidKeyAttestationStatusStorage`. To configure the HttpClient that downloads it (for example, to add retries), pass a delegate to `AddAndroidKeyAttestationStatusHttpClient`.
 
 ## Dependency Injection
 

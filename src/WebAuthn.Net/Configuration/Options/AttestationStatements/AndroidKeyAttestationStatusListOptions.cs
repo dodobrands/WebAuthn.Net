@@ -68,6 +68,7 @@ public class AndroidKeyAttestationStatusListOptions
     /// <remarks>
     ///     <para>
     ///         The embedded status list is loaded at start-up before the download, so that "Android Key" attestation statements can be verified even if <see cref="DownloadUri" /> is unavailable.
+    ///         It doesn't replace a status list that is already in use (for example, a persistent storage keeps the status list downloaded before the restart of the application).
     ///         The status list downloaded from <see cref="DownloadUri" /> replaces it as soon as it is downloaded. If the embedded status list can't be loaded, the reason is logged and counted,
     ///         and the status list is downloaded from <see cref="DownloadUri" /> only.
     ///     </para>

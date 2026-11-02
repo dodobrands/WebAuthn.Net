@@ -10,13 +10,13 @@ public interface IAndroidKeyAttestationStatusCounters
     /// <summary>
     ///     Increments the counter of the status lists that could not be downloaded, or were rejected after the download because they are malformed.
     /// </summary>
-    /// <param name="reason">The reason, one of a bounded set of values defined by the background ingestion (for example, <c>request_failed</c>).</param>
+    /// <param name="reason">The reason, one of a bounded set of values defined by the provider of the status list (for example, <c>request_failed</c>).</param>
     void IncrementDownloadFailure(string reason);
 
     /// <summary>
     ///     Increments the counter of the status lists embedded in the application that could not be loaded, or were rejected because they are malformed.
     /// </summary>
-    /// <param name="reason">The reason, one of a bounded set of values defined by the background ingestion (for example, <c>resource_not_found</c>).</param>
+    /// <param name="reason">The reason, one of a bounded set of values defined by the provider of the status list (for example, <c>resource_not_found</c>).</param>
     void IncrementEmbeddedFailure(string reason);
 
     /// <summary>

@@ -1,10 +1,5 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -15,7 +10,6 @@ using WebAuthn.Net.Configuration.Options.AttestationStatements;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngest.Constants;
 using WebAuthn.Net.Services.Metrics;
 using WebAuthn.Net.Services.Providers;
-using WebAuthn.Net.Storage.AndroidKeyAttestationStatus;
 
 namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusIngest;
 
@@ -60,33 +54,33 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
     ///     Constructs <see cref="AndroidKeyAttestationStatusIngestBackgroundService" />.
     /// </summary>
     /// <param name="options">Accessor for getting the current value of global options, which contain the options of the status list.</param>
-    /// <param name="httpClient">An HTTP client for downloading the status list.</param>
+    /// <param name="ingestService">The ingestion service for the status list, designed to store the status list that is in use.</param>
+    /// <param name="provider">Provider of the status list.</param>
     /// <param name="decoder">Decoder of the status list.</param>
-    /// <param name="storage">Storage of the status list that is in use.</param>
     /// <param name="timeProvider">Current time provider, used to log the time when the next attempt to download the status list is made.</param>
-    /// <param name="counters">Counters for the metrics of the status list, used to count the failed attempts to load it.</param>
+    /// <param name="counters">Counters for the metrics of the status list, used to count the attempts to load it that ended with an exception.</param>
     /// <param name="logger">Logger.</param>
     /// <exception cref="ArgumentNullException">Any of the parameters is <see langword="null" /></exception>
     public AndroidKeyAttestationStatusIngestBackgroundService(
         IOptionsMonitor<WebAuthnOptions> options,
-        IAndroidKeyAttestationStatusHttpClient httpClient,
+        IAndroidKeyAttestationStatusIngestService ingestService,
+        IAndroidKeyAttestationStatusProvider provider,
         IAndroidKeyAttestationStatusDecoder decoder,
-        IAndroidKeyAttestationStatusStorage storage,
         ITimeProvider timeProvider,
         IAndroidKeyAttestationStatusCounters counters,
         ILogger<AndroidKeyAttestationStatusIngestBackgroundService> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(httpClient);
+        ArgumentNullException.ThrowIfNull(ingestService);
+        ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(decoder);
-        ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(logger);
         Options = options;
-        HttpClient = httpClient;
+        IngestService = ingestService;
+        Provider = provider;
         Decoder = decoder;
-        Storage = storage;
         TimeProvider = timeProvider;
         Counters = counters;
         Logger = logger;
@@ -98,9 +92,14 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
     protected IOptionsMonitor<WebAuthnOptions> Options { get; }
 
     /// <summary>
-    ///     An HTTP client for downloading the status list.
+    ///     The ingestion service for the status list, designed to store the status list that is in use.
     /// </summary>
-    protected IAndroidKeyAttestationStatusHttpClient HttpClient { get; }
+    protected IAndroidKeyAttestationStatusIngestService IngestService { get; }
+
+    /// <summary>
+    ///     Provider of the status list.
+    /// </summary>
+    protected IAndroidKeyAttestationStatusProvider Provider { get; }
 
     /// <summary>
     ///     Decoder of the status list.
@@ -108,17 +107,12 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
     protected IAndroidKeyAttestationStatusDecoder Decoder { get; }
 
     /// <summary>
-    ///     Storage of the status list that is in use.
-    /// </summary>
-    protected IAndroidKeyAttestationStatusStorage Storage { get; }
-
-    /// <summary>
     ///     Current time provider, used to log the time when the next attempt to download the status list is made.
     /// </summary>
     protected ITimeProvider TimeProvider { get; }
 
     /// <summary>
-    ///     Counters for the metrics of the status list, used to count the failed attempts to load it.
+    ///     Counters for the metrics of the status list, used to count the attempts to load it that ended with an exception.
     /// </summary>
     protected IAndroidKeyAttestationStatusCounters Counters { get; }
 
@@ -167,7 +161,7 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
     }
 
     /// <summary>
-    ///     Asynchronously downloads and stores the status list in an infinite loop, until the <paramref name="stoppingToken" /> triggers.
+    ///     Asynchronously downloads and ingests the status list in an infinite loop, until the <paramref name="stoppingToken" /> triggers.
     ///     The first download takes place right away if the status list embedded in the application has been loaded at start-up, otherwise after the delay that follows the download at start-up.
     ///     The delay before each next download depends on the result of the previous one (see <see cref="GetNextDelay" />).
     /// </summary>
@@ -195,14 +189,17 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
     }
 
     /// <summary>
-    ///     Asynchronously loads the status list embedded in the application, decodes and stores it.
+    ///     Asynchronously loads the status list embedded in the application, decodes and ingests it.
     /// </summary>
     /// <remarks>
-    ///     A failure doesn't throw an exception (only the cancellation does): the reason is logged and counted, and the status list is downloaded only.
+    ///     A failure doesn't throw an exception (only the cancellation does): the reason is logged and counted, and the status list is only downloaded.
     /// </remarks>
     /// <param name="embeddedStatusList">The status list embedded in the application (<see cref="AndroidKeyAttestationStatusListOptions.EmbeddedStatusList" />).</param>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns><see langword="true" /> if the embedded status list was stored, so that the status list is available, otherwise <see langword="false" />.</returns>
+    /// <returns>
+    ///     <see langword="true" /> if the embedded status list was ingested, or a status list is already in use, so that the status list is available.
+    ///     <see langword="false" /> if the embedded status list could not be loaded, decoded or ingested.
+    /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="embeddedStatusList" /> is <see langword="null" /></exception>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     protected virtual async Task<bool> LoadEmbeddedStatusListAsync(AndroidKeyAttestationEmbeddedStatusListOptions embeddedStatusList, CancellationToken cancellationToken)
@@ -211,37 +208,28 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            var assembly = embeddedStatusList.Assembly;
-            var resourceName = embeddedStatusList.ResourceName;
-            string json;
-            await using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
+            var statusListResult = await Provider.LoadEmbeddedStatusListAsync(embeddedStatusList.Assembly, embeddedStatusList.ResourceName, cancellationToken);
+            if (statusListResult.HasError)
             {
-                if (resourceStream is null)
-                {
-                    Logger.WarnEmbeddedStatusListResourceNotFound(resourceName, assembly.FullName, FormatManifestResourceNames(assembly));
-                    Counters.IncrementEmbeddedFailure(AndroidKeyAttestationStatusListFailures.ResourceNotFound);
-                    return false;
-                }
-
-                using var reader = new StreamReader(resourceStream, Encoding.UTF8, true);
-                json = await reader.ReadToEndAsync(cancellationToken);
-            }
-
-            var decodeResult = Decoder.Decode(json);
-            if (decodeResult.HasError)
-            {
-                Logger.WarnEmbeddedStatusListInvalid(resourceName, assembly.FullName);
-                Counters.IncrementEmbeddedFailure(AndroidKeyAttestationStatusListFailures.ListInvalid);
+                // The reason is logged and counted by the provider.
+                Logger.WarnEmbeddedStatusListNotLoaded();
                 return false;
             }
 
-            await Storage.UpsertAsync(decodeResult.Ok, cancellationToken);
-            Logger.InfoEmbeddedStatusListLoaded(decodeResult.Ok.Entries.Count);
+            var decodeResult = Decoder.Decode(statusListResult.Ok);
+            if (decodeResult.HasError)
+            {
+                Logger.WarnEmbeddedStatusListDecodeFailed();
+                return false;
+            }
+
+            await IngestService.UpsertEmbeddedAsync(decodeResult.Ok, cancellationToken);
+            Logger.InfoEmbeddedStatusListLoaded();
             return true;
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // For example, a timeout of a persistent storage.
+            // For example, a custom provider that doesn't support the embedded status list, or a timeout of a persistent storage.
             Logger.ErrorEmbeddedStatusListLoadFailed(exception);
             Counters.IncrementIngestException(AndroidKeyAttestationStatusListSources.Embedded);
             return false;
@@ -249,45 +237,38 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
     }
 
     /// <summary>
-    ///     Asynchronously downloads the status list, decodes and stores it.
+    ///     Asynchronously downloads the status list, decodes and ingests it.
     /// </summary>
     /// <remarks>
     ///     A failure doesn't throw an exception (only the cancellation does): the reason is logged and counted, so that it breaks neither the start of the application nor the background ingestion, which tries again later.
     /// </remarks>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
-    /// <returns><see langword="true" /> if the status list was downloaded and stored, otherwise <see langword="false" />.</returns>
+    /// <returns>
+    ///     <see langword="true" /> if the status list was ingested, so that it is up to date.
+    ///     <see langword="false" /> if the status list could not be downloaded, decoded or ingested.
+    /// </returns>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     protected virtual async Task<bool> DownloadStatusListAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            string json;
-            try
+            var statusListResult = await Provider.DownloadStatusListAsync(cancellationToken);
+            if (statusListResult.HasError)
             {
-                json = await HttpClient.DownloadStatusListAsync(cancellationToken);
-            }
-            catch (Exception exception) when (exception is HttpRequestException or TimeoutException or IOException)
-            {
-                // The request failed, the response has an unsuccessful status code or exceeds the limits of the client, or the connection was broken.
-                // A failed download is an expected failure rather than an exception: it is logged and counted with its reason, and the download is retried later.
-                Logger.WarnDownloadFailed(exception);
-                Counters.IncrementDownloadFailure(exception is TimeoutException
-                    ? AndroidKeyAttestationStatusListFailures.Timeout
-                    : AndroidKeyAttestationStatusListFailures.RequestFailed);
+                // The reason is logged and counted by the provider.
+                Logger.FailedToDownload();
                 return false;
             }
 
-            var decodeResult = Decoder.Decode(json);
+            var decodeResult = Decoder.Decode(statusListResult.Ok);
             if (decodeResult.HasError)
             {
-                Logger.WarnDownloadedStatusListInvalid();
-                Counters.IncrementDownloadFailure(AndroidKeyAttestationStatusListFailures.ListInvalid);
+                Logger.FailedToDecode();
                 return false;
             }
 
-            await Storage.UpsertAsync(decodeResult.Ok, cancellationToken);
-            Logger.InfoDownloaded(decodeResult.Ok.Entries.Count);
+            await IngestService.UpsertAsync(decodeResult.Ok, cancellationToken);
             return true;
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
@@ -300,7 +281,7 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
     }
 
     /// <summary>
-    ///     Returns the delay before the next download. Logs the number of unsuccessful attempts before a successful one (the success and the reason of a failure are logged by <see cref="DownloadStatusListAsync" />),
+    ///     Returns the delay before the next download. Logs the success of the last download (the reason of a failure is logged by <see cref="DownloadStatusListAsync" />),
     ///     the delay and the time when the next download is made.
     /// </summary>
     /// <param name="lastDownloadWasSuccessful">Whether the last download was successful.</param>
@@ -315,8 +296,12 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
         {
             if (_failedAttempts > 0)
             {
-                Logger.InfoDownloadedAfterFailedAttempts(_failedAttempts);
+                Logger.InfoLoadedAfterFailedAttempts(_failedAttempts);
                 _failedAttempts = 0;
+            }
+            else
+            {
+                Logger.InfoLoaded();
             }
 
             var ingestInterval = GetIntervalOrDefault(options.IngestInterval, DefaultIngestInterval, nameof(options.IngestInterval));
@@ -349,21 +334,6 @@ public class AndroidKeyAttestationStatusIngestBackgroundService : BackgroundServ
             await Task.Delay(part, cancellationToken);
             remaining -= part;
         }
-    }
-
-    private static string FormatManifestResourceNames(Assembly assembly)
-    {
-        const int maxNames = 16;
-        var names = assembly.GetManifestResourceNames();
-        if (names.Length == 0)
-        {
-            return "<none>";
-        }
-
-        var formattedNames = string.Join(", ", names.Order(StringComparer.Ordinal).Take(maxNames).Select(static x => $"'{x}'"));
-        return names.Length > maxNames
-            ? $"{formattedNames}, ... ({names.Length} in total)"
-            : formattedNames;
     }
 
     private TimeSpan GetIntervalOrDefault(TimeSpan interval, TimeSpan defaultInterval, string optionName)
@@ -409,37 +379,59 @@ public static partial class AndroidKeyAttestationStatusIngestBackgroundServiceLo
     public static partial void InfoStopped(this ILogger logger);
 
     /// <summary>
-    ///     The status list of the Android attestation keys embedded in the application was loaded: {EntryCount} entries
+    ///     Failed to download the status list of the Android attestation keys
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="entryCount">The number of entries of the status list.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to download the status list of the Android attestation keys")]
+    public static partial void FailedToDownload(this ILogger logger);
+
+    /// <summary>
+    ///     Failed to decode the downloaded status list of the Android attestation keys
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to decode the downloaded status list of the Android attestation keys")]
+    public static partial void FailedToDecode(this ILogger logger);
+
+    /// <summary>
+    ///     Failed to load the status list of the Android attestation keys because of an exception
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="exception">The exception that interrupted the attempt.</param>
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "Failed to load the status list of the Android attestation keys because of an exception")]
+    public static partial void ErrorDownloadAndUpsertFailed(this ILogger logger, Exception exception);
+
+    /// <summary>
+    ///     The status list of the Android attestation keys embedded in the application was loaded
+    /// </summary>
+    /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "The status list of the Android attestation keys embedded in the application was loaded: {EntryCount} entries")]
-    public static partial void InfoEmbeddedStatusListLoaded(this ILogger logger, int entryCount);
+        Message = "The status list of the Android attestation keys embedded in the application was loaded")]
+    public static partial void InfoEmbeddedStatusListLoaded(this ILogger logger);
 
     /// <summary>
-    ///     The status list of the Android attestation keys embedded in the application can't be loaded: the assembly '{Assembly}' doesn't contain the manifest resource '{ResourceName}' (the manifest resources of the assembly: {ResourceNames})
+    ///     Failed to load the status list of the Android attestation keys embedded in the application
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="resourceName">The name of the manifest resource of the status list.</param>
-    /// <param name="assembly">The full name of the assembly.</param>
-    /// <param name="resourceNames">The names of the manifest resources of the assembly.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The status list of the Android attestation keys embedded in the application can't be loaded: the assembly '{Assembly}' doesn't contain the manifest resource '{ResourceName}' (the manifest resources of the assembly: {ResourceNames})")]
-    public static partial void WarnEmbeddedStatusListResourceNotFound(this ILogger logger, string resourceName, string? assembly, string resourceNames);
+        Message = "Failed to load the status list of the Android attestation keys embedded in the application")]
+    public static partial void WarnEmbeddedStatusListNotLoaded(this ILogger logger);
 
     /// <summary>
-    ///     The status list of the Android attestation keys embedded in the application (the manifest resource '{ResourceName}' of the assembly '{Assembly}') is malformed
+    ///     Failed to decode the status list of the Android attestation keys embedded in the application
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="resourceName">The name of the manifest resource of the status list.</param>
-    /// <param name="assembly">The full name of the assembly.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The status list of the Android attestation keys embedded in the application (the manifest resource '{ResourceName}' of the assembly '{Assembly}') is malformed")]
-    public static partial void WarnEmbeddedStatusListInvalid(this ILogger logger, string resourceName, string? assembly);
+        Message = "Failed to decode the status list of the Android attestation keys embedded in the application")]
+    public static partial void WarnEmbeddedStatusListDecodeFailed(this ILogger logger);
 
     /// <summary>
     ///     Failed to load the status list of the Android attestation keys embedded in the application because of an exception
@@ -452,53 +444,35 @@ public static partial class AndroidKeyAttestationStatusIngestBackgroundServiceLo
     public static partial void ErrorEmbeddedStatusListLoadFailed(this ILogger logger, Exception exception);
 
     /// <summary>
-    ///     The status list of the Android attestation keys was downloaded: {EntryCount} entries
+    ///     The next attempt to download the status list of the Android attestation keys will be made in {RetryInterval} (at {NextAttemptTime:O}), consecutive unsuccessful attempts: {FailedAttempts}
     /// </summary>
     /// <param name="logger">Logger.</param>
-    /// <param name="entryCount">The number of entries of the status list.</param>
+    /// <param name="retryInterval">The delay before the next attempt.</param>
+    /// <param name="nextAttemptTime">The time when the next attempt is made.</param>
+    /// <param name="failedAttempts">The number of consecutive unsuccessful attempts.</param>
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "The status list of the Android attestation keys was downloaded: {EntryCount} entries")]
-    public static partial void InfoDownloaded(this ILogger logger, int entryCount);
+        Message = "The next attempt to download the status list of the Android attestation keys will be made in {RetryInterval} (at {NextAttemptTime:O}), consecutive unsuccessful attempts: {FailedAttempts}")]
+    public static partial void InfoNextAttemptScheduled(this ILogger logger, TimeSpan retryInterval, DateTimeOffset nextAttemptTime, int failedAttempts);
 
     /// <summary>
-    ///     Failed to download the status list of the Android attestation keys
-    /// </summary>
-    /// <param name="logger">Logger.</param>
-    /// <param name="exception">The exception of the HTTP client that describes the failure.</param>
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Failed to download the status list of the Android attestation keys")]
-    public static partial void WarnDownloadFailed(this ILogger logger, Exception exception);
-
-    /// <summary>
-    ///     The downloaded status list of the Android attestation keys is malformed
+    ///     The status list of the Android attestation keys was downloaded
     /// </summary>
     /// <param name="logger">Logger.</param>
     [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "The downloaded status list of the Android attestation keys is malformed")]
-    public static partial void WarnDownloadedStatusListInvalid(this ILogger logger);
+        Level = LogLevel.Information,
+        Message = "The status list of the Android attestation keys was downloaded")]
+    public static partial void InfoLoaded(this ILogger logger);
 
     /// <summary>
-    ///     Failed to download the status list of the Android attestation keys because of an exception
-    /// </summary>
-    /// <param name="logger">Logger.</param>
-    /// <param name="exception">The exception that interrupted the attempt.</param>
-    [LoggerMessage(
-        Level = LogLevel.Error,
-        Message = "Failed to download the status list of the Android attestation keys because of an exception")]
-    public static partial void ErrorDownloadAndUpsertFailed(this ILogger logger, Exception exception);
-
-    /// <summary>
-    ///     The status list of the Android attestation keys was downloaded after {FailedAttempts} consecutive unsuccessful attempts
+    ///     The status list of the Android attestation keys was downloaded, consecutive unsuccessful attempts before it: {FailedAttempts}
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <param name="failedAttempts">The number of consecutive unsuccessful attempts before the successful one.</param>
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "The status list of the Android attestation keys was downloaded after {FailedAttempts} consecutive unsuccessful attempts")]
-    public static partial void InfoDownloadedAfterFailedAttempts(this ILogger logger, int failedAttempts);
+        Message = "The status list of the Android attestation keys was downloaded, consecutive unsuccessful attempts before it: {FailedAttempts}")]
+    public static partial void InfoLoadedAfterFailedAttempts(this ILogger logger, int failedAttempts);
 
     /// <summary>
     ///     The next refresh of the status list of the Android attestation keys will be made in {IngestInterval} (at {NextRefreshTime:O})
@@ -510,18 +484,6 @@ public static partial class AndroidKeyAttestationStatusIngestBackgroundServiceLo
         Level = LogLevel.Information,
         Message = "The next refresh of the status list of the Android attestation keys will be made in {IngestInterval} (at {NextRefreshTime:O})")]
     public static partial void InfoNextRefreshScheduled(this ILogger logger, TimeSpan ingestInterval, DateTimeOffset nextRefreshTime);
-
-    /// <summary>
-    ///     The next attempt to download the status list of the Android attestation keys will be made in {RetryInterval} (at {NextAttemptTime:O}), consecutive unsuccessful attempts: {FailedAttempts}
-    /// </summary>
-    /// <param name="logger">Logger.</param>
-    /// <param name="retryInterval">The delay before the next attempt.</param>
-    /// <param name="nextAttemptTime">The time when the next attempt is made.</param>
-    /// <param name="failedAttempts">The number of consecutive unsuccessful attempts.</param>
-    [LoggerMessage(
-        Level = LogLevel.Information,
-        Message = "The next attempt to download the status list of the Android attestation keys will be made in {RetryInterval} (at {NextAttemptTime:O}), consecutive unsuccessful attempts: {FailedAttempts}")]
-    public static partial void InfoNextAttemptScheduled(this ILogger logger, TimeSpan retryInterval, DateTimeOffset nextAttemptTime, int failedAttempts);
 
     /// <summary>
     ///     The {Option} of {Value} is not a positive interval, so the default interval of {DefaultValue} is used instead

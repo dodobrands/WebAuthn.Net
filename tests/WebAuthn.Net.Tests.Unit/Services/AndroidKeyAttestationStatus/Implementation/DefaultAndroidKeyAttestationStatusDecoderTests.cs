@@ -1,10 +1,11 @@
 using System.Linq;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using WebAuthn.Net.DSL.Fakes;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusDecoder;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusDecoder.Constants;
-using WebAuthn.Net.Services.Serialization.Json.Implementation;
+using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Models.Protocol.Json;
 
 namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation;
 
@@ -19,7 +20,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     {
         Counters = new();
         Logger = new();
-        Decoder = new(new DefaultSafeJsonSerializer(new FakeLogger<DefaultSafeJsonSerializer>()), Counters, Logger);
+        Decoder = new(Counters, Logger);
     }
 
     [Test]
@@ -47,7 +48,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
                             }
                             """;
 
-        var result = Decoder.Decode(json);
+        var result = Decoder.Decode(Json(json));
 
         Assert.That(result.HasError, Is.False);
         var entries = result.Ok!.Entries;
@@ -66,40 +67,17 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [Test]
     public void Decode_ReturnsEmptyStatusList_WhenThereAreNoEntries()
     {
-        var result = Decoder.Decode("""{"entries":{}}""");
+        var result = Decoder.Decode(Json("""{"entries":{}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Ok!.Entries, Is.Empty);
     }
 
-    [TestCase("")]
-    [TestCase("not json")]
-    [TestCase("[]")]
-    [TestCase("""{"entries":[]}""")]
-    [TestCase("""{"entries":"REVOKED"}""")]
-    // an entry or a member of an entry of the wrong type
-    [TestCase("""{"entries":{"1a":"REVOKED"}}""")]
-    [TestCase("""{"entries":{"1a":[]}}""")]
-    [TestCase("""{"entries":{"1a":{"status":1}}}""")]
-    [TestCase("""{"entries":{"1a":{"status":["REVOKED"]}}}""")]
-    [TestCase("""{"entries":{"1a":{"status":"REVOKED","reason":1}}}""")]
-    public void Decode_Fails_WhenStatusListDoesNotMatchJsonFormat(string json)
+    [Test]
+    public void Decode_Fails_WhenEntriesAreMissing()
     {
-        var result = Decoder.Decode(json);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.HasError, Is.True);
-            Assert.That(Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message), Has.One.EqualTo("The status list of the Android attestation keys doesn't match its JSON format"));
-        });
-    }
-
-    [TestCase("{}")]
-    [TestCase("""{"entries":null}""")]
-    [TestCase("""{"Entries":{"1":{"status":"REVOKED"}}}""")]
-    public void Decode_Fails_WhenEntriesAreMissing(string json)
-    {
-        var result = Decoder.Decode(json);
+        // the default provider doesn't provide such a status list, but another one might
+        var result = Decoder.Decode(new AndroidKeyAttestationStatusListJSON(null));
 
         Assert.Multiple(() =>
         {
@@ -114,7 +92,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [TestCase("")]
     public void Decode_SkipsEntry_WhenKeyIsNotSerialNumberInHexadecimal(string key)
     {
-        var result = Decoder.Decode($$$$"""{"entries":{"{{{{key}}}}":{"status":"REVOKED"},"1a":{"status":"REVOKED"}}}""");
+        var result = Decoder.Decode(Json($$$$"""{"entries":{"{{{{key}}}}":{"status":"REVOKED"},"1a":{"status":"REVOKED"}}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
@@ -130,7 +108,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [Test]
     public void Decode_LogsSanitizedKey_WhenKeyContainsControlCharacters()
     {
-        var result = Decoder.Decode("""{"entries":{"1a\r\nFAKE\u001b[31m":{"status":"REVOKED"}}}""");
+        var result = Decoder.Decode(Json("""{"entries":{"1a\r\nFAKE\u001b[31m":{"status":"REVOKED"}}}"""));
 
         Assert.That(result.HasError, Is.False);
         var warning = Logger.Entries.Single(static x => x.Level == LogLevel.Warning).Message;
@@ -147,7 +125,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [TestCase("000", "0")]
     public void Decode_KeepsEntryUnderNormalizedKey_WhenKeyIsNotCanonical(string key, string serialNumber)
     {
-        var result = Decoder.Decode($$$$"""{"entries":{"{{{{key}}}}":{"status":"REVOKED"}}}""");
+        var result = Decoder.Decode(Json($$$$"""{"entries":{"{{{{key}}}}":{"status":"REVOKED"}}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
@@ -164,7 +142,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [Test]
     public void Decode_KeepsFirstEntry_WhenKeysNameTheSameSerialNumber()
     {
-        var result = Decoder.Decode("""{"entries":{"1a":{"status":"REVOKED"},"01A":{"status":"SUSPENDED"}}}""");
+        var result = Decoder.Decode(Json("""{"entries":{"1a":{"status":"REVOKED"},"01A":{"status":"SUSPENDED"}}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
@@ -182,7 +160,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     public void Decode_KeepsEntryWithoutStatus_WhenStatusIsMissing(string entry)
     {
         // The status list contains only the certificates that don't have a normal valid status, so an entry without a status still names an untrusted certificate.
-        var result = Decoder.Decode($$$$"""{"entries":{"1a":{{{{entry}}}}}}""");
+        var result = Decoder.Decode(Json($$$$"""{"entries":{"1a":{{{{entry}}}}}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
@@ -200,7 +178,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [TestCase("revoked")]
     public void Decode_KeepsEntry_WhenStatusIsUnknown(string status)
     {
-        var result = Decoder.Decode($$$$"""{"entries":{"1a":{"status":"{{{{status}}}}","reason":"UNSPECIFIED"}}}""");
+        var result = Decoder.Decode(Json($$$$"""{"entries":{"1a":{"status":"{{{{status}}}}","reason":"UNSPECIFIED"}}}"""));
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
@@ -214,20 +192,9 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
         });
     }
 
-    [Test]
-    public void Decode_IgnoresMembersThatAreNotUsed_WhateverTheirType()
+    private static AndroidKeyAttestationStatusListJSON Json(string json)
     {
-        // 'expires' and 'comment' are documented but not used, so their format can't make the status list invalid
-        var result = Decoder.Decode("""{"entries":{"1a":{"status":"REVOKED","reason":"KEY_COMPROMISE","expires":20201113,"comment":["Bug"],"unknown":{"a":1}}},"unknown":1}""");
-
-        Assert.That(result.HasError, Is.False);
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.Ok!.Entries["1a"].Status, Is.EqualTo("REVOKED"));
-            Assert.That(result.Ok.Entries["1a"].Reason, Is.EqualTo("KEY_COMPROMISE"));
-            Assert.That(Counters.DecodeAnomalies, Is.Empty);
-            Assert.That(Logger.Entries, Is.Empty);
-        });
+        return JsonSerializer.Deserialize<AndroidKeyAttestationStatusListJSON>(json)!;
     }
 
     private static string[] Values(params string[] values)
