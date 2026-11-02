@@ -399,10 +399,10 @@ Google doesn't sign the status list, so the embedded one is used as it is, like 
 
 The loading of the status list is counted in the `WebAuthn.Net.AndroidKeyAttestationStatus` meter:
 
-- `webauthn.android_key.status_list.download.failures` is incremented for a status list that can't be downloaded or decoded (the `reason` tag is `request_failed`, `timeout` or `list_invalid`). While the status list can't be downloaded, it grows every `RetryInterval`;
+- `webauthn.android_key.status_list.download.failures` is incremented for a status list that can't be downloaded, or doesn't match its [documented JSON format](https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status), for example, if a status is not a string (the `reason` tag is `request_failed`, `timeout` or `list_invalid`). Such a status list is rejected as a whole, and the status list in use is kept. While the status list can't be downloaded, the counter grows every `RetryInterval`;
 - `webauthn.android_key.status_list.embedded.failures` is incremented when the status list embedded in the application can't be loaded (the `reason` tag is `resource_not_found` or `list_invalid`);
 - `webauthn.android_key.status_list.ingest.exceptions` is incremented when an attempt ends with an unexpected exception (the `source` tag is `embedded` or `download`). Such an exception is also logged at the `Error` level;
-- `webauthn.android_key.status_list.decode.anomalies` is incremented for an entry that doesn't follow the documented format (the `anomaly` tag tells how, for example `status.unknown`). Such an entry is kept, so its certificate stays untrusted, unless its key is not a serial number at all (`key.invalid`).
+- `webauthn.android_key.status_list.decode.anomalies` is incremented for an entry whose key or status deviates from the documented values (the `anomaly` tag tells how, for example `status.unknown`). Such an entry is kept, so its certificate stays untrusted, unless its key is not a serial number at all (`key.invalid`).
 
 Besides, the service logs at the `Information` level its start and its stop, every successful load with the number of entries, and, before each wait, how long the wait lasts and when the next attempt is made. To keep the status list in a persistent storage, implement `IAndroidKeyAttestationStatusStorage`. To configure the HttpClient that downloads it (for example, to add retries), pass a delegate to `AddAndroidKeyAttestationStatusHttpClient`.
 

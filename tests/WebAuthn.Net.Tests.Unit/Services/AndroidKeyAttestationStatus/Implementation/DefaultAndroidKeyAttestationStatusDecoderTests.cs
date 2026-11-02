@@ -77,14 +77,20 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [TestCase("[]")]
     [TestCase("""{"entries":[]}""")]
     [TestCase("""{"entries":"REVOKED"}""")]
-    public void Decode_Fails_WhenStatusListIsNotJsonObjectWithEntriesObject(string json)
+    // an entry or a member of an entry of the wrong type
+    [TestCase("""{"entries":{"1a":"REVOKED"}}""")]
+    [TestCase("""{"entries":{"1a":[]}}""")]
+    [TestCase("""{"entries":{"1a":{"status":1}}}""")]
+    [TestCase("""{"entries":{"1a":{"status":["REVOKED"]}}}""")]
+    [TestCase("""{"entries":{"1a":{"status":"REVOKED","reason":1}}}""")]
+    public void Decode_Fails_WhenStatusListDoesNotMatchJsonFormat(string json)
     {
         var result = Decoder.Decode(json);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.HasError, Is.True);
-            Assert.That(Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message), Has.One.EqualTo("The status list of the Android attestation keys is not a valid JSON object"));
+            Assert.That(Logger.Entries.Where(static x => x.Level == LogLevel.Warning).Select(static x => x.Message), Has.One.EqualTo("The status list of the Android attestation keys doesn't match its JSON format"));
         });
     }
 
@@ -172,11 +178,7 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     [TestCase("""{"reason":"KEY_COMPROMISE"}""")]
     [TestCase("""{"status":""}""")]
     [TestCase("""{"status":null}""")]
-    [TestCase("""{"status":1}""")]
-    [TestCase("""{"status":["REVOKED"]}""")]
-    [TestCase("\"REVOKED\"")]
     [TestCase("null")]
-    [TestCase("[]")]
     public void Decode_KeepsEntryWithoutStatus_WhenStatusIsMissing(string entry)
     {
         // The status list contains only the certificates that don't have a normal valid status, so an entry without a status still names an untrusted certificate.
@@ -213,16 +215,18 @@ public class DefaultAndroidKeyAttestationStatusDecoderTests
     }
 
     [Test]
-    public void Decode_IgnoresReason_WhenItIsNotString()
+    public void Decode_IgnoresMembersThatAreNotUsed_WhateverTheirType()
     {
-        var result = Decoder.Decode("""{"entries":{"1a":{"status":"REVOKED","reason":1}}}""");
+        // 'expires' and 'comment' are documented but not used, so their format can't make the status list invalid
+        var result = Decoder.Decode("""{"entries":{"1a":{"status":"REVOKED","reason":"KEY_COMPROMISE","expires":20201113,"comment":["Bug"],"unknown":{"a":1}}},"unknown":1}""");
 
         Assert.That(result.HasError, Is.False);
         Assert.Multiple(() =>
         {
             Assert.That(result.Ok!.Entries["1a"].Status, Is.EqualTo("REVOKED"));
-            Assert.That(result.Ok.Entries["1a"].Reason, Is.Null);
+            Assert.That(result.Ok.Entries["1a"].Reason, Is.EqualTo("KEY_COMPROMISE"));
             Assert.That(Counters.DecodeAnomalies, Is.Empty);
+            Assert.That(Logger.Entries, Is.Empty);
         });
     }
 

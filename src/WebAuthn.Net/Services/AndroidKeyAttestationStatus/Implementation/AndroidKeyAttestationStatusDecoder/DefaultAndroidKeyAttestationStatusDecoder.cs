@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using WebAuthn.Net.Models;
 using WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.AndroidKeyAttestationStatusDecoder.Constants;
@@ -18,12 +17,12 @@ namespace WebAuthn.Net.Services.AndroidKeyAttestationStatus.Implementation.Andro
 /// </summary>
 /// <remarks>
 ///     <para>
-///         The status list is rejected only when it is not a JSON object with an 'entries' object. A malformed entry is handled on its own, and it is never dropped while it can still name a certificate:
-///         the status list contains only the certificates that don't have a normal valid status, so a dropped entry would let its certificate pass. Every anomaly is logged and counted
-///         (<see cref="AndroidKeyAttestationStatusAnomalies" />).
+///         The status list is rejected if it doesn't match its <a href="https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status">documented JSON format</a>
+///         (<see cref="AndroidKeyAttestationStatusListJSON" />): for example, if it has no 'entries' object, or the status of an entry is not a string.
 ///     </para>
 ///     <para>
-///         The members of an entry other than 'status' and 'reason' ('expires' and 'comment') are not used: an expired certificate is rejected by its validity period anyway.
+///         An entry that matches the format is never dropped while it can still name a certificate: the status list contains only the certificates that don't have a normal valid status,
+///         so a dropped entry would let its certificate pass. Every anomaly of an entry is logged and counted (<see cref="AndroidKeyAttestationStatusAnomalies" />).
 ///     </para>
 /// </remarks>
 public class DefaultAndroidKeyAttestationStatusDecoder : IAndroidKeyAttestationStatusDecoder
@@ -119,25 +118,12 @@ public class DefaultAndroidKeyAttestationStatusDecoder : IAndroidKeyAttestationS
     ///     An entry without a status, or with a status other than REVOKED and SUSPENDED, is kept: the certificate is in the status list, so it is untrusted. The anomaly is logged and counted.
     /// </remarks>
     /// <param name="serialNumber">The serial number of the certificate of the entry, normalized.</param>
-    /// <param name="entryJson">The entry.</param>
+    /// <param name="entryJson">The entry, or <see langword="null" /> if its value is <see langword="null" />.</param>
     /// <returns>The decoded entry.</returns>
-    protected virtual AndroidKeyAttestationStatusEntry DecodeEntry(string serialNumber, JsonElement entryJson)
+    protected virtual AndroidKeyAttestationStatusEntry DecodeEntry(string serialNumber, AndroidKeyAttestationStatusEntryJSON? entryJson)
     {
-        string? status = null;
-        string? reason = null;
-        if (entryJson.ValueKind == JsonValueKind.Object)
-        {
-            if (entryJson.TryGetProperty("status", out var statusJson) && statusJson.ValueKind == JsonValueKind.String)
-            {
-                status = statusJson.GetString();
-            }
-
-            if (entryJson.TryGetProperty("reason", out var reasonJson) && reasonJson.ValueKind == JsonValueKind.String)
-            {
-                reason = reasonJson.GetString();
-            }
-        }
-
+        var status = entryJson?.Status;
+        var reason = entryJson?.Reason;
         if (string.IsNullOrEmpty(status))
         {
             Logger.WarnEntryStatusMissing(serialNumber);
@@ -179,12 +165,12 @@ public class DefaultAndroidKeyAttestationStatusDecoder : IAndroidKeyAttestationS
 public static partial class DefaultAndroidKeyAttestationStatusDecoderLoggingExtensions
 {
     /// <summary>
-    ///     The status list of the Android attestation keys is not a valid JSON object
+    ///     The status list of the Android attestation keys doesn't match its JSON format
     /// </summary>
     /// <param name="logger">Logger.</param>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The status list of the Android attestation keys is not a valid JSON object")]
+        Message = "The status list of the Android attestation keys doesn't match its JSON format")]
     public static partial void WarnStatusListMalformed(this ILogger logger);
 
     /// <summary>

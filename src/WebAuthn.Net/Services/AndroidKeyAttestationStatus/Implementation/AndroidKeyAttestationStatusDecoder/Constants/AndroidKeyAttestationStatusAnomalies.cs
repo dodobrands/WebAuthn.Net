@@ -17,7 +17,7 @@ public static class AndroidKeyAttestationStatusAnomalies
     public const string KeyNotCanonical = "key.not_canonical";
 
     /// <summary>
-    ///     Tolerated: an entry has no status (the entry is not an object, or its 'status' member is absent, empty or not a string). The certificate is still in the status list, so it is untrusted.
+    ///     Tolerated: an entry has no status (the entry is null, or its 'status' member is absent, null or empty). The certificate is still in the status list, so it is untrusted.
     /// </summary>
     public const string StatusMissing = "status.missing";
 

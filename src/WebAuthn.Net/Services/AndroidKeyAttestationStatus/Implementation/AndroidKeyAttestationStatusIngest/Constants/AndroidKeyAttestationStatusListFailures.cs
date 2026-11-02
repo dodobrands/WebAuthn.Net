@@ -23,7 +23,7 @@ public static class AndroidKeyAttestationStatusListFailures
     public const string ResourceNotFound = "resource_not_found";
 
     /// <summary>
-    ///     The status list is malformed: it is not a JSON object with an 'entries' object.
+    ///     The status list is malformed: it doesn't match its documented JSON format (for example, it has no 'entries' object, or the status of an entry is not a string).
     /// </summary>
     public const string ListInvalid = "list_invalid";
 }
