@@ -28,14 +28,11 @@ public interface IFidoMetadataIngestStorage
     ///         <a href="https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.html#sctn-mds-payload-blob">MUST be consecutive and strictly monotonic</a>.
     ///     </para>
     ///     <para>
-    ///         The default implementation returns <see langword="null" />, which means that the storage doesn't track the serial number of the stored blob. In this case the ingestion service
-    ///         protects the metadata from a rollback only within its own lifetime. A persistent storage should override this method so that the protection also covers the restarts of the application.
+    ///         A storage that doesn't track the serial number of the stored blob returns <see langword="null" />. In this case the ingestion service protects the metadata from a rollback
+    ///         only within its own lifetime. A persistent storage should return the serial number of the stored blob so that the protection also covers the restarts of the application.
     ///     </para>
     /// </remarks>
     /// <param name="cancellationToken">Cancellation token for an asynchronous operation.</param>
     /// <returns>The serial number of the stored blob, or <see langword="null" /> if no blob is stored or the storage doesn't track its serial number.</returns>
-    Task<long?> GetCurrentBlobNoAsync(CancellationToken cancellationToken)
-    {
-        return Task.FromResult<long?>(null);
-    }
+    Task<long?> GetCurrentBlobNoAsync(CancellationToken cancellationToken);
 }
