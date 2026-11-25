@@ -60,6 +60,42 @@ The documentation for each project is described in its README.md file.
 - ✅ Designed with extensibility in mind (almost any library component can be overridden)
 - ✅ Intellisense documentation
 
+## Comparison with passkeys in ASP.NET Core Identity
+
+Since .NET 10, ASP.NET Core Identity [supports passkeys](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys/). Microsoft positions this support as a way to sign in to applications built on ASP.NET Core Identity rather than as a general-purpose WebAuthn library. WebAuthn.Net is a general-purpose library: it implements the Relying Party side of WebAuthn, doesn't depend on ASP.NET Core Identity, and leaves users, sign-in and UI to the application.
+
+The comparison is based on the source code of ASP.NET Core 10.0.15 and 11.0.0. Everything below applies to both versions.
+
+| | ASP.NET Core Identity | WebAuthn.Net |
+| --- | --- | --- |
+| Integration | Part of ASP.NET Core Identity: requires `UserManager<TUser>` with a store that implements `IUserPasskeyStore<TUser>`. `SignInManager<TUser>` provides the ready-made flow, which keeps the ceremony state and signs the user in with the cookies of ASP.NET Core Identity. Without it, through `IPasskeyHandler<TUser>`, the application has to keep and protect the ceremony state itself. | Doesn't depend on ASP.NET Core Identity. The library identifies a user only by an opaque user handle, and the application signs the user in however it needs: with a cookie, with tokens for a SPA or a mobile app, or as an OpenID Connect server. |
+| Attestation statements | Not verified by default: any attestation statement is accepted. The application can implement the `VerifyAttestationStatement` callback, which receives the raw attestation object and has to decode and verify it on its own. | `packed`, `tpm`, `android-key`, `fido-u2f`, `apple` and `none` are verified, including their certificate chains. `none` and self attestation can be rejected. By default, only TPM-bound keys and Android keys from a trusted execution environment (TEE or StrongBox) are accepted. |
+| [FIDO Metadata Service](https://fidoalliance.org/metadata) | Not supported. | Built in: the metadata is verified, refreshed daily and can be embedded in the application. It provides the trust anchors for `packed`, `tpm`, `android-key` and `fido-u2f` attestation. |
+| Revoked authenticators | Not detected. | If the authenticator model is identified through the FIDO metadata, registration is rejected when the metadata reports it as revoked, compromised or otherwise untrusted. Registration with `android-key` attestation is also rejected when its certificates are in [Google's revocation status list](https://developer.android.com/privacy-and-security/security-key-attestation#certificate_status). |
+| [FIDO conformance](https://fidoalliance.org/certification/functional-certification/conformance/) | The attestation tests of the FIDO Conformance Tools can't pass with the default settings: they expect invalid attestation statements to be rejected. | All FIDO2 server tests of the FIDO Conformance Tools pass: see the [results](demo/WebAuthn.Net.Demo.FidoConformance/docs/images/results.png) and the [demo application](demo/WebAuthn.Net.Demo.FidoConformance) for running them. |
+| Credential public key algorithms | ES256, ES384, ES512, PS256, PS384, PS512, RS256, RS384, RS512. | The same, plus EdDSA (Ed25519) and RS1. |
+| Ceremony options | Global: `IdentityPasskeyOptions`, with callbacks such as `ValidateOrigin` and `IsAllowedAlgorithm`. The methods that start a ceremony take only the user. `hints` and `attestationFormats` are always empty, and extensions are never sent. | Set for each ceremony, including `hints`, `attestation`, `attestationFormats`, extension inputs, and the accepted origins and top-level origins. |
+| Signature counter | A counter that didn't increase always fails the authentication. | Fails the authentication by default. Optionally, the ceremony completes with `SignCountNotIncreased` set, so that the application can take it into account in its risk scoring. |
+| Unexpected values in responses | Accepted: any `fmt`, and any `transports` values, which are stored and later sent back to the browser. The passkey code has no size limits of its own. | Rejected: unknown `fmt`, unknown or duplicate `transports` values, oversized responses. Each rejection is logged and counted. |
+| Storage | EF Core (the `AspNetUserPasskeys` table of the Identity schema version 3) or a custom `IUserPasskeyStore<TUser>`. | Ready-made storage for SQL Server, PostgreSQL and MySQL, where each operation runs in a single transaction, in-memory storage for development, or a custom storage. |
+| Monitoring | Metrics for passkey sign-ins and for adding, updating and removing passkeys. Failure reasons are logged only at the `Debug` level. | Metrics for both ceremonies, anomalies in the responses, the FIDO metadata and the Android status list, plus an [OpenTelemetry package](src/WebAuthn.Net.OpenTelemetry). Every failed ceremony is logged at the `Warning` level with the reason. |
+| UI | The Blazor Web App template includes signing in with a passkey (with autofill) and a page to add, rename and delete passkeys. | Not included. The application builds its own UI and lists, renames and deletes the stored credentials itself. The [demo application](demo/WebAuthn.Net.Demo.Mvc) shows a minimal client. |
+
+### When ASP.NET Core Identity is enough
+
+- The application already uses ASP.NET Core Identity with its cookie sign-in (for example, it was created from the Blazor Web App template), and passkeys are one more way to sign in.
+- The application accepts any authenticator and doesn't need attestation, which is typical for consumer applications.
+- A ready-made UI and support from Microsoft matter more than control over the ceremonies.
+
+### When WebAuthn.Net fits better
+
+- The application doesn't use ASP.NET Core Identity: it has its own user model, issues tokens to a SPA or a mobile app, or is an OpenID Connect server.
+- The application has to control which authenticators can be registered: for example, to accept only authenticators with a verifiable attestation in an enterprise or a regulated environment, or to keep out authenticator models with known vulnerabilities.
+- The application needs options for each ceremony, EdDSA, or strict validation of responses that can be monitored with logs and metrics.
+- The credentials have to be stored in SQL Server, PostgreSQL or MySQL without EF Core.
+
+WebAuthn.Net can also be used in an application built on ASP.NET Core Identity: after a successful authentication ceremony, the application finds the user by the returned user handle and signs them in with `SignInManager<TUser>.SignInAsync`.
+
 ## Local development
 
 ### Required dependencies
