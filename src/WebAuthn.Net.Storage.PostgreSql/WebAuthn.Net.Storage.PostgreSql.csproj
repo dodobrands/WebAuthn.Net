@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -25,9 +25,13 @@
     <ProjectReference Include="..\WebAuthn.Net\WebAuthn.Net.csproj"/>
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.89"/>
-    <PackageReference Include="Npgsql" Version="10.0.3"/>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net10.0' ">
+    <PackageReference Include="Dapper" Version="2.1.100"/>
+    <PackageReference Include="Npgsql" Version="10.0.4"/>
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net11.0' ">
+    <PackageReference Include="Dapper" Version="2.1.100"/>
+    <PackageReference Include="Npgsql" Version="11.0.0"/>
   </ItemGroup>
 
 </Project>
