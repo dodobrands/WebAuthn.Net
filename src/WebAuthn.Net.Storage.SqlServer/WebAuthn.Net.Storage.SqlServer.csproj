@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -21,10 +21,15 @@
     <None Include="./README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.89"/>
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1"/>
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14"/>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net10.0' ">
+    <PackageReference Include="Dapper" Version="2.1.100"/>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.2"/>
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15"/>
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net11.0' ">
+    <PackageReference Include="Dapper" Version="2.1.100"/>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.2"/>
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="11.0.0"/>
   </ItemGroup>
 
   <ItemGroup>

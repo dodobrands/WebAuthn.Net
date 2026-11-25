@@ -23,6 +23,7 @@ public class DefaultAndroidKeyAttestationStatusHttpClientTests
 
     private WebAuthnOptions WebAuthnOptions { get; set; } = null!;
     private FakeLogger<DefaultAndroidKeyAttestationStatusHttpClient> Logger { get; set; } = null!;
+    private CancellationTokenSource TestTimeoutCts { get; set; } = null!;
     private FakeResponseHandler Handler { get; set; } = null!;
     private HttpClient HttpClient { get; set; } = null!;
 
@@ -32,6 +33,7 @@ public class DefaultAndroidKeyAttestationStatusHttpClientTests
         WebAuthnOptions = new();
         WebAuthnOptions.AttestationStatements.AndroidKey.StatusList.MaxResponseSizeInBytes = MaxResponseSize;
         Logger = new();
+        TestTimeoutCts = new();
         Handler = new();
         HttpClient = new(Handler, false);
     }
@@ -39,8 +41,11 @@ public class DefaultAndroidKeyAttestationStatusHttpClientTests
     [TearDown]
     public void TearDownServices()
     {
+        // Stops the timer of the test timeout, which keeps running when the download completes first.
+        TestTimeoutCts.Cancel();
         HttpClient.Dispose();
         Handler.Dispose();
+        TestTimeoutCts.Dispose();
     }
 
     [Test]
@@ -130,7 +135,7 @@ public class DefaultAndroidKeyAttestationStatusHttpClientTests
         WebAuthnOptions.AttestationStatements.AndroidKey.StatusList.DownloadTimeout = TimeSpan.FromMilliseconds(200);
 
         var downloadTask = CreateClient().DownloadStatusListAsync(CancellationToken.None);
-        var completedTask = await Task.WhenAny(downloadTask, Task.Delay(TestTimeout));
+        var completedTask = await Task.WhenAny(downloadTask, Task.Delay(TestTimeout, TestTimeoutCts.Token));
 
         Assert.That(completedTask, Is.SameAs(downloadTask), "The download didn't complete within the test timeout");
         var exception = await Assert.ThrowsAsync<TimeoutException>(async () => await downloadTask);
@@ -150,7 +155,7 @@ public class DefaultAndroidKeyAttestationStatusHttpClientTests
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 
         var downloadTask = CreateClient().DownloadStatusListAsync(cts.Token);
-        var completedTask = await Task.WhenAny(downloadTask, Task.Delay(TestTimeout));
+        var completedTask = await Task.WhenAny(downloadTask, Task.Delay(TestTimeout, TestTimeoutCts.Token));
 
         Assert.That(completedTask, Is.SameAs(downloadTask), "The download didn't complete within the test timeout");
         var exception = await Assert.CatchAsync<OperationCanceledException>(async () => await downloadTask);

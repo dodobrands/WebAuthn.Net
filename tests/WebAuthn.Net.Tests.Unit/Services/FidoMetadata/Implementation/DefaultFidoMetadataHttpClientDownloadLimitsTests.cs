@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -18,6 +19,7 @@ using WebAuthn.Net.Services.FidoMetadata.Implementation.FidoMetadataHttpClient;
 
 namespace WebAuthn.Net.Services.FidoMetadata.Implementation;
 
+[SuppressMessage("Compiler", "CS8602:Dereference of a possibly null reference.")]
 public class DefaultFidoMetadataHttpClientDownloadLimitsTests
 {
     private const long MaxResponseSize = 1024;
